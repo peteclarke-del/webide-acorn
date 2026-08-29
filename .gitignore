@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+.env
+*.log
+*.tsbuildinfo
+/local-roms/
+/ci/project.json
+/ci/roms.json
+/ci/roms/
+/ci/results/
+/ci/gate-report.json
+/.ci-smoke-*
+/.toolchains/
+# Symfony regenerates these on every boot; they are not project files.
+/backend/var/cache/
+/backend/var/log/
+/backend/.phpunit.cache/
+# Composer restores these from composer.lock; they are not project files.
+/backend/vendor/
