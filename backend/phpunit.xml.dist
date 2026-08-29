@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache">
+  <php>
+    <env name="APP_ENV" value="test"/>
+    <env name="APP_DEBUG" value="1"/>
+    <env name="APP_SECRET" value="test-secret-not-for-production"/>
+  </php>
+  <testsuites>
+    <testsuite name="native-builder">
+      <directory>tests</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>

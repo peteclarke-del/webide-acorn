@@ -1,0 +1,412 @@
+--- a/Makefile
++++ b/Makefile
+@@ -17,13 +17,13 @@
+ ######################################################################
+ 
+ SHELL     := bash
+-BUILD_TAG := $(shell echo `git rev-parse --short HEAD`-`[[ -n $$(git status -s) ]] && echo 'dirty' || echo 'clean'` on `date --rfc-3339=seconds`)
++BUILD_TAG := webide-579ac437b9a4
+ 
+ CC             ?= gcc
+ CFLAGS         := -D_REENTRANT -DARCWEB -Wall -Werror -DBUILD_TAG="${BUILD_TAG}" -Isrc -Ibuild/generated-src
+ CFLAGS_WASM    := -sUSE_ZLIB=1 -sUSE_SDL=2 -Ibuild/generated-src
+ LINKFLAGS      := -lz -lSDL2 -lm -lGL -lGLU
+-LINKFLAGS_WASM := -sUSE_SDL=2 -sALLOW_MEMORY_GROWTH=1 -sTOTAL_MEMORY=32768000 -sFORCE_FILESYSTEM -sUSE_WEBGL2=1 -sEXPORTED_RUNTIME_METHODS=[\"ccall\"] -lidbfs.js -lz
++LINKFLAGS_WASM := -sUSE_ZLIB=1 -sUSE_SDL=2 -sALLOW_MEMORY_GROWTH=1 -sTOTAL_MEMORY=32768000 -sFORCE_FILESYSTEM -sUSE_WEBGL2=1 -sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_free\"] -sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"callMain\",\"FS\"] -sINVOKE_RUN=0 -lidbfs.js
+ DATA           := ddnoise
+ ifdef DEBUG
+   CFLAGS += -D_DEBUG -DDEBUG_LOG -O0 -g3
+@@ -56,7 +56,7 @@
+ 	lc main mem memc podules printer \
+ 	riscdev_hdfc romload sound sound_sdl2 \
+ 	st506 st506_akd52 timer vidc video_sdl2gl wd1770 \
+-	wx-sdl2-joystick \
++	wx-sdl2-joystick webide_bridge \
+     emscripten_main emscripten-console emscripten_podule_config podules-static
+ 
+ ifdef INCLUDE_LINUX
+--- a/src/arc.h
++++ b/src/arc.h
+@@ -91,7 +91,8 @@
+ extern int inscount;
+ 
+ extern void resetarm();
+ extern void execarm(int cycs);
++extern void execarm_webide_instruction(void);
+ extern void dumpregs();
+ extern int databort;
+ extern uint32_t opcode;
+@@ -256,6 +257,11 @@
+ void arc_set_display_mode(int new_display_mode);
+ void arc_set_dblscan(int new_dblscan);
+ 
++int arc_webide_breakpoint_at(uint32_t pc);
++int arc_webide_break_pending(void);
++void arc_webide_skip_current_breakpoint(void);
++extern int arc_webide_breakpoints_active;
++
+ 
+ void arc_stop_emulation();
+ void arc_popup_menu();
+--- a/src/arm.c
++++ b/src/arm.c
+@@ -35,6 +35,7 @@
+ static int cyc_s, cyc_n;
+ 
+ uint32_t opcode;
+-static uint32_t opcode2,opcode3;
++uint32_t opcode2,opcode3;
+-static uint32_t *usrregs[16],userregs[16],superregs[16],fiqregs[16],irqregs[16];
++static uint32_t *usrregs[16];
++uint32_t userregs[16],superregs[16],fiqregs[16],irqregs[16];
+ 
+@@ -534,7 +534,7 @@
+ 
+ int osmode=0;
+ 
+-static int mode;
++int mode;
+ 
+ #define USER       0
+ #define FIQ        1
+@@ -1195,6 +1195,7 @@
+ #define CHECK_ADDR_EXCEPTION(a) if ((a) & 0xfc000000) { databort = 2; return; }
+ 
+ static int64_t total_cycles;
++static int webide_instruction_budget;
+ 
+ typedef void (*OpFn)(uint32_t opcode);
+ 
+@@ -2634,6 +2635,14 @@
+ 
+ 	while (total_cycles>0)
+ 	{
++		/* Leave breakpoint inspection out of the hot path until the IDE has
++		 * installed one. RISC OS boot executes tens of millions of instructions;
++		 * scanning an empty table here made startup needlessly several times slower. */
++		if (webide_instruction_budget == 0 && arc_webide_breakpoints_active && arc_webide_breakpoint_at((PC - 8) & 0x3fffffc))
++		{
++			total_cycles = 0;
++			break;
++		}
+ //                LOG_VIDC_TIMING("cycles (%d) += vidcgetcycs() (%d) --> %d (%d) to execute before pollline()\n",
+ //                        oldcyc, vidc_cycles_to_execute, 0, 0);
+ 		uint64_t oldcyc = tsc;
+@@ -2739,8 +2745,19 @@
+ 			timer_process();
+ 
+ 		total_cycles -= (tsc - oldcyc);
++		if (webide_instruction_budget > 0 && --webide_instruction_budget == 0)
++			total_cycles = 0;
+ 
+ 	}
+ 	LOG_EVENT_LOOP("execarm() finished; and called pollline() %d times (should be ~160)\n",
+ 		pollline_call_count);
+ }
++
++void execarm_webide_instruction(void)
++{
++	total_cycles = 0;
++	webide_instruction_budget = 1;
++	execarm(1);
++	webide_instruction_budget = 0;
++	total_cycles = 0;
++}
+--- a/src/config.c
++++ b/src/config.c
+@@ -689,8 +689,9 @@
+ 	int c;
+ 
+ 	append_filename(config_file, exname, "arc.cfg", 511);
+     // if no machine is selected / config can't be found, default to all settings in one config
+-    append_filename(machine_config_file, exname, "arc.cfg", 511);
++    if (!machine_config_file[0])
++        append_filename(machine_config_file, exname, "arc.cfg", 511);
+     rpclog("config_file=%s\n", config_file);
+	config_load(CFG_GLOBAL, config_file);
+	config_dump(CFG_GLOBAL);
+--- a/src/input_sdl2.c
++++ b/src/input_sdl2.c
+@@ -6,4 +6,8 @@
+ #include "video.h"
+ 
++extern int arc_webide_injected_mouse_active;
++extern int arc_webide_injected_mouse_x, arc_webide_injected_mouse_y;
++extern int arc_webide_injected_mouse_buttons;
++
+ static int mouse_buttons;
+ static int mouse_x = 0, mouse_y = 0;
+@@ -104,6 +108,12 @@ void mouse_poll_host()
+ 	{
+ 		mouse_buttons |= 4;
+ 	}
++	if (arc_webide_injected_mouse_active)
++	{
++		mouse_x = arc_webide_injected_mouse_x;
++		mouse_y = arc_webide_injected_mouse_y;
++		mouse_buttons = arc_webide_injected_mouse_buttons;
++	}
+ 	// printf("mouse %d, %d\n", mouse_x, mouse_y);
+ }
+ 
+@@ -128,18 +138,19 @@
+ int key[512];
++extern int arc_webide_injected_key[512];
+ 
+ static void keyboard_init()
+ {
+ }
+ 
+ static void keyboard_close()
+ {
+ }
+ 
+ void keyboard_poll_host()
+ {
+ 	int c;
+ 	const uint8_t *state = SDL_GetKeyboardState(NULL);
+ 
+ 	for (c = 0; c < 512; c++)
+-		key[c] = state[c];
++		key[c] = state[c] || arc_webide_injected_key[c];
+ }
+ 
+ 
+--- a/src/main.c
++++ b/src/main.c
+@@ -338,7 +338,7 @@
+ 	mouse_poll_host();
+ 	keyboard_poll_host();
+-	//total_emulation_millis += millisecs;
++	total_emulation_millis += millisecs;
+ 
+	if (mouse_mode == MOUSE_MODE_ABSOLUTE) 
+		doosmouse();
+     execarm(speed_mhz * 1000 * millisecs);
+--- a/src/plat_sound.h
++++ b/src/plat_sound.h
+@@ -2,3 +2,11 @@
+ void sound_dev_close(void);
+ void sound_givebuffer(int16_t *buf);
+ void sound_givebufferdd(int16_t *buf);
++int sound_dev_available(void);
++unsigned int sound_dev_queued_bytes(void);
++int sound_capture_start(unsigned int seconds);
++void sound_capture_stop(void);
++void sound_capture_release(void);
++int sound_capture_active(void);
++unsigned int sound_capture_frames(void);
++int16_t *sound_capture_data(void);
+--- a/src/sound_sdl2.c
++++ b/src/sound_sdl2.c
+@@ -1,5 +1,7 @@
+ #include <SDL2/SDL.h>
+ #include <math.h>
++#include <stdlib.h>
++#include <string.h>
+ #include "arc.h"
+ #include "plat_sound.h"
+ #include "disc.h"
+@@ -15,5 +17,10 @@
+ static SDL_AudioDeviceID audio_device;
+ static SDL_AudioStream *ddnoise_stream;
++static int16_t *capture_buffer;
++static unsigned int capture_capacity_frames;
++static unsigned int capture_frame_count;
++static int capture_enabled;
++
+ 
+ void sound_dev_init(void)
+ {
+@@ -63,6 +70,15 @@
+ 		buf[i] = (sample < -32768) ? -32768 : ((sample > 32767) ? 32767 : sample);
+ 	}
+ 
++	if (capture_enabled && capture_buffer && capture_frame_count < capture_capacity_frames)
++	{
++		unsigned int frames = capture_capacity_frames - capture_frame_count;
++		if (frames > 2400) frames = 2400;
++		memcpy(capture_buffer + capture_frame_count * 2, buf, frames * 2 * sizeof(int16_t));
++		capture_frame_count += frames;
++		if (capture_frame_count == capture_capacity_frames) capture_enabled = 0;
++	}
++
+ 	SDL_QueueAudio(audio_device, buf, 2400*4);
+ }
+ 
+@@ -82,3 +98,58 @@
+ 
+ 	SDL_AudioStreamPut(ddnoise_stream, buf, 4410*2);
+ }
++
++int sound_dev_available(void)
++{
++	return audio_device != 0;
++}
++
++unsigned int sound_dev_queued_bytes(void)
++{
++	return audio_device ? SDL_GetQueuedAudioSize(audio_device) : 0;
++}
++
++int sound_capture_start(unsigned int seconds)
++{
++	unsigned int frames;
++	int16_t *replacement;
++	if (seconds < 1 || seconds > 30 || !audio_device) return 0;
++	frames = seconds * OUTPUT_FREQ;
++	replacement = calloc((size_t)frames * 2, sizeof(int16_t));
++	if (!replacement) return 0;
++	free(capture_buffer);
++	capture_buffer = replacement;
++	capture_capacity_frames = frames;
++	capture_frame_count = 0;
++	capture_enabled = 1;
++	return 1;
++}
++
++void sound_capture_stop(void)
++{
++	capture_enabled = 0;
++}
++
++void sound_capture_release(void)
++{
++	capture_enabled = 0;
++	free(capture_buffer);
++	capture_buffer = NULL;
++	capture_capacity_frames = 0;
++	capture_frame_count = 0;
++}
++
++int sound_capture_active(void)
++{
++	return capture_enabled;
++}
++
++unsigned int sound_capture_frames(void)
++{
++	return capture_frame_count;
++}
++
++int16_t *sound_capture_data(void)
++{
++	return capture_buffer;
++}
+--- a/src/emscripten_main.c
++++ b/src/emscripten_main.c
+@@ -25,7 +25,10 @@
+ static int win_dosetresize = 0;
+ static int win_renderer_reset = 0;
+ 
+-#define MAX_TICKS_PER_FRAME 500
++/* Keep accelerated boot cooperative in a browser. A 500 ms emulated slice can
++ * occupy the JavaScript main thread for hundreds of milliseconds, making the
++ * live core appear to be hung even though it is doing genuine machine work. */
++#define MAX_TICKS_PER_FRAME 100
+ 
+ static int fixed_fps = 0;
+ 
+@@ -137,6 +137,9 @@
+         if (!pause_main_thread)
+                 arc_run(run_ms);
+ 
++        if (arc_webide_break_pending())
++                pause_main_thread = 1;
++
+         SDL_UnlockMutex(main_thread_mutex);
+         process_event();
+ 
+@@ -159,7 +162,11 @@
+         // if fixed_fps is 0, emscripten will use requestAnimationFrame
+ #ifdef __EMSCRIPTEN__
+-        emscripten_set_main_loop(arcloop, fixed_fps, 1);
++        /* The WebIDE invokes main after the WASM runtime is ready.  Do not use
++         * Emscripten's synthetic infinite-loop unwind here: allowing main to
++         * return keeps the already-scheduled browser loop deterministic when
++         * callMain is entered from an async postMessage handler. */
++        emscripten_set_main_loop(arcloop, fixed_fps, 0);
+ #else
+         signal(SIGINT, arc_stop_main_thread); // shouldn't be here probably, and not thread-safe but otherwise we can't quit
+         while (1)
+            arcloop();
+@@ -191,6 +198,34 @@
+         SDL_UnlockMutex(main_thread_mutex);
+ }
+ 
++int EMSCRIPTEN_KEEPALIVE arc_webide_is_paused()
++{
++        return pause_main_thread ? 1 : 0;
++}
++
++void EMSCRIPTEN_KEEPALIVE arc_webide_resume()
++{
++        SDL_LockMutex(main_thread_mutex);
++        arc_webide_skip_current_breakpoint();
++        pause_main_thread = 0;
++        SDL_UnlockMutex(main_thread_mutex);
++}
++
++void EMSCRIPTEN_KEEPALIVE arc_webide_step()
++{
++        SDL_LockMutex(main_thread_mutex);
++        pause_main_thread = 1;
++        arc_webide_skip_current_breakpoint();
++        execarm_webide_instruction();
++        SDL_UnlockMutex(main_thread_mutex);
++}
++
++void EMSCRIPTEN_KEEPALIVE arc_webide_cancel_fast_forward()
++{
++        fast_forward_to_time_ms = 0;
++        skip_video_render = 0;
++}
++
+ 
+ void EMSCRIPTEN_KEEPALIVE arc_do_reset()
+ {
+--- a/src/vidc.h
++++ b/src/vidc.h
+@@ -26,3 +26,5 @@
+ int vidc_cursor_visible();
++uint32_t vidc_webide_register(int index);
++uint32_t vidc_webide_runtime(int index);
+ 
+ void vidc_debug_print(char *s);
+--- a/src/vidc.c
++++ b/src/vidc.c
+@@ -590,1 +590,34 @@
++
++uint32_t vidc_webide_register(int index)
++{
++	return (index >= 0 && index < 64) ? vidcr[index] : 0;
++}
++
++uint32_t vidc_webide_runtime(int index)
++{
++	switch (index)
++	{
++		case 0: return (uint32_t)vidc.line;
++		case 1: return vidc.htot;
++		case 2: return (uint32_t)vidc.sync;
++		case 3: return (uint32_t)vidc.hbstart;
++		case 4: return (uint32_t)vidc.hdstart;
++		case 5: return (uint32_t)vidc.hdend;
++		case 6: return (uint32_t)vidc.hbend;
++		case 7: return vidc.vtot;
++		case 8: return vidc.vsync;
++		case 9: return (uint32_t)vidc.vbstart;
++		case 10: return (uint32_t)vidc.vdstart;
++		case 11: return (uint32_t)vidc.vdend;
++		case 12: return (uint32_t)vidc.vbend;
++		case 13: return (uint32_t)vidc.cx;
++		case 14: return (uint32_t)(vidc.cys >> 14);
++		case 15: return (uint32_t)(vidc.cye >> 14);
++		case 16: return (uint32_t)vidc.inter;
++		case 17: return vidc.cr;
++		case 18: return (uint32_t)((vidcr[0xc0 >> 2] & 0xff) + 2);
++		case 19: return (uint32_t)soundhz;
++		default: return 0;
++	}
++}
+ uint32_t monolook[16][4];
