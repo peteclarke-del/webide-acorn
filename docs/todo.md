@@ -112,6 +112,37 @@ Companion specification: `docs/requirements-specification.md`
   update/removal process (RSH-001–RSH-007, DEC-008).
 - [ ] P0-018 Complete dependency licence/security review and approve selected
   candidates. Unresolved assets block architecture selection (ARC-09, SEC-008).
+  - [x] **The review found an obligation named and not met.** Three components
+    ship under a copyleft licence — jsbeeb under GPL-3.0-or-later, the vendored
+    ElkJS and the Arculator core under GPL-2.0 — and each is conveyed in what
+    this product distributes. Arculator travelled with its licence, an archive
+    of the exact upstream source it was built from, its patch and its build
+    hashes. jsbeeb and ElkJS shipped a licence file and nothing else. The image
+    now carries the licence, the corresponding source and a digest for all
+    three, taken from what was actually installed and vendored for that image
+    rather than fetched again. The archives exclude the emulator core's own ROM
+    directory and the build proves it absent: archiving the package wholesale
+    put fifty-two Acorn ROM files into the image, which is precisely what
+    SEC-903 exists to prevent, and it was caught by looking at what had been
+    produced rather than by assuming the archive was source.
+  - [x] The obligation is now derived from the inventory instead of from a list
+    somebody remembers. The gate reads which shipped packages the bill of
+    materials classifies as copyleft and fails if any of them, or any component
+    recorded in `licenceCompliance.mjs`, lacks its licence or its source in the
+    image — so a shipped copyleft package nobody has accounted for is a failure
+    rather than a silence. Four contracts cover it, including that removing any
+    one licence or source line is caught.
+  - [x] **The backend was not in the inventory at all.** A licence review that
+    covered the browser half and not the server half is a review of half the
+    product. Its 62 Composer packages are now generated into the bill of
+    materials and classified: all permissive, 37 MIT and 25 BSD-3-Clause, no
+    copyleft. A generation without PHP available says the section is missing
+    rather than omitting it, because an absent section reads as a backend with
+    no dependencies.
+  - [ ] What remains is the part that is not mine to decide: whether the
+    distribution terms that follow from shipping GPL-3.0-or-later code are
+    acceptable for this product, and the security half of the review beyond the
+    dependency audit the bill of materials already carries.
 
 ### 2.3 Hardware truth model
 
@@ -5153,16 +5184,22 @@ Current implemented increment:
     the rest of the region holding the previous pattern, which the DMA swept
     back into — one reading came back loud with nothing written at all. The
     method that stands writes the whole region once and measures RMS.
-  - [ ] **What this settles and what it does not, and the decision it forces.**
-    It settles what the qualified A310 core this product actually runs does. It
+  - [x] **What this settles, what it does not, and the decision taken.** It
+    settles what the qualified A310 core this product actually runs does. It
     does not establish what VIDC1a silicon does, and it is not evidence that
     the datasheet is wrong: an emulator can be wrong too, and this measurement
-    cannot tell the two apart. So there is a product decision here that is not
-    a technical one — whether an Archimedes sample document should be encoded
-    for the core it will be played on, or for the part the datasheet names —
-    and it is one to be taken rather than assumed. Nothing ships wrong in the
-    meantime: the encoder has never defaulted the part, it is named at every
-    call, and no Archimedes sample document is offered.
+    cannot tell the two apart. The decision taken is to **encode for the
+    machine a sample will be played on**, because a sample encoded for the part
+    the datasheet names would be noise on the only machine this product can
+    run, which would make the feature untestable as well as inaudible. That is
+    a choice between two disagreeing sources rather than a finding that one is
+    wrong, and `vidcPartForMachine` records it in those words so it reaches
+    anybody reading generated output.
+  - [x] Only the A310 is answered. Every other Archimedes is refused by name
+    rather than answered from its family, because answering from the family is
+    exactly the inference that was wrong about VIDC1a in the first place, and a
+    contract holds the chosen order to the measured levels so the choice cannot
+    drift from the evidence it cites.
   - [x] Evidence: 25 contracts covering the chord arithmetic against the
     datasheet's printed boundaries, both bit orders round-tripping every byte,
     the companding being coarser at high levels than low, clipping reported

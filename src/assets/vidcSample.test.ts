@@ -25,6 +25,9 @@ import {
   soundFrequencyRegister,
   stereoRegistersForChannel,
   unpackVidcSample,
+  VidcPartUnknownError,
+  machinesWithMeasuredVidcPart,
+  vidcPartForMachine,
 } from './vidcSample';
 
 describe('the transfer characteristic the datasheet prints', () => {
@@ -246,5 +249,40 @@ describe('what the qualified A310 core was measured doing', () => {
     expect(A310_MEASURED_LEVELS[0]).toEqual({ byte: 0xff, ratio: 1 });
     const ratios = A310_MEASURED_LEVELS.map((entry) => entry.ratio);
     expect([...ratios].sort((left, right) => right - left)).toEqual(ratios);
+  });
+});
+
+describe('choosing the byte order for a machine', () => {
+  it('encodes for the machine a sample will be played on, which is the measured order', () => {
+    const choice = vidcPartForMachine('archimedes-a300');
+    expect(choice.part).toBe('vidc2');
+    expect(choice.reason).toMatch(/Measured on the qualified A310 core/);
+    /* The reason has to carry the decision, not just the answer: somebody
+     * reading generated output needs to know this follows the machine rather
+     * than the part the datasheet names. */
+    expect(choice.reason).toMatch(/rather than the part it is descended from/);
+  });
+
+  it('refuses every machine that has not been measured, rather than guessing from the family', () => {
+    /* Guessing from the family is precisely the inference that was wrong about
+     * VIDC1a, so it is refused by name. */
+    for (const machine of ['archimedes-a400', 'a3000', 'a5000', 'riscpc']) {
+      expect(() => vidcPartForMachine(machine)).toThrow(VidcPartUnknownError);
+      expect(() => vidcPartForMachine(machine)).toThrow(/cannot be taken from the family/);
+    }
+  });
+
+  it('says which machines can be encoded for at all', () => {
+    expect(machinesWithMeasuredVidcPart()).toEqual(['archimedes-a300']);
+  });
+
+  it('agrees with the measurement it cites', () => {
+    /* If the chosen order ever stopped matching the measured levels, the
+     * choice would be citing evidence it no longer follows. */
+    const { part } = vidcPartForMachine('archimedes-a300');
+    for (const { byte, ratio } of A310_MEASURED_LEVELS) {
+      const expected = Math.abs(decodeVidcSample(byte, part)) / Math.abs(decodeVidcSample(0xff, part));
+      expect(Math.abs(ratio - expected), `&${byte.toString(16).toUpperCase()}`).toBeLessThan(Math.max(0.00005, expected * 0.005));
+    }
   });
 });

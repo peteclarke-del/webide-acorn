@@ -24,6 +24,8 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argv, env, exit } from 'node:process';
 import { cpus } from 'node:os';
+import { namesInBuild, readLockfile } from './sbom.mjs';
+import { COPYLEFT_COMPONENTS, licenceComplianceFindings } from './licenceCompliance.mjs';
 
 /* The browser smoke drives Chrome over a WebSocket, which Node 20 only exposes
  * behind a flag. Rather than fail with `WebSocket is not defined` when someone
@@ -173,7 +175,23 @@ await stage('provenance', async () => {
   const provenance = await readFile(join(root, 'public/electron/elkjs/PROVENANCE.md'), 'utf8');
   const checksums = [...provenance.matchAll(/`([0-9a-f]{64})`/g)].length;
   if (checksums < 6) throw new Error(`Only ${checksums} vendored-file checksums are recorded; every vendored file needs one`);
-  return { detail: `${checksums} vendored-file checksums recorded` };
+
+  /*
+   * Naming an obligation is not meeting it. The inventory says which shipped
+   * packages are copyleft; this says whether the image carries their licence
+   * and their corresponding source. The two were not connected, and jsbeeb and
+   * ElkJS shipped a licence file and no source for exactly that reason.
+   */
+  const dockerfile = await readFile(join(root, 'Dockerfile'), 'utf8');
+  const lockfile = JSON.parse(await readFile(join(root, 'package-lock.json'), 'utf8'));
+  const shipped = readLockfile(lockfile, await namesInBuild(lockfile, root));
+  const shippedCopyleft = shipped
+    .filter((entry) => entry.shipped && entry.licenceClass === 'copyleft')
+    .map((entry) => entry.name);
+  const findings = licenceComplianceFindings(dockerfile, shippedCopyleft);
+  if (findings.length) throw new Error(findings.join(' · '));
+
+  return { detail: `${checksums} vendored-file checksums recorded, ${COPYLEFT_COMPONENTS.length} copyleft components shipping licence and source` };
 });
 
 /* No ROM, no commercial program and no proprietary manual may enter the image.

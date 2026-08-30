@@ -27,6 +27,8 @@
  * from a registry — is not in the lockfile and is recorded separately in
  * `docs/third-party-components.md`, whose checksums the release gate verifies.
  */
+import { readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
 /** Licences that place no condition on distributing a built artifact. */
 const PERMISSIVE = new Set([
@@ -105,6 +107,36 @@ function notDistributedBecause(meta, name, built) {
  * set to treat every non-development package as distributed, which is the
  * conservative reading.
  */
+/*
+ * Package names referenced anywhere in the built output.
+ *
+ * Shared with the gate rather than kept in the generator, because the gate's
+ * licence-compliance check has to ask the same question the inventory asks —
+ * which packages actually ship — and two answers to that would eventually
+ * disagree about what this product distributes.
+ */
+export async function namesInBuild(lockfile, root) {
+  const names = new Set();
+  let text = '';
+  const walk = async (directory) => {
+    let entries = [];
+    try { entries = await readdir(directory, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) { await walk(path); continue; }
+      if (!/\.(m?js|css|html|json|map)$/.test(entry.name)) continue;
+      try { text += await readFile(path, 'utf8'); } catch { /* a binary asset */ }
+    }
+  };
+  await walk(join(root, 'dist'));
+  for (const path of Object.keys(lockfile.packages ?? {})) {
+    if (!path) continue;
+    const name = path.replace(/^.*node_modules\//, '');
+    if (text.includes(name)) names.add(name);
+  }
+  return names;
+}
+
 export function readLockfile(lockfile, built = new Set()) {
   const packages = lockfile.packages ?? {};
   const entries = [];
@@ -165,8 +197,55 @@ function table(headings, rows) {
   ].join('\n');
 }
 
+/**
+ * The backend's own dependencies, which are distributed with its image.
+ *
+ * They were not in this inventory at all. A licence review that covered the
+ * browser half and not the server half is a review of half the product, and
+ * the omission is the kind that is only noticed when somebody asks.
+ */
+export function renderBackendSection(backend) {
+  if (!backend) {
+    return [
+      '## Backend dependencies',
+      '',
+      'Not inventoried when this was generated, because `composer licenses` could',
+      'not be run here. That is a gap in this document rather than a statement',
+      'that the backend has no dependencies: run `npm run sbom` where PHP and',
+      'Composer are available.',
+    ].join('\n');
+  }
+  /* Composer reports each package as an object carrying its version and a list
+   * of licences; an older shape gave the list directly. Both are read, and a
+   * package with neither says so rather than being dropped. */
+  const rows = Object.entries(backend)
+    .map(([name, info]) => {
+      const licences = Array.isArray(info) ? info : Array.isArray(info?.license) ? info.license : [];
+      return [name, licences.join(', ') || 'none recorded'];
+    })
+    .sort(([left], [right]) => left.localeCompare(right));
+  const classes = new Map();
+  for (const [, licence] of rows) classes.set(classifyLicence(licence), (classes.get(classifyLicence(licence)) ?? 0) + 1);
+
+  return [
+    '## Backend dependencies',
+    '',
+    'The PHP service is distributed as its own image, so its dependencies are',
+    'conveyed with it and their licences constrain that distribution.',
+    '',
+    table(['Measure', 'Count'], [
+      ['Packages', String(rows.length)],
+      ['Permissive', String(classes.get('permissive') ?? 0)],
+      ['Copyleft', String(classes.get('copyleft') ?? 0)],
+      ['Unrecognised or unrecorded', String((classes.get('undetermined') ?? 0) + (classes.get('other') ?? 0))],
+    ]),
+    '',
+    table(['Package', 'Licence'], rows),
+  ].join('\n');
+}
+
 /** The document, as Markdown. Deterministic, so a test can compare it. */
-export function renderSbom(entries, audit) {
+export function renderSbom(entries, audit, backend = null) {
   const summary = sbomSummary(entries);
   const review = licencesNeedingReview(entries);
   const shipped = entries.filter((entry) => entry.shipped);
@@ -230,6 +309,8 @@ export function renderSbom(entries, audit) {
         ]),
       )
       : 'None. Every shipped package is under a licence that places no condition on distributing a built artifact.',
+    '',
+    renderBackendSection(backend),
     '',
     '## Everything distributed with the product',
     '',

@@ -281,3 +281,57 @@ export const A310_MEASURED_LEVELS: ReadonlyArray<{ byte: number; ratio: number }
   { byte: 0x3f, ratio: 0.01159 },
   { byte: 0x1f, ratio: 0.00378 },
 ]);
+
+/*
+ * Which byte order to encode for, given the machine a sample will be played on.
+ *
+ * The datasheet's bit order follows the part, and the part follows the machine
+ * — except that the A310's VIDC1a is not one of the two the datasheet names,
+ * and the qualified core it is played on was measured behaving as VIDC2 rather
+ * than as the VIDC1 the part's lineage suggests.
+ *
+ * The decision taken is to encode for the machine a sample will actually be
+ * played on. A sample encoded for the part the datasheet names would be noise
+ * on the only machine this product can run, which would make the feature
+ * untestable and useless; and the measurement is the only evidence anybody
+ * here has about what a byte does. That is a decision about which of two
+ * disagreeing sources to follow, not a discovery that the datasheet is wrong,
+ * and it is recorded as such: an emulator can be wrong too, and nothing here
+ * can tell the two apart.
+ *
+ * Only the A310 was measured. No other Archimedes is answered by guessing from
+ * its family, because guessing from the family is exactly what was wrong the
+ * first time.
+ */
+export interface VidcPartChoice {
+  part: VidcPart;
+  /** Why this order, in the words somebody reading generated output needs. */
+  reason: string;
+}
+
+const MEASURED_PARTS: Record<string, VidcPartChoice> = {
+  'archimedes-a300': {
+    part: 'vidc2',
+    reason: 'Measured on the qualified A310 core: seven byte levels all within 0.42% of the VIDC2 order and none within 67% of VIDC1. The A310 carries VIDC1a, which the datasheet does not name; this follows the machine the sample will be played on rather than the part it is descended from.',
+  },
+};
+
+export class VidcPartUnknownError extends Error {
+  constructor(machineId: string) {
+    super(`No VIDC byte order has been established for ${machineId}. Only the A310 has been measured, and the order cannot be taken from the family: doing that is what was wrong about VIDC1a. Measure the machine before encoding a sample for it.`);
+    this.name = 'VidcPartUnknownError';
+  }
+}
+
+/** The order to encode for, or a refusal naming what has to happen first. */
+export function vidcPartForMachine(machineId: string): VidcPartChoice {
+  const choice = MEASURED_PARTS[machineId];
+  if (!choice) throw new VidcPartUnknownError(machineId);
+
+  return choice;
+}
+
+/** Machines a sample can be encoded for today. */
+export function machinesWithMeasuredVidcPart(): string[] {
+  return Object.keys(MEASURED_PARTS).sort();
+}

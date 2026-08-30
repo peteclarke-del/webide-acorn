@@ -192,7 +192,7 @@ are listed rather than quietly counted.
 | P0-015 | Inventory media and asset format implementations and run malicious- input review before… | not started |
 | P0-016 | Produce ROM/firmware matrix by profile: required/optional ROM, version, ownership,… | not started |
 | P0-017 | Produce manuals/reference-content matrix with title, owner, version, applicable targets,… | not started |
-| P0-018 | Complete dependency licence/security review and approve selected candidates. Unresolved… | not started |
+| P0-018 | Complete dependency licence/security review and approve selected candidates. Unresolved… | 3 of 4 parts done |
 | P0-020 | Define and validate the machine-profile JSON schema, inheritance/ composition rules,… | not started |
 | P0-021 | Model Atom variants and legal ROM/storage prerequisites. | not started |
 | P0-022 | Model BBC A/B, DFS controller/filing-system differences, common regional variants, input,… | not started |
@@ -267,7 +267,7 @@ are listed rather than quietly counted.
 | TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad, mouse, analogue,… | not started |
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 15 of 16 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
-| AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 11 of 13 parts done |
+| AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 13 of 14 parts done |
 | ASSET-GATE | Character/object, screen/palette, tile/block, map, and target- appropriate sound assets… | not started |
 | RSH-708 | If AI help is approved, create a separate privacy/threat/quality specification and… | 0 of 1 parts done |
 | RESEARCH-GATE | Users can reach cited, licensed, target-correct information from search, diagnostics, and… | not started |
