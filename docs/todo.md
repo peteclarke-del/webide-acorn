@@ -4441,6 +4441,43 @@ Current implemented increment:
     reported as absent rather than as a zero.
 - [ ] TST-506 Build platform conformance suites for CPU/flags, timing, banking,
   media, Tube, breakpoint maps, trace, input, frames, sound, and state replay.
+  - [x] The suite exists and is written against the same test-plan machinery the
+    workbench already runs, so a case in it is a test somebody can also run by
+    hand rather than a parallel invention that could drift from it. Six cases
+    cover processor flags, timing, sound, input and frames: ADC overflow and SBC
+    borrow, because those are the two most often got wrong and both fail
+    invisibly in the result alone; the page-crossing penalty, because a build
+    that ignored it runs every timed loop fast; the single sound latch, which is
+    what every audio assertion is built on and which this build has already had
+    to correct once; OSBYTE &81 with a zero timeout, because keyboard input
+    reaches a program through the MOS rather than the hardware; and a MODE
+    change, because every screen golden depends on one.
+  - [x] The accounting is the substance rather than the cases. Every area the
+    product claims is enumerated whether or not it has a case, and the list is
+    fixed rather than derived from the cases — a list derived from the cases can
+    only ever report that everything present is covered, which is true and
+    useless. **Five of the eleven areas have cases; six have none**: banking,
+    media, Tube, breakpoint maps, trace and state replay. Those are named in the
+    interface first, before anything that passes, and described as neither known
+    to be wrong nor known to be right, because an area with no cases is not a
+    passing area — it is where a fault would go unnoticed.
+  - [x] A case that cannot apply to the machine in front of somebody is reported
+    as not applicable with the reason, and a case that has not been executed is
+    reported as not run. Counting either as a pass would be the exact failure
+    this suite exists to prevent.
+  - [ ] **No case has yet been executed against a real machine.** They are
+    validated as plans the runner can read, which is not the same as evidence
+    that the emulation is right, and calling this requirement complete on that
+    basis would be the claim without the suite behind it that the whole item is
+    about. Running them needs the selected machine ROM set through the existing
+    headless path. That, and cases for the six uncovered areas, keep TST-506
+    open.
+  - [x] Evidence: 13 module contracts and 6 panel contracts, including that
+    every case parses into assertions the runner can read, that a case with no
+    assertions is refused rather than passing vacuously, that a case with no
+    stated rationale is refused, and that the full-coverage summary is reachable
+    — proved by handing the accounting a suite that does cover every area, so
+    the happy sentence is not one nothing can produce.
 
 ### Phase 5 exit gate
 

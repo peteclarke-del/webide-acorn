@@ -928,6 +928,15 @@
   .sideways-table small { color: var(--theme-faint); }
   .sideways-empty { color: var(--theme-faint); }
   .sideways-table button { min-height: 24px; padding: 0 8px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-2); color: var(--theme-ink); font: 6.5px/1 var(--font-ui); cursor: pointer; }
+  .conformance-panel { display: grid; gap: 10px; padding: 13px 15px; }
+  .conformance-panel > .binding-note, .conformance-panel > .dfs-warning, .conformance-panel > .media-limit { margin: 0; }
+  .conformance-panel h3 { margin: 0 0 5px; color: var(--theme-faint); font: 700 6px/1 var(--font-ui); text-transform: uppercase; letter-spacing: 0.08em; }
+  .conformance-table { width: 100%; border-collapse: collapse; font: 6.9px/1.4 var(--font-mono); }
+  .conformance-table caption { margin-bottom: 5px; color: var(--theme-faint); font: 6.5px/1.45 var(--font-mono); text-align: left; }
+  .conformance-table th, .conformance-table td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--theme-line); text-align: left; vertical-align: top; }
+  .conformance-table thead th { color: var(--theme-faint); font: 700 6px/1 var(--font-ui); text-transform: uppercase; }
+  .conformance-table tbody th { color: var(--theme-ink-strong); font-weight: 400; }
+  .conformance-table small { display: block; color: var(--theme-faint); }
   .golden-approval { display: grid; gap: 10px; padding: 13px 15px; }
   .golden-approval > .binding-note, .golden-approval > .dfs-warning { margin: 0; }
   .golden-approval h3 { margin: 0 0 5px; color: var(--theme-faint); font: 700 6px/1 var(--font-ui); text-transform: uppercase; letter-spacing: 0.08em; }
