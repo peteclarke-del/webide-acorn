@@ -4968,6 +4968,33 @@ Current implemented increment:
     the datasheet calls *Undefined*. It is modelled as its own thing rather than
     mapped to centre, because a register the documentation declines to define is
     not one this build gets to define on its behalf.
+  - [x] **The run is no longer blocked on whether it can run.** It was not
+    established that the pinned A310 core could boot or make any sound at all
+    under a headless browser, which everything else about the end-to-end proof
+    depends on. It can: with the RISC OS 3.11 firmware seeded into the same
+    browser store the workbench's own import writes, the core boots RISC OS
+    3.11 on an A310 · 1MB, reaches `PC &03824B1C` after ten seconds of
+    emulation, and its SDL audio path comes up with the browser's AudioContext
+    *running* at 48 kHz, `arc_webide_audio_available` and
+    `arc_webide_audio_enabled` both true and 6,912 bytes already queued for
+    output. Chromium needs `--autoplay-policy=no-user-gesture-required`, since
+    a headless browser has no gesture to give.
+  - [x] Two things had to be right and neither was obvious. The workbench holds
+    the A310 back until `romReady`, `archimedesRuntime` and a session manifest
+    are all present, and the manifest is built from the stored ROM records — so
+    a record carrying anything but a real 64-character SHA-256 makes
+    `createRuntimeSessionManifest` throw, the manifest come back null, and the
+    machine stay at "ROM set not ready" with nothing saying why. The firmware
+    inventory is also read when the ROM manager mounts, so Settings has to be
+    opened once before the machine will see firmware that was placed in storage
+    directly.
+  - [x] The MEMC side of the setup is known rather than recalled: the pinned
+    core's own `src/memc.c` decodes the register from address bits 17 to 19 —
+    4 is sound DMA start, 5 end, 6 pointer, 7 the control register whose bit 11
+    enables sound DMA — and a DMA address from bits 2 to 16. That is the
+    addressing the experiment writes to, not the byte encoding it is testing;
+    the encoding stays what the datasheet says, or the run would be checking
+    the emulator against itself.
   - [ ] **One inference remains, and it is the reason this stays open.** The
     datasheet is titled "VIDC" and its bit-order diagram names VIDC1 and VIDC2;
     the A310 carries VIDC1a, which is a speed-graded variant of VIDC1. Taking
@@ -4984,7 +5011,12 @@ Current implemented increment:
     rather than wrapped, the SFR encoding, and the stereo register mapping for
     each channel mode. The remaining evidence is the A310 run. Until that exists
     this item stays
-    open and no Archimedes sample document is offered.
+    open and no Archimedes sample document is offered. What is left is the ARM
+    program itself: with sound DMA programmed from a known byte pattern, the
+    captured WAV can be compared against the datasheet-derived decode. Note
+    what such a run can and cannot settle — it settles that the encoder agrees
+    with the qualified core this product actually runs, not that VIDC1a on real
+    silicon uses the VIDC1 byte order, and the evidence must say so.
 - [x] AST-629 Add third-party format import/export only with explicit round-trip,
   unsupported-feature, provenance, and licence tests (AST-024).
   - [x] Tiled JSON maps import and export. Import is deliberately narrow and
