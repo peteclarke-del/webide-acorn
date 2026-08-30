@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  A310_MEASURED_LEVELS,
   SFR_MAX_PERIOD_US,
   SFR_MIN_PERIOD_US,
   STEREO_IMAGE_REGISTER_ADDRESSES,
@@ -208,5 +209,42 @@ describe('the registers that make the bytes mean something', () => {
     expect(STEREO_IMAGE_REGISTER_ADDRESSES[7]).toBe(0x60);
     expect(STEREO_IMAGE_REGISTER_ADDRESSES[0]).toBe(0x64);
     expect(STEREO_IMAGE_REGISTER_ADDRESSES[6]).toBe(0x7c);
+  });
+});
+
+describe('what the qualified A310 core was measured doing', () => {
+  const magnitude = (byte: number, part: 'vidc1' | 'vidc2') => Math.abs(decodeVidcSample(byte, part));
+  const predicted = (byte: number, part: 'vidc1' | 'vidc2') => magnitude(byte, part) / magnitude(0xff, part);
+
+  it('matches the VIDC2 order on every byte measured', () => {
+    /* Within half a percent on all seven, which a decoder that had the bit
+     * order wrong could not be. */
+    for (const { byte, ratio } of A310_MEASURED_LEVELS) {
+      const expected = predicted(byte, 'vidc2');
+      expect(Math.abs(ratio - expected), `&${byte.toString(16).toUpperCase()}`).toBeLessThan(Math.max(0.00005, expected * 0.005));
+    }
+  });
+
+  it('is not the VIDC1 order, which is the inference this replaced', () => {
+    /* Stated as its own assertion rather than left implied: agreeing with one
+     * hypothesis only means something if the other is ruled out. &7F is full
+     * scale under VIDC1 and a seventeenth of it here; &80 is silent under
+     * VIDC1 and was not silent. */
+    const wrong = A310_MEASURED_LEVELS.filter(({ byte, ratio }) => {
+      const expected = predicted(byte, 'vidc1');
+      /* Relative, with a floor small enough to still separate the quietest
+       * byte measured: an absolute floor of a percent would call a level three
+       * times too high a match. */
+      return Math.abs(ratio - expected) > Math.max(0.0005, expected * 0.05);
+    });
+    expect(wrong.map(({ byte }) => byte)).toEqual([0xbf, 0x80, 0x7f, 0x71, 0x3f, 0x1f]);
+    expect(predicted(0x7f, 'vidc1')).toBe(1);
+    expect(predicted(0x80, 'vidc1')).toBe(0);
+  });
+
+  it('carries the measurement in order of level, with &FF as the reference', () => {
+    expect(A310_MEASURED_LEVELS[0]).toEqual({ byte: 0xff, ratio: 1 });
+    const ratios = A310_MEASURED_LEVELS.map((entry) => entry.ratio);
+    expect([...ratios].sort((left, right) => right - left)).toEqual(ratios);
   });
 });

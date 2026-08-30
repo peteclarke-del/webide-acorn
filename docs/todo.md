@@ -4995,28 +4995,60 @@ Current implemented increment:
     addressing the experiment writes to, not the byte encoding it is testing;
     the encoding stays what the datasheet says, or the run would be checking
     the emulator against itself.
-  - [ ] **One inference remains, and it is the reason this stays open.** The
-    datasheet is titled "VIDC" and its bit-order diagram names VIDC1 and VIDC2;
-    the A310 carries VIDC1a, which is a speed-graded variant of VIDC1. Taking
-    the VIDC1 layout to apply to VIDC1a is an inference from that relationship,
-    not something this document states, and this build does not treat an
-    inference as a citation. What settles it is the end-to-end proof already
-    written into this item: program sound DMA on the qualified A310 core with a
-    known byte pattern and compare the captured WAV against the decoded
-    expectation. Until that runs, the encoder is correct against a primary
-    source for VIDC1 and unproven on the machine this product targets.
-  - [ ] Evidence so far: 25 contracts covering the chord arithmetic against the
+  - [x] **The inference was wrong, and the machine said so.** The encoder took
+    the VIDC1 bit order to apply to the A310's VIDC1a, because VIDC1a is a
+    speed-graded VIDC1 and the datasheet's diagram names only VIDC1 and VIDC2.
+    That was an inference, and this item stayed open on it. The qualified core
+    has now been asked directly, and it uses the **VIDC2** order.
+  - [x] How it was asked, without asking the emulator to grade its own work.
+    RISC OS 3.11 keeps sound DMA running, so no program had to be written and
+    no DMA had to be programmed: the whole region sound DMA can reach was
+    filled with a known byte alternating against `&00`, and the level the
+    machine actually produced was captured through the core's own PCM tap. The
+    byte's magnitude is what sets that level, and the two candidate bit orders
+    predict very different magnitudes for the same byte — `&7F` is full scale
+    under VIDC1 and a seventeenth of it under VIDC2. Nothing in the core's
+    decode table was read; only what came out of it was measured.
+  - [x] Seven bytes, each measured twice so the second reading is the byte on
+    its own, levels relative to `&FF`:
+
+    | Byte | Measured | Observed ratio | VIDC1 predicts | VIDC2 predicts |
+    | --- | --- | --- | --- | --- |
+    | `&FF` | 8455 | 1.00000 | 1.00000 | 1.00000 |
+    | `&BF` | 2088 | 0.24695 | 0.05870 | 0.24696 |
+    | `&80` | 513 | 0.06067 | 0.00000 | 0.06073 |
+    | `&7F` | 496 | 0.05866 | 1.00000 | 0.05870 |
+    | `&71` | 376 | 0.04447 | 0.54656 | 0.04453 |
+    | `&3F` | 98 | 0.01159 | 0.05870 | 0.01164 |
+    | `&1F` | 32 | 0.00378 | 0.01164 | 0.00380 |
+
+    Every reading is within 0.42% of the VIDC2 prediction and none is within
+    67% of the VIDC1 one, including a byte VIDC1 says is silent and which was
+    not. With nothing written the capture is exactly zero, so the levels are
+    the bytes and not the machine.
+  - [x] Two measurement mistakes were made first and both would have produced a
+    confident wrong answer. Pausing the core to write and resuming puts a step
+    into the output, and repeating that per round measured the clicks rather
+    than the sound; and writing only a window ahead of the DMA position left
+    the rest of the region holding the previous pattern, which the DMA swept
+    back into — one reading came back loud with nothing written at all. The
+    method that stands writes the whole region once and measures RMS.
+  - [ ] **What this settles and what it does not, and the decision it forces.**
+    It settles what the qualified A310 core this product actually runs does. It
+    does not establish what VIDC1a silicon does, and it is not evidence that
+    the datasheet is wrong: an emulator can be wrong too, and this measurement
+    cannot tell the two apart. So there is a product decision here that is not
+    a technical one — whether an Archimedes sample document should be encoded
+    for the core it will be played on, or for the part the datasheet names —
+    and it is one to be taken rather than assumed. Nothing ships wrong in the
+    meantime: the encoder has never defaulted the part, it is named at every
+    call, and no Archimedes sample document is offered.
+  - [x] Evidence: 25 contracts covering the chord arithmetic against the
     datasheet's printed boundaries, both bit orders round-tripping every byte,
     the companding being coarser at high levels than low, clipping reported
     rather than wrapped, the SFR encoding, and the stereo register mapping for
-    each channel mode. The remaining evidence is the A310 run. Until that exists
-    this item stays
-    open and no Archimedes sample document is offered. What is left is the ARM
-    program itself: with sound DMA programmed from a known byte pattern, the
-    captured WAV can be compared against the datasheet-derived decode. Note
-    what such a run can and cannot settle — it settles that the encoder agrees
-    with the qualified core this product actually runs, not that VIDC1a on real
-    silicon uses the VIDC1 byte order, and the evidence must say so.
+    each channel mode; and the seven-byte measurement above on a booted A310
+    running RISC OS 3.11.
 - [x] AST-629 Add third-party format import/export only with explicit round-trip,
   unsupported-feature, provenance, and licence tests (AST-024).
   - [x] Tiled JSON maps import and export. Import is deliberately narrow and

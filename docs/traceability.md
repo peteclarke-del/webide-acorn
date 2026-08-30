@@ -267,7 +267,7 @@ are listed rather than quietly counted.
 | TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad, mouse, analogue,… | not started |
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 11 of 12 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
-| AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 3 of 6 parts done |
+| AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 11 of 13 parts done |
 | ASSET-GATE | Character/object, screen/palette, tile/block, map, and target- appropriate sound assets… | not started |
 | RSH-708 | If AI help is approved, create a separate privacy/threat/quality specification and… | 0 of 1 parts done |
 | RESEARCH-GATE | Users can reach cited, licensed, target-correct information from search, diagnostics, and… | not started |

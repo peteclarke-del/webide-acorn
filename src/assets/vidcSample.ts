@@ -250,3 +250,34 @@ export function stereoRegistersForChannel(channel: number, mode: VidcChannelMode
 export const STEREO_IMAGE_REGISTER_ADDRESSES: Readonly<Record<number, number>> = Object.freeze({
   0: 0x64, 1: 0x68, 2: 0x6c, 3: 0x70, 4: 0x74, 5: 0x78, 6: 0x7c, 7: 0x60,
 });
+
+/*
+ * What the qualified A310 core actually does with a sound byte.
+ *
+ * The datasheet names VIDC1 and VIDC2 and gives each a different bit order.
+ * The A310 carries VIDC1a, a speed-graded VIDC1, and taking the VIDC1 order to
+ * apply to it is an inference rather than something the datasheet states. It
+ * was measured instead: RISC OS 3.11 keeps sound DMA running, so the whole
+ * region sound DMA can reach was filled with a known byte alternating against
+ * &00 and the level the machine produced was captured through the core's own
+ * PCM tap. Nothing in the core's decode table was read; only what came out of
+ * it. Each byte was measured twice, the second reading being the byte alone,
+ * and the levels are relative to &FF.
+ *
+ * The answer is VIDC2, which is not what the inference said. These figures are
+ * kept here so the module carries its own evidence, and so a change to the
+ * decoding fails against a measurement rather than against an opinion.
+ *
+ * This says what the core this product runs does. It is not evidence about
+ * VIDC1a silicon, and it does not make the datasheet wrong — an emulator can
+ * be wrong too, and this measurement cannot tell the two apart.
+ */
+export const A310_MEASURED_LEVELS: ReadonlyArray<{ byte: number; ratio: number }> = Object.freeze([
+  { byte: 0xff, ratio: 1.00000 },
+  { byte: 0xbf, ratio: 0.24695 },
+  { byte: 0x80, ratio: 0.06067 },
+  { byte: 0x7f, ratio: 0.05866 },
+  { byte: 0x71, ratio: 0.04447 },
+  { byte: 0x3f, ratio: 0.01159 },
+  { byte: 0x1f, ratio: 0.00378 },
+]);
