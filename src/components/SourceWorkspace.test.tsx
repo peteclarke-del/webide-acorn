@@ -1048,3 +1048,46 @@ describe('accepting a completion with punctuation, and finding one by scattered 
     expect(options.findIndex((text) => text.includes('ds_helper'))).toBeLessThan(options.findIndex((text) => text.includes('draw_sprite')));
   });
 });
+
+describe('type hints decorated beside the source', () => {
+  const cFile: ProjectFile = { id: 'c', name: 'types.c', content: 'unsigned long ticks;\nint spare;\nvoid __fastcall__ draw(unsigned char frame) {\n  int local = 1;\n}', language: 'c', modified: false };
+  const target: LanguageTargetContext = { processor: '6502', machineId: 'bbc-b', machineLabel: 'BBC Micro Model B', romId: 'os12-basic2', romLabel: 'OS 1.20 / BASIC II', romReady: true, enabledCapabilities: [], toolchainId: 'cc65.c-bbc' };
+  const open = () => render(<SourceWorkspace files={[cFile]} languageTarget={target} activeFileId="c" onSelectFile={() => undefined} onChange={() => undefined} onNewFile={() => undefined} onRenameFile={() => undefined} onDeleteFile={() => undefined} onDownloadFile={() => undefined} onSave={() => undefined} onCaretChange={() => undefined} onNotice={() => undefined} />);
+
+  it('decorates nothing until somebody asks, and then draws the rail', () => {
+    /* A decoration nobody chose is clutter in the column source is read in. */
+    open();
+    expect(screen.queryByLabelText('Type hints beside the source')).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
+    const rail = screen.getByLabelText('Type hints beside the source');
+    expect(within(rail).getByRole('button', { name: /Line 1: ticks: unsigned long/ })).toBeVisible();
+  });
+
+  it('refuses to decorate under word wrap and says why, rather than drawing rows against the wrong lines', () => {
+    open();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Editor word wrap' }));
+    expect(screen.queryByLabelText('Type hints beside the source')).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Type hints' }));
+    expect(screen.getByText(/Word wrap is on, so a source line can take several rows/)).toBeVisible();
+  });
+
+  it('moves the caret to the line a rail row names', async () => {
+    /* The editor schedules its selection on the next frame, so this waits for
+     * it rather than reading the caret before it has moved. */
+    open();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
+    const rail = screen.getByLabelText('Type hints beside the source');
+    fireEvent.click(within(rail).getByRole('button', { name: /Line 3: draw/ }));
+    const textarea = screen.getByLabelText('Edit types.c') as HTMLTextAreaElement;
+    await waitFor(() => expect(cFile.content.slice(0, textarea.selectionStart).split('\n')).toHaveLength(3));
+  });
+
+  it('keeps a row for every line, so the rail stays level with the source', () => {
+    /* Rows only for the lines that carry a hint would put every row below the
+     * first one a line out. */
+    open();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
+    expect(screen.getByLabelText('Type hints beside the source').children).toHaveLength(cFile.content.split('\n').length);
+  });
+});

@@ -1830,7 +1830,7 @@ below are finished):
     open, a scattered match shown with its marked characters and its
     explanation, and a prefix match ranked above one that merely contains the
     letters.
-- [ ] EDT-211 Implement optional type/inlay hints for languages with authoritative
+- [x] EDT-211 Implement optional type/inlay hints for languages with authoritative
   type data, including size/signedness/address-space/parameters/returns and honest
   unavailable or untyped states (EDT-014).
   - [x] The optional TYPE HINTS panel now reports source-declared cc65 C
@@ -1841,8 +1841,27 @@ below are finished):
     aggregates, complex declarators and non-cc65 sizes state their authoritative
     boundary instead of guessing. BASIC suffix hints and honest untyped assembly
     states remain covered. Language-service and component tests plus technical
-    in-app help record the contract. Configurable editor-overlay decorations
-    keep EDT-211 open.
+    in-app help record the contract.
+  - [x] **The decoration beside the source, which is what kept this open.** The
+    editor is a textarea, so a hint cannot be drawn between two characters the
+    way a full editor component would: there is no way to place anything inside
+    the text without mirroring it and matching font metrics exactly, and a
+    decoration that drifts by a character is worse than none. What can be
+    placed accurately is a rail beside the source, one row per line at the line
+    height the editor is using, each row naming its line's type and moving the
+    caret there when chosen.
+  - [x] It is off unless asked for, because a decoration nobody chose is
+    clutter in the column somebody reads code in. Its one real limit is stated
+    rather than worked around: the rail lines up only while a source line takes
+    exactly one visual row, so with word wrap on it refuses and says why
+    instead of drawing rows against the wrong lines. A line carrying several
+    hints shows the leftmost and says how many there are, rather than looking
+    as though it had one type when it has three, and every line gets a row —
+    rows only for lines that carry a hint would put every row below the first
+    one line out.
+  - [x] Evidence: 9 rail contracts covering the refusals, the ordering, the
+    multiple-hint count and the detail carrying everything the panel knows, and
+    4 workspace contracts driving the real editor.
   - [x] The compiler debug records this item was waiting for are now read, and
     the answer about types is a boundary rather than a feature. ld65 has been
     writing a debug file on every full-metadata C build and it was retained as
@@ -3534,9 +3553,41 @@ Current implemented increment:
 
 ### 6.2 Machine adapters
 
-- [ ] EMU-420 Integrate and contract-test BBC Model B adapter for first vertical
+- [x] EMU-420 Integrate and contract-test BBC Model B adapter for first vertical
   slice, including CPU, video, sound, keyboard, DFS/media, reset, banking, state,
   and debug hooks.
+  - [x] The slice has been the most exercised part of this build for a long
+    time, but its evidence lived under whichever item happened to produce it,
+    so the requirement itself read as not started. It is gathered here, and
+    every part of it is a run on a genuine BBC Model B with OS 1.20, BASIC II
+    and DFS 0.90 rather than a contract about the adapter's shape.
+  - [x] **Every element the requirement lists, and where it is proved.** The
+    conformance suite runs nine cases on the real machine through the headless
+    path and all nine pass. *CPU* — ADC overflow and SBC borrow, the two flag
+    behaviours most often got wrong. *Timing* — the page-crossing penalty,
+    reported as exactly the 11 cycles the documentation predicts. *Video* — a
+    MODE change through the MOS, and separately a generated screen document
+    copied into the mode 5 framebuffer and compared as region digests that
+    change when the artwork does and not otherwise. *Sound* — a byte latched
+    into the sound chip only while write-enable is held low, and separately a
+    generated song's 18 sound-chip writes. *Keyboard* — `OSBYTE &81` with a
+    zero timeout, which is how a program reads a key. *DFS and media* — a disc
+    mastered by the product's own DFS writer, mounted through the workbench's
+    own import, and its catalogue read back through `OSFILE &05`. *Banking* —
+    the ROM select register paging two different sideways ROMs into `&8000`.
+    *Debug hooks* — the address-event hook a breakpoint is built on, counting
+    entries to two labels the number of times the program's arithmetic
+    requires. *Reset* — every plan begins with a hard reset and the runner
+    refuses to run a program before the operating system has initialised.
+  - [x] *State* is the one element proved elsewhere rather than by a case:
+    versioned schema-1 machine state files carry the session manifest and ROM
+    identities, are refused when they do not match the machine restoring them,
+    and round-trip through the real core, which is recorded under the state and
+    replay work.
+  - [x] Evidence: 9 conformance cases passing on real hardware, manifest
+    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 9 tests, 0 failed, 0 skipped;
+    plus the adapter contract suite, which proves the capability declarations
+    cannot drift and that no workbench command is left unclassified.
 - [x] EMU-421 Add second materially different 8-bit slice selected at P0 (Atom
   or Electron recommended to expose false BBC assumptions early).
   - [x] Evidence: 10 Electron adapter contracts parse the vendored ElkJS

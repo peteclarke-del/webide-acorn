@@ -23,22 +23,22 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 149 |
-| Complete and traced | 84 |
+| Complete | 151 |
+| Complete and traced | 86 |
 | Complete and described | 58 |
 | Complete and untraced | 7 |
-| Open | 145 |
+| Open | 143 |
 
 ## By area
 
 | Area | Tracked | Complete | Traced | Described | Untraced |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 0 | 0 | 0 | 0 |
-| EDT | 23 | 16 | 6 | 10 | 0 |
+| EDT | 23 | 17 | 7 | 10 | 0 |
 | AST | 21 | 20 | 13 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 14 | 12 | 2 | 0 |
-| EMU | 18 | 9 | 1 | 8 | 0 |
+| EMU | 18 | 10 | 2 | 8 | 0 |
 | BLD | 17 | 9 | 3 | 6 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
 | CLD | 10 | 0 | 0 | 0 | 0 |
@@ -107,6 +107,7 @@ are listed rather than quietly counted.
 | EDT-203 | Define language adapter API and implement syntax/outline/diagnostic… | 35 adapter contracts covering the registry and its validator, every classification case, the nesting rules including a macro that closes at ENDMACRO, exact line and column, each diagnostic, the silence about symbols an… |
 | EDT-206 | Implement the complete editing command set in EDT-009, including… | 6 editor-operation contracts for the transformations, 3 document-lifecycle contracts for close, reopen and save-all, 3 clipboard contracts, 3 preference contracts, and 6 key-binding dispatch contracts proving every… |
 | EDT-210 | Implement accessible completion interaction: explicit/automatic… | 14 further model contracts covering the match scoring, boundaries, camel case, tightness, length, case, the two-character threshold, tier ordering, reported match positions, and every commit- character rule including… |
+| EDT-211 | Implement optional type/inlay hints for languages with authoritative… | 9 rail contracts covering the refusals, the ordering, the multiple-hint count and the detail carrying everything the panel knows, and 4 workspace contracts driving the real editor. the answer about types is a boundary… |
 | EDT-216 | Implement named source bookmarks, gutter/command actions,… | 3 source-bookmark model contracts for anchors, orphan detection and recovery, with persistence scopes and redacted export covered by the project round-trip contracts and by 1 export-dialog contract. Non-colour-only… |
 | BLD-320 | Implement build-target editor covering all fields in BLD-005. | 10 build-target contracts covering every field, its validation and its migration forward from an older schema, with 4 assembler adapter-contract tests proving a target that names an unregistered toolchain is reported… |
 | BLD-322 | Implement live/save/manual build policies, debounce/cancel/stale… | 6 build-service contracts covering the policies, debounce, cancellation and stale-result rejection, 4 build-graph contracts for ordering, 4 build-all contracts including one proving the concurrency ceiling cannot be… |
@@ -129,6 +130,7 @@ are listed rather than quietly counted.
 | ANL-311 | Add indirect-flow hints, extra entry points, code/data/text marking,… | 41 unit contracts cover the document, the history and the analyser's use of both, including that an indirect jump is *not* followed when nothing is recorded. A headless Chromium run then drove the whole workflow in the… |
 | ANL-312A | Add versioned structured analysis JSON containing SHA-256 source… | 4 analysis-export contracts covering the SHA-256 of the exact source bytes, versioned provenance with configuration, metadata and user labels, the recorded annotations being carried so the document reproduces the… |
 | ANL-312B | Add assembly-source export and guarded, byte-exact reassembly… | 3 assembly-export contracts covering an exact round trip of reachable code, control-flow labels, quoted data and arbitrary bytes; a 65C02-only round trip; and a refusal to claim verification for a processor the browser… |
+| EMU-420 | Integrate and contract-test BBC Model B adapter for first vertical… | 9 conformance cases passing on real hardware, manifest `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 9 tests, 0 failed, 0 skipped; plus the adapter contract suite, which proves the capability declarations cannot drift and… |
 | EMU-421 | Add second materially different 8-bit slice selected at P0 (Atom or… | 10 Electron adapter contracts parse the vendored ElkJS runtime and prove the two capability declarations cannot drift, that all 24 unavailable capabilities carry a stated reason, and that no workbench command is left… |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-… | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round… |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).… | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
@@ -234,7 +236,6 @@ are listed rather than quietly counted.
 | PLAT-202 | Establish formatting, static analysis, type checks, unit/ integration/E2E test commands,… | 15 of 16 parts done |
 | PLAT-203 | Generate typed client contracts from the accepted API description and add server/client… | not started |
 | EDT-209 | Implement context-aware completion for commands, opcodes, directives, keywords, labels,… | 5 of 6 parts done |
-| EDT-211 | Implement optional type/inlay hints for languages with authoritative type data, including… | 3 of 3 parts done |
 | EDT-212 | Implement pointer-hover and keyboard-focus token help with syntax, definition,… | 1 of 1 parts done |
 | EDT-213 | Implement non-focus-stealing, screen-reader-navigable signature help with active… | 1 of 1 parts done |
 | EDT-214 | Implement click/tap and keyboard navigation for assembly branch/ jump/call operands,… | 3 of 3 parts done |
@@ -255,7 +256,6 @@ are listed rather than quietly counted.
 | ANL-314 | Move heavy analysis into a cancellable bounded worker, add progress/virtualization and… | 4 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
 | EMU-404 | Implement keyboard viewer/remapper, focus capture/release, pasted text policy,… | 7 of 7 parts done |
-| EMU-420 | Integrate and contract-test BBC Model B adapter for first vertical slice, including CPU,… | not started |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
 | EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 11 of 15 parts done |
 | EMU-424 | Add Tube host/parasite runtime starting with one selected second | 1 of 2 parts done |
