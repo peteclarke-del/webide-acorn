@@ -17,8 +17,25 @@ import {
   type ConformanceCase,
 } from './conformanceSuite';
 
-/* Symbols the cases refer to. A real run gets these from the build; here they
- * stand in so the plans can be checked without assembling anything. */
+/*
+ * The symbols each case's own build emits.
+ *
+ * These were once a hand-written pair, `start` and `done`, which stood in for
+ * a build. That made the contract a list of the labels somebody remembered:
+ * the first case to name a third label failed here for a reason about this
+ * file rather than about the case. Assembling gives the same symbols a real
+ * run resolves against, so a case can name any label its source defines and a
+ * case naming one it does not still fails.
+ */
+const built = new Map(CONFORMANCE_CASES.map((item) => [
+  item.id,
+  assembleProject6502(item.id, [{ id: item.id, name: `${item.id}.asm`, content: item.source }]),
+]));
+const symbolsFor = (item: ConformanceCase) => built.get(item.id)?.symbols ?? {};
+
+/* For the cases built here that are not in the suite — a case with no
+ * assertions, a lost stop label — where what is under test is the refusal
+ * rather than the symbols. */
 const symbols = { start: 0x1900, done: 0x1910 };
 
 describe('what the suite says it covers', () => {
@@ -62,7 +79,7 @@ describe('the cases themselves', () => {
     /* A case whose plan does not parse would fail for the wrong reason, and a
      * suite carrying one is a suite testing its own syntax. */
     for (const item of CONFORMANCE_CASES) {
-      const { assertions, errors } = validateCase(item, symbols);
+      const { assertions, errors } = validateCase(item, symbolsFor(item));
       expect(errors, `${item.id}: ${errors.join(' · ')}`).toEqual([]);
       expect(assertions.length, item.id).toBeGreaterThan(0);
     }
@@ -90,7 +107,7 @@ describe('the cases themselves', () => {
      * SAVE agreed with the mistake rather than catching it. Assembling here
      * means a case that cannot build fails in seconds instead. */
     for (const item of CONFORMANCE_CASES) {
-      const artifact = assembleProject6502(item.id, [{ id: item.id, name: `${item.id}.asm`, content: item.source }]);
+      const artifact = built.get(item.id)!;
       const errors = artifact.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
       expect(errors.map((diagnostic) => diagnostic.message), item.id).toEqual([]);
       expect(artifact.bytes.length, item.id).toBeGreaterThan(0);
@@ -105,6 +122,16 @@ describe('the cases themselves', () => {
   it('refuses a case with no assertions rather than letting it pass vacuously', () => {
     const empty: ConformanceCase = { ...CONFORMANCE_CASES[0]!, id: 'empty', assertions: '' };
     expect(validateCase(empty, symbols).errors.join(' ')).toMatch(/carries no assertions, so running it would prove nothing/);
+  });
+
+  it('refuses a case asserting against a label its own source does not define', () => {
+    /* The counterpart to resolving symbols from the build rather than from a
+     * remembered list: naming a label that is not there must still fail, or
+     * assembling would have replaced one hand-written answer with a check that
+     * accepts anything. */
+    const invented: ConformanceCase = { ...CONFORMANCE_CASES[0]!, id: 'invented', assertions: 'EVENT[nowhere] = 1' };
+    expect(validateCase(invented, symbolsFor(CONFORMANCE_CASES[0]!)).errors.join(' '))
+      .toMatch(/EVENT\[nowhere\] must name a MOS call, a 16-bit address or a build symbol/);
   });
 
   it('refuses a case whose stop label is not in the build', () => {
@@ -141,5 +168,20 @@ describe('whether a case can mean anything here', () => {
     const standing = caseApplies(needsTube, bbc);
     expect(standing.applies).toBe(false);
     expect(standing.reason).toMatch(/does not have tube enabled/);
+  });
+
+  it('does not apply a case written against other ROMs, and says which set is loaded', () => {
+    /* A case that reads what is inside a ROM is asserting that ROM's contents.
+     * Run against another set it would fail for a reason that says nothing
+     * about the build, which reads as a fault and is not one. */
+    const romBound = CONFORMANCE_CASES.find((item) => (item.requires.romSets ?? []).length)!;
+    const machine = { machineId: romBound.requires.machines[0] ?? 'bbc-b', capabilities: romBound.requires.capabilities };
+    expect(caseApplies(romBound, { ...machine, romSetId: romBound.requires.romSets![0]! }).applies).toBe(true);
+    const elsewhere = caseApplies(romBound, { ...machine, romSetId: 'os12-basic2-adfs' });
+    expect(elsewhere.applies).toBe(false);
+    expect(elsewhere.reason).toMatch(/This session uses os12-basic2-adfs\./);
+    /* And a session that did not say which ROMs it has cannot be assumed to
+     * have the right ones. */
+    expect(caseApplies(romBound, machine).applies).toBe(false);
   });
 });

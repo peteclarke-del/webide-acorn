@@ -60,6 +60,15 @@ export interface ConformanceRequirement {
   machines: string[];
   /** Capabilities the machine must have enabled, as the profile names them. */
   capabilities: string[];
+  /*
+   * ROM sets the case is valid against. Empty means any.
+   *
+   * A case that reads what is inside a ROM is asserting that ROM's contents,
+   * not the machine's behaviour, and running it against a different ROM set
+   * would fail for a reason that says nothing about the build. Naming the sets
+   * makes that a reported non-applicability rather than a mystery failure.
+   */
+  romSets?: string[];
   /** Said plainly when the case cannot run here. */
   unavailableDetail: string;
 }
@@ -293,6 +302,121 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     assertions: ['AUDIO[WRITES] = FNV32:8D591C50'].join('\n'),
     cycleBudget: 20000,
   },
+  {
+    id: 'banking-sideways-paging',
+    area: 'banking',
+    title: 'Writing the ROM select register pages a different sideways ROM into &8000',
+    rationale: 'Everything a BBC does beyond BASIC arrives through a sideways ROM, so a build that ignored the ROM select register would appear to work until a program needed a filing system. The failure is quiet: the previous ROM stays paged in and reads succeed, returning the wrong ROM.',
+    requires: {
+      machines: ['bbc-b'], capabilities: ['sideways'], romSets: ['os12-basic2-dfs'],
+      unavailableDetail: 'This case reads the headers of the two ROMs a BBC Model B with MOS 1.20, BASIC II and DFS 0.90 has fitted.',
+    },
+    source: [
+      'ORG &1900',
+      '.start',
+      ' SEI',
+      ' LDA &F4',
+      ' STA &90',       /* the slot the MOS had paged in, put back at the end */
+      ' LDX #&0E',
+      ' STX &F4',       /* the copy of the latch the MOS keeps, so it agrees */
+      ' STX &FE30',     /* slot 14: the DFS */
+      ' LDY &8007',     /* the header's own offset to its copyright string */
+      ' STY &74',       /* kept, because it differs between the two ROMs */
+      ' LDA &8000,Y',
+      ' STA &70',
+      ' INY',
+      ' LDA &8000,Y',
+      ' STA &71',
+      ' INY',
+      ' LDA &8000,Y',
+      ' STA &72',
+      ' INY',
+      ' LDA &8000,Y',
+      ' STA &73',
+      ' INY',
+      ' LDX #&0F',
+      ' STX &F4',       /* the copy of the latch the MOS keeps, so it agrees */
+      ' STX &FE30',     /* slot 15: BASIC II */
+      ' LDY &8007',     /* the header's own offset to its copyright string */
+      ' STY &7C',       /* kept, because it differs between the two ROMs */
+      ' LDA &8000,Y',
+      ' STA &78',
+      ' INY',
+      ' LDA &8000,Y',
+      ' STA &79',
+      ' INY',
+      ' LDA &8000,Y',
+      ' STA &7A',
+      ' INY',
+      ' LDA &8000,Y',
+      ' STA &7B',
+      ' INY',
+      ' LDA &90',
+      ' STA &F4',
+      ' STA &FE30',
+      ' CLI',
+      '.done',
+      ' RTS',
+    ].join('\n'),
+    stop: 'done',
+    /*
+     * Two assertions doing two different jobs.
+     *
+     * The copyright signature is documented: every Acorn paged ROM holds a zero
+     * byte followed by "(C)" at the offset its own header gives in &8007. Both
+     * slots showing it says each read landed inside a real paged ROM.
+     *
+     * That alone would not prove paging, because a build that ignored &FE30
+     * would read one resident ROM twice and both signatures would still be
+     * there. The offsets are what proves it: &11 in slot 14 and &0E in slot 15,
+     * observed from this ROM set, and necessarily equal to each other if the
+     * write to &FE30 did nothing. This is why the case names the ROM set it
+     * applies to — the offsets are facts about these ROMs, not about the
+     * machine.
+     */
+    assertions: [
+      'MEM[&70] = 00 28 43 29',
+      'MEM[&78] = 00 28 43 29',
+      'MEM[&74] = &11',
+      'MEM[&7C] = &0E',
+    ].join('\n'),
+    cycleBudget: 20000,
+  },
+  {
+    id: 'breakpoint-maps-address-hook',
+    area: 'breakpoint-maps',
+    title: 'A named source label resolves to the address the program actually executes',
+    rationale: 'Every breakpoint in this build is an address the assembler produced from a label. If the map were off by even one instruction, breakpoints would appear to work — they would stop somewhere — while stopping in the wrong place, which is worse than not stopping at all because it is believed.',
+    requires: { machines: [], capabilities: [], unavailableDetail: 'This case needs a 6502-family machine.' },
+    source: [
+      'ORG &1900',
+      '.start',
+      ' LDX #&05',
+      '.spin',
+      ' DEX',            /* the label under test: reached once per iteration */
+      ' BNE spin',
+      ' LDA #&00',
+      '.after',
+      ' STA &73',        /* a second label, executed exactly once */
+      '.done',
+      ' RTS',
+    ].join('\n'),
+    stop: 'done',
+    /*
+     * The counts are what the program's own arithmetic requires rather than
+     * what a run reported: X counts down from five to zero, so the instruction
+     * at `spin` is entered five times, and the one at `after` once. A map that
+     * resolved either label to a neighbouring instruction would give a
+     * different count — one, five, or nothing — so this cannot pass by
+     * accident.
+     */
+    assertions: [
+      'EVENT[spin] = 5',
+      'EVENT[after] = 1',
+      'MEM[&73] = &00',
+    ].join('\n'),
+    cycleBudget: 2000,
+  },
 ]);
 
 export interface AreaCoverage {
@@ -344,10 +468,14 @@ export function suiteCoverage(cases: readonly ConformanceCase[] = CONFORMANCE_CA
  */
 export function caseApplies(
   item: ConformanceCase,
-  machine: { machineId: string; capabilities: readonly string[] },
+  machine: { machineId: string; capabilities: readonly string[]; romSetId?: string },
 ): { applies: boolean; reason: string | null } {
   if (item.requires.machines.length && !item.requires.machines.includes(machine.machineId)) {
     return { applies: false, reason: `${item.requires.unavailableDetail} This session is ${machine.machineId}.` };
+  }
+  const romSets = item.requires.romSets ?? [];
+  if (romSets.length && (machine.romSetId === undefined || !romSets.includes(machine.romSetId))) {
+    return { applies: false, reason: `${item.requires.unavailableDetail} This session uses ${machine.romSetId ?? 'an unnamed ROM set'}.` };
   }
   const missing = item.requires.capabilities.filter((capability) => !machine.capabilities.includes(capability));
   if (missing.length) {

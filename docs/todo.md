@@ -4456,19 +4456,19 @@ Current implemented increment:
     product claims is enumerated whether or not it has a case, and the list is
     fixed rather than derived from the cases — a list derived from the cases can
     only ever report that everything present is covered, which is true and
-    useless. **Five of the eleven areas have cases; six have none**: banking,
-    media, Tube, breakpoint maps, trace and state replay. Those are named in the
-    interface first, before anything that passes, and described as neither known
-    to be wrong nor known to be right, because an area with no cases is not a
-    passing area — it is where a fault would go unnoticed.
+    useless. **Seven of the eleven areas have cases; four have none**: media,
+    Tube, trace and state replay. Those are named in the interface first, before
+    anything that passes, and described as neither known to be wrong nor known
+    to be right, because an area with no cases is not a passing area — it is
+    where a fault would go unnoticed.
   - [x] A case that cannot apply to the machine in front of somebody is reported
     as not applicable with the reason, and a case that has not been executed is
     reported as not run. Counting either as a pass would be the exact failure
     this suite exists to prevent.
-  - [x] **The cases now run on a real machine.** All six execute on a genuine
+  - [x] **The cases now run on a real machine.** All eight execute on a genuine
     BBC Model B with OS 1.20, BASIC II and DFS 0.90 through the existing
-    headless path and all six pass: manifest
-    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 6 tests, 0 failed, 0 skipped.
+    headless path and all eight pass: manifest
+    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 8 tests, 0 failed, 0 skipped.
     The timing case reports exactly 11 cycles, which is the 2 + 4 + 5 the
     documented page-crossing penalty predicts, so the number the machine gives
     back is the number the documentation says rather than merely a number.
@@ -4510,8 +4510,37 @@ Current implemented increment:
     write-enable goes low, so nothing latched. Held long enough, three bytes
     latch and the digest is `8D591C50`, identical across three runs and asserted
     from those runs rather than from anywhere else.
-  - [ ] Cases for the six uncovered areas — banking, media, Tube, breakpoint
-    maps, trace and state replay — keep TST-506 open.
+  - [x] **Banking is covered, and the case had to be able to say which ROMs it
+    was written against.** A sideways paging case reads the paged ROM header in
+    two slots: the documented zero byte and `(C)` at the offset the ROM's own
+    header gives in `&8007` says each read landed inside a real ROM, and the two
+    offsets differing — `&11` in slot 14, `&0E` in slot 15 — is what proves the
+    write to `&FE30` changed anything, because a build that ignored it would
+    read one resident ROM twice and return the same offset for both. Those
+    offsets are facts about these ROMs rather than about the machine, so
+    `ConformanceRequirement` gained a `romSets` field and the panel is told
+    which set is loaded; against a different set the case is reported as not
+    applicable with the reason, rather than failing for something that says
+    nothing about the build.
+  - [x] **Breakpoint maps are covered by the mechanism breakpoints are built
+    on.** A loop counts down from five, so the instruction at one label is
+    entered five times and one at a second label once; both counts are what the
+    program's arithmetic requires rather than what a run reported, and a map
+    that resolved either label to a neighbouring instruction would give a
+    different number. This is the same address-hook path a breakpoint uses, so
+    it fails if the source map is off by an instruction — which would otherwise
+    stop somewhere plausible and be believed.
+  - [ ] **Media, Tube, trace and state replay keep TST-506 open, and two of them
+    for a reason worth stating.** A media case is written the same way as the
+    others but cannot execute: the headless runner has no disc path at all, so
+    mounting the disc a case would read is not something it can be asked to do
+    yet. Trace and state replay are not behaviours of a program at all — they
+    are workbench features, and the conformance format is a program plus
+    assertions about the machine it ran on, which cannot observe either. Writing
+    them as conformance cases would mean inventing a second meaning for the
+    word, so they stay uncovered and their evidence stays where it is, in their
+    own contracts. Tube needs the Tube capability and its boot ROM enabled in
+    the conformance profile.
   - [x] Evidence: 13 module contracts and 6 panel contracts, including that
     every case parses into assertions the runner can read, that a case with no
     assertions is refused rather than passing vacuously, that a case with no

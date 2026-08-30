@@ -32,7 +32,7 @@ try {
   await run('npx', ['esbuild', 'src/testing/conformanceSuite.ts', '--bundle', '--format=esm', '--platform=node', `--outfile=${bundle}`, '--log-level=warning']);
   const suite = await import(`file://${bundle}`);
   const all = suite.CONFORMANCE_CASES;
-  const applicable = all.filter((item) => suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'] }).applies);
+  const applicable = all.filter((item) => suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'], romSetId: romId }).applies);
   if (!applicable.length) throw new Error(`No conformance case applies to ${machineId}, so this would have produced a project that proves nothing.`);
 
   const project = {
@@ -74,7 +74,7 @@ try {
   console.log(`Cases: ${applicable.map((item) => item.id).join(', ')}`);
   if (skipped) {
     for (const item of all.filter((candidate) => !applicable.includes(candidate))) {
-      console.log(`Not applicable: ${item.id} — ${suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'] }).reason}`);
+      console.log(`Not applicable: ${item.id} — ${suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'], romSetId: romId }).reason}`);
     }
   }
 } finally {

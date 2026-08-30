@@ -22,13 +22,17 @@ import {
 interface ConformancePanelProps {
   machineId: string;
   capabilities: readonly string[];
+  /* Which ROM set is loaded. A case that reads what is inside a ROM applies
+   * only to the sets it was written against, and without this it would be
+   * shown as applying here and then fail for a reason about the ROM. */
+  romSetId?: string;
   /** Results from runs that actually happened, keyed by case identifier. */
   results?: Record<string, { passed: boolean; detail: string }>;
 }
 
-export function ConformancePanel({ machineId, capabilities, results }: ConformancePanelProps) {
+export function ConformancePanel({ machineId, capabilities, romSetId, results }: ConformancePanelProps) {
   const coverage = useMemo(() => suiteCoverage(), []);
-  const machine = useMemo(() => ({ machineId, capabilities }), [machineId, capabilities]);
+  const machine = useMemo(() => ({ machineId, capabilities, romSetId }), [machineId, capabilities, romSetId]);
 
   return (
     <section className="conformance-panel panel-surface" aria-label="Platform conformance">
