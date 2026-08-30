@@ -214,7 +214,7 @@ None. Every completed requirement records how it was verified.
 | A11Y-103 | Establish manual screen-reader matrix and recruit representative testers before feature… | not started |
 | UX-GATE | Stakeholders and accessibility reviewers accept an interactive prototype for desktop and… | not started |
 | PLAT-200 | Scaffold React/TypeScript/Vite client and supported PHP/Symfony services only after… | not started |
-| PLAT-202 | Establish formatting, static analysis, type checks, unit/ integration/E2E test commands,… | 12 of 13 parts done |
+| PLAT-202 | Establish formatting, static analysis, type checks, unit/ integration/E2E test commands,… | 15 of 16 parts done |
 | PLAT-203 | Generate typed client contracts from the accepted API description and add server/client… | not started |
 | EDT-209 | Implement context-aware completion for commands, opcodes, directives, keywords, labels,… | 5 of 6 parts done |
 | EDT-211 | Implement optional type/inlay hints for languages with authoritative type data, including… | 3 of 3 parts done |
