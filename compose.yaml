@@ -21,6 +21,11 @@ services:
       - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=33,gid=33,mode=1770
     volumes:
       - native-builder-socket:/run/php
+      # Projects and their history live on a volume rather than in the image,
+      # so rebuilding the container does not take somebody's work with it. The
+      # builder is otherwise read-only on purpose; this is the one path it may
+      # write to, and it is the only place it keeps anything.
+      - project-store:/var/lib/webide-acorn/store
     restart: unless-stopped
 
   webide-acorn:
@@ -72,6 +77,7 @@ services:
 
 volumes:
   native-builder-socket:
+  project-store:
 
 networks:
   ci-internal:

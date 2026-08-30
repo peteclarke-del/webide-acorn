@@ -5434,14 +5434,71 @@ Current implemented increment:
   protection, rate limits, safe recovery, and privacy notices (SEC-004).
 - [ ] CLD-801 Implement backend-enforced owner/editor/tester/viewer project
   capabilities and shared-admin service/operator capabilities.
-- [ ] CLD-802 Implement encrypted/isolated project metadata and blob storage,
+- [x] CLD-802 Implement encrypted/isolated project metadata and blob storage,
   integrity checks, quotas, transactional revision references, and safe GC.
+  - [x] Storage was deliberately absent: ADR 0002 introduced no database, queue
+    or object store, so everything anybody made lived in one browser, on one
+    machine, with no history and no backup but a hand export. ADR 0010 records
+    the decision to build storage, revisions and synchronisation now, against a
+    Docker volume, under **one implicit local identity** — and to record whose
+    data it is from the first write even though nothing yet proves who they
+    are, because a store written without an owner cannot later say, and every
+    isolation test worth having would have nothing to bind to.
+  - [x] **Content is addressed by SHA-256.** The same file in twenty revisions
+    is stored once, and bytes that do not hash to the digest they were filed
+    under are refused rather than returned — corruption is reported as damage
+    to the store rather than as a missing file, because reporting it as absence
+    would send somebody after the wrong problem and returning it would spread
+    it. Writes go to a temporary name and are renamed, so an interrupted write
+    leaves nothing addressable behind.
+  - [x] **A revision is an immutable manifest** of filename against digest,
+    with a parent. History is a chain over shared content, restoring is reading
+    rather than reconstructing, and a revision written against something that
+    is no longer the head is refused with both identifiers and the remedy —
+    which is what a client needs to merge or fork rather than retry.
+  - [x] **Quotas are charged on what a write would add**, not on what it sends,
+    so naming content already stored costs nothing and a large project can
+    still gain a byte. **Collection only ever removes content no revision
+    names**: a blob any revision names is never collected and no revision is
+    ever removed to make one collectable, because collection that could lose
+    history is a worse problem than the space it recovers.
+  - [x] Encryption at rest is the deployment's and is said to be: a volume this
+    product cannot see the mounting of is not one it can honestly claim to
+    encrypt. That is stated in ADR 0010 rather than left to be read into the
+    requirement's wording.
+  - [x] **Three defects found by running it rather than by reading it.** The
+    named volume arrived owned by root while the service runs as `www-data`, so
+    every write failed with a permission error that said nothing about a
+    volume; the directory now exists in the image with the right owner, which
+    is what Docker seeds a volume from. An `ApiProblem` thrown from the new
+    controller escaped as Symfony's HTML error page — a 500 with no code, no
+    correlation identifier and no indication whether retrying helps — because
+    the error envelope lived inside the build controller; it is now one
+    definition both controllers use. And the store accepts a larger body than
+    the build API, so nginx would have refused first with a bare 413; the two
+    numbers are now deliberately equal and say so.
+  - [x] Evidence: 28 backend contracts covering integrity, refusals, quota
+    accounting, collection safety and that every refusal the store can raise
+    has an HTTP answer and nothing is mapped that cannot be raised. Proved
+    through the real stack as well: a revision committed, read back byte for
+    byte, refused with 409 and a usable message when written against a stale
+    parent, surviving a container restart, and collection keeping the content a
+    revision still names.
 - [ ] CLD-803 Implement explicit local/cloud modes and migration without account
   coercion or local data loss (CLD-001–CLD-002).
 - [ ] CLD-804 Implement sync state machine, offline queue, reconnect, text merge,
   manifest/asset conflict resolution, and fork fallback.
 - [ ] CLD-805 Implement revision timeline, compare, restore, fork, actor/source,
   retention, large-binary dedupe, and immutable shared revisions.
+  - [x] The timeline, restore, immutability and large-binary deduplication come
+    with the store: revisions are listed oldest first with their parent, note
+    and file count; restoring one is reading it; a written revision is never
+    modified; and identical content is stored once however many revisions name
+    it. The owner is recorded on every revision, which is the actor as far as
+    one identity can be.
+  - [ ] Compare, fork, retention and shared revisions are not implemented. Fork
+    and sharing both need more than one identity to mean anything, so they wait
+    on CLD-800 with the rest.
 - [ ] CLD-806 Implement share/invite/revoke/public template controls with secret,
   ROM, licence, and redistribution scanning.
 - [ ] CLD-807 Implement quota dashboard and predictable cache/artifact/revision

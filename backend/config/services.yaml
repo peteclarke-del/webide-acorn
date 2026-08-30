@@ -7,3 +7,18 @@ services:
     resource: '../src/'
     exclude:
       - '../src/Kernel.php'
+
+  # The store lives on a volume the deployment mounts, not in the image, so a
+  # container that is rebuilt does not take somebody's projects with it. The
+  # default is the path the Compose file mounts; a deployment that puts it
+  # elsewhere sets PROJECT_STORE_ROOT.
+  App\Storage\BlobStore:
+    arguments:
+      $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
+
+  App\Storage\ProjectStore:
+    arguments:
+      $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
+
+parameters:
+  project_store_root_default: '/var/lib/webide-acorn/store'
