@@ -35,7 +35,14 @@ try {
   await run('npx', ['esbuild', 'src/media/dfsImage.ts', '--bundle', '--format=esm', '--platform=node', `--outfile=${mediaBundle}`, '--log-level=warning']);
   const media = await import(`file://${mediaBundle}`);
   const all = suite.CONFORMANCE_CASES;
-  const applicable = all.filter((item) => suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'], romSetId: romId }).applies);
+  /*
+   * The project enables what the applicable cases actually declare they need,
+   * rather than a list somebody kept in step by hand. A case whose capability
+   * is not enabled is reported as not applicable and never runs, so a hardcoded
+   * list quietly decides which areas can be covered at all.
+   */
+  const capabilities = [...new Set(['dfs', 'sideways', ...all.flatMap((item) => item.requires.capabilities)])].sort();
+  const applicable = all.filter((item) => suite.caseApplies(item, { machineId, capabilities, romSetId: romId }).applies);
   if (!applicable.length) throw new Error(`No conformance case applies to ${machineId}, so this would have produced a project that proves nothing.`);
 
   const carriesDisc = applicable.some((item) => item.disc);
@@ -43,7 +50,7 @@ try {
     format: '8bit-net-dev-project-13',
     name: `Conformance suite (${machineId})`,
     files: applicable.map((item) => ({ id: item.id, name: `${item.id}.asm`, content: item.source })),
-    target: { platformClass: '8-16-bit', machineId, variant, romId, enabledCapabilities: ['dfs', 'sideways'] },
+    target: { platformClass: '8-16-bit', machineId, variant, romId, enabledCapabilities: capabilities },
     breakpoints: {}, bookmarks: [],
     buildTargets: applicable.map((item) => ({
       schemaVersion: 5, id: item.id, name: item.title,
@@ -109,9 +116,10 @@ try {
   const skipped = all.length - applicable.length;
   console.log(`${applicable.length} of ${all.length} conformance cases apply to ${machineId} and were written to ${output}.`);
   console.log(`Cases: ${applicable.map((item) => item.id).join(', ')}`);
+  console.log(`Capabilities enabled by what the cases need: ${capabilities.join(', ')}`);
   if (skipped) {
     for (const item of all.filter((candidate) => !applicable.includes(candidate))) {
-      console.log(`Not applicable: ${item.id} — ${suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'], romSetId: romId }).reason}`);
+      console.log(`Not applicable: ${item.id} — ${suite.caseApplies(item, { machineId, capabilities, romSetId: romId }).reason}`);
     }
   }
 } finally {

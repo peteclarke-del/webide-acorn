@@ -39,3 +39,15 @@ for. A copy committed beside the suite would be a second declaration of the same
 fact, and the two would eventually disagree about what was actually proved —
 which for a conformance suite is the whole game. That is why it is ignored here
 rather than tracked.
+
+## The Tube ROM
+
+The Tube conformance case needs the Acorn 6502 Tube client ROM, 2,048 bytes,
+supplied under the key `<rom set>/tube/6502Tube.rom` in the same way as every
+other ROM. It is not in this repository and never will be.
+
+The stardot `Acorn6502TubeROM` repository holds the original source for version
+1.20 rather than a binary, and assembling it needs an Acorn Turbo 256K second
+processor running Acorn MASM; its disc images carry the sources and build
+scripts only. Version 1.10 is what external 6502 second processors actually
+contain, which that repository's own notes say.

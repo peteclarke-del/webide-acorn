@@ -258,14 +258,14 @@ are listed rather than quietly counted.
 | EMU-404 | Implement keyboard viewer/remapper, focus capture/release, pasted text policy,… | 7 of 7 parts done |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
 | EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 11 of 15 parts done |
-| EMU-424 | Add Tube host/parasite runtime starting with one selected second | 1 of 2 parts done |
+| EMU-424 | Add Tube host/parasite runtime starting with one selected second | 1 of 3 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
 | EMU-GATE | Two 8-bit slices and one scoped ARM slice can run exact resolved profiles with correct… | not started |
 | TST-502 | Complete symbol/text/screen/audio/event/result/timing assertions. Live 6502 register and… | 5 of 5 parts done |
 | TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad, mouse, analogue,… | not started |
-| TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 13 of 14 parts done |
+| TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 15 of 16 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
 | AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 11 of 13 parts done |
 | ASSET-GATE | Character/object, screen/palette, tile/block, map, and target- appropriate sound assets… | not started |

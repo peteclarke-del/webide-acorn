@@ -3741,6 +3741,21 @@ Current implemented increment:
     registers and memory from a test plan, are not implemented; the runtime can
     read Tube memory and record transfer events but a hardware test still binds
     to the host CPU. That keeps this item open.
+  - [ ] **A defect the Tube conformance case found: the host does not know the
+    parasite is there.** With the Tube capability enabled and the Acorn 6502
+    Tube client ROM 1.10 supplied, the Tube ULA is present and answering — the
+    host reads `&C1` at `&FEE0` and `&7F` at `&FEE2`, which is real status and
+    not the `&FF` of an unread bus. The operating system has nonetheless not
+    recorded a second processor: the MOS Tube presence flag at `&027A` is zero
+    and `OSBYTE &EA` returns zero. Two independent reads agree, across four
+    runs and all three reset policies, so it is neither the plan's reset nor
+    the probe. Anything that depends on a second processor would therefore not
+    work, which is why the profile calls Tube a preview rather than supported —
+    that label is accurate rather than cautious. What is not yet established is
+    whether the fault is in how this build constructs the core, since it uses
+    the pinned adapter's test factory rather than its front-end construction,
+    or in the core itself. Until it is, the conformance case fails and is
+    reported as failing.
   processor; prove scheduling, state, media, input, and dual debugger hooks.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
 - [ ] EMU-426 Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,
@@ -4516,7 +4531,7 @@ Current implemented increment:
   media, Tube, breakpoint maps, trace, input, frames, sound, and state replay.
   - [x] The suite exists and is written against the same test-plan machinery the
     workbench already runs, so a case in it is a test somebody can also run by
-    hand rather than a parallel invention that could drift from it. Nine cases
+    hand rather than a parallel invention that could drift from it. Ten cases
     cover processor flags, timing, sound, input and frames: ADC overflow and SBC
     borrow, because those are the two most often got wrong and both fail
     invisibly in the result alone; the page-crossing penalty, because a build
@@ -4529,8 +4544,10 @@ Current implemented increment:
     product claims is enumerated whether or not it has a case, and the list is
     fixed rather than derived from the cases — a list derived from the cases can
     only ever report that everything present is covered, which is true and
-    useless. **Eight of the eleven areas have cases; three have none**: Tube,
-    trace and state replay. Those are named in the interface first, before
+    useless. **Nine of the eleven areas have cases; two have none**: trace and
+    state replay. Having a case is not the same as passing, and the Tube case
+    fails — the report shows the result beside the case rather than counting
+    coverage as though it were health. Those are named in the interface first, before
     anything that passes, and described as neither known to be wrong nor known
     to be right, because an area with no cases is not a passing area — it is
     where a fault would go unnoticed.
@@ -4538,10 +4555,11 @@ Current implemented increment:
     as not applicable with the reason, and a case that has not been executed is
     reported as not run. Counting either as a pass would be the exact failure
     this suite exists to prevent.
-  - [x] **The cases now run on a real machine.** All nine execute on a genuine
+  - [x] **The cases now run on a real machine.** All ten execute on a genuine
     BBC Model B with OS 1.20, BASIC II and DFS 0.90 through the existing
-    headless path and all nine pass: manifest
-    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 9 tests, 0 failed, 0 skipped.
+    headless path: manifest `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 10
+    tests, 9 passed, 1 failed, 0 skipped. The failure is the Tube case and is a
+    finding about the adapter, recorded under EMU-424.
     The timing case reports exactly 11 cycles, which is the 2 + 4 + 5 the
     documented page-crossing penalty predicts, so the number the machine gives
     back is the number the documentation says rather than merely a number.
@@ -4625,14 +4643,24 @@ Current implemented increment:
     that this DFS sign-extends the way later filing systems do; it does not,
     and the assertion now records what was observed and says which half of it
     is the claim.
-  - [ ] **Tube, trace and state replay keep TST-506 open, and two of them for a
-    reason worth stating.** Trace and state replay are not behaviours of a
-    program at all — they are workbench features, and the conformance format is
-    a program plus assertions about the machine it ran on, which cannot observe
-    either. Writing them as conformance cases would mean inventing a second
-    meaning for the word, so they stay uncovered and their evidence stays where
-    it is, in their own contracts. Tube needs the Tube capability and its boot
-    ROM enabled in the conformance profile.
+  - [x] **Tube has a case, and it fails — which is the case earning its keep.**
+    It asks the host whether a second processor is fitted, through `OSBYTE &EA`,
+    which is the one Tube fact a program on the host can establish for itself.
+    With the client ROM supplied and the capability enabled the host answers
+    that there is none, while the Tube ULA is plainly present and answering.
+    That is recorded under EMU-424 as a defect to investigate rather than
+    hidden, and the case stays in the suite reporting failure: a suite that
+    dropped a case because it failed would be measuring its own comfort.
+  - [x] The project now enables the capabilities the applicable cases declare
+    they need, rather than a list kept in step by hand. A case whose capability
+    was not enabled would be reported as not applicable and never run, so that
+    hardcoded list was quietly deciding which areas could be covered at all.
+  - [ ] **Trace and state replay keep TST-506 open, for a reason worth
+    stating.** Neither is a behaviour of a program: they are workbench
+    features, and the conformance format is a program plus assertions about the
+    machine it ran on, which cannot observe either. Writing them as conformance
+    cases would mean inventing a second meaning for the word, so they stay
+    uncovered and their evidence stays where it is, in their own contracts.
   - [x] Evidence: 13 module contracts and 6 panel contracts, including that
     every case parses into assertions the runner can read, that a case with no
     assertions is refused rather than passing vacuously, that a case with no

@@ -525,6 +525,44 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
       contents: [0xc0, 0xff, 0xee],
     },
   },
+  {
+    id: 'tube-host-presence',
+    area: 'tube',
+    title: 'The host reports a second processor when one is fitted',
+    rationale: 'Everything about a Tube machine follows from the host knowing a parasite is there: the operating system hands the language over to it, and a program that asks and is told wrongly either runs in the wrong processor or refuses to run at all. It is also the one Tube fact a program on the host can establish for itself, which is why it is the case worth having first.',
+    requires: {
+      machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], capabilities: ['tube'],
+      unavailableDetail: 'This case asks the host whether a second processor is fitted and needs a BBC-family machine with the Tube capability enabled.',
+    },
+    /*
+     * OSBYTE &EA reads the Tube presence flag. Called to read rather than to
+     * write — X is zero and Y is &FF — it returns the flag in X, and the flag
+     * is non-zero exactly when the operating system has found a Tube.
+     */
+    source: [
+      'ORG &1900',
+      '.start',
+      ' LDA #&EA',
+      ' LDX #&00',
+      ' LDY #&FF',
+      ' JSR &FFF4',      /* OSBYTE */
+      ' STX present',
+      '.done',
+      ' RTS',
+      '.present',
+      'EQUB 0',
+    ].join('\n'),
+    stop: 'done',
+    /*
+     * &FF rather than merely non-zero, because the assertion language compares
+     * a byte and a case that could not tell &FF from &01 would pass on a host
+     * that had found something other than a Tube. The same program on a
+     * machine with no second processor stores 0, which is what makes this a
+     * check rather than a formality.
+     */
+    assertions: ['MEM[present] = &FF'].join('\n'),
+    cycleBudget: 200000,
+  },
 ]);
 
 export interface AreaCoverage {
