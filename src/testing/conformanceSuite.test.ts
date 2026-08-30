@@ -5,6 +5,8 @@
  * unnoticed, and that is the question it is asked.
  */
 import { describe, expect, it } from 'vitest';
+import { assembleProject6502 } from '../build/projectAssembler6502';
+import { resolveTestValue } from './testPlan';
 import {
   CONFORMANCE_AREAS,
   CONFORMANCE_CASES,
@@ -77,7 +79,26 @@ describe('the cases themselves', () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const item of CONFORMANCE_CASES) {
       expect(item.cycleBudget, item.id).toBeGreaterThan(0);
-      expect(item.source, item.id).toMatch(/SAVE /);
+    }
+  });
+
+  it('every case assembles with the toolchain the suite is run through', () => {
+    /* The check that was missing, and its absence cost a five-minute headless
+     * run against a real machine to discover. Every case originally ended with
+     * a BeebAsm `SAVE`, which the browser assembler does not have — so none of
+     * them could build, and a contract that asserted the sources *contained*
+     * SAVE agreed with the mistake rather than catching it. Assembling here
+     * means a case that cannot build fails in seconds instead. */
+    for (const item of CONFORMANCE_CASES) {
+      const artifact = assembleProject6502(item.id, [{ id: item.id, name: `${item.id}.asm`, content: item.source }]);
+      const errors = artifact.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
+      expect(errors.map((diagnostic) => diagnostic.message), item.id).toEqual([]);
+      expect(artifact.bytes.length, item.id).toBeGreaterThan(0);
+      /* And the label the plan stops on has to resolve against the symbols the
+       * build emits — through the same resolver the runner uses, because the
+       * assembler upper-cases labels and a plain key lookup would be testing a
+       * proxy for the behaviour rather than the behaviour. */
+      expect(resolveTestValue(item.stop, artifact.symbols), `${item.id} stop label ${item.stop}`).not.toBeNull();
     }
   });
 

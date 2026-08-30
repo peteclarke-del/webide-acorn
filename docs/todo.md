@@ -4456,8 +4456,9 @@ Current implemented increment:
     product claims is enumerated whether or not it has a case, and the list is
     fixed rather than derived from the cases — a list derived from the cases can
     only ever report that everything present is covered, which is true and
-    useless. **Five of the eleven areas have cases; six have none**: banking,
-    media, Tube, breakpoint maps, trace and state replay. Those are named in the
+    useless. **Four of the eleven areas have cases; seven have none**: banking,
+    media, Tube, breakpoint maps, trace, state replay and — after its
+    expectation was withdrawn — sound. Those are named in the
     interface first, before anything that passes, and described as neither known
     to be wrong nor known to be right, because an area with no cases is not a
     passing area — it is where a fault would go unnoticed.
@@ -4465,13 +4466,43 @@ Current implemented increment:
     as not applicable with the reason, and a case that has not been executed is
     reported as not run. Counting either as a pass would be the exact failure
     this suite exists to prevent.
-  - [ ] **No case has yet been executed against a real machine.** They are
-    validated as plans the runner can read, which is not the same as evidence
-    that the emulation is right, and calling this requirement complete on that
-    basis would be the claim without the suite behind it that the whole item is
-    about. Running them needs the selected machine ROM set through the existing
-    headless path. That, and cases for the six uncovered areas, keep TST-506
-    open.
+  - [x] **The cases now run on a real machine.** Five of them execute on a
+    genuine BBC Model B with OS 1.20, BASIC II and DFS 0.90 through the existing
+    headless path and all five pass: manifest
+    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 5 tests, 0 failed, 0 skipped.
+    The timing case reports exactly 11 cycles, which is the 2 + 4 + 5 the
+    documented page-crossing penalty predicts, so the number the machine gives
+    back is the number the documentation says rather than merely a number.
+  - [x] The project the runner drives is generated from the suite module rather
+    than kept by hand, so the cases that execute are the same objects the
+    coverage accounting reports on. The first generator read the module with a
+    regular expression and silently produced four of six cases; for a
+    conformance suite that is the worst available failure, because it would have
+    reported a clean run while proving less than it claimed. It now bundles the
+    module and imports it, and counts what it wrote back against what the module
+    holds.
+  - [x] **Two failures on the first real run, and only one was the emulator's
+    question.** Every case ended with a BeebAsm `SAVE`, which the browser
+    assembler does not have, so none could build — and a contract asserting the
+    sources *contained* `SAVE` had encoded that wrong assumption and agreed with
+    it. The suite now assembles every case with the real toolchain and resolves
+    each stop label through the runner's own resolver, so a case that cannot
+    build fails in seconds rather than after a five-minute run. The ADC case
+    then asserted `A = &70`, which is the address the flags are stored at rather
+    than their value; after `PHP`/`PLA` the accumulator holds the flags, `&F0`.
+  - [ ] **The sound case was withdrawn rather than corrected, and that is the
+    honest state.** It asserted an `AUDIO[WRITES]` digest copied from this
+    backlog, where it had been recorded for a different program driving the
+    System VIA a different way — an expectation this build never observed for
+    the program asserting it, which is exactly the fabrication this product does
+    not do. The test reports carry only pass, fail and cycles, with no
+    per-assertion detail and no actual digest, so the true value cannot be
+    observed from a headless run; inventing a second number would repeat the
+    mistake. Sound is therefore reported as uncovered, which is correct, and
+    covering it needs the report format to say what an assertion actually saw.
+  - [ ] Cases for the six uncovered areas — banking, media, Tube, breakpoint
+    maps, trace and state replay — and an observed rather than copied sound
+    expectation keep TST-506 open.
   - [x] Evidence: 13 module contracts and 6 panel contracts, including that
     every case parses into assertions the runner can read, that a case with no
     assertions is refused rather than passing vacuously, that a case with no
@@ -4827,12 +4858,48 @@ Current implemented increment:
     the logarithmic byte format sound DMA consumes. Shipping an encoder for it
     from recollection would put fabricated sample data in front of users, which
     this product does not do.
-  - [ ] To unblock: cite a primary VIDC1a sound specification for the sign,
-    chord and point fields; implement the encoder against it; then prove a known
-    byte pattern end to end by programming sound DMA on the qualified A310 core
-    and comparing the captured WAV against the decoded expectation, in the same
-    way the Atom speaker port was taken from the pinned emulator's documented
-    memory map rather than assumed. Until that evidence exists this item stays
+  - [x] **The primary source arrived**: the Acorn VIDC Datasheet, Part No
+    0460,020, Issue No 1.0, 30 September 1986, sections 5.5, 5.22 and 6.10. The
+    encoder is implemented against it and nothing in it is from recollection.
+    Section 6.10 gives the transfer characteristic — "8 linear segments
+    (chords). Each chord consists of 16 steps, and the step size in one chord is
+    twice the step size in the preceding chord ... an approximation to the µ255
+    law" — and its figure marks the chord boundaries at 0, i, 3i, 7i, 15i, 31i,
+    63i, 127i with a maximum of 247i. Working the step sizes back from that puts
+    chord 0's step at one sixteenth of i, so everything is counted in sixteenths
+    and every value is a whole number. The contracts assert the printed figures:
+    if the steps had been read wrongly the boundaries would not come out at the
+    numbers on the datasheet's own graph.
+  - [x] The bit order is the part that would have been got wrong. The datasheet
+    says plainly: "Note that the order of the bits used to generate the sound
+    values differs between VIDC1 and VIDC2." VIDC1 is sign at D7, chord at
+    D6-D4, point at D3-D0; VIDC2 is chord at D7-D5, point at D4-D1, sign at D0.
+    They are not the same byte under two names, and encoding for the wrong one
+    produces noise rather than a quiet inaccuracy, so the part is named at every
+    call and never defaulted.
+  - [x] The registers came with it: the Sound Frequency Register as (N-1) in
+    microseconds with N from 3 to 256 and the test bit always set, the
+    per-channel rate as the byte rate divided between the channels, the stereo
+    image table, and — worth keeping — value 0 of a stereo image register, which
+    the datasheet calls *Undefined*. It is modelled as its own thing rather than
+    mapped to centre, because a register the documentation declines to define is
+    not one this build gets to define on its behalf.
+  - [ ] **One inference remains, and it is the reason this stays open.** The
+    datasheet is titled "VIDC" and its bit-order diagram names VIDC1 and VIDC2;
+    the A310 carries VIDC1a, which is a speed-graded variant of VIDC1. Taking
+    the VIDC1 layout to apply to VIDC1a is an inference from that relationship,
+    not something this document states, and this build does not treat an
+    inference as a citation. What settles it is the end-to-end proof already
+    written into this item: program sound DMA on the qualified A310 core with a
+    known byte pattern and compare the captured WAV against the decoded
+    expectation. Until that runs, the encoder is correct against a primary
+    source for VIDC1 and unproven on the machine this product targets.
+  - [ ] Evidence so far: 25 contracts covering the chord arithmetic against the
+    datasheet's printed boundaries, both bit orders round-tripping every byte,
+    the companding being coarser at high levels than low, clipping reported
+    rather than wrapped, the SFR encoding, and the stereo register mapping for
+    each channel mode. The remaining evidence is the A310 run. Until that exists
+    this item stays
     open and no Archimedes sample document is offered.
 - [x] AST-629 Add third-party format import/export only with explicit round-trip,
   unsupported-feature, provenance, and licence tests (AST-024).

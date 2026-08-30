@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+/* Turn the conformance cases into a project the headless runner can drive.
+ *
+ * Generated from the suite module itself rather than from a hand-kept copy, so
+ * the cases that run on a real machine are the same objects the suite reports
+ * coverage for. Two declarations of that would eventually disagree about what
+ * was actually proved, which for a conformance suite is the whole game.
+ *
+ * The module is TypeScript, so it is bundled with esbuild — which vite already
+ * brings — and imported. An earlier version of this script read the source with
+ * a regular expression and silently dropped two of the six cases; a generator
+ * that quietly writes a smaller suite than it was given is worse than no
+ * generator, so the count is checked against the module at the end.
+ */
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const run = promisify(execFile);
+const argv = new Map();
+for (let index = 2; index < process.argv.length; index += 2) argv.set(process.argv[index], process.argv[index + 1]);
+const output = resolve(argv.get('--output') ?? 'ci/conformance-project.json');
+const machineId = argv.get('--machine') ?? 'bbc-b';
+const variant = argv.get('--variant') ?? 'Model B · 8271 DFS';
+const romId = argv.get('--rom') ?? 'os12-basic2-dfs';
+
+const staging = await mkdtemp(join(tmpdir(), '8bit-net-conformance-'));
+try {
+  const bundle = join(staging, 'suite.mjs');
+  await run('npx', ['esbuild', 'src/testing/conformanceSuite.ts', '--bundle', '--format=esm', '--platform=node', `--outfile=${bundle}`, '--log-level=warning']);
+  const suite = await import(`file://${bundle}`);
+  const all = suite.CONFORMANCE_CASES;
+  const applicable = all.filter((item) => suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'] }).applies);
+  if (!applicable.length) throw new Error(`No conformance case applies to ${machineId}, so this would have produced a project that proves nothing.`);
+
+  const project = {
+    format: '8bit-net-dev-project-13',
+    name: `Conformance suite (${machineId})`,
+    files: applicable.map((item) => ({ id: item.id, name: `${item.id}.asm`, content: item.source })),
+    target: { platformClass: '8-16-bit', machineId, variant, romId, enabledCapabilities: ['dfs', 'sideways'] },
+    breakpoints: {}, bookmarks: [],
+    buildTargets: applicable.map((item) => ({
+      schemaVersion: 5, id: item.id, name: item.title,
+      entryFileId: item.id, sourceFileIds: [item.id],
+      toolchainId: '8bit-net.asm.6502', outputName: `${item.id}.bin`,
+    })),
+    activeBuildTargetId: applicable[0].id,
+    testPlans: applicable.map((item) => ({
+      schemaVersion: 1, id: `${item.id}-plan`, targetId: item.id,
+      name: item.title, suite: `Conformance: ${item.area}`,
+      setup: { reset: 'hard', media: 'eject' },
+      inputs: [], stop: item.stop, assertions: item.assertions,
+      cycleBudget: item.cycleBudget,
+      captures: [{ id: 'registers', kind: 'registers' }],
+      teardown: { action: 'pause' }, enabled: true,
+    })),
+    armBreakpoints: {}, armBreakpointGroups: {},
+    breakpoints6502: {}, breakpointGroups6502: {},
+    analysisAnnotations: {}, diskSets: [], settings: {}, trash: [],
+  };
+
+  await writeFile(output, `${JSON.stringify(project, null, 2)}\n`);
+
+  /* The check that makes the generation trustworthy: what was written back,
+   * counted against what the module holds. */
+  const written = JSON.parse(await readFile(output, 'utf8'));
+  if (written.testPlans.length !== applicable.length) {
+    throw new Error(`${applicable.length} cases apply to ${machineId} and ${written.testPlans.length} were written.`);
+  }
+  const skipped = all.length - applicable.length;
+  console.log(`${applicable.length} of ${all.length} conformance cases apply to ${machineId} and were written to ${output}.`);
+  console.log(`Cases: ${applicable.map((item) => item.id).join(', ')}`);
+  if (skipped) {
+    for (const item of all.filter((candidate) => !applicable.includes(candidate))) {
+      console.log(`Not applicable: ${item.id} — ${suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'] }).reason}`);
+    }
+  }
+} finally {
+  await rm(staging, { recursive: true, force: true });
+}

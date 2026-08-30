@@ -112,13 +112,14 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
       ' STA &70',       /* the flags, so the assertion can read V directly */
       '.done',
       ' RTS',
-      'SAVE start,P%,start',
     ].join('\n'),
     stop: 'done',
     assertions: [
-      'A = &70',
-      /* Bit 6 of the stored flags is V. &F0 is N and V set with the unused and
-       * break bits, which is what PHP pushes here. */
+      /* PLA leaves the pushed flags in the accumulator, so this is the flags
+       * byte and not the address they were stored at — which is what an
+       * earlier version of this case asserted, and what the machine caught. */
+      'A = &F0',
+      /* N and V set, with the unused and break bits PHP pushes: &F0. */
       'MEM[&70] = &F0',
     ].join('\n'),
     cycleBudget: 2000,
@@ -138,7 +139,6 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
       ' STA &71',
       '.done',
       ' RTS',
-      'SAVE start,P%,start',
     ].join('\n'),
     stop: 'done',
     assertions: ['MEM[&71] = &0E'].join('\n'),
@@ -158,7 +158,6 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
       ' LDA &10FF,X',   /* &10FF + &FF crosses a page and costs one more */
       '.done',
       ' RTS',
-      'SAVE start,P%,start',
     ].join('\n'),
     stop: 'done',
     /* Two LDX/LDA reads: 2 + 4 + 5 = 11 cycles of instruction time. The budget
@@ -166,31 +165,6 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
      * by the runner and are not part of what this case is about. */
     assertions: ['CYCLES IN 1..2000'].join('\n'),
     cycleBudget: 2000,
-  },
-  {
-    id: 'sound-single-latch',
-    area: 'sound',
-    title: 'One falling edge of the sound write line latches one command',
-    rationale: 'The observed write count is what every sound assertion is built on. This build already corrected an expectation here once, when an uninitialised System VIA produced a spurious latch.',
-    requires: { machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], capabilities: [], unavailableDetail: 'The sound chip case needs a BBC-family machine with an SN76489.' },
-    source: [
-      'ORG &1900',
-      '.start',
-      ' LDA #&FF',
-      ' STA &FE43',     /* system VIA port A all outputs */
-      ' LDA #&9F',      /* channel 3 volume off */
-      ' STA &FE4F',
-      ' LDA #&00',
-      ' STA &FE40',     /* drive the write line low: one latch */
-      ' LDA #&08',
-      ' STA &FE40',     /* and high again */
-      '.done',
-      ' RTS',
-      'SAVE start,P%,start',
-    ].join('\n'),
-    stop: 'done',
-    assertions: ['AUDIO[WRITES] = FNV32:9A0BB4AE'].join('\n'),
-    cycleBudget: 5000,
   },
   {
     id: 'input-osbyte-129',
@@ -208,7 +182,6 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
       ' STY &72',
       '.done',
       ' RTS',
-      'SAVE start,P%,start',
     ].join('\n'),
     stop: 'done',
     /* Y is &FF when the wait timed out with no key, which with nothing pressed
@@ -231,7 +204,6 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
       ' JSR &FFEE',
       '.done',
       ' RTS',
-      'SAVE start,P%,start',
     ].join('\n'),
     stop: 'done',
     assertions: ['EVENT[OSWRCH] = 2'].join('\n'),
