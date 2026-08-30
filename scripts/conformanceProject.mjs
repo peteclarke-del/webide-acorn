@@ -14,7 +14,7 @@
  */
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -31,10 +31,14 @@ try {
   const bundle = join(staging, 'suite.mjs');
   await run('npx', ['esbuild', 'src/testing/conformanceSuite.ts', '--bundle', '--format=esm', '--platform=node', `--outfile=${bundle}`, '--log-level=warning']);
   const suite = await import(`file://${bundle}`);
+  const mediaBundle = join(staging, 'media.mjs');
+  await run('npx', ['esbuild', 'src/media/dfsImage.ts', '--bundle', '--format=esm', '--platform=node', `--outfile=${mediaBundle}`, '--log-level=warning']);
+  const media = await import(`file://${mediaBundle}`);
   const all = suite.CONFORMANCE_CASES;
   const applicable = all.filter((item) => suite.caseApplies(item, { machineId, capabilities: ['dfs', 'sideways'], romSetId: romId }).applies);
   if (!applicable.length) throw new Error(`No conformance case applies to ${machineId}, so this would have produced a project that proves nothing.`);
 
+  const carriesDisc = applicable.some((item) => item.disc);
   const project = {
     format: '8bit-net-dev-project-13',
     name: `Conformance suite (${machineId})`,
@@ -50,7 +54,18 @@ try {
     testPlans: applicable.map((item) => ({
       schemaVersion: 1, id: `${item.id}-plan`, targetId: item.id,
       name: item.title, suite: `Conformance: ${item.area}`,
-      setup: { reset: 'hard', media: 'eject' },
+      /*
+       * Ejecting before each case is how a case that declares no disc is kept
+       * from seeing one. It cannot stand once any case does need a disc: the
+       * ejection is of the live drive, so the first case to run takes the disc
+       * away from every case after it, and the disc case fails with a timeout
+       * that says nothing about the filing system. That is what happened.
+       *
+       * So a project carrying a disc retains media throughout, and says so.
+       * The alternative — ordering disc cases first — would work today and
+       * break silently the moment somebody reordered the suite.
+       */
+      setup: { reset: 'hard', media: carriesDisc ? 'retain' : 'eject' },
       inputs: [], stop: item.stop, assertions: item.assertions,
       cycleBudget: item.cycleBudget,
       captures: [{ id: 'registers', kind: 'registers' }],
@@ -62,6 +77,28 @@ try {
   };
 
   await writeFile(output, `${JSON.stringify(project, null, 2)}\n`);
+
+  /*
+   * Discs are built here from what the case describes, with the same DFS
+   * mastering the product writes, rather than kept in the repository as an
+   * image nobody can read or check. The runner mounts them through the
+   * workbench's own import.
+   */
+  const discs = [];
+  for (const item of applicable) {
+    if (!item.disc) continue;
+    const created = media.createDfsImage({
+      title: item.disc.title, name: item.disc.name, directory: item.disc.directory,
+      loadAddress: item.disc.loadAddress, executionAddress: item.disc.executionAddress,
+      bytes: Uint8Array.from(item.disc.contents),
+    });
+    const discPath = join(dirname(output), `${item.id}.ssd`);
+    await writeFile(discPath, created.image);
+    discs.push({ id: item.id, drive: item.disc.drive, path: discPath, bytes: created.image.length });
+    console.log(`Disc for ${item.id}: drive ${item.disc.drive}, ${created.image.length} bytes, catalogue "${created.catalogue.title}" holding ${created.catalogue.files.length} file(s) — ${discPath}`);
+  }
+  if (discs.length) console.log(`Mount with: ${discs.map((disc) => `--disc-${disc.drive} ${disc.path}`).join(' ')}`);
+  if (carriesDisc) console.log('Every plan retains media, because ejecting before a case would take the disc away from the cases that need one.');
 
   /* The check that makes the generation trustworthy: what was written back,
    * counted against what the module holds. */

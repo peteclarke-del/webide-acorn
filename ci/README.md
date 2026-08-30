@@ -23,7 +23,11 @@ contain enough evidence to review a new golden value before editing a test plan.
 
 ## The conformance project
 
-`ci/conformance-project.json` is generated, not kept here. Produce it with:
+`ci/conformance-project.json` is generated, not kept here, and so is any
+`ci/*.ssd` a case needs: the disc is mastered from what the case describes,
+with the same DFS writer the product uses, so a fixture cannot drift from what
+the workbench would produce and nothing here is a binary nobody can read.
+Produce them with:
 
 ```
 node scripts/conformanceProject.mjs --output ci/conformance-project.json --machine bbc-b

@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { assembleProject6502 } from '../build/projectAssembler6502';
+import { createDfsImage } from '../media/dfsImage';
 import { resolveTestValue } from './testPlan';
 import {
   CONFORMANCE_AREAS,
@@ -183,5 +184,40 @@ describe('whether a case can mean anything here', () => {
     /* And a session that did not say which ROMs it has cannot be assumed to
      * have the right ones. */
     expect(caseApplies(romBound, machine).applies).toBe(false);
+  });
+});
+
+describe('a case that needs a disc', () => {
+  const withDisc = CONFORMANCE_CASES.filter((item) => item.disc);
+
+  it('describes the disc rather than shipping an image, and describes one this build can master', () => {
+    /* A binary fixture in the repository is a thing nobody can read and that
+     * can drift from what the product would actually write. */
+    expect(withDisc.length).toBeGreaterThan(0);
+    for (const item of withDisc) {
+      const disc = item.disc!;
+      expect([0, 1], item.id).toContain(disc.drive);
+      expect(disc.name, item.id).toMatch(/^[A-Za-z0-9_]{1,7}$/);
+      expect(disc.directory, item.id).toMatch(/^[!-~]$/);
+      expect(disc.contents.length, item.id).toBeGreaterThan(0);
+      expect(disc.contents.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255), item.id).toBe(true);
+      /* Mastered with the same writer the product uses, so the fixture and the
+       * product cannot disagree about what a disc looks like. */
+      const created = createDfsImage({
+        title: disc.title, name: disc.name, directory: disc.directory,
+        loadAddress: disc.loadAddress, executionAddress: disc.executionAddress,
+        bytes: Uint8Array.from(disc.contents),
+      });
+      expect(created.catalogue.files.map((file) => file.name), item.id).toEqual([disc.name]);
+      expect(created.catalogue.files[0]!.loadAddress, item.id).toBe(disc.loadAddress);
+    }
+  });
+
+  it('only declares a disc where the case names the media capability', () => {
+    /* A case that quietly needed a disc without saying so would be reported as
+     * applying on a machine that cannot give it one. */
+    for (const item of withDisc) {
+      expect(item.requires.capabilities, item.id).toContain('dfs');
+    }
   });
 });

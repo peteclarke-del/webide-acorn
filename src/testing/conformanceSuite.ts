@@ -73,6 +73,25 @@ export interface ConformanceRequirement {
   unavailableDetail: string;
 }
 
+/*
+ * A disc a case needs mounted before it runs.
+ *
+ * Described rather than shipped as a file: the suite builds the image from
+ * this with the same DFS mastering the product uses, so the fixture cannot
+ * drift from what the workbench would write, and nothing in the repository is
+ * a binary nobody can read.
+ */
+export interface ConformanceDisc {
+  drive: 0 | 1;
+  title: string;
+  name: string;
+  directory: string;
+  loadAddress: number;
+  executionAddress: number;
+  /** The file's contents, as bytes, written into the image. */
+  contents: number[];
+}
+
 export interface ConformanceCase {
   id: string;
   area: ConformanceArea;
@@ -87,6 +106,8 @@ export interface ConformanceCase {
   /** The assertions, in the same text form the test editor takes. */
   assertions: string;
   cycleBudget: number;
+  /** A disc the case needs in a drive before it can mean anything. */
+  disc?: ConformanceDisc;
 }
 
 export class ConformanceSuiteError extends Error {
@@ -416,6 +437,93 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
       'MEM[&73] = &00',
     ].join('\n'),
     cycleBudget: 2000,
+  },
+  {
+    id: 'media-dfs-catalogue',
+    area: 'media',
+    title: 'The filing system reads a file\u2019s catalogue entry from a mounted disc',
+    rationale: 'A program reaches a disc through the filing system rather than the controller, and a build whose OSFILE answered from anywhere but the mounted image would let every disc-based program appear to work while reading nothing. The load address is the check, because it is a value the image carries and no default would produce.',
+    requires: {
+      machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], capabilities: ['dfs'],
+      unavailableDetail: 'This case reads a DFS catalogue and needs a BBC-family machine with DFS enabled.',
+    },
+    /*
+     * OSFILE &05 reads a file's catalogue information without loading it. The
+     * control block gets the filename pointer; the filing system fills in the
+     * load address, execution address, length and attributes, and returns 1
+     * in A for a file it found.
+     */
+    source: [
+      'ORG &1900',
+      '.start',
+      /* A machine that has just been reset has the tape filing system
+       * selected, so OSFILE would wait on a cassette that is not there — which
+       * is a timeout rather than a failure, and says nothing about the disc.
+       * The first attempt at this case did exactly that. */
+      ' LDX #<selectdisc',
+      ' LDY #>selectdisc',
+      ' JSR &FFF7',      /* OSCLI */
+      ' LDA #<filename',
+      ' STA control',
+      ' LDA #>filename',
+      ' STA control + 1',
+      ' LDA #&05',
+      ' LDX #<control',
+      ' LDY #>control',
+      ' JSR &FFDD',      /* OSFILE */
+      ' STA found',
+      '.done',
+      ' RTS',
+      '.selectdisc',
+      'EQUS "DISC"',
+      'EQUB &0D',
+      '.filename',
+      'EQUS "$.PROOF"',
+      'EQUB &0D',
+      '.found',
+      'EQUB 0',
+      /* The control block, labelled field by field: the plan language reads a
+       * symbol, not an expression, so `control + 2` is not something it can be
+       * asked about. */
+      '.control',
+      ' SKIP 2',        /* pointer to the filename */
+      '.loadaddress',
+      ' SKIP 4',
+      '.executionaddress',
+      ' SKIP 4',
+      '.filelength',
+      ' SKIP 4',
+      '.attributes',
+      ' SKIP 4',
+    ].join('\n'),
+    stop: 'done',
+    /*
+     * A = 1 says the filing system found a file rather than nothing or a
+     * directory, and the load address it read out of the catalogue is the
+     * &1234 the image declares — a value nothing but the disc could produce.
+     *
+     * The upper two bytes are 0 and are asserted as observed rather than as
+     * expected: an earlier version of this case asserted &FFFF for them, on
+     * the assumption that this DFS sign-extends an 18-bit address the way
+     * later filing systems do. It does not. The claim the case makes is about
+     * the sixteen bits the catalogue holds; the rest is recorded because the
+     * assertion has to say something about those bytes and inventing a value
+     * for them would be the only untrue part of it.
+     */
+    assertions: [
+      'MEM[found] = &01',
+      'MEM[loadaddress] = 34 12 00 00',
+    ].join('\n'),
+    cycleBudget: 8000000,
+    disc: {
+      drive: 0,
+      title: 'CONFORM',
+      name: 'PROOF',
+      directory: '$',
+      loadAddress: 0x1234,
+      executionAddress: 0x5678,
+      contents: [0xc0, 0xff, 0xee],
+    },
   },
 ]);
 

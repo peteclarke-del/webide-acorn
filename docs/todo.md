@@ -4443,7 +4443,7 @@ Current implemented increment:
   media, Tube, breakpoint maps, trace, input, frames, sound, and state replay.
   - [x] The suite exists and is written against the same test-plan machinery the
     workbench already runs, so a case in it is a test somebody can also run by
-    hand rather than a parallel invention that could drift from it. Six cases
+    hand rather than a parallel invention that could drift from it. Nine cases
     cover processor flags, timing, sound, input and frames: ADC overflow and SBC
     borrow, because those are the two most often got wrong and both fail
     invisibly in the result alone; the page-crossing penalty, because a build
@@ -4456,8 +4456,8 @@ Current implemented increment:
     product claims is enumerated whether or not it has a case, and the list is
     fixed rather than derived from the cases — a list derived from the cases can
     only ever report that everything present is covered, which is true and
-    useless. **Seven of the eleven areas have cases; four have none**: media,
-    Tube, trace and state replay. Those are named in the interface first, before
+    useless. **Eight of the eleven areas have cases; three have none**: Tube,
+    trace and state replay. Those are named in the interface first, before
     anything that passes, and described as neither known to be wrong nor known
     to be right, because an area with no cases is not a passing area — it is
     where a fault would go unnoticed.
@@ -4465,10 +4465,10 @@ Current implemented increment:
     as not applicable with the reason, and a case that has not been executed is
     reported as not run. Counting either as a pass would be the exact failure
     this suite exists to prevent.
-  - [x] **The cases now run on a real machine.** All eight execute on a genuine
+  - [x] **The cases now run on a real machine.** All nine execute on a genuine
     BBC Model B with OS 1.20, BASIC II and DFS 0.90 through the existing
-    headless path and all eight pass: manifest
-    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 8 tests, 0 failed, 0 skipped.
+    headless path and all nine pass: manifest
+    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 9 tests, 0 failed, 0 skipped.
     The timing case reports exactly 11 cycles, which is the 2 + 4 + 5 the
     documented page-crossing penalty predicts, so the number the machine gives
     back is the number the documentation says rather than merely a number.
@@ -4530,17 +4530,36 @@ Current implemented increment:
     different number. This is the same address-hook path a breakpoint uses, so
     it fails if the source map is off by an instruction — which would otherwise
     stop somewhere plausible and be believed.
-  - [ ] **Media, Tube, trace and state replay keep TST-506 open, and two of them
-    for a reason worth stating.** A media case is written the same way as the
-    others but cannot execute: the headless runner has no disc path at all, so
-    mounting the disc a case would read is not something it can be asked to do
-    yet. Trace and state replay are not behaviours of a program at all — they
-    are workbench features, and the conformance format is a program plus
-    assertions about the machine it ran on, which cannot observe either. Writing
-    them as conformance cases would mean inventing a second meaning for the
-    word, so they stay uncovered and their evidence stays where it is, in their
-    own contracts. Tube needs the Tube capability and its boot ROM enabled in
-    the conformance profile.
+  - [x] **Media is covered, and the headless runner learned to mount a disc.**
+    A case may now describe a disc rather than ship an image: the generator
+    masters it with the same DFS writer the product uses, so the fixture cannot
+    drift from what the workbench would produce and nothing in the repository
+    is a binary nobody can read. The runner mounts it through the workbench's
+    own import and mount controls rather than writing it into storage, because
+    a test asserting what a filing system read has to go through the path a
+    person's disc goes through. The case calls `OSFILE &05` and reads back the
+    load address the catalogue declares, which is a value nothing but the disc
+    could produce.
+  - [x] Three things went wrong on the way and each was worth its own fix. The
+    machine boots with the tape filing system selected, so `OSFILE` waited on a
+    cassette that was not there and the case timed out saying nothing about the
+    disc; it now selects DFS first. Every other plan ejected media before
+    running, which took the disc away from the case that needed it — so a
+    project carrying a disc retains media throughout and says so, rather than
+    depending on disc cases being ordered first, which would work today and
+    break silently the moment somebody reordered the suite. And the case
+    asserted `&FFFF` for the upper bytes of the load address on the assumption
+    that this DFS sign-extends the way later filing systems do; it does not,
+    and the assertion now records what was observed and says which half of it
+    is the claim.
+  - [ ] **Tube, trace and state replay keep TST-506 open, and two of them for a
+    reason worth stating.** Trace and state replay are not behaviours of a
+    program at all — they are workbench features, and the conformance format is
+    a program plus assertions about the machine it ran on, which cannot observe
+    either. Writing them as conformance cases would mean inventing a second
+    meaning for the word, so they stay uncovered and their evidence stays where
+    it is, in their own contracts. Tube needs the Tube capability and its boot
+    ROM enabled in the conformance profile.
   - [x] Evidence: 13 module contracts and 6 panel contracts, including that
     every case parses into assertions the runner can read, that a case with no
     assertions is refused rather than passing vacuously, that a case with no
