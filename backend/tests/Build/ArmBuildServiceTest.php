@@ -42,11 +42,40 @@ final class ArmBuildServiceTest extends TestCase
         $this->service = new ArmBuildService(new ArmBuildManifest(), new ArmSourcePolicy(), new NativeProcessRunner(), new ArmOutputParser(), $this->log->logger);
     }
 
+    /**
+     * Every stage and how long it took, for a failure message.
+     *
+     * This test failed three times on a shared runner reporting only
+     * 'timeout', which named neither the tool nor the duration and left
+     * nothing to work from. A wall-clock failure has to say what overran.
+     *
+     * @param array<string, mixed> $result
+     */
+    private static function stageTiming(array $result): string
+    {
+        $invocations = is_array($result['invocations'] ?? null) ? $result['invocations'] : [];
+        if ($invocations === []) return 'no stage ran at all';
+
+        return implode(', ', array_map(
+            static fn (array $invocation): string => sprintf(
+                '%s %s in %.0fms',
+                (string) ($invocation['stage'] ?? 'unnamed'),
+                (string) ($invocation['reason'] ?? 'no reason'),
+                (float) ($invocation['durationMs'] ?? 0.0),
+            ),
+            $invocations,
+        ));
+    }
+
     public function testBuildsReproducibleArm2RawBinaryWithRealSourceEvidence(): void
     {
         $first = $this->service->build(NativeBuildRequest::fromArray(NativeBuildRequestTest::armPayload(), 'arm'));
         $second = $this->service->build(NativeBuildRequest::fromArray(NativeBuildRequestTest::armPayload(), 'arm'));
-        self::assertSame('succeeded', $first['result']['exit']['reason']);
+        self::assertSame('succeeded', $first['result']['exit']['reason'], sprintf(
+            'ARM build did not succeed. Wall clock in force: %.1fs. Stages: %s',
+            \App\Build\BuildLimits::stageSeconds(),
+            self::stageTiming($first),
+        ));
         self::assertSame('gnu.arm-none-eabi-binutils', $first['result']['invocation']['adapterId']);
         self::assertSame('arm-binary', $first['artifact']['kind']); self::assertSame('arm2', $first['artifact']['processor']);
         self::assertSame(0x8000, $first['artifact']['entryPoint']); self::assertSame('main', $first['artifact']['sourceLocations'][0x8000]['fileId']);

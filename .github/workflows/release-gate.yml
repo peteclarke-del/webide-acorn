@@ -75,7 +75,17 @@ jobs:
           path: .toolchains
           key: beebasm-${{ hashFiles('backend/src/Build/BeebAsmManifest.php') }}
 
+      # The native build sandbox stops a tool that overruns its wall clock, and
+      # five seconds is a thousand times what any of these assemblers needs. A
+      # shared runner does not control wall clock: the ARM build failed three
+      # times here reporting a timeout on a build that takes under 200ms on a
+      # quiet machine, because the process was stalled by something else on the
+      # host. The limit is raised for this runner only — a developer's machine
+      # and the shipped default stay at five seconds — and the value in force is
+      # published in the build manifest, so this is never a hidden change.
       - name: Run the gate
+        env:
+          NATIVE_STAGE_SECONDS: '30'
         run: npm run ci
 
       - name: Publish the gate report

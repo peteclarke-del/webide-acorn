@@ -27,7 +27,7 @@ final class NativeProcessRunner
             'SOURCE_DATE_EPOCH' => '0',
             'TZ' => 'UTC',
         ]);
-        $process->setTimeout(BuildLimits::STAGE_SECONDS);
+        $process->setTimeout(BuildLimits::stageSeconds());
         try {
             $process->run(function (string $type, string $buffer) use (&$stdout, &$stderr, &$overflow, $process): void {
                 $target = $type === Process::ERR ? $stderr : $stdout;

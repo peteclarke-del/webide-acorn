@@ -2142,6 +2142,28 @@ below are finished):
 Current implemented increment (the complete sandbox/toolchain tickets remain
 open):
 
+  - [x] **The runaway-tool guard now has the test it never had, found by the
+    gate being flaky rather than by review.** The native stage wall clock was a
+    constant nothing asserted, so the protection could have been removed
+    anywhere without a test noticing. It is contracted: a tool that would never
+    finish is stopped and reported as a timeout rather than waited for, one
+    that fails is reported as a failure and not as a timeout, and the value in
+    force is the value published in the manifest.
+  - [x] The flakiness itself was worth understanding rather than retrying. The
+    ARM build failed three times on the shared runner reporting `timeout` on a
+    build that takes under 200ms on a quiet machine — the tools run in
+    milliseconds, so five seconds is a guard against a tool that will never
+    finish, not a budget. What it measures, though, is the machine: a process
+    stalled by an unrelated neighbour fails a build that was never slow. The
+    limit is therefore the one a deployment may move, through
+    `NATIVE_STAGE_SECONDS` between 1 and 60, with the shipped default unchanged
+    at five seconds, the value in force published in the adapter manifest, and
+    a value outside the range ignored rather than clamped so an impossible
+    request is not silently rewritten. Only the CI workflow sets it.
+  - [x] The failure also said nothing useful: `timeout` named neither the tool
+    nor the duration. The ARM build assertion now reports the wall clock in
+    force and every stage with its outcome and milliseconds, so the next one is
+    diagnosable from the log.
 - [x] The browser-local portion of BLD-300 now has one typed adapter registry
   for BBC BASIC II, Atom BASIC, NMOS 6502 and Acorn 65C12. Detection returns
   pinned manifests exactly once, each adapter declares supported build profiles,

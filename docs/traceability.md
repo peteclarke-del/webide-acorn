@@ -246,7 +246,7 @@ are listed rather than quietly counted.
 | BLD-302 | Add per-tenant job fairness, idempotency, state transitions, progress, retry rules,… | not started |
 | BLD-303 | Implement normalized build result/provenance, logs, diagnostics, symbols, source map,… | 1 of 1 parts done |
 | BLD-304 | Implement content-addressed cache with integrity, tenant separation, declared inputs,… | not started |
-| BLD-305 | Test malicious filenames/options/sources, runaway tools, fork/ output bombs, network… | 1 of 1 parts done |
+| BLD-305 | Test malicious filenames/options/sources, runaway tools, fork/ output bombs, network… | 4 of 4 parts done |
 | BLD-329 | Implement ARM assembler/linker and RISC OS C adapters before the ARM vertical slice;… | 6 of 8 parts done |
 | BLD-330 | Implement target-native assertion runtime/result channel and test target output for each… | not started |
 | MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 3 of 3 parts done |
