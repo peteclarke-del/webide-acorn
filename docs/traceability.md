@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 146 |
-| Complete and traced | 82 |
+| Complete | 148 |
+| Complete and traced | 84 |
 | Complete and described | 57 |
 | Complete and untraced | 7 |
-| Open | 148 |
+| Open | 146 |
 
 ## By area
 
@@ -35,7 +35,7 @@ is the part a machine can settle.
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 0 | 0 | 0 | 0 |
 | EDT | 23 | 16 | 6 | 10 | 0 |
-| AST | 21 | 17 | 11 | 6 | 0 |
+| AST | 21 | 19 | 13 | 6 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 14 | 12 | 2 | 0 |
 | EMU | 18 | 9 | 1 | 8 | 0 |
@@ -148,6 +148,8 @@ are listed rather than quietly counted.
 | AST-621 | Implement sprite/software-object/animation editor with mask, hotspot,… | 13 module contracts and 7 component contracts, including that the pixel shape and the colour standing both reach a screen reader through the canvas's accessible name, that a frame's byte cost follows the mode's depth… |
 | AST-622 | Implement screen/bitmap editor for selected Acorn display modes,… | 18 document contracts and 9 workspace contracts. |
 | AST-623 | Implement palette editor and shared project palettes (AST-015). | 18 document contracts and 9 workspace contracts, covering the flashing colour model, mode changes, refusals and the resolution order. A headed Chromium run opened Palettes, remapped logical 2 to cyan and saw the… |
+| AST-624 | Implement tile/block editor, typed properties, collision, dedupe,… | 6 further map contracts and 3 workspace contracts; the Acorn Harvest sample still passes on a genuine BBC Model B after the generated map header grew to carry the property stride. whose meaning lives in whoever wrote… |
+| AST-625 | Implement layered map editor, objects/regions/triggers, validation,… | 14 document contracts, 13 workspace contracts, 3 build contracts and 3 promotion contracts. The Acorn Harvest sample's maze was converted from hand-written `EQUB` rows to a generated map document, and its self test… |
 | AST-626 | Implement target-aware SN76489 music tracker and player/data export. | 15 document contracts and 11 workspace contracts. Two headless runs on a genuine BBC Model B with locally supplied ROMs: a four-row song with three sounding cells issued exactly three OSWORD calls and finished with its… |
 | AST-627 | Implement Atom-appropriate audio/SFX workflow without pretending… | 15 song-document contracts covering the Atom rebuild to one channel with bounded volume, and 11 song-workspace contracts driving the real editor. Nothing pretends the Atom has multichannel hardware: the rebuild is… |
 | AST-629 | Add third-party format import/export only with explicit round-trip,… | 11 interchange contracts including a full export and re-import round trip of layers, indices and objects, plus 3 workspace contracts covering the import report, a refusal that leaves the current map untouched, and… |
@@ -263,10 +265,8 @@ are listed rather than quietly counted.
 | EMU-GATE | Two 8-bit slices and one scoped ARM slice can run exact resolved profiles with correct… | not started |
 | TST-502 | Complete symbol/text/screen/audio/event/result/timing assertions. Live 6502 register and… | 5 of 5 parts done |
 | TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad, mouse, analogue,… | not started |
-| TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 9 of 10 parts done |
+| TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 11 of 12 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
-| AST-624 | Implement tile/block editor, typed properties, collision, dedupe, usage, compression, and… | 3 of 4 parts done |
-| AST-625 | Implement layered map editor, objects/regions/triggers, validation, image import,… | 5 of 6 parts done |
 | AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 3 of 6 parts done |
 | AST-630 | Test generated assets in real builds and emulator screenshots/audio, not only codec unit… | 2 of 3 parts done |
 | ASSET-GATE | Character/object, screen/palette, tile/block, map, and target- appropriate sound assets… | not started |

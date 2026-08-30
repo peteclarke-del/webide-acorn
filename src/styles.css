@@ -869,6 +869,17 @@
   .tile-map-object-draft { display: flex; flex-wrap: wrap; gap: 6px; padding: 7px; border: 1px solid var(--theme-line-strong); border-radius: 3px; background: var(--theme-surface-0); }
   .tile-map-object-draft label { display: grid; gap: 3px; color: var(--theme-faint); font: 6px/1 var(--font-mono); text-transform: uppercase; }
   .tile-map-object-draft input, .tile-map-object-draft select { min-height: 25px; width: 84px; padding: 0 6px; border: 1px solid var(--theme-line-strong); border-radius: 3px; background: var(--theme-surface-2); color: var(--theme-ink-strong); font: 7px/1 var(--font-mono); }
+  .tile-map-attributes { display: grid; gap: 4px; margin: 6px 0 0; padding: 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-0); }
+  .tile-map-attributes legend { color: var(--theme-faint); font: 6px/1 var(--font-mono); text-transform: uppercase; }
+  .tile-map-attributes label { display: flex; gap: 5px; align-items: center; color: var(--theme-ink-strong); font: 7px/1 var(--font-mono); }
+  .tile-map-property-schema { display: grid; gap: 5px; margin: 0 0 6px; padding: 0; list-style: none; }
+  .tile-map-property-schema li { display: grid; gap: 3px; padding: 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-0); }
+  .tile-map-property-schema label { display: grid; gap: 3px; color: var(--theme-faint); font: 6px/1 var(--font-mono); text-transform: uppercase; }
+  .tile-map-property-schema input, .tile-map-property-schema select { min-height: 25px; padding: 0 6px; border: 1px solid var(--theme-line-strong); border-radius: 3px; background: var(--theme-surface-2); color: var(--theme-ink-strong); font: 7px/1 var(--font-mono); }
+  .tile-map-property-schema li button { justify-self: start; }
+  /* Pixelated so one cell stays one hard pixel; a smoothed overview of a tile
+     map is a blur that says nothing about the level. */
+  .tile-map-overview { display: block; max-width: 100%; margin: 0 0 6px; border: 1px solid var(--theme-line-strong); background: var(--theme-surface-0); image-rendering: pixelated; cursor: crosshair; }
   .tile-map-manifest { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 0 0 6px; }
   .tile-map-manifest div { padding: 6px; border: 1px solid var(--theme-line); background: var(--theme-surface-0); }
   .tile-map-manifest dt { color: var(--theme-faint); font: 6px/1 var(--font-mono); text-transform: uppercase; }

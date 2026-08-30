@@ -4800,7 +4800,7 @@ Current implemented increment:
     generated source follow, then opened Maps, declared a tile and painted it
     from the keyboard, with zero console errors. Frontend suite 129 files /
     724 tests.
-- [ ] AST-624 Implement tile/block editor, typed properties, collision, dedupe,
+- [x] AST-624 Implement tile/block editor, typed properties, collision, dedupe,
   usage, compression, and generated output (AST-013).
   - [x] Tiles are edited as pixel assets and given meaning by the map that uses
     them. Each tileset index carries up to four author-defined property bytes,
@@ -4814,9 +4814,25 @@ Current implemented increment:
   - [x] Evidence: 6 further map contracts and 3 workspace contracts; the Acorn
     Harvest sample still passes on a genuine BBC Model B after the generated map
     header grew to carry the property stride.
-  - [ ] Layer or tile-run compression and a typed property schema, rather than
-    raw bytes the game interprets, keep this item open.
-- [ ] AST-625 Implement layered map editor, objects/regions/triggers, validation,
+  - [x] **A typed property schema.** Untyped, a property is a column of numbers
+    whose meaning lives in whoever wrote the map, and a flag set to 2 is
+    indistinguishable from a deliberate value — the game reads it as one. A map
+    may now declare each slot as a flag, a byte or an enum with named values;
+    the generated source carries a constant per slot and per named value, so a
+    game reads `map_prop_collision` rather than 0 and the meaning survives
+    somebody inserting a slot. A value the slot cannot hold is refused where it
+    is written. Typing is opt-in and a map that declares nothing generates
+    exactly what it did before.
+  - [x] **Run-length compression of the layer and attribute planes, with the
+    unpacker generated beside them.** Compressed data with no way to read it is
+    not a feature, and a hand-written unpacker that disagrees with the encoder
+    by one byte fails in a way that looks like corrupted artwork rather than
+    like a bug, so the 6502 routine is generated from the same module and
+    declares the seven zero-page bytes it claims from a base the map names.
+    Compression that would make the data larger is declined rather than
+    performed: the header flag records what was done, the manifest carries both
+    figures and the generated source says the request was declined and why.
+- [x] AST-625 Implement layered map editor, objects/regions/triggers, validation,
   image import, overview, compression, and code/data output (AST-014).
   - [x] Versioned schema-1 tile-map documents store indices, layers and objects
     only. Each tileset index names a pixel asset already in the project, so the
@@ -4844,8 +4860,38 @@ Current implemented increment:
     converted from hand-written `EQUB` rows to a generated map document, and its
     self test still passes on a genuine BBC Model B through the real workbench
     (Test all: 1/1, zero console errors). Frontend suite 127 files / 697 tests.
-  - [ ] Layer compression, tile-flip and priority attributes, image import and a
-    whole-map overview keep this item open.
+  - [x] **Tile flip and priority attributes.** A cell may carry flip-in-x,
+    flip-in-y and draw-in-front. They live in a plane of their own rather than
+    packed into the index byte, because an index is a whole byte and a tileset
+    may declare all 255 of them, so there are no spare bits to take. A map with
+    no attributes emits no plane at all, and one that stops using them
+    generates exactly what it did before; the plane is carried through a resize
+    rather than dropped, since losing which cells were flipped would be a
+    silent change to the artwork visible only once the game ran.
+  - [x] **Image import.** An image is cut into tiles, quantised to the project
+    palette, deduplicated, and written out as one pixel asset document per
+    distinct tile which the workspace adds to the project — a map pointing at
+    artwork nobody added would generate a zero pointer and a diagnostic for
+    every tile. Every place the conversion loses something is counted and
+    reported rather than absorbed: pixels that were not palette colours, image
+    that did not divide into whole tiles, and tiles beyond the 255 a tileset
+    holds, whose cells are left empty rather than pointed at the nearest
+    artwork, because a map that substituted a different tile would look
+    imported and be wrong. Decoding stays in the browser; the conversion is a
+    pure function and is contracted without one.
+  - [x] **A whole-map overview.** A 128 by 128 map does not fit the editing
+    canvas at any useful zoom, so without this there was no view of the level
+    at all. One pixel per cell, drawn in each tile's commonest colour, with an
+    index whose artwork is not chosen left as the explicit marker grey rather
+    than given a colour it does not have; clicking it moves the editing cursor,
+    which is the only way to reach the far side of a large map.
+  - [x] Evidence: 41 document contracts, 7 image-import contracts and 38
+    workspace contracts. The generated unpacker is proved by execution rather
+    than by reading it — assembled and run in the project's own 6502 runtime,
+    expanding thirty-two cells from twelve bytes and leaving the byte after the
+    destination untouched — and the same program ran on a genuine BBC Model B
+    through the headless path with the same result. Gate: 8 stages passed, 1,956
+    tests, none skipped.
 - [x] AST-626 Implement target-aware SN76489 music tracker and player/data export.
   - [x] Versioned schema-1 song documents hold a grid of rows by the machine's
     own four channels, with pitch and volume in exactly the units OSWORD 7

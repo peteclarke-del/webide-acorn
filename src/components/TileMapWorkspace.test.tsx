@@ -316,3 +316,172 @@ describe('selecting a rectangle and moving it about', () => {
     expect(within(tools).getByRole('button', { name: 'Copy area' })).toBeEnabled();
   });
 });
+
+describe('TileMapWorkspace attributes, property schema, storage and overview', () => {
+  const declareTile = () => fireEvent.click(screen.getByRole('button', { name: /Declare tile 1/ }));
+
+  it('paints a flip and a priority alongside the index, and says what the cursor carries', () => {
+    renderWorkspace();
+    declareTile();
+    fireEvent.click(screen.getByRole('button', { name: '1 ?' }));
+    fireEvent.click(screen.getByLabelText('Flip in x'));
+    fireEvent.click(screen.getByLabelText('Draw in front'));
+    fireEvent.keyDown(canvas(), { key: ' ' });
+    expect(stored().layers[0]!.attributes?.[0]).toBe(5);
+    expect(screen.getByText(/The cell under the cursor: flipped in x, drawn in front/)).toBeInTheDocument();
+  });
+
+  it('says plainly when no cell carries an attribute, so nothing is generated for them', () => {
+    renderWorkspace();
+    expect(screen.getByText(/No cell carries one, so no attribute plane is generated at all/)).toBeInTheDocument();
+  });
+
+  it('declares a typed property and refuses a value the type cannot hold', () => {
+    const props = renderWorkspace();
+    declareTile();
+    fireEvent.click(screen.getByRole('button', { name: 'Declare a property' }));
+    fireEvent.change(screen.getByLabelText('Property slot 1 name'), { target: { value: 'solid' } });
+    fireEvent.change(screen.getByLabelText('Property slot 1 type'), { target: { value: 'flag' } });
+    fireEvent.change(screen.getByLabelText('Properties for tile 1'), { target: { value: '2' } });
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/solid is a flag, so it is 0 or 1, not 2/));
+    /* And the map is left as it was rather than half-edited. */
+    expect(stored().tileset[0]!.properties).toEqual([]);
+    fireEvent.change(screen.getByLabelText('Properties for tile 1'), { target: { value: '1' } });
+    expect(stored().tileset[0]!.properties).toEqual([1]);
+    expect(screen.getByLabelText('Generated map assembler source').textContent).toContain('_prop_solid = 0 ; flag');
+  });
+
+  it('offers named values for an enum and generates a constant for each', () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByRole('button', { name: 'Declare a property' }));
+    fireEvent.change(screen.getByLabelText('Property slot 1 name'), { target: { value: 'terrain' } });
+    fireEvent.change(screen.getByLabelText('Property slot 1 type'), { target: { value: 'enum' } });
+    fireEvent.change(screen.getByLabelText('Property slot 1 values'), { target: { value: 'grass, water, stone' } });
+    const generated = screen.getByLabelText('Generated map assembler source').textContent ?? '';
+    expect(generated).toContain('_prop_terrain_water = 1');
+    expect(generated).toContain('_prop_terrain_stone = 2');
+  });
+
+  it('says that compression was asked for and declined, rather than emitting a larger map', () => {
+    renderWorkspace();
+    declareTile();
+    fireEvent.click(screen.getByRole('button', { name: '1 ?' }));
+    /* A default map is empty, which compresses well; painting alternating
+     * cells is what makes the encoding genuinely worse than raw. */
+    /* Shrunk to a size a keyboard can fill, then every other cell painted, so
+     * no two neighbours are alike and the encoding is strictly worse than raw. */
+    fireEvent.change(screen.getByLabelText('Map width in tiles'), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText('Map height in tiles'), { target: { value: '2' } });
+    for (let cell = 0; cell < 8; cell += 1) {
+      if (cell % 2 === 0) fireEvent.keyDown(canvas(), { key: ' ' });
+      fireEvent.keyDown(canvas(), { key: cell % 4 === 3 ? 'ArrowDown' : 'ArrowRight' });
+      if (cell % 4 === 3) for (let back = 0; back < 3; back += 1) fireEvent.keyDown(canvas(), { key: 'ArrowLeft' });
+    }
+    fireEvent.change(screen.getByLabelText('Map plane encoding'), { target: { value: 'rle' } });
+    expect(stored().encoding).toBe('rle');
+    expect(screen.getByLabelText('Generated map assembler source').textContent).toMatch(/asked for and declined/);
+  });
+
+  it('compresses a map that repeats, and generates the unpacker with the zero page it was given', () => {
+    renderWorkspace();
+    declareTile();
+    fireEvent.click(screen.getByRole('button', { name: '1 ?' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fill layer' }));
+    fireEvent.change(screen.getByLabelText('Map plane encoding'), { target: { value: 'rle' } });
+    fireEvent.change(screen.getByLabelText('Unpacker first zero-page byte'), { target: { value: '&90' } });
+    const generated = screen.getByLabelText('Generated map assembler source').textContent ?? '';
+    expect(generated).toContain('_unpack_source = &90');
+    expect(within(screen.getByRole('region', { name: 'Storage' })).getByText(/bytes of cells in/)).toBeInTheDocument();
+  });
+
+  it('shows the whole map and moves the cursor to a place the editing canvas cannot reach', () => {
+    /* The point of the overview: a large map does not fit the editing canvas
+     * at any useful zoom, so without this there is no view of the level. */
+    renderWorkspace();
+    fireEvent.change(screen.getByLabelText('Map width in tiles'), { target: { value: '120' } });
+    const overview = screen.getByLabelText(/Overview of .*120 by 16 tiles, one pixel per tile/);
+    overview.getBoundingClientRect = () => ({ left: 0, top: 0, width: 240, height: 32, right: 240, bottom: 32, x: 0, y: 0, toJSON: () => ({}) });
+    fireEvent.click(overview, { clientX: 238, clientY: 30 });
+    expect(screen.getByRole('status')).toHaveTextContent(/Row 16 of 16, column 120 of 120/);
+  });
+});
+
+describe('TileMapWorkspace image import', () => {
+  /* jsdom has no image decoder, so the browser's two decoding calls are stood
+   * in for. Everything the conversion itself does is contracted against the
+   * real function in tileMapImageImport.test.ts; what is under test here is
+   * that the workspace adds the artwork, replaces the map and reports what was
+   * lost — the parts a pure function cannot check. */
+  function stubImageDecoding(width: number, height: number, pixel: (x: number, y: number) => [number, number, number]) {
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const [r, g, b] = pixel(x, y);
+        const offset = (y * width + x) * 4;
+        data[offset] = r; data[offset + 1] = g; data[offset + 2] = b; data[offset + 3] = 255;
+      }
+    }
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width, height })));
+    /* One stub serves every canvas in the workspace, so it carries the drawing
+     * calls the map and overview effects make as well; jsdom returns null for
+     * all of them otherwise and those effects simply do not run. */
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn(),
+      getImageData: () => ({ data, width, height }),
+      fillRect: vi.fn(), strokeRect: vi.fn(), fillText: vi.fn(),
+      fillStyle: '', strokeStyle: '', lineWidth: 0,
+    } as unknown as CanvasRenderingContext2D);
+  }
+
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  const file = (name = 'level.png') => new File([new Uint8Array([1])], name, { type: 'image/png' });
+
+  it('adds a pixel asset document per distinct tile, so the map is not left pointing at nothing', () => {
+    /* Two by two tiles, each one of the project palette's own four colours, so
+     * the quantiser has no reason to collapse any two of them together. */
+    const colours = resolveProjectPalette([], 4).colours.slice(0, 4).map((colour) => [
+      Number.parseInt(colour.slice(1, 3), 16), Number.parseInt(colour.slice(3, 5), 16), Number.parseInt(colour.slice(5, 7), 16),
+    ] as [number, number, number]);
+    stubImageDecoding(16, 16, (x, y) => colours[Math.floor(y / 8) * 2 + Math.floor(x / 8)]!);
+    const props = renderWorkspace();
+    fireEvent.change(screen.getByLabelText('Import an image as tiles'), { target: { files: [file()] } });
+
+    return waitFor(() => {
+      expect(props.onAddSource).toHaveBeenCalledTimes(4);
+      expect(vi.mocked(props.onAddSource).mock.calls.map((call) => call[0])).toEqual([
+        'level-tile-1.asset.json', 'level-tile-2.asset.json', 'level-tile-3.asset.json', 'level-tile-4.asset.json',
+      ]);
+      const document = stored();
+      expect(document.width).toBe(2);
+      expect(document.height).toBe(2);
+      expect(document.layers[0]!.cells).toEqual([1, 2, 3, 4]);
+      expect(document.tileset.every((entry) => entry.assetFile !== null)).toBe(true);
+    });
+  });
+
+  it('reports what the conversion lost rather than presenting it as faithful', () => {
+    stubImageDecoding(16, 16, () => [136, 51, 34]);
+    renderWorkspace();
+    fireEvent.change(screen.getByLabelText('Import an image as tiles'), { target: { files: [file('Odd Name.png')] } });
+
+    return waitFor(() => {
+      const report = within(screen.getByRole('region', { name: 'Image import report' }));
+      expect(report.getByText(/pixels were not one of the 4 palette colours/)).toBeInTheDocument();
+      expect(report.getByText(/became 1 distinct tiles/)).toBeInTheDocument();
+    });
+  });
+
+  it('says why an image could not be imported and leaves the map alone', () => {
+    stubImageDecoding(4, 4, () => [0, 0, 0]);
+    const props = renderWorkspace();
+    const before = stored();
+    fireEvent.change(screen.getByLabelText('Import an image as tiles'), { target: { files: [file()] } });
+
+    return waitFor(() => {
+      expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/smaller than one 8 by 8 tile/));
+      expect(stored()).toEqual(before);
+      expect(props.onAddSource).not.toHaveBeenCalled();
+    });
+  });
+});

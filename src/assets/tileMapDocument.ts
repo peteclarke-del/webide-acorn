@@ -23,7 +23,46 @@ export interface TileMapLayer {
   visible: boolean;
   /** width * height tile indices; 0 means the empty tile. */
   cells: number[];
+  /*
+   * One attribute byte per cell, or absent when every cell is plain.
+   *
+   * Kept in a plane of its own rather than packed into the index byte: an
+   * index is a whole byte, a tileset may declare all 255 of them, and there
+   * are no spare bits to take. Absent rather than a plane of zeroes so a map
+   * that uses no attributes costs nothing to store or to generate.
+   */
+  attributes?: number[];
 }
+
+/** What a cell's attribute byte can say. */
+export const TILE_ATTRIBUTE_FLIP_X = 0x01;
+export const TILE_ATTRIBUTE_FLIP_Y = 0x02;
+export const TILE_ATTRIBUTE_PRIORITY = 0x04;
+export const TILE_ATTRIBUTE_MASK = TILE_ATTRIBUTE_FLIP_X | TILE_ATTRIBUTE_FLIP_Y | TILE_ATTRIBUTE_PRIORITY;
+
+/*
+ * What a tile property byte means.
+ *
+ * Without this a property is a raw byte and its meaning lives in the head of
+ * whoever wrote the map: the generated table is a column of numbers, and a
+ * value that is out of range for what it represents is indistinguishable from
+ * a deliberate one. A declared slot gives the generated source a name and a
+ * range, so a flag that is set to 2 is refused where it is written rather than
+ * read as truth by the game.
+ */
+export type TileMapPropertyType = 'flag' | 'byte' | 'enum';
+
+export interface TileMapPropertySlot {
+  /** Identifier-safe; it becomes part of a generated constant's name. */
+  name: string;
+  type: TileMapPropertyType;
+  /** For an enum, the named values in order. A tile's byte is one's position. */
+  values?: string[];
+  description?: string;
+}
+
+/** How a map's layer and attribute planes are laid out in the generated data. */
+export type TileMapEncoding = 'raw' | 'rle';
 
 export interface TileMapObject {
   id: string;
@@ -64,8 +103,23 @@ export interface TileMapDocument {
   layers: TileMapLayer[];
   tileset: TileMapTilesetEntry[];
   objects: TileMapObject[];
+  /** What each tile property byte means. Empty leaves them untyped bytes. */
+  propertySchema: TileMapPropertySlot[];
+  /** What the author asked for. The generator says what it actually did. */
+  encoding: TileMapEncoding;
+  /*
+   * The first of the seven zero-page bytes the generated unpacker claims.
+   *
+   * Declared rather than hard-coded so a program that already uses &70 can
+   * move it, in the same way the generated song player declares the bytes it
+   * takes. Only meaningful when the map is compressed.
+   */
+  unpackZeroPage: number;
   extensions: Record<string, unknown>;
 }
+
+/** Zero-page bytes the generated unpacker uses: source, destination, remaining, count. */
+export const UNPACK_ZERO_PAGE_BYTES = 7;
 
 export const MAX_MAP_DIMENSION = 128;
 export const MIN_MAP_DIMENSION = 2;
@@ -89,6 +143,9 @@ export function createTileMapDocument(name = 'untitled-map', width = 20, height 
     layers: [{ id: 'layer-1', name: 'Ground', visible: true, cells: Array(width * height).fill(0) }],
     tileset: [],
     objects: [],
+    propertySchema: [],
+    encoding: 'raw',
+    unpackZeroPage: 0x70,
     extensions: {},
   };
 }
@@ -110,6 +167,50 @@ function text(value: unknown, label: string, maximum: number): string {
   return value.trim();
 }
 
+const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_]{0,23}$/;
+
+function identifier(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !IDENTIFIER.test(value)) {
+    throw new Error(`${label} must start with a letter and use only letters, digits and underscores, up to 24 characters, because it becomes part of a generated symbol`);
+  }
+  return value;
+}
+
+function parsePropertySchema(value: unknown): TileMapPropertySlot[] {
+  const source = Array.isArray(value) ? value : [];
+  if (source.length > MAX_TILE_PROPERTIES) throw new Error(`A tile property schema is limited to ${MAX_TILE_PROPERTIES} slots`);
+  const used = new Set<string>();
+  return source.map((candidate, position) => {
+    const slot = candidate as Partial<TileMapPropertySlot>;
+    const name = identifier(slot.name, `Property slot ${position + 1} name`);
+    if (used.has(name.toLowerCase())) throw new Error(`Property slot ${name} is declared twice`);
+    used.add(name.toLowerCase());
+    if (slot.type !== 'flag' && slot.type !== 'byte' && slot.type !== 'enum') throw new Error(`Property slot ${name} must be a flag, a byte or an enum`);
+    if (slot.type !== 'enum') {
+      if (slot.values !== undefined) throw new Error(`Property slot ${name} is a ${slot.type} and cannot carry named values`);
+      return { name, type: slot.type, ...(slot.description ? { description: text(slot.description, `Property slot ${name} description`, 120) } : {}) };
+    }
+    const values = Array.isArray(slot.values) ? slot.values : [];
+    if (values.length < 2 || values.length > 16) throw new Error(`Enum property ${name} must name 2 to 16 values, or it is not a choice`);
+    const seen = new Set<string>();
+    const names = values.map((entry, index) => {
+      const valueName = identifier(entry, `Value ${index + 1} of property ${name}`);
+      if (seen.has(valueName.toLowerCase())) throw new Error(`Enum property ${name} names ${valueName} twice`);
+      seen.add(valueName.toLowerCase());
+      return valueName;
+    });
+    return { name, type: 'enum' as const, values: names, ...(slot.description ? { description: text(slot.description, `Property slot ${name} description`, 120) } : {}) };
+  });
+}
+
+/** Refuses a property byte a declared slot cannot hold. */
+function checkProperty(slot: TileMapPropertySlot, value: number, where: string): void {
+  if (slot.type === 'flag' && value > 1) throw new Error(`${where}: ${slot.name} is a flag, so it is 0 or 1, not ${value}`);
+  if (slot.type === 'enum' && value >= slot.values!.length) {
+    throw new Error(`${where}: ${slot.name} names ${slot.values!.length} values, so it is 0 to ${slot.values!.length - 1}, not ${value}`);
+  }
+}
+
 export function parseTileMapDocument(value: string | unknown): TileMapDocument {
   const parsed = typeof value === 'string' ? JSON.parse(value) as Record<string, unknown> : value as Record<string, unknown>;
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Tile map document must be a JSON object');
@@ -120,6 +221,13 @@ export function parseTileMapDocument(value: string | unknown): TileMapDocument {
   if (width * height > MAX_MAP_CELLS) throw new Error(`A map is limited to ${MAX_MAP_CELLS.toLocaleString()} tiles`);
   const tileWidth = tileDimension(parsed.tileWidth, 'Tile width');
   const tileHeight = tileDimension(parsed.tileHeight, 'Tile height');
+
+  const propertySchema = parsePropertySchema(parsed.propertySchema);
+  const encoding: TileMapEncoding = parsed.encoding === 'rle' ? 'rle' : parsed.encoding === undefined || parsed.encoding === 'raw' ? 'raw' : (() => { throw new Error('A map is stored either raw or RLE-compressed'); })();
+  const unpackZeroPage = parsed.unpackZeroPage === undefined ? 0x70 : parsed.unpackZeroPage;
+  if (!Number.isInteger(unpackZeroPage) || (unpackZeroPage as number) < 0 || (unpackZeroPage as number) + UNPACK_ZERO_PAGE_BYTES > 0x100) {
+    throw new Error(`The unpacker claims ${UNPACK_ZERO_PAGE_BYTES} consecutive zero-page bytes, so its first must be 0 to ${0x100 - UNPACK_ZERO_PAGE_BYTES}`);
+  }
 
   const tilesetSource = Array.isArray(parsed.tileset) ? parsed.tileset : [];
   if (tilesetSource.length > MAX_TILESET_ENTRIES) throw new Error(`A tileset is limited to ${MAX_TILESET_ENTRIES} entries`);
@@ -133,6 +241,12 @@ export function parseTileMapDocument(value: string | unknown): TileMapDocument {
     const properties = Array.isArray(entry.properties) ? entry.properties : [];
     if (properties.length > MAX_TILE_PROPERTIES) throw new Error(`A tile is limited to ${MAX_TILE_PROPERTIES} properties`);
     if (properties.some((property) => !Number.isInteger(property) || property < 0 || property > 255)) throw new Error(`Tile ${entry.index} has a property that is not a byte`);
+    if (propertySchema.length) {
+      /* A schema that some tiles are allowed to ignore is not a schema, so an
+       * extra property is refused rather than emitted past the named slots. */
+      if (properties.length > propertySchema.length) throw new Error(`Tile ${entry.index} carries ${properties.length} properties but this map declares ${propertySchema.length}`);
+      properties.forEach((property, slot) => checkProperty(propertySchema[slot]!, property as number, `Tile ${entry.index}`));
+    }
     const name = entry.name === undefined ? undefined : text(entry.name, 'Tile name', 40);
     return { index: entry.index as number, assetFile, properties: [...properties] as number[], ...(name ? { name } : {}) };
   }).sort((left, right) => left.index - right.index);
@@ -153,7 +267,22 @@ export function parseTileMapDocument(value: string | unknown): TileMapDocument {
       if (cell !== 0 && !usedIndices.has(cell as number)) throw new Error(`Layer ${id} uses tile index ${cell}, which the tileset does not declare`);
       return cell as number;
     });
-    return { id, name: text(layer.name ?? `Layer ${position + 1}`, 'Layer name', 60), visible: layer.visible !== false, cells };
+    /* Absent, or exactly one byte per cell. A plane of the wrong length would
+     * silently attribute the wrong tiles. */
+    let attributes: number[] | undefined;
+    if (layer.attributes !== undefined && layer.attributes !== null) {
+      if (!Array.isArray(layer.attributes) || layer.attributes.length !== width * height) throw new Error(`Layer ${id} carries an attribute plane that is not one byte per cell`);
+      const values = layer.attributes.map((attribute) => {
+        if (!Number.isInteger(attribute) || (attribute as number) < 0 || (attribute as number) > TILE_ATTRIBUTE_MASK) {
+          throw new Error(`Layer ${id} has a cell attribute outside the flip and priority bits this build defines`);
+        }
+        return attribute as number;
+      });
+      /* An all-zero plane is dropped, so a map that stopped using attributes
+       * generates exactly what it did before it ever had them. */
+      if (values.some((attribute) => attribute !== 0)) attributes = values;
+    }
+    return { id, name: text(layer.name ?? `Layer ${position + 1}`, 'Layer name', 60), visible: layer.visible !== false, cells, ...(attributes ? { attributes } : {}) };
   });
 
   const objectSource = Array.isArray(parsed.objects) ? parsed.objects : [];
@@ -177,7 +306,7 @@ export function parseTileMapDocument(value: string | unknown): TileMapDocument {
   });
 
   const extensions = parsed.extensions && typeof parsed.extensions === 'object' && !Array.isArray(parsed.extensions) ? parsed.extensions as Record<string, unknown> : {};
-  return { schema: TILE_MAP_SCHEMA, version: 1, name, width, height, tileWidth, tileHeight, layers, tileset, objects, extensions };
+  return { schema: TILE_MAP_SCHEMA, version: 1, name, width, height, tileWidth, tileHeight, layers, tileset, objects, propertySchema, encoding, unpackZeroPage: unpackZeroPage as number, extensions };
 }
 
 export function serializeTileMapDocument(document: TileMapDocument): string {
@@ -204,6 +333,17 @@ export interface TileMapOutput {
     objectCount: number;
     /** Property bytes emitted per tile index; zero when none are declared. */
     propertyStride: number;
+    /** What each of those bytes means, when the map says. */
+    propertySchema: TileMapPropertySlot[];
+    /** What the author asked for, and what the generator actually did. */
+    encodingRequested: TileMapEncoding;
+    encoding: TileMapEncoding;
+    /** The plane bytes each way, so a declined request can be seen to be right. */
+    rawPlaneBytes: number;
+    compressedPlaneBytes: number;
+    /** Whether attribute planes were emitted, and how many cells carry one. */
+    attributePlanes: boolean;
+    cellsWithAttributes: number;
     /** How many cells across all layers use each declared index. */
     tileUsage: Array<{ index: number; cells: number }>;
     /** Groups of indices that name the same artwork file. */
@@ -225,6 +365,38 @@ export function tileAssetLabel(assetFile: string): string {
   return `asset_${name.replace(/[^A-Za-z0-9_]/g, '_').replace(/^[^A-Za-z_]/, '_$&')}_pixels`;
 }
 
+/*
+ * Run-length encoding of one plane.
+ *
+ * A run is a count of 1 to 255 followed by the value, so a decoder never has to
+ * hold more than two bytes of state and the count is never zero — which is what
+ * lets the generated unpacker use a plain DEC/BNE loop.
+ */
+export function rleEncodePlane(values: readonly number[]): number[] {
+  const encoded: number[] = [];
+  let index = 0;
+  while (index < values.length) {
+    const value = values[index]!;
+    let run = 1;
+    while (run < 255 && index + run < values.length && values[index + run] === value) run += 1;
+    encoded.push(run, value);
+    index += run;
+  }
+  return encoded;
+}
+
+/** Expands what {@link rleEncodePlane} produced. Refuses a malformed block. */
+export function rleDecodePlane(encoded: readonly number[]): number[] {
+  const values: number[] = [];
+  if (encoded.length % 2 !== 0) throw new Error('A run-length block is pairs of count and value, so its length is even');
+  for (let index = 0; index < encoded.length; index += 2) {
+    const run = encoded[index]!;
+    if (run === 0) throw new Error('A run-length block contains a run of zero, which no encoder here produces');
+    for (let repeat = 0; repeat < run; repeat += 1) values.push(encoded[index + 1]!);
+  }
+  return values;
+}
+
 function byteRows(label: string, bytes: number[]): string[] {
   return [
     `.${label}`,
@@ -235,13 +407,24 @@ function byteRows(label: string, bytes: number[]): string[] {
   ];
 }
 
+/** Header flag: the layer and attribute planes are run-length encoded. */
+export const MAP_FLAG_RLE = 0x01;
+/** Header flag: an attribute plane follows the layer planes, one per layer. */
+export const MAP_FLAG_ATTRIBUTES = 0x02;
+
 /**
  * Generate the map's assembler source and byte image.
  *
- * The header is width, height, layer count, highest declared tile index and
- * object count. Layers follow in declaration order, then a pointer table with
- * one 16-bit address for tile indices 1 to the highest declared index, then the
- * object table.
+ * The header is width, height, layer count, highest declared tile index, object
+ * count, property stride and a flags byte. Layers follow in declaration order,
+ * then their attribute planes when the flags say there are any, then a pointer
+ * table with one 16-bit address for tile indices 1 to the highest declared
+ * index, then the object table.
+ *
+ * A compressed plane is a 16-bit little-endian byte length followed by count
+ * and value pairs; a raw plane is width by height bytes and needs no length,
+ * because the header already gives it. Which one is in front of a reader is in
+ * the flags rather than left to be inferred.
  */
 export function generateTileMapOutput(document: TileMapDocument): TileMapOutput {
   const validated = parseTileMapDocument(document);
@@ -249,8 +432,31 @@ export function generateTileMapOutput(document: TileMapDocument): TileMapOutput 
   const highestIndex = validated.tileset.reduce((highest, entry) => Math.max(highest, entry.index), 0);
 
   const propertyStride = validated.tileset.reduce((widest, entry) => Math.max(widest, entry.properties.length), 0);
-  const header = [validated.width, validated.height, validated.layers.length, highestIndex, validated.objects.length, propertyStride];
-  const layerBytes = validated.layers.flatMap((layer) => layer.cells);
+  const attributePlanes = validated.layers.some((layer) => layer.attributes !== undefined);
+  /* Every layer gets a plane once any layer has one, so a reader's arithmetic
+   * over the planes does not depend on which layers happen to use attributes. */
+  const planes = [
+    ...validated.layers.map((layer) => layer.cells),
+    ...(attributePlanes ? validated.layers.map((layer) => layer.attributes ?? Array(validated.width * validated.height).fill(0) as number[]) : []),
+  ];
+  const rawPlaneBytes = planes.reduce((total, plane) => total + plane.length, 0);
+  const encodedPlanes = planes.map((plane) => rleEncodePlane(plane));
+  /* Two bytes of length in front of each compressed plane, which a plane of
+   * mostly-unique cells can easily fail to earn back. */
+  const compressedPlaneBytes = encodedPlanes.reduce((total, plane) => total + plane.length + 2, 0);
+  /*
+   * Asking for compression does not make data smaller, and emitting a larger
+   * file because a setting was ticked helps nobody. The flag records what was
+   * actually done and the manifest carries both numbers, so the author can see
+   * that the request was declined and why.
+   */
+  const compressed = validated.encoding === 'rle' && compressedPlaneBytes < rawPlaneBytes;
+  const flags = (compressed ? MAP_FLAG_RLE : 0) | (attributePlanes ? MAP_FLAG_ATTRIBUTES : 0);
+
+  const header = [validated.width, validated.height, validated.layers.length, highestIndex, validated.objects.length, propertyStride, flags];
+  const planeBytes = compressed
+    ? encodedPlanes.flatMap((plane) => [plane.length & 0xff, (plane.length >> 8) & 0xff, ...plane])
+    : planes.flat();
   const objectBytes = validated.objects.flatMap((object) => [
     object.kind === 'region' ? 1 : 0, object.x, object.y, object.width, object.height,
     object.properties.length, ...object.properties,
@@ -264,19 +470,45 @@ export function generateTileMapOutput(document: TileMapDocument): TileMapOutput 
     const properties = validated.tileset.find((entry) => entry.index === offset + 1)?.properties ?? [];
     return Array.from({ length: propertyStride }, (__, slot) => properties[slot] ?? 0);
   }).flat();
-  const bytes = Uint8Array.from([...header, ...layerBytes, ...propertyStrideBytes, ...objectBytes]);
+  const bytes = Uint8Array.from([...header, ...planeBytes, ...propertyStrideBytes, ...objectBytes]);
 
   const lines: string[] = [
     `; Generated tile map ${validated.name} · ${validated.width}x${validated.height} tiles of ${validated.tileWidth}x${validated.tileHeight} pixels`,
     `; ${validated.layers.length} layer(s) · ${validated.tileset.length} tileset entries · ${validated.objects.length} objects`,
     `; ${bytes.length} data bytes · SHA-256 ${sha256Hex(bytes)}`,
+    `; header: width, height, layers, highest tile index, objects, property stride, flags`,
+    compressed
+      ? `; flags &${flags.toString(16).toUpperCase().padStart(2, '0')}: planes are run-length encoded, ${rawPlaneBytes} bytes of cells in ${compressedPlaneBytes}`
+      : validated.encoding === 'rle'
+        ? `; flags &${flags.toString(16).toUpperCase().padStart(2, '0')}: run-length encoding was asked for and declined — it would have taken ${compressedPlaneBytes} bytes against ${rawPlaneBytes} raw, so the planes are raw`
+        : `; flags &${flags.toString(16).toUpperCase().padStart(2, '0')}: planes are raw`,
     `.${label}`,
     `EQUB ${header.map((value) => `&${value.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')}`,
   ];
+  const planeRows = (blockLabel: string, note: string, plane: number[], encoded: number[]) => {
+    lines.push(note);
+    if (!compressed) { lines.push(...byteRows(blockLabel, plane)); return; }
+    lines.push(`.${blockLabel}`);
+    lines.push(`EQUB &${(encoded.length & 0xff).toString(16).toUpperCase().padStart(2, '0')}, &${((encoded.length >> 8) & 0xff).toString(16).toUpperCase().padStart(2, '0')} ; ${encoded.length} encoded bytes`);
+    lines.push(...byteRows(`${blockLabel}_runs`, encoded).slice(1));
+  };
   validated.layers.forEach((layer, position) => {
-    lines.push(`; layer ${position} · ${layer.name}${layer.visible ? '' : ' (hidden in the editor, still generated)'}`);
-    lines.push(...byteRows(`${label}_layer${position}`, layer.cells));
+    planeRows(
+      `${label}_layer${position}`,
+      `; layer ${position} · ${layer.name}${layer.visible ? '' : ' (hidden in the editor, still generated)'}`,
+      planes[position]!, encodedPlanes[position]!,
+    );
   });
+  if (attributePlanes) {
+    validated.layers.forEach((_layer, position) => {
+      const offset = validated.layers.length + position;
+      planeRows(
+        `${label}_layer${position}_attributes`,
+        `; layer ${position} attributes · bit 0 flips in x, bit 1 flips in y, bit 2 draws in front`,
+        planes[offset]!, encodedPlanes[offset]!,
+      );
+    });
+  }
   lines.push(`; tile pointer table for indices 1 to ${highestIndex}`);
   lines.push(`.${label}_tiles`);
   if (highestIndex > 0) {
@@ -286,6 +518,19 @@ export function generateTileMapOutput(document: TileMapDocument): TileMapOutput 
       const assetFile = byIndex.get(index)!;
       lines.push(assetFile ? `EQUW ${tileAssetLabel(assetFile)}` : `EQUW 0 ; index ${index} has no artwork chosen yet`);
     }
+  }
+  if (validated.propertySchema.length) {
+    /*
+     * Named constants rather than a comment, so a game reads
+     * `LDA map_tile_properties,Y` at `map_prop_collision` instead of at 0 and
+     * the meaning survives somebody inserting a slot.
+     */
+    lines.push('; tile property schema');
+    validated.propertySchema.forEach((slot, offset) => {
+      const detail = slot.type === 'enum' ? `enum of ${slot.values!.length}` : slot.type;
+      lines.push(`${label}_prop_${slot.name} = ${offset} ; ${detail}${slot.description ? ` · ${slot.description}` : ''}`);
+      if (slot.type === 'enum') slot.values!.forEach((valueName, value) => lines.push(`${label}_prop_${slot.name}_${valueName} = ${value}`));
+    });
   }
   if (propertyStride > 0) {
     lines.push(`; ${propertyStride} property byte(s) per tile index, 1 to ${highestIndex}`);
@@ -300,6 +545,7 @@ export function generateTileMapOutput(document: TileMapDocument): TileMapOutput 
   }
   lines.push(`.${label}_objects`);
   lines.push(...(objectBytes.length ? byteRows(`${label}_object_data`, objectBytes).slice(1) : ['; no objects']));
+  if (compressed) lines.push(...unpackRoutine(label, validated.unpackZeroPage));
 
   return {
     bytes,
@@ -319,6 +565,13 @@ export function generateTileMapOutput(document: TileMapDocument): TileMapOutput 
       tilesetCount: validated.tileset.length,
       objectCount: validated.objects.length,
       propertyStride,
+      propertySchema: validated.propertySchema,
+      encodingRequested: validated.encoding,
+      encoding: compressed ? 'rle' : 'raw',
+      rawPlaneBytes,
+      compressedPlaneBytes,
+      attributePlanes,
+      cellsWithAttributes: validated.layers.reduce((total, layer) => total + (layer.attributes?.filter((attribute) => attribute !== 0).length ?? 0), 0),
       tileUsage: validated.tileset.map((entry) => ({
         index: entry.index,
         cells: validated.layers.reduce((total, layer) => total + layer.cells.filter((cell) => cell === entry.index).length, 0),
@@ -335,6 +588,90 @@ export function generateTileMapOutput(document: TileMapDocument): TileMapOutput 
   };
 }
 
+
+/*
+ * A 6502 routine that expands one compressed plane.
+ *
+ * Generated beside the data rather than left to the reader: compressed data
+ * with no way to read it is not a feature, and a hand-written unpacker that
+ * disagrees with the encoder by one byte fails in a way that looks like
+ * corrupted artwork.
+ *
+ * The seven zero-page bytes it claims are declared as constants from the base
+ * the document names, so a program that already uses that area can move them
+ * by changing the map rather than by editing generated source.
+ */
+function unpackRoutine(label: string, zeroPage: number): string[] {
+  const at = (offset: number) => `&${(zeroPage + offset).toString(16).toUpperCase().padStart(2, '0')}`;
+  const source = `${label}_unpack_source`;
+  const destination = `${label}_unpack_dest`;
+  const remaining = `${label}_unpack_remaining`;
+  const count = `${label}_unpack_count`;
+  return [
+    '',
+    `; Expand one compressed plane. Point ${source} at a plane's two-byte`,
+    `; length and ${destination} at where the cells should go, then JSR`,
+    `; ${label}_unpack. On return ${source} addresses the byte after the`,
+    '; plane, so consecutive planes unpack one after another.',
+    `; Claims ${UNPACK_ZERO_PAGE_BYTES} zero-page bytes from ${at(0)}.`,
+    `${source} = ${at(0)}`,
+    `${destination} = ${at(2)}`,
+    `${remaining} = ${at(4)}`,
+    `${count} = ${at(6)}`,
+    `.${label}_unpack`,
+    ' LDY #&00',
+    ` LDA (${source}),Y`,
+    ` STA ${remaining}`,
+    ' INY',
+    ` LDA (${source}),Y`,
+    ` STA ${remaining} + 1`,
+    ` LDA ${source}`,
+    ' CLC',
+    ' ADC #&02',
+    ` STA ${source}`,
+    ` LDA ${source} + 1`,
+    ' ADC #&00',
+    ` STA ${source} + 1`,
+    `.${label}_unpack_pair`,
+    ` LDA ${remaining}`,
+    ` ORA ${remaining} + 1`,
+    ` BEQ ${label}_unpack_done`,
+    ' LDY #&00',
+    ` LDA (${source}),Y`,
+    ` STA ${count} ; a run is never zero, so DEC/BNE terminates`,
+    ' INY',
+    ` LDA (${source}),Y`,
+    ' TAX',
+    ' LDY #&00',
+    `.${label}_unpack_run`,
+    ' TXA',
+    ` STA (${destination}),Y`,
+    ` INC ${destination}`,
+    ` BNE ${label}_unpack_no_carry`,
+    ` INC ${destination} + 1`,
+    `.${label}_unpack_no_carry`,
+    ` DEC ${count}`,
+    ` BNE ${label}_unpack_run`,
+    ` LDA ${source}`,
+    ' CLC',
+    ' ADC #&02',
+    ` STA ${source}`,
+    ` LDA ${source} + 1`,
+    ' ADC #&00',
+    ` STA ${source} + 1`,
+    ` LDA ${remaining}`,
+    ' SEC',
+    ' SBC #&02',
+    ` STA ${remaining}`,
+    ` LDA ${remaining} + 1`,
+    ' SBC #&00',
+    ` STA ${remaining} + 1`,
+    ` JMP ${label}_unpack_pair`,
+    `.${label}_unpack_done`,
+    ' RTS',
+  ];
+}
+
 /* ---- editing operations -------------------------------------------------- */
 
 export function resizeTileMap(document: TileMapDocument, width: number, height: number): TileMapDocument {
@@ -345,40 +682,58 @@ export function resizeTileMap(document: TileMapDocument, width: number, height: 
     ...validated,
     width,
     height,
-    layers: validated.layers.map((layer) => ({
-      ...layer,
-      /* Cells inside the retained area keep their value; new area is empty. */
-      cells: Array.from({ length: width * height }, (_, cell) => {
+    layers: validated.layers.map((layer) => {
+      /* Cells inside the retained area keep their value; new area is empty.
+       * The attribute plane is carried the same way, or a resize would quietly
+       * drop which cells were flipped. */
+      const retained = <T,>(values: readonly T[], empty: T) => Array.from({ length: width * height }, (_, cell) => {
         const x = cell % width; const y = Math.floor(cell / width);
-        return x < validated.width && y < validated.height ? layer.cells[y * validated.width + x]! : 0;
-      }),
-    })),
+        return x < validated.width && y < validated.height ? values[y * validated.width + x]! : empty;
+      });
+      return {
+        ...layer,
+        cells: retained(layer.cells, 0),
+        ...(layer.attributes ? { attributes: retained(layer.attributes, 0) } : {}),
+      };
+    }),
     /* Objects that no longer fit are dropped rather than silently clamped. */
     objects: validated.objects.filter((object) => object.x + object.width <= width && object.y + object.height <= height),
   };
   return parseTileMapDocument(next);
 }
 
-export function paintTileMapCell(document: TileMapDocument, layerId: string, x: number, y: number, tile: number): TileMapDocument {
+/* A plane to write an attribute into, made only when there is one to write. */
+function attributePlaneFor(layer: TileMapLayer, cellCount: number, attribute: number): number[] | undefined {
+  if (layer.attributes) return [...layer.attributes];
+  return attribute === 0 ? undefined : Array(cellCount).fill(0) as number[];
+}
+
+export function paintTileMapCell(document: TileMapDocument, layerId: string, x: number, y: number, tile: number, attribute = 0): TileMapDocument {
   const validated = parseTileMapDocument(document);
   const layer = validated.layers.find((candidate) => candidate.id === layerId);
   if (!layer) throw new Error(`Layer ${layerId} is not in this map`);
   if (!Number.isInteger(x) || x < 0 || x >= validated.width || !Number.isInteger(y) || y < 0 || y >= validated.height) throw new Error('The painted cell lies outside the map');
   const cells = [...layer.cells];
   cells[y * validated.width + x] = tile;
-  return parseTileMapDocument({ ...validated, layers: validated.layers.map((candidate) => candidate.id === layerId ? { ...candidate, cells } : candidate) });
+  const attributes = attributePlaneFor(layer, validated.width * validated.height, attribute);
+  if (attributes) attributes[y * validated.width + x] = attribute;
+  return parseTileMapDocument({ ...validated, layers: validated.layers.map((candidate) => candidate.id === layerId ? { ...candidate, cells, ...(attributes ? { attributes } : {}) } : candidate) });
 }
 
-export function fillTileMapArea(document: TileMapDocument, layerId: string, x: number, y: number, width: number, height: number, tile: number): TileMapDocument {
+export function fillTileMapArea(document: TileMapDocument, layerId: string, x: number, y: number, width: number, height: number, tile: number, attribute = 0): TileMapDocument {
   const validated = parseTileMapDocument(document);
   const layer = validated.layers.find((candidate) => candidate.id === layerId);
   if (!layer) throw new Error(`Layer ${layerId} is not in this map`);
   if (x < 0 || y < 0 || width < 1 || height < 1 || x + width > validated.width || y + height > validated.height) throw new Error('The filled area lies outside the map');
   const cells = [...layer.cells];
+  const attributes = attributePlaneFor(layer, validated.width * validated.height, attribute);
   for (let row = y; row < y + height; row += 1) {
-    for (let column = x; column < x + width; column += 1) cells[row * validated.width + column] = tile;
+    for (let column = x; column < x + width; column += 1) {
+      cells[row * validated.width + column] = tile;
+      if (attributes) attributes[row * validated.width + column] = attribute;
+    }
   }
-  return parseTileMapDocument({ ...validated, layers: validated.layers.map((candidate) => candidate.id === layerId ? { ...candidate, cells } : candidate) });
+  return parseTileMapDocument({ ...validated, layers: validated.layers.map((candidate) => candidate.id === layerId ? { ...candidate, cells, ...(attributes ? { attributes } : {}) } : candidate) });
 }
 
 export function addTileMapLayer(document: TileMapDocument, name?: string): TileMapDocument {

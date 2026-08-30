@@ -19,3 +19,8 @@ coverage/
 /backend/.phpunit.cache/
 # Composer restores these from composer.lock; they are not project files.
 /backend/vendor/
+
+# The Arculator WASM core is built from pinned upstream source in Docker and
+# copied into the image; a copy extracted here for a local A310 run is a build
+# output, not source, and must not be committed.
+/public/arculator/

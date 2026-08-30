@@ -117,7 +117,7 @@ describe('promoting detected level data to a real map', () => {
 
   it('regenerates the original bytes as its layer data', () => {
     const output = generateTileMapOutput(tileMapFromCandidate(candidate!, 8, 6));
-    expect(Array.from(output.bytes.slice(6, 6 + candidate!.values.length))).toEqual(candidate!.values);
+    expect(Array.from(output.bytes.slice(7, 7 + candidate!.values.length))).toEqual(candidate!.values);
     expect(output.manifest.unassignedIndices).toEqual([1, 2]);
     expect(output.requiredAssets).toEqual([]);
   });
