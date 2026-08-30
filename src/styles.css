@@ -928,6 +928,16 @@
   .sideways-table small { color: var(--theme-faint); }
   .sideways-empty { color: var(--theme-faint); }
   .sideways-table button { min-height: 24px; padding: 0 8px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-2); color: var(--theme-ink); font: 6.5px/1 var(--font-ui); cursor: pointer; }
+  .golden-approval { display: grid; gap: 10px; padding: 13px 15px; }
+  .golden-approval > .binding-note, .golden-approval > .dfs-warning { margin: 0; }
+  .golden-approval h3 { margin: 0 0 5px; color: var(--theme-faint); font: 700 6px/1 var(--font-ui); text-transform: uppercase; letter-spacing: 0.08em; }
+  .golden-provenance { display: flex; flex-wrap: wrap; gap: 14px; margin: 0; font: 6.9px/1.4 var(--font-mono); }
+  .golden-provenance div { display: grid; gap: 2px; }
+  .golden-provenance dt { color: var(--theme-faint); font: 700 6px/1 var(--font-ui); text-transform: uppercase; }
+  .golden-provenance dd { margin: 0; color: var(--theme-ink-strong); }
+  .golden-reason { display: grid; gap: 4px; }
+  .golden-reason span { color: var(--theme-faint); font: 6px/1 var(--font-mono); text-transform: uppercase; }
+  .golden-reason textarea { padding: 6px 8px; border: 1px solid var(--theme-line-strong); border-radius: 3px; background: var(--theme-input); color: var(--theme-ink); font: 7px/1.5 var(--font-mono); resize: vertical; }
   .map-selection-tools { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .map-selection-tools button { min-height: 26px; padding: 0 9px; border: 1px solid var(--theme-line-strong); border-radius: 3px; background: var(--theme-surface-2); color: var(--theme-ink); font: 7px/1 var(--font-ui); cursor: pointer; }
   .map-selection-tools button[aria-pressed="true"] { border-color: var(--theme-primary-light); color: var(--theme-primary-light); }

@@ -4398,8 +4398,47 @@ Current implemented increment:
   and build fingerprint in native and JUnit output. A deliberate X-register
   mismatch retained both reports and returned 1. Unit contracts continue to
   cover totals, grouping, failure/skipped mapping, XML escaping and provenance.
-- [ ] TST-505 Implement golden provenance/update approval and tight image/audio
+- [x] TST-505 Implement golden provenance/update approval and tight image/audio
   comparison reports.
+  - [x] A golden now carries what it was approved against — machine, firmware
+    set, a digest over the actual ROM bytes, the build fingerprint, when, by
+    whom, and why. Without that a golden is only a picture somebody once
+    accepted: when it later fails, nobody can tell whether the program changed,
+    the firmware changed, or the golden was wrong from the start. A failure
+    reports the drift, and the ROM digest is separate from the set name because
+    a re-release under the same name is a real thing and is not the same
+    firmware.
+  - [x] A golden approved on another machine or against other firmware is shown
+    but cannot settle anything, and says so. Letting it pass or fail silently
+    would be asserting something it has no basis for. A rebuild does not
+    disqualify it — that is the case it exists for.
+  - [x] Replacement takes an explicit approval carrying a reason, and the reason
+    is required rather than optional. Replacing automatically is how a test
+    stops testing: it would then agree with whatever the program does next, for
+    ever. Never replacing is how a test becomes noise people scroll past. So a
+    mismatch produces a proposal — both pictures, the difference, the drift —
+    and nothing changes until somebody says why. Six months later the reason is
+    the only thing that distinguishes an approval from nobody having looked.
+    What was replaced is kept by digest, so a golden approved repeatedly can be
+    seen to have been.
+  - [x] The comparison reports locate rather than only count. Two failures with
+    identical pixel counts — a caption moved by one pixel, a sprite gone
+    entirely — read the same otherwise, and the person has to squint at two
+    images to tell them apart. The report gives the smallest box holding every
+    differing pixel, where the single worst pixel is, and whether the
+    differences are gathered or scattered, which is usually what says whether
+    this is the thing somebody just changed.
+  - [x] The audio half answers the same question. A digest mismatch says only
+    that the sound is not what it was; the report names the first differing
+    write, which points at the instruction that wrote it, shows a few writes
+    either side, and distinguishes a stream of a different length — the program
+    driving the sound chip a different number of times — from one that is the
+    same length and says something else.
+  - [x] Evidence: 25 module contracts and 7 on the approval panel, including
+    that an approval with a two-character reason is refused, that a golden from
+    another machine is marked as unable to settle the question, that a
+    difference is located inside a named box, and that a missing sound write is
+    reported as absent rather than as a zero.
 - [ ] TST-506 Build platform conformance suites for CPU/flags, timing, banking,
   media, Tube, breakpoint maps, trace, input, frames, sound, and state replay.
 
