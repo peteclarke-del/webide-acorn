@@ -263,7 +263,7 @@ are listed rather than quietly counted.
 | EMU-GATE | Two 8-bit slices and one scoped ARM slice can run exact resolved profiles with correct… | not started |
 | TST-502 | Complete symbol/text/screen/audio/event/result/timing assertions. Live 6502 register and… | 5 of 5 parts done |
 | TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad, mouse, analogue,… | not started |
-| TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 7 of 9 parts done |
+| TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 9 of 10 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
 | AST-624 | Implement tile/block editor, typed properties, collision, dedupe, usage, compression, and… | 3 of 4 parts done |
 | AST-625 | Implement layered map editor, objects/regions/triggers, validation, image import,… | 5 of 6 parts done |

@@ -4456,9 +4456,8 @@ Current implemented increment:
     product claims is enumerated whether or not it has a case, and the list is
     fixed rather than derived from the cases — a list derived from the cases can
     only ever report that everything present is covered, which is true and
-    useless. **Four of the eleven areas have cases; seven have none**: banking,
-    media, Tube, breakpoint maps, trace, state replay and — after its
-    expectation was withdrawn — sound. Those are named in the
+    useless. **Five of the eleven areas have cases; six have none**: banking,
+    media, Tube, breakpoint maps, trace and state replay. Those are named in the
     interface first, before anything that passes, and described as neither known
     to be wrong nor known to be right, because an area with no cases is not a
     passing area — it is where a fault would go unnoticed.
@@ -4466,10 +4465,10 @@ Current implemented increment:
     as not applicable with the reason, and a case that has not been executed is
     reported as not run. Counting either as a pass would be the exact failure
     this suite exists to prevent.
-  - [x] **The cases now run on a real machine.** Five of them execute on a
-    genuine BBC Model B with OS 1.20, BASIC II and DFS 0.90 through the existing
-    headless path and all five pass: manifest
-    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 5 tests, 0 failed, 0 skipped.
+  - [x] **The cases now run on a real machine.** All six execute on a genuine
+    BBC Model B with OS 1.20, BASIC II and DFS 0.90 through the existing
+    headless path and all six pass: manifest
+    `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 6 tests, 0 failed, 0 skipped.
     The timing case reports exactly 11 cycles, which is the 2 + 4 + 5 the
     documented page-crossing penalty predicts, so the number the machine gives
     back is the number the documentation says rather than merely a number.
@@ -4490,19 +4489,29 @@ Current implemented increment:
     build fails in seconds rather than after a five-minute run. The ADC case
     then asserted `A = &70`, which is the address the flags are stored at rather
     than their value; after `PHP`/`PLA` the accumulator holds the flags, `&F0`.
-  - [ ] **The sound case was withdrawn rather than corrected, and that is the
-    honest state.** It asserted an `AUDIO[WRITES]` digest copied from this
-    backlog, where it had been recorded for a different program driving the
-    System VIA a different way — an expectation this build never observed for
-    the program asserting it, which is exactly the fabrication this product does
-    not do. The test reports carry only pass, fail and cycles, with no
-    per-assertion detail and no actual digest, so the true value cannot be
-    observed from a headless run; inventing a second number would repeat the
-    mistake. Sound is therefore reported as uncovered, which is correct, and
-    covering it needs the report format to say what an assertion actually saw.
+  - [x] **The sound case was withdrawn, and has now been restored against a
+    digest this build actually observed.** The withdrawn version asserted an
+    `AUDIO[WRITES]` digest copied from this backlog, where it had been recorded
+    for a different program driving the System VIA a different way — an
+    expectation this build never observed for the program asserting it, which is
+    exactly the fabrication this product does not do. Restoring it needed two
+    things. Reports now carry per-assertion detail including the actual value,
+    so a digest can be read off a headless run instead of guessed. And the first
+    observation returned `811C9DC5`, which is the FNV-1a offset basis — the same
+    number reported by a capture that ran and heard nothing, by a session with
+    no audio device, and by the fallback used when there was none. Those three
+    were indistinguishable, so an assertion of silence would have passed on a
+    run that never listened. `browserAudio` now reports whether a capture
+    actually ran and `audioAssertionModel` refuses rather than compares when one
+    did not, which is the only reason the observation could be trusted.
+  - [x] The observation itself then found a real behaviour worth a case. The
+    program was holding the sound chip's write-enable low for about seven
+    cycles; jsbeeb takes the byte off the slow data bus fourteen cycles after
+    write-enable goes low, so nothing latched. Held long enough, three bytes
+    latch and the digest is `8D591C50`, identical across three runs and asserted
+    from those runs rather than from anywhere else.
   - [ ] Cases for the six uncovered areas — banking, media, Tube, breakpoint
-    maps, trace and state replay — and an observed rather than copied sound
-    expectation keep TST-506 open.
+    maps, trace and state replay — keep TST-506 open.
   - [x] Evidence: 13 module contracts and 6 panel contracts, including that
     every case parses into assertions the runner can read, that a case with no
     assertions is refused rather than passing vacuously, that a case with no

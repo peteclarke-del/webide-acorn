@@ -209,6 +209,90 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     assertions: ['EVENT[OSWRCH] = 2'].join('\n'),
     cycleBudget: 200000,
   },
+  {
+    id: 'sound-latch-write',
+    area: 'sound',
+    title: 'A byte reaches the sound chip only while write-enable is held low',
+    rationale: 'Sound leaves a BBC through the system VIA rather than a memory-mapped register, and the chip takes the byte off the slow data bus a fixed number of cycles after write-enable goes low. A build that latched on the write itself would accept programs a real machine ignores, and one that never latched would silently make every program silent.',
+    requires: { machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], capabilities: [], unavailableDetail: 'This case drives the system VIA sound latch and needs a BBC-family machine.' },
+    source: [
+      'ORG &1900',
+      '.start',
+      ' SEI',
+      ' LDA #&FF',
+      ' STA &FE43',     /* port A all outputs: the slow data bus */
+      ' LDA #&0F',
+      ' STA &FE42',     /* port B low nibble out: the addressable latch */
+      ' LDA #&08',
+      ' STA &FE40',     /* latch line 0 high: write-enable idle */
+      ' LDA #&80',
+      ' STA &FE4F',     /* latch tone 1, low four bits of its period */
+      ' LDA #&00',
+      ' STA &FE40',     /* write-enable low */
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' LDA #&08',
+      ' STA &FE40',     /* write-enable high again */
+      ' NOP',
+      ' NOP',
+      ' LDA #&3F',
+      ' STA &FE4F',     /* the remaining six bits of the period */
+      ' LDA #&00',
+      ' STA &FE40',     /* write-enable low */
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' LDA #&08',
+      ' STA &FE40',     /* write-enable high again */
+      ' NOP',
+      ' NOP',
+      ' LDA #&90',
+      ' STA &FE4F',     /* tone 1 volume, loudest */
+      ' LDA #&00',
+      ' STA &FE40',     /* write-enable low */
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' NOP',
+      ' LDA #&08',
+      ' STA &FE40',     /* write-enable high again */
+      ' NOP',
+      ' NOP',
+      ' CLI',
+      '.done',
+      ' RTS',
+    ].join('\n'),
+    stop: 'done',
+    /* Observed on a BBC Model B with os12-basic2-dfs, three times identically,
+     * rather than copied from anywhere: three bytes latched, digest 8D591C50.
+     * An earlier attempt at this case held write-enable low for about seven
+     * cycles and latched nothing, reporting 811C9DC5 — the hash function's own
+     * starting value, and so indistinguishable from a run that never listened
+     * until audioAssertionModel made that difference explicit. */
+    assertions: ['AUDIO[WRITES] = FNV32:8D591C50'].join('\n'),
+    cycleBudget: 20000,
+  },
 ]);
 
 export interface AreaCoverage {

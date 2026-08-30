@@ -98,7 +98,7 @@ import { RiscOsResourcePanel } from './components/RiscOsResourcePanel';
 import { createRiscOsAbsoluteApplication, validateRiscOsApplication, type RiscOsApplicationPackage } from './media/riscOsApplication';
 import { parseTestPlan, resolveTestValue, type MachineAssertion } from './testing/testPlan';
 import { MAX_SCREEN_GOLDENS, base64ToBytes, bytesToBase64, validateScreenGolden, type ScreenGolden } from './testing/screenAssertion';
-import { createJUnitTestReport, createNativeTestReport, type ReportTestResult } from './testing/testReport';
+import { createJUnitTestReport, createNativeTestReport, renderAssertionValue, type ReportTestResult } from './testing/testReport';
 import { referenceItems, type LanguageItem } from './language/languageService';
 import type { LanguageTargetContext } from './language/languageTarget';
 import {
@@ -241,7 +241,11 @@ interface MachineTestResult {
   appliedInputs?: number;
 }
 interface TestAllRecord { planId: string; targetId: string; name: string; status: 'queued' | 'running' | 'passed' | 'failed' | 'timeout' | 'error' | 'skipped' | 'cancelled'; message: string; result?: MachineTestResult }
-interface TestHistoryResult { name: string; status: Exclude<MachineTestResult['status'], 'running'>; reason: string; cycles: number; suite?: string; buildFingerprint?: string }
+/* The retained summary of one run. It now keeps each assertion's rendered
+ * expected and actual sides, because a history that says a test failed and not
+ * what it saw sends somebody back to run it again by hand. */
+interface TestHistoryAssertion { source: string; passed: boolean; expected: string; actual: string }
+interface TestHistoryResult { name: string; status: Exclude<MachineTestResult['status'], 'running'>; reason: string; cycles: number; suite?: string; buildFingerprint?: string; assertions?: TestHistoryAssertion[] }
 interface TestHistoryRecord { sequence: number; recordedAt: string; result: TestHistoryResult }
 
 async function importScreenGolden(file: File, existing: readonly ScreenGolden[]): Promise<ScreenGolden> {
@@ -273,7 +277,7 @@ function loadTestHistory(): TestHistoryRecord[] {
       const item = candidate as { sequence?: unknown; recordedAt?: unknown; result?: Record<string, unknown> };
       const result = item.result;
       if (!Number.isSafeInteger(item.sequence) || typeof item.recordedAt !== 'string' || !Number.isFinite(Date.parse(item.recordedAt)) || !result || typeof result.name !== 'string' || !result.name.trim() || result.name.length > 80 || typeof result.status !== 'string' || !statuses.has(result.status) || typeof result.reason !== 'string' || result.reason.length > 500 || !Number.isFinite(result.cycles) || Number(result.cycles) < 0) return [];
-      return [{ sequence: Number(item.sequence), recordedAt: item.recordedAt, result: { name: result.name, status: result.status as TestHistoryResult['status'], reason: result.reason, cycles: Number(result.cycles), ...(typeof result.suite === 'string' && result.suite.length <= 80 ? { suite: result.suite } : {}), ...(typeof result.buildFingerprint === 'string' && /^[a-f0-9]{64}$/i.test(result.buildFingerprint) ? { buildFingerprint: result.buildFingerprint.toLowerCase() } : {}) } }];
+      return [{ sequence: Number(item.sequence), recordedAt: item.recordedAt, result: { name: result.name, status: result.status as TestHistoryResult['status'], reason: result.reason, cycles: Number(result.cycles), ...(typeof result.suite === 'string' && result.suite.length <= 80 ? { suite: result.suite } : {}), ...(typeof result.buildFingerprint === 'string' && /^[a-f0-9]{64}$/i.test(result.buildFingerprint) ? { buildFingerprint: result.buildFingerprint.toLowerCase() } : {}), ...(Array.isArray(result.assertions) ? { assertions: result.assertions.slice(0, 64).filter((entry: unknown): entry is TestHistoryAssertion => !!entry && typeof entry === 'object' && typeof (entry as TestHistoryAssertion).source === 'string' && typeof (entry as TestHistoryAssertion).passed === 'boolean').map((entry) => ({ source: entry.source.slice(0, 200), passed: entry.passed, expected: String(entry.expected ?? '').slice(0, 200), actual: String(entry.actual ?? '').slice(0, 200) })) } : {}) } }];
     });
   } catch { return []; }
 }
@@ -1074,7 +1078,7 @@ function App() {
     setHardwareTest(result);
     if (result && result.status !== 'running') {
       const status = result.status as TestHistoryResult['status'];
-      setTestHistory((current) => [{ sequence: ++testHistorySequenceRef.current, recordedAt: new Date().toISOString(), result: { name: result.name, status, reason: result.reason.slice(0, 500), cycles: result.cycles, ...(result.suite ? { suite: result.suite } : {}), ...(result.buildFingerprint ? { buildFingerprint: result.buildFingerprint } : {}) } }, ...current].slice(0, 100));
+      setTestHistory((current) => [{ sequence: ++testHistorySequenceRef.current, recordedAt: new Date().toISOString(), result: { name: result.name, status, reason: result.reason.slice(0, 500), cycles: result.cycles, assertions: result.assertions.slice(0, 64).map((assertion) => ({ source: String(assertion.source).slice(0, 200), passed: assertion.passed, expected: renderAssertionValue('expectedDigest' in assertion && assertion.expectedDigest !== undefined ? assertion.expectedDigest : (assertion as { expected?: unknown }).expected), actual: renderAssertionValue(assertion.actual) })), ...(result.suite ? { suite: result.suite } : {}), ...(result.buildFingerprint ? { buildFingerprint: result.buildFingerprint } : {}) } }, ...current].slice(0, 100));
     }
     const waiter = testResultWaiterRef.current;
     if (result && waiter && result.requestId === waiter.requestId && result.status !== 'running') { testResultWaiterRef.current = undefined; waiter.resolve(result); }
@@ -4054,6 +4058,10 @@ function TestWorkspace({
     cycles: item.result.cycles,
     buildFingerprint: item.result.buildFingerprint,
     recordedAt: item.recordedAt,
+    /* Every assertion, with what it asked for and what the machine gave back.
+     * The runtime has always computed both and the report dropped them, so a
+     * failing run named the test and never said what it saw. */
+    ...(item.result.assertions ? { assertions: item.result.assertions } : {}),
   }));
   const exportNative = () =>
     downloadBlob(

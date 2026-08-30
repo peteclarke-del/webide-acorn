@@ -5,6 +5,7 @@ import { Keyboard } from 'jsbeeb/src/keyboard.js';
 import { discFor } from 'jsbeeb/src/fdc.js';
 import { loadTapeFromData } from 'jsbeeb/src/tapes.js';
 import { createSnapshot, restoreSnapshot, snapshotFromJSON, snapshotToJSON } from 'jsbeeb/src/snapshot.js';
+import { UNCAPTURED_READING, resolveAudioDigest, resolveAudioSpeaker } from './audioAssertionModel';
 import { BrowserAudio } from './browserAudio';
 import { CommandSequence } from './commandSequence';
 import { breakpointMatches, renderBreakpointLog, validateBreakpointSpec, type BreakpointSpec } from './breakpointModel';
@@ -1035,7 +1036,10 @@ function finishHardwareTest(reason: 'stop address reached' | 'timeout') {
   (keyboard as unknown as { clearKeys?: () => void } | null)?.clearKeys?.();
   const registers = testRegisters();
   const elapsedCycles = absoluteCpuCycles() - test.startCycles;
-  const audioCapture = browserAudio?.endTestCapture() ?? { digest: '811C9DC5', writes: 0, speakerTransitions: 0, speakerAvailable: false };
+  /* Falls back to a reading marked uncaptured where there was no audio device,
+   * so an audio assertion refuses rather than comparing against a silence it
+   * never observed. See audioAssertionModel for why that distinction matters. */
+  const audioCapture = browserAudio?.endTestCapture() ?? UNCAPTURED_READING;
   const results = test.assertions.map((assertion) => assertion.kind === 'register'
     ? { ...assertion, actual: registers[assertion.register], passed: registers[assertion.register] === assertion.expected }
     : assertion.kind === 'memory'
@@ -1043,7 +1047,7 @@ function finishHardwareTest(reason: 'stop address reached' | 'timeout') {
       : assertion.kind === 'output'
         ? { ...assertion, actual: test.output, passed: test.output === assertion.expected }
         : assertion.kind === 'audio'
-          ? { ...assertion, actual: audioCapture.digest, writes: audioCapture.writes, passed: audioCapture.digest === assertion.expected }
+          ? { ...assertion, ...resolveAudioDigest(audioCapture, assertion.expected) }
         : assertion.kind === 'screen'
           ? (() => { const actual = framebufferRegionFnv32(framebuffer, assertion, EMULATOR_SCREEN_WIDTH); return { ...assertion, actual, passed: actual === assertion.expected }; })()
           : assertion.kind === 'screen-golden'
@@ -1053,7 +1057,7 @@ function finishHardwareTest(reason: 'stop address reached' | 'timeout') {
           : assertion.kind === 'event-address'
             ? (() => { const actual = test.addressEventCounts.get(assertion.address) ?? 0; return { ...assertion, actual, passed: actual === assertion.expected }; })()
           : assertion.kind === 'audio-speaker'
-            ? { ...assertion, actual: audioCapture.speakerTransitions, passed: audioCapture.speakerTransitions === assertion.expected }
+            ? { ...assertion, ...resolveAudioSpeaker(audioCapture, assertion.expected) }
             : { ...assertion, actual: elapsedCycles, passed: assertion.operator === 'eq' ? elapsedCycles === assertion.expected : assertion.operator === 'lte' ? elapsedCycles <= assertion.expected : assertion.operator === 'gte' ? elapsedCycles >= assertion.expected : elapsedCycles >= assertion.expected && elapsedCycles <= (assertion as { expectedMaximum: number }).expectedMaximum });
   const timedOut = reason === 'timeout';
   const passed = !timedOut && results.every((result) => result.passed);

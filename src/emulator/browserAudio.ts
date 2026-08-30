@@ -31,6 +31,7 @@ export class BrowserAudio {
   private backgroundSuspended = false;
   private volume = 100;
   private testCapture = false;
+  private testCaptureRan = false;
   private testWriteDigest = 0x811c9dc5;
   private testWrites = 0;
   /* The Atom drives a one-bit speaker from a PPIA port rather than a sound
@@ -156,6 +157,7 @@ export class BrowserAudio {
     this.testWrites = 0;
     this.testSpeakerTransitions = 0;
     this.testCapture = true;
+    this.testCaptureRan = true;
     this.soundChip.unmute();
   }
 
@@ -167,6 +169,16 @@ export class BrowserAudio {
       writes: this.testWrites,
       speakerTransitions: this.testSpeakerTransitions,
       speakerAvailable: this.hasSpeaker,
+      /* Whether these numbers came from a capture that actually ran. A capture
+       * that ran and heard nothing returns the FNV offset basis, which is
+       * exactly what a session with no audio at all reports, so without this
+       * the two are the same value and an assertion would quietly compare
+       * against a silence it never observed.
+       *
+       * Deliberately "did a capture run" rather than "is one running": the
+       * retained digest and counts stay true on a second read, and reporting
+       * them as uncaptured there would be a fresh lie about real values. */
+      captured: this.testCaptureRan,
     };
   }
 
