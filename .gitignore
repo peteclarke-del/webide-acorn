@@ -6,6 +6,7 @@ coverage/
 *.tsbuildinfo
 /local-roms/
 /ci/project.json
+/ci/conformance-project.json
 /ci/roms.json
 /ci/roms/
 /ci/results/
