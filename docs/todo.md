@@ -4488,7 +4488,7 @@ Current implemented increment:
     that reports shortfalls as data, build integration through the six
     `INCLUDE…` directives with transitive dependency tracking, and the
     accessibility and performance rules the editors follow.
-- [ ] AST-601 Implement shared canvas/grid/selection/palette/zoom/pan/clipboard/
+- [x] AST-601 Implement shared canvas/grid/selection/palette/zoom/pan/clipboard/
   undo infrastructure plus structured accessible alternative (AST-001–AST-004).
   - [x] Every editor has bounded undo, and the pixel, map and screen editors
     have zoom with scroll panning. The shared project palette resolves once and
@@ -4498,10 +4498,38 @@ Current implemented increment:
     cells, and the map and screen editors expose a keyboard cursor whose
     position and value are announced as text, with the map also listing the
     indices of the current row.
-  - [ ] Rectangular selection with clipboard cut, copy and paste exists only in
-    the pixel editor; the map and screen editors do not have it yet. The
-    infrastructure is also still per-editor rather than one shared module, so
-    this item stays open.
+  - [x] Rectangular selection with cut, copy and paste is now in the map and
+    screen editors as well, from one shared module rather than three copies.
+    The reason it had not spread is that the original was quietly specific: it
+    refused any value above 3, which is a four-colour assumption — correct for
+    MODE 5 artwork, wrong for MODE 2, and meaningless for a map, where the
+    numbers are tile indices rather than colours.
+  - [x] A clipboard therefore carries two things it did not: what kind of grid
+    the values came from, and the bound they were valid against. Both are checked
+    on paste and both refusals matter for the same reason. Tile indices pasted
+    into pixel data would be accepted by anything that only counted values —
+    they are small numbers either way — and would produce artwork nobody drew.
+    Sixteen-colour artwork pasted into a four-colour asset would either be
+    clamped, losing what somebody drew, or written out of range, producing a
+    build that does not match what the editor showed. Neither is guessed at: a
+    paste that cannot be done exactly is refused, and the refusal names the
+    value that was the problem.
+  - [x] Both new surfaces are keyboard-first, because both canvases are reached
+    by keyboard: S marks a corner and S again the opposite one, C copies, X
+    cuts, V pastes at the cursor and Escape clears. Single letters rather than
+    modifier chords, which would collide with the browser's own. Every operation
+    also has a visible control, and the selection, the marked corner and what is
+    on the clipboard are all announced in the same live region that already
+    reports the cursor — the canvas being the thing a screen reader cannot see.
+  - [x] The pixel editor's own module now delegates to the shared one, and still
+    reads the clipboard shape it wrote before the machinery was shared, so
+    artwork somebody copied before this build changed underneath them still
+    pastes.
+  - [x] Evidence: 16 contracts on the shared module, 6 on the pixel facade
+    including the legacy clipboard and the cross-kind refusal, 9 new map
+    contracts and 6 new screen contracts covering marking from the keyboard,
+    copy, cut, paste at the cursor, the refusals, and the visible controls
+    offering the same operations as the keys.
 - [x] AST-602 Implement build dependency integration, generated read-only files,
   stale state, deterministic codecs, target-rendered previews, and size reports.
   - [x] Every asset type is a real build input through its own `INCLUDE…`
@@ -4550,8 +4578,32 @@ Current implemented increment:
     sample is stated. Codes below 224 are flagged as claiming extra character
     definition memory on the real machine.
   - [x] Evidence: 16 document contracts and 8 workspace contracts.
-- [ ] AST-621 Implement sprite/software-object/animation editor with mask,
+- [x] AST-621 Implement sprite/software-object/animation editor with mask,
   hotspot, packing, and target mode preview (AST-011).
+  - [x] The mask, hotspot, packing and animation halves were already built: an
+    independent opacity plane with its own byte output, a hotspot chosen per
+    frame, hardware-interleaved as well as logical packing, and ordered frames
+    with per-frame durations, loop or once playback and a live preview.
+  - [x] Target mode preview is what was missing, and it says the thing the
+    editor grid cannot. A grid of cells is square and a BBC Micro is not: every
+    graphics mode paints the same screen with the same 256 lines, so a MODE 5
+    pixel is four times as wide as a MODE 0 one and a circle drawn in the editor
+    is an oval on the machine. The preview draws the artwork at the mode's own
+    pixel shape and says so in words as well, because a shape difference shown
+    only by drawing is a panel that works for some people and not others. The
+    ratio is derived from the mode widths the screen model already carries
+    rather than restated, since that is precisely the fact that would drift.
+  - [x] Colours the mode cannot show are named with the count of pixels using
+    them, and those pixels are left empty rather than substituted: a preview
+    that looked right and a build that did not would be worse than being told.
+    Each mode button carries how many colours that mode would lose, so the
+    choice is visible before it is made, and the panel opens on a mode that can
+    actually show the artwork when the project names none.
+  - [x] Evidence: 13 module contracts and 7 component contracts, including that
+    the pixel shape and the colour standing both reach a screen reader through
+    the canvas's accessible name, that a frame's byte cost follows the mode's
+    depth with rows rounded up to whole bytes, and that an unshowable colour is
+    given no colour at all rather than a substitute.
 - [x] AST-622 Implement screen/bitmap editor for selected Acorn display modes,
   authentic aspect/palette constraints, conversions, and memory export (AST-012).
   - [x] Versioned schema-1 screen documents store the packed frame buffer itself

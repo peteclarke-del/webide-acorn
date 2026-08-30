@@ -234,3 +234,85 @@ describe('TileMapWorkspace Tiled interchange', () => {
     expect(onAddSource).toHaveBeenCalledWith('level-one.tiled.json', expect.stringContaining('"orientation": "orthogonal"'));
   });
 });
+
+describe('selecting a rectangle and moving it about', () => {
+  const status = () => screen.getByRole('application', { name: /Tile map/ }).parentElement!.textContent ?? '';
+
+  it('says there is no selection until a corner is marked, and how to make one', () => {
+    renderWorkspace();
+    expect(status()).toMatch(/No selection\. Press S to mark a corner/);
+  });
+
+  it('marks two corners from the keyboard and reports what was selected', () => {
+    /* The canvas is reached by keyboard, so a selection has to be makeable
+     * there rather than only with a pointer. */
+    renderWorkspace();
+    fireEvent.keyDown(canvas(), { key: 's' });
+    expect(status()).toMatch(/One corner marked at 1,1; move and press S again/);
+    fireEvent.keyDown(canvas(), { key: 'ArrowRight' });
+    fireEvent.keyDown(canvas(), { key: 'ArrowDown' });
+    fireEvent.keyDown(canvas(), { key: 's' });
+    expect(status()).toMatch(/Selected 2 by 2 cells, from 1,1 to 2,2/);
+  });
+
+  it('copies an area and says what is on the clipboard', () => {
+    const props = renderWorkspace();
+    fireEvent.keyDown(canvas(), { key: 's' });
+    fireEvent.keyDown(canvas(), { key: 'ArrowRight' });
+    fireEvent.keyDown(canvas(), { key: 's' });
+    fireEvent.keyDown(canvas(), { key: 'c' });
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/Copied 2 by 1 cells/));
+    expect(status()).toMatch(/2 by 1 cells are on the clipboard; press V to paste/);
+  });
+
+  it('refuses to copy before a rectangle exists, and says how to make one', () => {
+    const props = renderWorkspace();
+    fireEvent.keyDown(canvas(), { key: 'c' });
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/press S at one corner and S again at the other/));
+  });
+
+  it('cuts an area, leaving the empty tile behind', () => {
+    const props = renderWorkspace();
+    /* Paint something so the cut has something to remove. */
+    fireEvent.keyDown(canvas(), { key: 'Enter' });
+    fireEvent.keyDown(canvas(), { key: 's' });
+    fireEvent.keyDown(canvas(), { key: 's' });
+    fireEvent.keyDown(canvas(), { key: 'x' });
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/Cut 1 by 1 cells/));
+  });
+
+  it('pastes at the cursor rather than where the copy came from', () => {
+    const props = renderWorkspace();
+    fireEvent.keyDown(canvas(), { key: 's' });
+    fireEvent.keyDown(canvas(), { key: 's' });
+    fireEvent.keyDown(canvas(), { key: 'c' });
+    fireEvent.keyDown(canvas(), { key: 'ArrowDown' });
+    fireEvent.keyDown(canvas(), { key: 'v' });
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/Pasted 1 by 1 cells into .* at 1,2/));
+  });
+
+  it('says nothing has been copied rather than pasting nothing', () => {
+    const props = renderWorkspace();
+    fireEvent.keyDown(canvas(), { key: 'v' });
+    expect(props.onNotice).toHaveBeenCalledWith('Nothing has been copied yet.');
+  });
+
+  it('clears a selection with Escape', () => {
+    renderWorkspace();
+    fireEvent.keyDown(canvas(), { key: 's' });
+    fireEvent.keyDown(canvas(), { key: 's' });
+    expect(status()).toMatch(/Selected 1 by 1 cells/);
+    fireEvent.keyDown(canvas(), { key: 'Escape' });
+    expect(status()).toMatch(/No selection/);
+  });
+
+  it('offers the same operations as visible controls, not only as keys', () => {
+    renderWorkspace();
+    const tools = screen.getByRole('group', { name: 'Rectangular selection' });
+    expect(within(tools).getByRole('button', { name: 'Mark corner' })).toBeEnabled();
+    expect(within(tools).getByRole('button', { name: 'Copy area' })).toBeDisabled();
+    fireEvent.click(within(tools).getByRole('button', { name: 'Mark corner' }));
+    fireEvent.click(within(tools).getByRole('button', { name: 'Mark opposite corner' }));
+    expect(within(tools).getByRole('button', { name: 'Copy area' })).toBeEnabled();
+  });
+});

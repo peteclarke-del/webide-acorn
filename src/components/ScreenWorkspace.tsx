@@ -1,4 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  GridSelectionError,
+  copySelection,
+  describeSelection,
+  fillSelection,
+  pasteSelection,
+  selectionContains,
+  type GridClipboard,
+  type GridSelection,
+} from '../assets/gridSelection';
 import { readableInk } from '../theme/readableInk';
 import { Icon } from './Icon';
 import {
@@ -33,6 +43,9 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
   const [colour, setColour] = useState(1);
   const [zoom, setZoom] = useState(2);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
+  const [selectionAnchor, setSelectionAnchor] = useState<{ x: number; y: number }>();
+  const [selection, setSelection] = useState<GridSelection>();
+  const [clipboard, setClipboard] = useState<GridClipboard>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const geometry = screenGeometry(screen.mode);
   const bytes = screen.bytes;
@@ -97,8 +110,20 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
     }
     context.strokeStyle = '#f2c14e';
     context.lineWidth = 1;
+    if (selection) {
+      context.fillStyle = 'rgba(242, 193, 78, 0.28)';
+      for (let y = 0; y < geometry.height; y += 1) {
+        for (let x = 0; x < geometry.width; x += 1) {
+          if (selectionContains(selection, x, y)) context.fillRect(x * zoom, y * zoom, zoom, zoom);
+        }
+      }
+    }
+    if (selectionAnchor) {
+      context.strokeStyle = '#6fd08c';
+      context.strokeRect(selectionAnchor.x * zoom - 1, selectionAnchor.y * zoom - 1, zoom + 2, zoom + 2);
+    }
     context.strokeRect(cursor.x * zoom - 1, cursor.y * zoom - 1, zoom + 2, zoom + 2);
-  }, [bytes, geometry, zoom, cursor, modeColours]);
+  }, [bytes, geometry, zoom, cursor, modeColours, selection, selectionAnchor]);
 
   const paintAt = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= geometry.width || y >= geometry.height) { onNotice('That pixel is outside the screen'); return; }
@@ -108,6 +133,58 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
       writeScreenPixel(next, geometry, x, y, colour);
       return { ...current, bytes: next, revision: current.revision + 1 };
     });
+  };
+
+  /* The frame buffer is packed, so a selection works on the pixels the mode
+   * shows rather than on the bytes behind them: the same rectangle means the
+   * same picture whatever the depth. */
+  const gridOf = () => ({ width: geometry.width, height: geometry.height, kind: 'screen' as const, valueLimit: geometry.logicalColours });
+  const readPixels = () => Array.from({ length: geometry.width * geometry.height }, (_, index) =>
+    readScreenPixel(bytes, geometry, index % geometry.width, Math.floor(index / geometry.width)));
+  const writePixels = (values: number[], message: string) => {
+    remember();
+    setScreen((current) => {
+      const next = current.bytes.slice();
+      values.forEach((value, index) => writeScreenPixel(next, geometry, index % geometry.width, Math.floor(index / geometry.width), value));
+      return { ...current, bytes: next, revision: current.revision + 1 };
+    });
+    onNotice(message);
+  };
+
+  const markSelectionCorner = (x: number, y: number) => {
+    if (!selectionAnchor) { setSelectionAnchor({ x, y }); setSelection(undefined); return; }
+    setSelection({ start: selectionAnchor, end: { x, y } });
+    setSelectionAnchor(undefined);
+  };
+
+  const copyArea = () => {
+    if (!selection) { onNotice('Choose a rectangle first: press S at one corner and S again at the other.'); return; }
+    try {
+      setClipboard(copySelection(readPixels(), gridOf(), selection));
+      onNotice(`Copied ${describeSelection(selection)}.`);
+    } catch (error) { onNotice(error instanceof Error ? error.message : String(error)); }
+  };
+
+  const cutArea = () => {
+    if (!selection) { onNotice('Choose a rectangle first: press S at one corner and S again at the other.'); return; }
+    try {
+      const pixels = readPixels();
+      setClipboard(copySelection(pixels, gridOf(), selection));
+      writePixels(fillSelection(pixels, geometry.width, selection, 0), `Cut ${describeSelection(selection)} to logical colour 0.`);
+    } catch (error) { onNotice(error instanceof Error ? error.message : String(error)); }
+  };
+
+  const pasteArea = () => {
+    if (!clipboard) { onNotice('Nothing has been copied yet.'); return; }
+    try {
+      writePixels(pasteSelection(readPixels(), gridOf(), clipboard, cursor),
+        `Pasted ${clipboard.width} by ${clipboard.height} pixels at ${cursor.x + 1},${cursor.y + 1}.`);
+    } catch (error) {
+      /* The refusal that matters here: artwork copied in a sixteen-colour mode
+       * cannot be written into a four-colour one without either losing colours
+       * or writing values the mode has no room for. */
+      onNotice(error instanceof GridSelectionError ? error.message : String(error));
+    }
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -122,7 +199,13 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
       }));
       return;
     }
-    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); paintAt(cursor.x, cursor.y); }
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); paintAt(cursor.x, cursor.y); return; }
+    const key = event.key.toLowerCase();
+    if (key === 's') { event.preventDefault(); markSelectionCorner(cursor.x, cursor.y); return; }
+    if (key === 'c') { event.preventDefault(); copyArea(); return; }
+    if (key === 'x') { event.preventDefault(); cutArea(); return; }
+    if (key === 'v') { event.preventDefault(); pasteArea(); return; }
+    if (key === 'escape') { event.preventDefault(); setSelection(undefined); setSelectionAnchor(undefined); }
   };
 
   const changeMode = (mode: PaletteModeId) => {
@@ -186,6 +269,15 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
           setPast((current) => current.slice(0, -1));
           setScreen((current) => ({ ...previous, bytes: previous.bytes.slice(), revision: current.revision + 1 }));
         }}>Undo</button>
+        <div className="map-selection-tools" role="group" aria-label="Rectangular selection">
+          <button type="button" aria-pressed={!!selectionAnchor} onClick={() => markSelectionCorner(cursor.x, cursor.y)}>
+            {selectionAnchor ? 'Mark opposite corner' : 'Mark corner'}
+          </button>
+          <button type="button" disabled={!selection} onClick={copyArea}>Copy area</button>
+          <button type="button" disabled={!selection} onClick={cutArea}>Cut area</button>
+          <button type="button" disabled={!clipboard} onClick={pasteArea}>Paste at cursor</button>
+          <button type="button" disabled={!selection && !selectionAnchor} onClick={() => { setSelection(undefined); setSelectionAnchor(undefined); }}>Clear selection</button>
+        </div>
       </header>
 
       <div className="screen-body">
@@ -210,6 +302,8 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
           </div>
           <p id="screen-cursor" role="status" className="screen-cursor-status">
             Pixel {cursor.x + 1}, {cursor.y + 1} of {geometry.width} by {geometry.height} is logical colour {cursorColour}.
+            {selection ? ` Selected ${describeSelection(selection)}.` : selectionAnchor ? ` One corner marked at ${selectionAnchor.x + 1},${selectionAnchor.y + 1}; move and press S again.` : ' No selection. Press S to mark a corner.'}
+            {clipboard ? ` ${clipboard.width} by ${clipboard.height} pixels are on the clipboard; press V to paste at the cursor.` : ''}
             Move with the arrow keys, eight pixels at a time with Shift, and paint with Enter.
           </p>
         </div>

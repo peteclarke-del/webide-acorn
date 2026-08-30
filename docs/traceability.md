@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 143 |
-| Complete and traced | 79 |
+| Complete | 145 |
+| Complete and traced | 81 |
 | Complete and described | 57 |
 | Complete and untraced | 7 |
-| Open | 151 |
+| Open | 149 |
 
 ## By area
 
@@ -35,7 +35,7 @@ is the part a machine can settle.
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 0 | 0 | 0 | 0 |
 | EDT | 23 | 16 | 6 | 10 | 0 |
-| AST | 21 | 15 | 9 | 6 | 0 |
+| AST | 21 | 17 | 11 | 6 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 14 | 12 | 2 | 0 |
 | EMU | 18 | 9 | 1 | 8 | 0 |
@@ -142,7 +142,9 @@ are listed rather than quietly counted.
 | AST-INC-02 | Replace the browser-only draft with a validated schema-1… | 7 pixel-asset document contracts, 15 assembly pixel-data contracts, 7 packing contracts and 4 selection contracts, with 25 codec property tests round-tripping every byte value through both packings rather than through… |
 | AST-INC-04 | Make editable assets real build dependencies. The bounded… | 12 project-assembler contracts covering the INCLUDEASSET directive, its validation, the generated output and its place in source provenance and fingerprints, with 3 artifact-document contracts and 1 digest contract for… |
 | AST-INC-05 | Integrate `INCLUDEASSET` with the editor language service: documented… | Covered by the project language service contracts for asset-path completion and connected dependency indexing, and by the source-workspace contracts for F12 and click navigation into a generated asset. |
+| AST-601 | Implement shared canvas/grid/selection/palette/zoom/pan/clipboard/… | 16 contracts on the shared module, 6 on the pixel facade including the legacy clipboard and the cross-kind refusal, 9 new map contracts and 6 new screen contracts covering marking from the keyboard, copy, cut, paste at… |
 | AST-620 | Implement character/font/UDG editor and text preview (AST-010). | 16 document contracts and 8 workspace contracts. |
+| AST-621 | Implement sprite/software-object/animation editor with mask, hotspot,… | 13 module contracts and 7 component contracts, including that the pixel shape and the colour standing both reach a screen reader through the canvas's accessible name, that a frame's byte cost follows the mode's depth… |
 | AST-622 | Implement screen/bitmap editor for selected Acorn display modes,… | 18 document contracts and 9 workspace contracts. |
 | AST-623 | Implement palette editor and shared project palettes (AST-015). | 18 document contracts and 9 workspace contracts, covering the flashing colour model, mode changes, refusals and the resolution order. A headed Chromium run opened Palettes, remapped logical 2 to cyan and saw the… |
 | AST-626 | Implement target-aware SN76489 music tracker and player/data export. | 15 document contracts and 11 workspace contracts. Two headless runs on a genuine BBC Model B with locally supplied ROMs: a four-row song with three sounding cells issued exactly three OSWORD calls and finished with its… |
@@ -263,8 +265,6 @@ are listed rather than quietly counted.
 | TST-505 | Implement golden provenance/update approval and tight image/audio comparison reports. | not started |
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | not started |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
-| AST-601 | Implement shared canvas/grid/selection/palette/zoom/pan/clipboard/ undo infrastructure… | 2 of 3 parts done |
-| AST-621 | Implement sprite/software-object/animation editor with mask, hotspot, packing, and target… | not started |
 | AST-624 | Implement tile/block editor, typed properties, collision, dedupe, usage, compression, and… | 3 of 4 parts done |
 | AST-625 | Implement layered map editor, objects/regions/triggers, validation, image import,… | 5 of 6 parts done |
 | AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 0 of 2 parts done |

@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  GridSelectionError,
+  copySelection,
+  describeSelection,
+  fillSelection,
+  pasteSelection,
+  selectionContains,
+  type GridClipboard,
+  type GridSelection,
+} from '../assets/gridSelection';
 import { Icon } from './Icon';
 import {
   addTileMapLayer, createTileMapDocument, fillTileMapArea, generateTileMapOutput, MAX_MAP_DIMENSION,
   MAX_MAP_LAYERS, MAX_OBJECT_PROPERTIES, MIN_MAP_DIMENSION, paintTileMapCell, parseTileMapDocument,
   removeTileMapLayer, removeTileMapObject, resizeTileMap, serializeTileMapDocument, setTileMapTileset,
-  upsertTileMapObject, MAX_TILE_PROPERTIES, type TileMapDocument, type TileMapObject,
+  upsertTileMapObject, MAX_TILE_PROPERTIES, type TileMapDocument, type TileMapLayer, type TileMapObject,
 } from '../assets/tileMapDocument';
 import { parsePixelAssetDocument, type PixelAssetDocument } from '../assets/pixelAssetDocument';
 
@@ -38,6 +48,11 @@ export function TileMapWorkspace({ projectPalette, availableAssets, onAddSource,
   const [zoom, setZoom] = useState(2);
   const [objectDraft, setObjectDraft] = useState<TileMapObject>();
   const [interchange, setInterchange] = useState<Omit<TiledImportReport, 'document'>>();
+  /* Anchored at the first corner, so a selection is made the same way with the
+   * keyboard as with a pointer: mark a corner, move, mark the other. */
+  const [selectionAnchor, setSelectionAnchor] = useState<{ x: number; y: number }>();
+  const [selection, setSelection] = useState<GridSelection>();
+  const [clipboard, setClipboard] = useState<GridClipboard>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const document = history.present;
 
@@ -103,12 +118,85 @@ export function TileMapWorkspace({ projectPalette, availableAssets, onAddSource,
         });
       });
     }
+    /* The selection is tinted rather than only outlined, because on a map the
+     * cursor outline is already a rectangle and two rectangles in one colour
+     * would be one rectangle to anybody looking. */
+    if (selection) {
+      context.fillStyle = 'rgba(242, 193, 78, 0.28)';
+      for (let y = 0; y < document.height; y += 1) {
+        for (let x = 0; x < document.width; x += 1) {
+          if (selectionContains(selection, x, y)) context.fillRect(x * cell, y * cell, cell, cell);
+        }
+      }
+    }
+    if (selectionAnchor) {
+      context.strokeStyle = '#6fd08c';
+      context.lineWidth = 2;
+      context.strokeRect(selectionAnchor.x * cell + 1, selectionAnchor.y * cell + 1, cell - 2, cell - 2);
+    }
     context.strokeStyle = '#f2c14e';
     context.lineWidth = 2;
     context.strokeRect(cursor.x * cell + 1, cursor.y * cell + 1, cell - 2, cell - 2);
-  }, [document, tileArtwork, zoom, cursor, projectPalette]);
+  }, [document, tileArtwork, zoom, cursor, projectPalette, selection, selectionAnchor]);
 
   const paintAt = (x: number, y: number) => guard(() => paintTileMapCell(document, activeLayerId, x, y, brush));
+
+  /* The tileset's own length is the bound, so a clipboard from a map with more
+   * tiles than this one is refused with the number rather than clamped into
+   * whatever happens to be there. */
+  const gridOf = (layer: TileMapLayer) => ({
+    width: document.width, height: document.height, kind: 'tiles' as const,
+    valueLimit: Math.max(1, document.tileset.length + 1),
+    cells: layer.cells,
+  });
+
+  const markSelectionCorner = (x: number, y: number) => {
+    if (!selectionAnchor) { setSelectionAnchor({ x, y }); setSelection(undefined); return; }
+    setSelection({ start: selectionAnchor, end: { x, y } });
+    setSelectionAnchor(undefined);
+  };
+
+  const copyArea = () => {
+    if (!selection) { onNotice('Choose a rectangle first: press S at one corner and S again at the other.'); return; }
+    try {
+      const layer = document.layers.find((candidate) => candidate.id === activeLayerId) ?? document.layers[0]!;
+      const copied = copySelection(layer.cells, gridOf(layer), selection);
+      setClipboard(copied);
+      onNotice(`Copied ${describeSelection(selection)} from ${layer.name}.`);
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const cutArea = () => {
+    if (!selection) { onNotice('Choose a rectangle first: press S at one corner and S again at the other.'); return; }
+    const layer = document.layers.find((candidate) => candidate.id === activeLayerId) ?? document.layers[0]!;
+    try {
+      setClipboard(copySelection(layer.cells, gridOf(layer), selection));
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    /* Cut leaves the empty tile behind, which is what tile zero is. */
+    const cleared = fillSelection(layer.cells, document.width, selection, 0);
+    commit({ ...document, layers: document.layers.map((candidate) => candidate.id === layer.id ? { ...candidate, cells: cleared } : candidate) },
+      `Cut ${describeSelection(selection)} from ${layer.name}.`);
+  };
+
+  const pasteArea = () => {
+    if (!clipboard) { onNotice('Nothing has been copied yet.'); return; }
+    const layer = document.layers.find((candidate) => candidate.id === activeLayerId) ?? document.layers[0]!;
+    try {
+      const pasted = pasteSelection(layer.cells, gridOf(layer), clipboard, cursor);
+      commit({ ...document, layers: document.layers.map((candidate) => candidate.id === layer.id ? { ...candidate, cells: pasted } : candidate) },
+        `Pasted ${clipboard.width} by ${clipboard.height} cells into ${layer.name} at ${cursor.x + 1},${cursor.y + 1}.`);
+    } catch (error) {
+      /* A refusal here is the point of the shared clipboard: tile indices from
+       * a larger tileset would otherwise be written as tiles that do not
+       * exist. */
+      onNotice(error instanceof GridSelectionError ? error.message : String(error));
+    }
+  };
 
   const onCanvasKeyDown = (event: React.KeyboardEvent) => {
     const moves: Record<string, [number, number]> = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
@@ -123,7 +211,15 @@ export function TileMapWorkspace({ projectPalette, availableAssets, onAddSource,
     }
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); paintAt(cursor.x, cursor.y); return; }
     if (event.key === 'Home') { event.preventDefault(); setCursor((current) => ({ ...current, x: 0 })); return; }
-    if (event.key === 'End') { event.preventDefault(); setCursor((current) => ({ ...current, x: document.width - 1 })); }
+    if (event.key === 'End') { event.preventDefault(); setCursor((current) => ({ ...current, x: document.width - 1 })); return; }
+    /* Single letters rather than modifier chords: the canvas is reached by
+     * keyboard and a chord here would collide with the browser's own. */
+    const key = event.key.toLowerCase();
+    if (key === 's') { event.preventDefault(); markSelectionCorner(cursor.x, cursor.y); return; }
+    if (key === 'c') { event.preventDefault(); copyArea(); return; }
+    if (key === 'x') { event.preventDefault(); cutArea(); return; }
+    if (key === 'v') { event.preventDefault(); pasteArea(); return; }
+    if (key === 'escape') { event.preventDefault(); setSelection(undefined); setSelectionAnchor(undefined); }
   };
 
   const activeLayer = document.layers.find((layer) => layer.id === activeLayerId) ?? document.layers[0]!;
@@ -149,6 +245,15 @@ export function TileMapWorkspace({ projectPalette, availableAssets, onAddSource,
         <label><span>Height</span><input aria-label="Map height in tiles" type="number" min={MIN_MAP_DIMENSION} max={MAX_MAP_DIMENSION} value={document.height} onChange={(event) => guard(() => resizeTileMap(document, document.width, Number(event.target.value) || document.height))} /></label>
         <label><span>Zoom</span><select aria-label="Map zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}>{[1, 2, 3, 4].map((level) => <option key={level} value={level}>{level}×</option>)}</select></label>
         <button type="button" disabled={!history.past.length} onClick={() => setHistory((current) => current.past.length ? { past: current.past.slice(0, -1), present: current.past[current.past.length - 1]!, future: [current.present, ...current.future].slice(0, 100) } : current)}>Undo</button>
+        <div className="map-selection-tools" role="group" aria-label="Rectangular selection">
+          <button type="button" aria-pressed={!!selectionAnchor} onClick={() => markSelectionCorner(cursor.x, cursor.y)}>
+            {selectionAnchor ? 'Mark opposite corner' : 'Mark corner'}
+          </button>
+          <button type="button" disabled={!selection} onClick={copyArea}>Copy area</button>
+          <button type="button" disabled={!selection} onClick={cutArea}>Cut area</button>
+          <button type="button" disabled={!clipboard} onClick={pasteArea}>Paste at cursor</button>
+          <button type="button" disabled={!selection && !selectionAnchor} onClick={() => { setSelection(undefined); setSelectionAnchor(undefined); }}>Clear selection</button>
+        </div>
         <label className="tile-map-import">
           <input
             type="file" accept=".json,application/json" aria-label="Import a Tiled JSON map"
@@ -194,6 +299,8 @@ export function TileMapWorkspace({ projectPalette, availableAssets, onAddSource,
           </div>
           <p id="tile-map-cursor" role="status" className="tile-map-cursor-status">
             Row {cursor.y + 1} of {document.height}, column {cursor.x + 1} of {document.width}, {cursorDescription} on layer {activeLayer.name}.
+            {selection ? ` Selected ${describeSelection(selection)}.` : selectionAnchor ? ` One corner marked at ${selectionAnchor.x + 1},${selectionAnchor.y + 1}; move and press S again.` : ' No selection. Press S to mark a corner.'}
+            {clipboard ? ` ${clipboard.width} by ${clipboard.height} cells are on the clipboard; press V to paste at the cursor.` : ''}
             Move with the arrow keys and paint with Enter.
             {projectPalette.fileName ? ` Previewed with ${projectPalette.fileName}.` : ' Previewed with the MODE 5 power-up palette.'}
           </p>
