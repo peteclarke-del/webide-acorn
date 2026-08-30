@@ -5009,7 +5009,7 @@ Current implemented increment:
     and export. A race in one of those workspace contracts was found by running
     the suite repeatedly and fixed; the suite then passed four consecutive full
     runs of 826 tests.
-- [ ] AST-630 Test generated assets in real builds and emulator screenshots/audio,
+- [x] AST-630 Test generated assets in real builds and emulator screenshots/audio,
   not only codec unit tests.
   - [x] Generated pixel assets, a generated tile map and its tile pointer table
     are proved in a real build and executed on a genuine BBC Model B through the
@@ -5019,9 +5019,37 @@ Current implemented increment:
     its source: two headless runs on real hardware counted the exact OSWORD
     calls a four-row and a sixty-four-row song must make, the second of which
     fails on the defective row-offset arithmetic that testing found.
-  - [ ] Screenshot comparison of a generated screen document and captured audio
-    of a generated song keep this item open; both need golden capture and
-    approval under TST-505.
+  - [x] **A generated song was heard on real hardware, not inferred.** A
+    four-row song was built, run on a genuine BBC Model B through the headless
+    path and its sound-chip writes captured: 18 writes, digest `64E1580A`,
+    identical across two runs. The first attempt captured nothing and was
+    right to: `OSWORD 7` queues a sound and the MOS writes the chip on its
+    100Hz interrupt, so a program that stops at the last queued note is never
+    running when the sound is made. The evidence is discriminating rather than
+    merely reproducible — a song with every cell silent gives `0A0F32F4` and 3
+    writes, and changing one note's pitch by one gives `C076A1A5`, so the digest
+    is a function of the song rather than of the machine's own startup. This
+    only became trustworthy once `audioAssertionModel` could tell a capture
+    that heard silence from one that never ran, since both report the same
+    digest.
+  - [x] **A generated screen document was seen on the display.** A screen
+    document painted with a diagonal band of each logical colour was built,
+    copied into the mode 5 framebuffer on a genuine BBC Model B and captured as
+    region digests: the picture occupies the top-left quadrant, and the four
+    regions covering it are `54D6B8C5`, `97A896C5`, `A0D6B8C5` and `1BA896C5`,
+    reproduced exactly on a repeat run, with every region outside it the blank
+    `6E509DC5`. Shifting the colour bands by four pixels in the document changes
+    all four picture digests and none of the blank ones, so the comparison
+    responds to the artwork rather than to the machine booting.
+  - [x] **A real defect the attempt found.** A `SCREEN[0,0,320,256]` assertion
+    is 81,920 pixels, past the 65,536 a screen assertion may cover, so the plan
+    was invalid, retained no result, and left the export buttons disabled — and
+    the headless runner waited two minutes and said `Native report export timed
+    out`, which names neither the plan that was wrong nor what was wrong with
+    it, and points at the export rather than at the fix. It now names each plan
+    that could not run, its reason and the remedy, in about three seconds. The
+    message is built by `scripts/headlessPlanRefusal.mjs` with four contracts,
+    including that a merely failing test is a result and not this.
 
 ### Phase 6 exit gate
 

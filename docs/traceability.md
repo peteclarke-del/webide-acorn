@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 148 |
+| Complete | 149 |
 | Complete and traced | 84 |
-| Complete and described | 57 |
+| Complete and described | 58 |
 | Complete and untraced | 7 |
-| Open | 146 |
+| Open | 145 |
 
 ## By area
 
@@ -35,7 +35,7 @@ is the part a machine can settle.
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 0 | 0 | 0 | 0 |
 | EDT | 23 | 16 | 6 | 10 | 0 |
-| AST | 21 | 19 | 13 | 6 | 0 |
+| AST | 21 | 20 | 13 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 14 | 12 | 2 | 0 |
 | EMU | 18 | 9 | 1 | 8 | 0 |
@@ -268,7 +268,6 @@ are listed rather than quietly counted.
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 11 of 12 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
 | AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 3 of 6 parts done |
-| AST-630 | Test generated assets in real builds and emulator screenshots/audio, not only codec unit… | 2 of 3 parts done |
 | ASSET-GATE | Character/object, screen/palette, tile/block, map, and target- appropriate sound assets… | not started |
 | RSH-708 | If AI help is approved, create a separate privacy/threat/quality specification and… | 0 of 1 parts done |
 | RESEARCH-GATE | Users can reach cited, licensed, target-correct information from search, diagnostics, and… | not started |

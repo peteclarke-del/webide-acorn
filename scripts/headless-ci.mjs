@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, stat, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
+import { unrunnablePlanRefusal } from './headlessPlanRefusal.mjs';
 import { join, resolve } from 'node:path';
 
 const argv = new Map();
@@ -122,6 +123,8 @@ try {
   await until(() => click('Test all'), 'Test-all availability');
   const terminal = await until(() => cdp.evaluate(`(() => { const rows = [...document.querySelectorAll('.test-all-results [role="listitem"]')].map(row => ({ status: row.querySelector('strong')?.textContent.trim().toLowerCase(), name: row.querySelector('span')?.textContent.trim(), message: row.querySelector('small')?.textContent.trim() })); return rows.length > 0 && rows.every(row => !['queued','running'].includes(row.status)) ? rows : null; })()`), 'Test-all completion');
   const adapterResults = await cdp.evaluate(`globalThis.__headlessTestResults ?? []`);
+  const refusal = unrunnablePlanRefusal(terminal);
+  if (refusal) throw new Error(refusal);
   await until(() => click('Export native JSON'), 'Native report export');
   await until(async () => { try { return (await stat(join(outputDirectory, 'acorn-test-report.json'))).size > 0; } catch { return false; } }, 'Native report download', 30_000);
   await until(() => click('Export JUnit XML'), 'JUnit report export');
