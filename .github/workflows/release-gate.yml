@@ -1,0 +1,88 @@
+# The release gate for the Acorn WebIDE.
+#
+# The steps are deliberately not restated here: `npm run ci` is the one
+# definition of what has to pass, so a change to the gate applies identically to
+# a developer's machine and to this pipeline. A stage that cannot run is
+# reported as skipped and fails the gate, which is why Chromium is installed
+# rather than left to chance.
+name: WebIDE-Acorn
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: webide-acorn-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The backend build-service tests run the real assemblers. They are not
+      # allowed to skip, so the toolchains are installed rather than hoped for.
+      - name: Install the pinned native toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ make cc65 binutils-arm-none-eabi
+
+      # The browser smoke is part of the gate, not an optional extra: without a
+      # browser the gate reports the stage skipped and fails.
+      # CHROMIUM_PATH is authoritative in the gate, so it is resolved from what
+      # was actually installed rather than assumed. A wrong path would skip the
+      # smoke stage, and a skipped stage fails the gate.
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends chromium-browser \
+            || sudo apt-get install -y --no-install-recommends chromium
+          for candidate in /usr/bin/chromium-browser /usr/bin/chromium /usr/bin/google-chrome; do
+            if [ -x "$candidate" ]; then echo "CHROMIUM_PATH=$candidate" >> "$GITHUB_ENV"; break; fi
+          done
+          test -n "${CHROMIUM_PATH:-}" || grep -q CHROMIUM_PATH "$GITHUB_ENV"
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # Building BeebAsm at its pinned commit takes a minute; caching it keeps
+      # the gate quick without letting the version drift, because the cache key
+      # is the commit the manifest names.
+      - name: Cache the built BeebAsm
+        uses: actions/cache@v4
+        with:
+          path: .toolchains
+          key: beebasm-${{ hashFiles('backend/src/Build/BeebAsmManifest.php') }}
+
+      - name: Run the gate
+        run: npm run ci
+
+      - name: Publish the gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webide-acorn-gate-report
+          path: ci/gate-report.json
+          if-no-files-found: warn
+

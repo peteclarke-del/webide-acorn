@@ -19,7 +19,7 @@
 import { spawn } from 'node:child_process';
 import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { createReadStream } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argv, env, exit } from 'node:process';
@@ -268,6 +268,42 @@ await stage('smoke', async () => {
   await new Promise((ready, failed) => { server.once('error', failed); server.listen(port, '127.0.0.1', ready); });
 
   const userDataDir = join(root, `.ci-smoke-${devtoolsPort}`);
+
+  /*
+   * Chromium hands its command line to an existing instance when one already
+   * holds the same profile, and then exits. The debugging port answers either
+   * way, so a gate that only asks whether the port responds will happily
+   * measure a browser it did not start — one that may have been running for
+   * days, carrying the storage of every previous run.
+   *
+   * That is not hypothetical: a browser left behind by an earlier run was found
+   * still holding this port a day later. It made the first-render control count
+   * read three times higher than the workbench actually renders, because the
+   * page it measured had a project already open, and it eventually hung the
+   * gate outright.
+   *
+   * So an already-answering port is refused before anything is launched, and
+   * the refusal says how to clear it.
+   */
+  const answering = await fetch(`http://127.0.0.1:${devtoolsPort}/json/version`, { signal: AbortSignal.timeout(2000) })
+    .then((response) => response.ok)
+    .catch(() => false);
+  if (answering) {
+    throw new Error(`A browser is already answering on port ${devtoolsPort}. It is not this run's, and measuring it would report whatever state it has accumulated rather than this build. Stop it and remove ${userDataDir}, or set CI_SMOKE_DEVTOOLS_PORT to a free port.`);
+  }
+  /*
+   * Any profile left by an earlier run is removed rather than reused, so the
+   * scan always measures a browser that has seen nothing before. Headless
+   * Chromium's children can still be writing as it shuts down, so a profile
+   * sometimes survives its own teardown; that is harmless as long as it is
+   * cleared here, and it is only harmless because this refuses to continue when
+   * it cannot be.
+   */
+  await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
+  if (existsSync(userDataDir)) {
+    throw new Error(`The browser profile ${userDataDir} could not be removed, so this run could not start from a browser that has seen nothing. Remove it and run the gate again.`);
+  }
+
   let socket = null;
   const browser = spawn(chromium, [
     '--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu',
@@ -287,7 +323,12 @@ await stage('smoke', async () => {
   };
 
   try {
-    await until(async () => (await fetch(`http://127.0.0.1:${devtoolsPort}/json/version`)).ok, 'the browser to accept connections', 30_000);
+    await until(async () => {
+      /* If the browser this run started has gone, whatever is answering the
+       * port belongs to something else. */
+      if (browser.exitCode !== null) throw new Error(`the browser exited with code ${browser.exitCode} before it accepted a connection, which is what Chromium does when another instance already holds ${userDataDir}`);
+      return (await fetch(`http://127.0.0.1:${devtoolsPort}/json/version`)).ok;
+    }, 'the browser to accept connections', 30_000);
     const target = await (await fetch(`http://127.0.0.1:${devtoolsPort}/json/new?${encodeURIComponent(`http://127.0.0.1:${port}`)}`, { method: 'PUT' })).json();
     socket = new WebSocket(target.webSocketDebuggerUrl);
     await new Promise((open, failed) => { socket.addEventListener('open', open, { once: true }); socket.addEventListener('error', failed, { once: true }); });
@@ -519,8 +560,20 @@ await stage('smoke', async () => {
      * and then sat with an open socket would hang a pipeline until its timeout
      * rather than finishing. */
     socket?.close();
-    browser.kill('SIGTERM');
+    /* Waited for rather than signalled and forgotten. A browser that is still
+     * shutting down is still writing to its profile, so removing the directory
+     * underneath it leaves most of it behind — which is how one of these came
+     * to be holding the port a day later. */
+    if (browser.exitCode === null) {
+      await new Promise((exited) => {
+        const escalate = setTimeout(() => browser.kill('SIGKILL'), 5_000);
+        browser.once('exit', () => { clearTimeout(escalate); exited(); });
+        browser.kill('SIGTERM');
+      });
+    }
     await new Promise((closed) => server.close(closed));
+    /* Best effort: what makes the next run trustworthy is that it clears this
+     * before launching, not that this succeeded. */
     await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
   }
 });

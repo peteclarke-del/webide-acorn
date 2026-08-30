@@ -483,14 +483,43 @@ Companion specification: `docs/requirements-specification.md`
     nothing fails rather than reading as a pass, and a named `CHROMIUM_PATH`
     that is not there is a skip rather than a silent fallback to another
     browser. All four exit paths were exercised.
-  - [x] A GitHub Actions workflow at the repository root, path-filtered to this
-    service, installs a browser, runs that one gate and publishes its JSON
-    report as an artifact. A second job runs the PHP backend suite.
+  - [x] A GitHub Actions workflow installs a browser, runs that one gate and
+    publishes its JSON report as an artifact. It was written for a monorepo and
+    lived at the parent repository's root, path-filtered to this service; when
+    this project became a repository of its own that workflow did not come with
+    it, and the published repository had no CI at all until the filters and the
+    working-directory prefixes were removed and it was brought here as
+    `.github/workflows/release-gate.yml`. The steps are unchanged, because
+    `npm run ci` remains the one definition of what has to pass.
   - [x] Two defects in the gate itself were found by running it. It computed its
     own root from `import.meta.url.pathname`, which percent-encodes the space in
     this repository's path, so every spawned command failed with ENOENT; and it
     printed its verdict without closing the smoke stage's WebSocket, so the
     process never exited and would have hung a pipeline until its timeout.
+  - [x] A third, found the same way, and the worst of them: the gate could
+    measure a browser it had not started. Chromium hands its command line to an
+    existing instance holding the same profile and then exits, and the debugging
+    port answers either way, so asking only whether the port responds is not
+    asking whose browser it is. A browser left behind by an earlier run was
+    found still holding that port a day later. The gate attached to it, reported
+    a first-render control count three times the true figure because the page it
+    measured had a project open from the previous day, and eventually hung
+    outright — the failure this stage exists to prevent, produced by the stage
+    itself.
+  - [x] The port is now refused before anything is launched if something is
+    already answering on it, naming the port and how to clear it; a browser that
+    exits before accepting a connection — which is exactly what Chromium does on
+    that hand-off — is reported rather than worked around; and any profile left
+    by an earlier run is removed before launch, with the run refused if it
+    cannot be, so starting from a browser that has seen nothing is a guarantee
+    rather than a hope. Teardown waits for the browser to exit, escalating to
+    SIGKILL, instead of signalling it and deleting the directory underneath it.
+  - [x] Evidence: both refusals were proved by deliberate breakage rather than
+    by reading the code — port 9137 was occupied by a foreign browser, and a
+    profile directory was made unremovable. Each produced its own message and
+    neither hung. The first-render count is now stable at 95 across consecutive
+    runs, where it had been drifting upward as state accumulated; the 319 that
+    earlier runs reported was never the workbench's first render.
   - [x] No test is allowed to skip. Three backend test classes previously
     excused themselves when a toolchain was absent, and two of them pointed at
     hard-coded paths that existed on exactly one machine. A test that only runs
