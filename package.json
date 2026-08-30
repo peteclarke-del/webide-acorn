@@ -1,0 +1,42 @@
+{
+  "name": "8bit-net-dev-acorn",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "pretest": "node scripts/verify-help.mjs",
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b tsconfig.app.json && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "preview": "vite preview --host 0.0.0.0",
+    "ci": "node --experimental-websocket scripts/ci.mjs",
+    "toolchains": "node scripts/toolchains.mjs",
+    "test:backend": "node scripts/backend-tests.mjs",
+    "compatibility": "vitest run src/data/compatibilityMatrix.test.ts",
+    "policy": "vitest run src/data/versioningPolicy.test.ts",
+    "conformance": "vitest run src/data/accessibilityConformance.test.ts",
+    "traceability": "vitest run scripts/traceability.test.ts",
+    "sbom": "node scripts/generateSbom.mjs"
+  },
+  "dependencies": {
+    "fflate": "0.8.2",
+    "jsbeeb": "1.19.1",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.62.4",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.2.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "19.0.8",
+    "@types/react-dom": "19.0.3",
+    "@vitejs/plugin-react": "4.3.4",
+    "@vitest/coverage-v8": "^3.2.7",
+    "jsdom": "26.0.0",
+    "typescript": "5.7.3",
+    "vite": "6.4.3",
+    "vitest": "3.2.7"
+  }
+}

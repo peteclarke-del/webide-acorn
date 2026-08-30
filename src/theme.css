@@ -1,0 +1,116 @@
+/*
+ * 8bit-net Dev — Acorn Workbench theme tokens
+ *
+ * Palette and visual effects live here; component geometry lives in styles.css.
+ * Deployments can override any token in public/theme-overrides.css without
+ * rebuilding or changing component selectors.
+ */
+
+@layer theme {
+  :root {
+    color-scheme: dark;
+
+    /* 8bit-net Acorn house palette: File Forge warmth + bit-chat canopy. */
+    --theme-primary: #8bd450;
+    --theme-primary-rgb: 139, 212, 80;
+    --theme-primary-light: #c8f59f;
+    --theme-primary-dark: #4f8f28;
+    --theme-secondary: #62a9ff;
+    --theme-secondary-rgb: 98, 169, 255;
+    --theme-accent: #f2c14e;
+    --theme-accent-rgb: 242, 193, 78;
+    --theme-danger: #db6951;
+    --theme-danger-rgb: 219, 105, 81;
+
+    --theme-background: #08100b;
+    --theme-background-end: #101712;
+    --theme-surface-0: #0d120e;
+    --theme-surface-1: #131914;
+    --theme-surface-2: #1a211b;
+    --theme-surface-3: #232a22;
+    --theme-surface-raised: #293027;
+    --theme-input: #111712;
+    --theme-overlay: rgba(4, 8, 5, .78);
+
+    --theme-ink: #f4f0d7;
+    --theme-ink-strong: #fffbe8;
+    --theme-muted: #a9b99d;
+    --theme-faint: #899985;
+    --theme-disabled: #596356;
+
+    --theme-line: #3c473a;
+    --theme-line-strong: #66705f;
+    --theme-grid-rgb: 107, 149, 105;
+    --theme-focus: #c8f59f;
+    --theme-selection: #35492f;
+    --theme-hover: #222c22;
+
+    --theme-success: #73e0c1;
+    --theme-warning: #f2c14e;
+    --theme-info: #8e9cff;
+    --theme-on-accent: #141710;
+
+    --theme-editor: #0b0f0c;
+    --theme-editor-gutter: #101511;
+    --theme-emulator-bezel: #050705;
+    --theme-emulator-screen: #020502;
+    --theme-screen-green: #8bd450;
+    --theme-screen-cream: #f4f0d7;
+    --theme-screen-blue: #62a9ff;
+    --theme-display-scanline: rgba(0, 0, 0, .24);
+    --theme-display-grille-red: rgba(255, 72, 72, .035);
+    --theme-display-grille-green: rgba(72, 255, 128, .025);
+    --theme-display-vignette: rgba(0, 0, 0, .58);
+
+    --syntax-comment: #7f8a75;
+    --syntax-label: #8bd450;
+    --syntax-opcode: #f2c14e;
+    --syntax-number: #8fc7dd;
+    --syntax-address: #ff9f7f;
+    --syntax-symbol: #dcb2e2;
+
+    --theme-shadow-sm: 0 4px 14px rgba(0, 0, 0, .22);
+    --theme-shadow-md: 0 14px 40px rgba(0, 0, 0, .34);
+    --theme-inset: inset 0 1px 0 rgba(255, 255, 255, .035);
+
+    --theme-body-background:
+      radial-gradient(circle at 76% 8%, rgba(var(--theme-accent-rgb), .07), transparent 26rem),
+      radial-gradient(circle at 12% 35%, rgba(var(--theme-primary-rgb), .055), transparent 32rem),
+      linear-gradient(180deg, var(--theme-background), var(--theme-background-end));
+
+    --font-ui: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+    --radius-xs: 3px;
+    --radius-sm: 5px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
+    --theme-background: #c9ba9b;
+    --theme-background-end: #f1ead9;
+    --theme-surface-0: #e9dfca;
+    --theme-surface-1: #f5eedc;
+    --theme-surface-2: #eee5d2;
+    --theme-surface-3: #e3d7bf;
+    --theme-surface-raised: #fffaf0;
+    --theme-input: #fffaf0;
+    --theme-overlay: rgba(35, 29, 22, .56);
+    --theme-ink: #241f19;
+    --theme-ink-strong: #15120f;
+    --theme-muted: #6d6458;
+    --theme-faint: #706554;
+    --theme-disabled: #a79c89;
+    --theme-line: #a99a83;
+    --theme-line-strong: #776a58;
+    --theme-focus: #285f49;
+    --theme-selection: #e4c66a;
+    --theme-hover: #eee3cb;
+    --theme-editor: #fffaf0;
+    --theme-editor-gutter: #eee5d2;
+    --theme-emulator-bezel: #20251f;
+    --theme-shadow-sm: 0 4px 14px rgba(44, 35, 24, .14);
+    --theme-shadow-md: 0 18px 50px rgba(44, 35, 24, .2);
+  }
+}

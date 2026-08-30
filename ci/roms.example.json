@@ -1,0 +1,7 @@
+{
+  "roms": [
+    { "key": "os12-basic2-dfs/os.rom", "file": "/workspace/roms/os12.rom" },
+    { "key": "os12-basic2-dfs/BASIC.ROM", "file": "/workspace/roms/BASIC.ROM" },
+    { "key": "os12-basic2-dfs/b/DFS-0.9.rom", "file": "/workspace/roms/DFS-0.9.rom" }
+  ]
+}

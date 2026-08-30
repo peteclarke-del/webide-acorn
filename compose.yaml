@@ -1,0 +1,78 @@
+services:
+  native-builder:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        CC65_PACKAGE_VERSION: "2.19-1"
+        ARM_BINUTILS_PACKAGE_VERSION: "2.40-2+18+b1"
+    image: 8bit-net/webide-acorn-native-builder:local
+    network_mode: none
+    read_only: true
+    user: "33:33"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=33,gid=33,mode=1770
+    volumes:
+      - native-builder-socket:/run/php
+    restart: unless-stopped
+
+  webide-acorn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 8bit-net/webide-acorn:local
+    ports:
+      - "${WEBIDE_ACORN_PORT:-8090}:8080"
+    depends_on:
+      native-builder:
+        condition: service_healthy
+    volumes:
+      - native-builder-socket:/run/php:ro
+    restart: unless-stopped
+    networks:
+      - default
+      - ci-internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+  headless-tests:
+    profiles: ["ci"]
+    build:
+      context: .
+      dockerfile: docker/headless/Dockerfile
+    image: 8bit-net/webide-acorn-headless-tests:local
+    depends_on:
+      webide-acorn:
+        condition: service_healthy
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: 2.0
+    shm_size: 256m
+    networks:
+      - ci-internal
+    volumes:
+      - ./ci:/workspace
+    command: ["--project", "/workspace/project.json", "--rom-manifest", "/workspace/roms.json", "--output", "/workspace/results"]
+
+volumes:
+  native-builder-socket:
+
+networks:
+  ci-internal:
+    internal: true

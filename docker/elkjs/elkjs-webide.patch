@@ -1,0 +1,30 @@
+--- a/memory.js	2026-08-27 14:39:24.640335266 +0100
++++ b/memory.js
+@@ -48,8 +48,16 @@
+ 		
+     }*/
+ 
+-    load_binary_resource('./os.rom', 'os');
+-    load_binary_resource('./basic.rom', 'basic');
++    // 8bit-net WebIDE change: ROM images are supplied by the caller from the
++    // browser-local firmware vault, so that no ROM is shipped with this product.
++    // Upstream behaviour is kept when no images are supplied. Nothing else in
++    // this file is modified.
++    if (opts.roms) {
++        for (var romName in opts.roms) { roms[romName] = opts.roms[romName]; self.loaded++; }
++    } else {
++        load_binary_resource('./os.rom', 'os');
++        load_binary_resource('./basic.rom', 'basic');
++    }
+ 
+     self.readmem = function (addr, direct) {
+         if (addr < 0x8000) {
+--- a/processor.js	2026-08-27 17:35:34.782901223 +0100
++++ b/processor.js
+@@ -2006,7 +2006,7 @@
+             oldcycs = cycles - oldcycs;
+             if (cpureset) {
+                 cpureset = 0;
+-                reset6502();
++                self.reset6502();
+             }

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>8bit-net Archimedes runtime</title>
+  <link rel="stylesheet" href="/archimedes-runtime.css" />
+  <script defer src="/archimedes-runtime.js"></script>
+  <script defer src="/arculator/arculator.data.js"></script>
+  <script defer src="/arculator/arculator.js"></script>
+</head>
+<body>
+  <main>
+    <canvas id="canvas" tabindex="0" aria-label="Archimedes emulated display"></canvas>
+    <div id="runtime-status" role="status" aria-live="polite">Loading pinned Arculator WASM…</div>
+    <progress id="progress" max="100" value="0" hidden></progress>
+    <button id="audio-activation" type="button" hidden>Enable machine audio</button>
+    <pre id="output" aria-label="Archimedes emulator diagnostics"></pre>
+  </main>
+</body>
+</html>

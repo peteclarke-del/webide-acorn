@@ -1,0 +1,12 @@
+:root { color-scheme: dark; background: #050806; color: #d8e6dc; font: 12px/1.4 ui-monospace, monospace; }
+* { box-sizing: border-box; }
+html, body, main { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+main { display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #14251c, #050806 72%); }
+canvas { display: block; width: 100%; height: 100%; border: 0; outline: 0; background: #000; image-rendering: pixelated; }
+#runtime-status { position: absolute; left: 10px; bottom: 9px; max-width: calc(100% - 20px); padding: 4px 7px; border: 1px solid #3e5c49; border-radius: 3px; background: rgb(5 8 6 / 88%); color: #a9d3b6; }
+#runtime-status.ready { color: #aee595; }
+#runtime-status.error { border-color: #96544b; color: #ffaca1; }
+#progress { position: absolute; width: min(420px, 70%); height: 7px; }
+#audio-activation { position: absolute; right: 10px; top: 10px; padding: 7px 10px; border: 1px solid #78a88b; border-radius: 3px; background: #102419; color: #d8f3df; font: inherit; cursor: pointer; }
+#audio-activation:focus-visible { outline: 2px solid #baf58e; outline-offset: 2px; }
+#output { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

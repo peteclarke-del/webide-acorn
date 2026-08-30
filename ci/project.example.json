@@ -1,0 +1,53 @@
+{
+  "format": "8bit-net-dev-project-13",
+  "name": "Headless BBC test example",
+  "files": [
+    {
+      "id": "main",
+      "name": "main.asm",
+      "content": "ORG &1900\n.start\n  LDA #&42\n  STA &2000\n  LDX #3\n.done\n  NOP\n  RTS"
+    }
+  ],
+  "target": {
+    "platformClass": "8-16-bit",
+    "machineId": "bbc-b",
+    "variant": "Model B · 8271 DFS",
+    "romId": "os12-basic2-dfs",
+    "enabledCapabilities": ["dfs", "sideways"]
+  },
+  "breakpoints": {},
+  "bookmarks": [],
+  "buildTargets": [
+    {
+      "schemaVersion": 5,
+      "id": "cpu",
+      "name": "Headless proof",
+      "entryFileId": "main",
+      "sourceFileIds": ["main"],
+      "toolchainId": "8bit-net.asm.6502",
+      "outputName": "headless-proof.bin"
+    }
+  ],
+  "activeBuildTargetId": "cpu",
+  "testPlans": [
+    {
+      "schemaVersion": 1,
+      "id": "cpu-contract",
+      "targetId": "cpu",
+      "name": "CPU final state",
+      "suite": "Headless parity",
+      "setup": { "reset": "hard", "media": "eject" },
+      "inputs": [],
+      "stop": "done",
+      "assertions": "A = &42\nX = 3\nPC = done\nMEM[&2000] = 42\nCYCLES <= 100",
+      "cycleBudget": 1000,
+      "captures": [{ "id": "registers", "kind": "registers" }],
+      "teardown": { "action": "pause" },
+      "enabled": true
+    }
+  ],
+  "armBreakpoints": {},
+  "armBreakpointGroups": {},
+  "breakpoints6502": {},
+  "breakpointGroups6502": {}
+}

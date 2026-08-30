@@ -1,0 +1,15 @@
+/*
+ * Runtime theme override entry point.
+ *
+ * This file loads after the bundled application CSS. Downstream deployments
+ * may replace or volume-mount it and override only semantic custom properties:
+ *
+ * @layer overrides {
+ *   :root {
+ *     --theme-primary: #73e0c1;
+ *     --theme-background: #090d1a;
+ *   }
+ * }
+ *
+ * Unlayered declarations also take precedence over the bundled theme layers.
+ */

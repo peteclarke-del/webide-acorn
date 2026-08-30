@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>8bit-net Dev machine runtime</title>
+  </head>
+  <body>
+    <main class="machine-runtime">
+      <canvas id="machine-screen" width="1024" height="625" tabindex="0" aria-label="Emulated Acorn display"></canvas>
+      <div id="machine-status" role="status">Machine adapter waiting</div>
+      <button id="audio-activation" type="button" hidden>Enable machine audio</button>
+    </main>
+    <script type="module" src="/src/emulator/runtime.ts"></script>
+  </body>
+</html>
