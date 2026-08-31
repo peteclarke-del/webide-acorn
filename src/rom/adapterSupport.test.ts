@@ -68,15 +68,35 @@ describe('adapter support matrix', () => {
     expect(runnable).toEqual(['archimedes-a300', 'atom', 'bbc-b', 'electron', 'master']);
   });
 
-  it('names every registered ROM manifest against a machine that can run it', () => {
+  it('advertises a ROM manifest only when its engine can be started', () => {
+    /*
+     * A manifest may be registered ahead of the engine that will run it — the
+     * Elkulator set is written down and its firmware checkable long before the
+     * core can boot — and advertising one would offer a machine configuration
+     * nobody can select. So each manifest falls into exactly one of two cases,
+     * and both are asserted rather than one being assumed.
+     */
+    const runnableEngines = new Set(['jsbeeb', 'elkjs']);
+    let advertised = 0;
+    let awaitingEngine = 0;
     for (const set of ROM_SETS) {
       for (const machineId of set.machineIds) {
         const support = adapterSupportFor(machineId);
-        expect(support.romSetIds, `${set.id} on ${machineId}`).toContain(set.id);
-        expect(support.state, `${set.id} on ${machineId}`).toBe('runnable');
-        expect(support.engineModels, `${set.id} on ${machineId}`).toContain(set.adapterModel);
+        if (runnableEngines.has(set.engine.id)) {
+          expect(support.romSetIds, `${set.id} on ${machineId}`).toContain(set.id);
+          expect(support.state, `${set.id} on ${machineId}`).toBe('runnable');
+          expect(support.engineModels, `${set.id} on ${machineId}`).toContain(set.adapterModel);
+          advertised += 1;
+        } else {
+          expect(support.romSetIds, `${set.id} on ${machineId}`).not.toContain(set.id);
+          awaitingEngine += 1;
+        }
       }
     }
+    expect(advertised).toBeGreaterThan(0);
+    /* One today: the Elkulator set. Counted so that a second one added without
+     * its engine becoming runnable is a deliberate act rather than a drift. */
+    expect(awaitingEngine).toBe(1);
   });
 
   it('summarises each state in words that match what supplying firmware would do', () => {

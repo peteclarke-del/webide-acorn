@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { requiredRomRequirements, romSetFor, runtimeSidewaysRomPaths, validateRom } from './romProfiles';
+import { requiredRomRequirements, ROM_SETS, romSetFor, runtimeSidewaysRomPaths, validateRom } from './romProfiles';
 
 describe('ROM profile registry', () => {
   it('resolves exact machine and firmware combinations', () => {
@@ -49,5 +49,51 @@ describe('ROM profile registry', () => {
       expect(definition).toBeDefined();
       expect(runtimeSidewaysRomPaths(definition!, ['1mhzpi'])).toEqual(['development/BBCWiFi-development.rom']);
     }
+  });
+});
+
+describe('the Electron expansion combinations', () => {
+  const set = ROM_SETS.find((candidate) => candidate.id === 'electron-expanded')!;
+
+  it('names an engine this build cannot yet start, and says so by pinning it', () => {
+    /* Declared ahead of the core deliberately. The manifest lets somebody
+     * register and verify firmware they already own before anything can boot
+     * it; what it must not do is imply the machine runs. */
+    expect(set.engine).toEqual({ id: 'elkulator', version: 'allegro5-6785521' });
+  });
+
+  it('requires only the machine itself, and gates every expansion on a capability', () => {
+    /* An Electron with no Plus 1 is a real Electron. Making an expansion ROM
+     * required would refuse a configuration the hardware supports. */
+    const required = set.requirements.filter((item) => item.required).map((item) => item.id);
+    expect(required).toEqual(['os', 'basic']);
+    for (const item of set.requirements.filter((entry) => !entry.required)) {
+      expect(item.requiredByCapability, item.id).toBeTruthy();
+      expect(item.provenanceNote, item.id).toBeTruthy();
+    }
+  });
+
+  it('accepts the sizes these ROMs actually are', () => {
+    /* Taken from the 1MHzPi project's own Elkulator ROM directory, where these
+     * combinations are exercised on hardware. A file of the wrong size is
+     * refused before it can produce a machine that half works. */
+    const sized = Object.fromEntries(set.requirements.map((item) => [item.id, item.acceptedSizes]));
+    expect(sized.plus1).toEqual([4096]);
+    expect(sized.tube6502).toEqual([4096]);
+    expect(sized.adfs).toEqual([16384]);
+    /* ElkWiFi is built rather than obtained and is not a round 16 KB. */
+    expect(sized.elkwifi).toEqual([16384, 16406]);
+  });
+
+  it('covers the boards the 1MHzPi work actually uses', () => {
+    const ids = set.requirements.map((item) => item.id).sort();
+    expect(ids).toEqual(['adfs', 'afm', 'basic', 'dfs', 'elkwifi', 'emmfs', 'eswmmfs', 'os', 'plus1', 'rhplus1', 'tube6502', 'zemmfs']);
+  });
+
+  it('mounts sideways ROMs sideways and the Tube client as a parasite image', () => {
+    /* The Tube client runs in the second processor rather than in a sideways
+     * bank, so mounting it sideways would put it where nothing reads it. */
+    expect(set.requirements.find((item) => item.id === 'tube6502')?.runtimeMount).toBeUndefined();
+    expect(set.requirements.find((item) => item.id === 'adfs')?.runtimeMount).toBe('sideways');
   });
 });

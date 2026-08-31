@@ -154,16 +154,22 @@ export const machineProfiles: MachineProfile[] = [
     /* The vendored ElkJS core models a base 32 KB Electron with an operating
      * system and BASIC and nothing else, so every expansion below is planned
      * rather than supported: enabling one here would change no behaviour in the
-     * only adapter that can run this machine. They become real with the
-     * Elkulator port recorded in the backlog, which is named as the
-     * requirement so the reason is on the control itself. */
+     * only adapter that can run this machine.
+     *
+     * The Elkulator port they wait on now exists as far as a build — it
+     * compiles and links to WebAssembly, and `electron-expanded` registers the
+     * firmware each expansion needs — but it does not yet run, because its
+     * main loop never returns and would hang a browser tab. So these stay
+     * planned. The requirement named on each control is now that core running
+     * rather than that core existing, which is a smaller and more honest gap
+     * than the one that was there before. */
     capabilities: [
-      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'planned', false, 'the Elkulator port; the vendored ElkJS core has no tape'),
-      capability('plus1', 'Plus 1 expansion', 'Cartridge, printer and analogue interfaces', 'planned', false, 'the Elkulator port; the vendored ElkJS core models no Plus 1'),
-      capability('plus3', 'Plus 3 expansion', '3.5-inch disk and ADFS', 'planned', false, 'the Elkulator port; the vendored ElkJS core models no Plus 3 or ADFS'),
-      capability('sideways', 'Sideways RAM', 'Expansion banked memory', 'planned', false, 'the Elkulator port; ElkJS decodes every unclaimed ROM bank to BASIC'),
-      capability('joystick', 'Joystick interface', 'Configurable expansion joystick', 'planned', false, 'the Plus 1 the vendored ElkJS core does not model'),
-      capability('1mhzpi', '1MHzPi / ElkWiFi', 'Development Plus 1 RH and modified ElkWiFi firmware', 'planned', false, 'the Elkulator port and a Plus 1 the vendored ElkJS core does not model'),
+      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'planned', false, 'the Elkulator core running; it builds but its main loop does not yet return'),
+      capability('plus1', 'Plus 1 expansion', 'Cartridge, printer and analogue interfaces', 'planned', false, 'the Elkulator core running; its firmware manifest is registered and it builds, but it does not yet run'),
+      capability('plus3', 'Plus 3 expansion', '3.5-inch disk and ADFS', 'planned', false, 'the Elkulator core running; ADFS and DFS firmware are registered against it already'),
+      capability('sideways', 'Sideways RAM', 'Expansion banked memory', 'planned', false, 'the Elkulator core running; ElkJS decodes every unclaimed ROM bank to BASIC'),
+      capability('joystick', 'Joystick interface', 'Configurable expansion joystick', 'planned', false, 'the Plus 1, which arrives with the Elkulator core once it runs'),
+      capability('1mhzpi', '1MHzPi / ElkWiFi', 'Development Plus 1 RH and modified ElkWiFi firmware', 'planned', false, 'the Elkulator core running; the ElkWiFi firmware is registered against it already'),
     ],
     accent: '#cf6857',
   },

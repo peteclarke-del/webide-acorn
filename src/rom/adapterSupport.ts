@@ -42,6 +42,10 @@ const ARCULATOR = { id: 'arculator', version: 'webide-1' } as const;
 const ELKJS = { id: 'elkjs', version: 'ff123355' } as const;
 
 /* Machines served by a core other than jsbeeb, with the models that core has. */
+/* The engines this build can start. An engine absent from here has a pinned
+ * version and a manifest and no way to run yet. */
+const RUNNABLE_ENGINE_IDS = new Set<string>(['jsbeeb', 'elkjs']);
+
 const ALTERNATE_ENGINES: Record<string, { engine: typeof ELKJS; models: string[] }> = {
   electron: { engine: ELKJS, models: ['Electron'] },
 };
@@ -74,7 +78,18 @@ const LIMITATIONS: Record<string, string> = {
 const ARM_LIMITATION = 'This build qualifies the A310 class only. Later Archimedes and Risc PC profiles are described but have no qualified adapter here, and no other machine is substituted for them.';
 
 function supportFor(machineId: string): AdapterMachineSupport {
-  const romSetIds = ROM_SETS.filter((set) => set.machineIds.includes(machineId)).map((set) => set.id);
+  /*
+   * Only the sets this build can actually start.
+   *
+   * A manifest may be registered for an engine that is not yet runnable — the
+   * Elkulator port is written down and checked long before it can boot — and
+   * listing one here would offer somebody a machine configuration that cannot
+   * be selected. The manifest still does its job: firmware can be registered
+   * and verified against it. It simply is not advertised as runnable.
+   */
+  const romSetIds = ROM_SETS
+    .filter((set) => set.machineIds.includes(machineId) && RUNNABLE_ENGINE_IDS.has(set.engine.id))
+    .map((set) => set.id);
   if (ARM_MACHINES.has(machineId)) {
     const runnable = ARM_RUNNABLE.has(machineId);
     return {

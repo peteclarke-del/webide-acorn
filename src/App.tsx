@@ -5980,7 +5980,10 @@ interface EmulatorPanelProps {
   machineModel?: string;
   romSetId?: string;
   /** Which pinned core would run this ROM set; the panel routes on it. */
-  engineId?: 'jsbeeb' | 'elkjs';
+  /* Widened for the Elkulator port. Nothing routes to it: the panel matches
+   * on the engines it can start, and an unrecognised one falls through to the
+   * refusal rather than to a blank frame. */
+  engineId?: 'jsbeeb' | 'elkjs' | 'elkulator';
   /* Settings the open project carries. They take precedence over this
    * browser's own for as long as that project is open, so a preference a piece
    * of work needs travels with it. */

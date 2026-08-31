@@ -1,0 +1,41 @@
+FROM emscripten/emsdk:3.1.29
+RUN apt-get update && apt-get install --yes --no-install-recommends \
+        ca-certificates git cmake build-essential autoconf automake libtool pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+RUN embuilder build sdl2 zlib
+
+# Allegro 5 with the SDL backend, by the recipe the previous spike proved.
+ARG ALLEGRO_REF=5.2.9.1
+RUN git clone --depth 1 --branch "${ALLEGRO_REF}" https://github.com/liballeg/allegro5.git /allegro5
+WORKDIR /allegro5/build
+RUN emcmake cmake .. -DCMAKE_BUILD_TYPE=Release \
+      -DALLEGRO_SDL=ON -DSHARED=OFF -DWANT_ALLOW_SSE=OFF \
+      -DCMAKE_C_FLAGS="-sUSE_SDL=2" \
+      -DSDL2_INCLUDE_DIR=/emsdk/upstream/emscripten/cache/sysroot/include/SDL2 \
+      -DSDL2_LIBRARY=/emsdk/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libSDL2.a \
+      -DCMAKE_INSTALL_PREFIX=/emsdk/upstream/emscripten/cache/sysroot \
+      -DWANT_TESTS=OFF -DWANT_EXAMPLES=OFF -DWANT_DEMO=OFF -DWANT_DOCS=OFF \
+      -DWANT_IMAGE=ON -DWANT_PNG=OFF -DWANT_JPG=OFF -DWANT_WEBP=OFF \
+      -DWANT_TTF=OFF -DWANT_FONT=ON -DWANT_VIDEO=OFF \
+      -DWANT_PHYSFS=OFF -DWANT_NATIVE_DIALOG=OFF \
+      -DWANT_AUDIO=ON -DWANT_PRIMITIVES=ON -DWANT_COLOR=ON -DWANT_MEMFILE=ON \
+      -DWANT_OPENAL=OFF -DWANT_PULSEAUDIO=OFF -DWANT_ALSA=OFF -DWANT_OSS=OFF \
+      > /a5-configure.log 2>&1 && emmake make -j"$(nproc)" > /a5-build.log 2>&1 && make install > /a5-install.log 2>&1
+RUN ls /emsdk/upstream/emscripten/cache/sysroot/lib/liballegro* 2>/dev/null | head
+
+ARG ELK_REF=demrepofdave/allegro5_integration
+RUN git clone --branch "${ELK_REF}" https://github.com/demrepofdave/elkulator.git /elkulator
+COPY alut_shim.h /elkulator/src/webide_alut_shim.h
+COPY alut_shim.h /elkulator/src/host_abstraction_layer/allegro_5/webide_alut_shim.h
+COPY stubs/allegro5/allegro_native_dialog.h /emsdk/upstream/emscripten/cache/sysroot/include/allegro5/allegro_native_dialog.h
+COPY prepare.py /tmp/
+RUN python3 /tmp/prepare.py
+
+WORKDIR /elkulator
+RUN autoreconf -i > /autoreconf.log 2>&1 ; echo "autoreconf exit=$?" ; tail -5 /autoreconf.log
+RUN emconfigure ./configure --host=wasm32-unknown-emscripten \
+      CFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -O2 -I/elkulator/src" \
+      LDFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1" \
+      LIBS="-L/emsdk/upstream/emscripten/cache/sysroot/lib -lallegro_image-static -lallegro_font-static -lallegro_audio-static -lallegro_acodec-static -lallegro_primitives-static -lallegro_color-static -lallegro_memfile-static -lallegro-static -lopenal -lSDL2" \
+      > /elk-configure.log 2>&1 ; echo "configure exit=$?" ; grep -iE 'undefined symbol|unable to find library' config.log | sort -u | head -12
+RUN emmake make -j"$(nproc)" > /elk-build.log 2>&1 ; echo "make exit=$?" ; grep -iE 'error:|undefined symbol' /elk-build.log | head -15 ; ls -la elkulator* src/elkulator* 2>/dev/null | head

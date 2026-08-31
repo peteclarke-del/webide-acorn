@@ -4217,8 +4217,52 @@ Current implemented increment:
     the panel reported ten bytes of 6502 machine code at &1900 and the live core
     held &42 at &2000 with the accumulator &42, X 7 and the program counter
     spinning at &1907. Zero console errors.
-  - [ ] Plus 1, Plus 3, AP5 and AP6 still need the Elkulator WebAssembly port;
-    ElkJS models none of them and no firmware changes that.
+  - [x] **The Elkulator WebAssembly port now builds.** `elkulator.wasm` at
+    1,301,872 bytes and its JavaScript glue, from
+    `demrepofdave/elkulator` branch `demrepofdave/allegro5_integration` against
+    Allegro 5.2.9.1 with Allegro's own SDL backend, under
+    `emscripten/emsdk:3.1.29`; `configure` and `make` both exit zero. The whole
+    recipe, both shims and the reasoning are in `docker/elkulator/`.
+  - [x] Two shims stand between it and the browser, and neither is a gap. ALUT
+    has no Emscripten port and Elkulator calls two of its functions, both thin
+    wrappers over ALC, so they are implemented directly and the dependency
+    disappears. Allegro builds no native-dialog library for SDL at all, so the
+    linker cannot find one — but a native file chooser and a menu bar are the
+    host operating system's furniture and a page has neither, and the IDE
+    supplies its own exactly as it does for the Archimedes core. Twelve entry
+    points answer the way their callers already handle a refused dialog.
+  - [x] **The firmware for the real combinations is registered ahead of the
+    core.** `electron-expanded` declares the Plus 1 support ROM, Acorn ADFS,
+    Electron DFS, three MMFS builds, Advanced File Manager, the Retro Hardware
+    Plus 1 support ROM, the ElkWiFi 1MHz bus firmware and the 6502 Tube client
+    — the set the 1MHzPi project exercises on real hardware — with the sizes
+    each one actually is, so a wrong file is refused before it can produce a
+    machine that half works. No firmware enters this repository: these are
+    manifests, and the bytes are supplied through the vault by whoever owns
+    them. Only the operating system and BASIC are required, because an Electron
+    with no Plus 1 is a real Electron.
+  - [x] A manifest whose engine cannot start is registered but never
+    advertised. The support matrix lists only sets this build can run, so
+    nobody is offered a machine configuration that cannot be selected, and a
+    contract asserts both halves of that rule and counts the sets waiting on an
+    engine — one today — so a second appearing without its engine becoming
+    runnable is a deliberate act rather than a drift.
+  - [ ] **It builds; it does not run.** `main()` still ends in `while (!quited)`,
+    a loop that never returns, which in a browser is a tab that never paints.
+    Arculator avoided this because its upstream had already been given
+    `emscripten_set_main_loop`; Elkulator has not. Either the loop becomes a
+    per-frame callback or the link gains `-sASYNCIFY`, which is cheaper to
+    write and costs size and speed. Until then every Electron expansion stays
+    planned and the capability controls say so.
+  - [ ] After it runs there is adapter work before the expansions are real:
+    a bridge in the shape of `webide_bridge.c`, registers and memory exposed to
+    the debugger, and the capability and command classification the ElkJS
+    adapter already carries. Elkulator has a genuine `debugger.c`, which is
+    more than ElkJS offers, so that part starts from something.
+  - [x] Evidence: 5 contracts in `src/rom/romProfiles.test.ts` covering the
+    pinned engine, the required-versus-gated split, the sizes, the boards
+    covered and where each ROM mounts; and the advertising rule in
+    `src/rom/adapterSupport.test.ts`.
 - [x] EMU-424 Add Tube host/parasite runtime starting with one selected second
   - [x] A BBC B with the 6502 second processor fitted boots and runs host code
     correctly: a headless run on the real core with a locally supplied Tube boot

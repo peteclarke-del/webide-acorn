@@ -14,7 +14,11 @@ export interface RomRequirement {
 /** The emulator that runs a ROM set, pinned to the exact build in use. */
 export type RomSetEngine =
   | { id: 'jsbeeb'; version: '1.19.1' }
-  | { id: 'elkjs'; version: 'ff123355' };
+  | { id: 'elkjs'; version: 'ff123355' }
+  /* The Elkulator WebAssembly port, pinned to the Allegro 5 branch it is built
+   * from. It compiles and links; it does not yet run, so no machine profile
+   * offers it and nothing here claims it does. See docker/elkulator/. */
+  | { id: 'elkulator'; version: 'allegro5-6785521' };
 
 export interface RomSetDefinition {
   id: string;
@@ -31,6 +35,26 @@ const elkjs = { id: 'elkjs', version: 'ff123355' } as const;
 const bbcWifi = () => rom('1mhzpi-wifi', '1MHzPi BBC WiFi development ROM', 'development/BBCWiFi-development.rom', [16384], 'extension', false, '1mhzpi', {
   runtimeMount: 'sideways', supportStatus: 'development', provenanceNote: 'Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds.',
 });
+
+const elkulator = { id: 'elkulator', version: 'allegro5-6785521' } as const;
+
+/*
+ * The expansion ROMs an Electron needs to be more than a bare machine.
+ *
+ * Every one of these is a manifest and not a file. No firmware may enter this
+ * repository or its image, so what is declared is the name, the sizes the
+ * emulator accepts, the role it plays and the capability that requires it; the
+ * bytes are supplied through the firmware vault by whoever owns them.
+ *
+ * The sizes are the ones observed in the 1MHzPi project's own Elkulator ROM
+ * directory, which is where these combinations are actually exercised on
+ * hardware, so a file that is the wrong size is refused before it can produce
+ * a machine that half works.
+ */
+const elkExpansion = (id: string, label: string, path: string, capability: string, note: string, sizes = [16384]) =>
+  rom(id, label, path, sizes, 'extension', false, capability, {
+    runtimeMount: 'sideways', supportStatus: 'development', provenanceNote: note,
+  });
 
 export const ROM_SETS: RomSetDefinition[] = [
   {
@@ -65,6 +89,41 @@ export const ROM_SETS: RomSetDefinition[] = [
     requirements: [
       rom('os', 'Electron operating system', 'os.rom', [16384], 'operating-system'),
       rom('basic', 'BBC BASIC II for the Electron', 'BASIC.ROM', [16384], 'language'),
+    ],
+  },
+  {
+    /*
+     * The Electron as it is actually used, rather than as ElkJS can run it.
+     *
+     * This set exists for the Elkulator port and is declared ahead of it
+     * deliberately: the combinations are known, they are exercised on real
+     * hardware in the 1MHzPi project, and writing them down now means the
+     * firmware a person already owns can be registered and checked before the
+     * core is able to boot it. No machine profile selects this set yet, because
+     * the core it names compiles but does not run — offering it would be
+     * claiming a machine this build cannot start.
+     */
+    id: 'electron-expanded', machineIds: ['electron'], label: 'Electron + Plus 1 expansions', adapterModel: 'Electron', engine: elkulator,
+    requirements: [
+      rom('os', 'Electron operating system 1.00', 'roms/os', [16384], 'operating-system'),
+      rom('basic', 'BBC BASIC II for the Electron', 'roms/basic.rom', [16384], 'language'),
+      /* The Plus 1 is the board every other expansion here plugs into, so its
+       * own ROM is what the cartridge slots and the printer and analogue ports
+       * come from. It is 4 KB rather than 16. */
+      elkExpansion('plus1', 'Plus 1 expansion ROM', 'roms/plus1.rom', 'plus1', 'Acorn Plus 1 support ROM. Supplies the cartridge slots, printer port and analogue port.', [4096]),
+      elkExpansion('adfs', 'Acorn ADFS for the Plus 3', 'roms/acorn-adfs.rom', 'plus3', 'Acorn ADFS. The Plus 3 disc interface is unusable without it.'),
+      elkExpansion('dfs', 'Electron DFS', 'roms/dfs.rom', 'plus3', 'Disc filing system for Electron disc interfaces.'),
+      elkExpansion('emmfs', 'EMMFS · MMFS for the Electron', 'roms/EMMFS.rom', 'plus1', 'MMFS built for the Electron, giving SD-card storage through the cartridge slot.'),
+      elkExpansion('eswmmfs', 'ESWMMFS · sideways-RAM MMFS', 'roms/ESWMMFS.rom', 'sideways', 'MMFS variant that keeps its workspace in sideways RAM.'),
+      elkExpansion('zemmfs', 'ZEMMFS · MMFS variant', 'roms/ZEMMFS.rom', 'plus1', 'A further MMFS build carried by the 1MHzPi project.'),
+      elkExpansion('afm', 'Advanced File Manager 1.09', 'roms/AFM1V09.rom', 'plus1', 'Advanced File Manager, a filing-system front end used with MMFS.'),
+      elkExpansion('rhplus1', 'Retro Hardware Plus 1 support 1.33', 'roms/RHPLUS133.rom', 'plus1', 'Support ROM for the Retro Hardware Plus 1 reimplementation, which is the board the 1MHzPi work uses.'),
+      elkExpansion('elkwifi', 'ElkWiFi 1MHz bus firmware', 'roms/elkwifi.rom', '1mhzpi', 'Built from the 1MHzPi project\u2019s own source rather than obtained; re-import after a firmware rebuild. Its size is not a round 16 KB.', [16384, 16406]),
+      /* The Electron's Tube is on the Plus 1's expansion connector, so the
+       * client ROM is a 4 KB parasite image rather than a sideways one. */
+      rom('tube6502', '6502 Tube client 1.20', 'roms/6502tube_120.rom', [4096], 'extension', false, 'tube', {
+        supportStatus: 'development', provenanceNote: 'Parasite boot ROM for a 6502 second processor on the Plus 1 expansion connector.',
+      }),
     ],
   },
   {
