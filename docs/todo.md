@@ -3150,7 +3150,7 @@ Current implemented increment:
    metadata retained when a sidecar is malformed, and embedded container
    metadata ranked ahead of a filename hint with an explicit sidecar ahead of
    both.
-- [ ] ANL-308B Add catalogue/container, bank/address-space and project-manifest
+- [x] ANL-308B Add catalogue/container, bank/address-space and project-manifest
   metadata ingestion with the same visible precedence/conflict model (ANL-003).
   - [x] Atom ATM containers now unwrap their exact payload before analysis and
     supply embedded catalogue name, load/execute words, declared payload length,
@@ -3168,14 +3168,39 @@ Current implemented increment:
     RAM addresses; the editable analysis origin begins at the execution address.
     A headed journey decoded an exact eight-byte `$.CODE` from SSD at `&1900`
     and the real File Forge E-format `$.TextFile` as 17 bytes from its 819,200-
-    byte image with zero browser errors. Banked/paged container context keeps
-    the parent open.
+    byte image with zero browser errors.
   - [x] A current, diagnostic-free build artifact can enter analysis directly
     from Build targets. The handoff records its versioned target ID, provenance
     fingerprint, exact output name/length, processor, origin, entry, and an
     explicit main/ARM/interpreter address-space plus unbanked status. Stale or
-    failed artifacts are refused. Banked/paged build outputs keep the parent
-    open.
+    failed artifacts are refused.
+  - [x] **Banked context now travels with the bytes.** A window of live machine
+    memory can go straight to the analyser, carrying the space it was read
+    from, the bank when that space is banked, the address it starts at and the
+    cycle it was taken at. Losing that is not a small thing: sixteen sideways
+    banks share one address range, so bytes from bank 4 and bytes from bank 12
+    disassemble at the same addresses and look identical afterwards, and a
+    listing that does not say which bank it came from cannot be compared with
+    anything — including itself an hour later.
+  - [x] A capture is a moment rather than a document, and says so: the same
+    read at another cycle can hold different bytes, which a listing presented
+    like a file would give no hint of. Its origin is the address the bytes were
+    read from, which is the one thing certainly true about it, and it claims no
+    execution address at all — nothing about a window of memory says anything
+    is entered at its start, and defaulting one would invent a fact about
+    somebody's program. The analyser's own entry defaults to the origin, which
+    is a choice a reader can see and change.
+  - [x] The two ways of getting the bank wrong are both refused rather than
+    passed over. A banked space captured with no bank recorded says that which
+    of the banks these bytes came from is not established; a bank recorded
+    against a space that has none is dropped and said to have been dropped,
+    because showing it would imply main RAM has banks and hiding it would
+    conceal that the caller believed something untrue.
+  - [x] Evidence: 7 contracts in
+    `src/analysis/capturedMemoryContext.test.ts` covering the bank reaching the
+    metadata, the capture describing itself as a moment, the origin without an
+    invented entry point, both bank mistakes, an ordinary unbanked capture
+    saying nothing extra, and a generated name a file system would accept.
 - [ ] ANL-309 Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden
   token/line-reference/compound-payload fixtures; refuse ambiguous dialects
   safely (ANL-005, ANL-017).

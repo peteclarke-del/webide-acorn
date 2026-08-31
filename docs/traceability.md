@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 167 |
-| Complete and traced | 96 |
+| Complete | 168 |
+| Complete and traced | 97 |
 | Complete and described | 63 |
 | Complete and untraced | 8 |
-| Open | 127 |
+| Open | 126 |
 
 ## By area
 
@@ -37,7 +37,7 @@ is the part a machine can settle.
 | EDT | 23 | 17 | 7 | 10 | 0 |
 | AST | 21 | 21 | 14 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
-| ANL | 18 | 15 | 13 | 2 | 0 |
+| ANL | 18 | 16 | 14 | 2 | 0 |
 | EMU | 18 | 11 | 3 | 8 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
@@ -130,6 +130,7 @@ are listed rather than quietly counted.
 | ANL-306 | Add deterministic entry/subroutine/loop/branch labels, semantic… | Covered by the disassembler contracts, one of which proves calls are followed, routines named, and MOS entry points annotated while data is left as data. |
 | ANL-307 | Add editable load/entry/CPU controls, user label overrides,… | Covered by the annotated-disassembly contracts for a recorded label winning over a generated one and for a recorded comment placed before the derived one, and by the analysis accessibility contracts for navigation. |
 | ANL-308A | Add matching `.inf` sidecar ingestion for quoted catalogue name,… | 4 of the file-analysis contracts cover the sidecar path specifically: quoted metadata including length and lock state, a selected sidecar taking precedence with filename conflicts reported, filename metadata retained… |
+| ANL-308B | Add catalogue/container, bank/address-space and project-manifest… | 7 contracts in `src/analysis/capturedMemoryContext.test.ts` covering the bank reaching the metadata, the capture describing itself as a moment, the origin without an invented entry point, both bank mistakes, an ordinary… |
 | ANL-311 | Add indirect-flow hints, extra entry points, code/data/text marking,… | 41 unit contracts cover the document, the history and the analyser's use of both, including that an indirect jump is *not* followed when nothing is recorded. A headless Chromium run then drove the whole workflow in the… |
 | ANL-312A | Add versioned structured analysis JSON containing SHA-256 source… | 4 analysis-export contracts covering the SHA-256 of the exact source bytes, versioned provenance with configuration, metadata and user labels, the recorded annotations being carried so the document reproduces the… |
 | ANL-312B | Add assembly-source export and guarded, byte-exact reassembly… | 3 assembly-export contracts covering an exact round trip of reachable code, control-flow labels, quoted data and arbitrary bytes; a 65C02-only round trip; and a refusal to claim verification for a processor the browser… |
@@ -255,7 +256,6 @@ are listed rather than quietly counted.
 | BLD-329 | Implement ARM assembler/linker and RISC OS C adapters before the ARM vertical slice;… | 6 of 8 parts done |
 | BLD-330 | Implement target-native assertion runtime/result channel and test target output for each… | not started |
 | MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 6 of 7 parts done |
-| ANL-308B | Add catalogue/container, bank/address-space and project-manifest metadata ingestion with… | 3 of 3 parts done |
 | ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 6 of 7 parts done |
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
