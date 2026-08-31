@@ -193,7 +193,7 @@ are listed rather than quietly counted.
 | P0-015 | Inventory media and asset format implementations and run malicious- input review before… | not started |
 | P0-016 | Produce ROM/firmware matrix by profile: required/optional ROM, version, ownership,… | not started |
 | P0-017 | Produce manuals/reference-content matrix with title, owner, version, applicable targets,… | not started |
-| P0-018 | Complete dependency licence/security review and approve selected candidates. Unresolved… | 3 of 4 parts done |
+| P0-018 | Complete dependency licence/security review and approve selected candidates. Unresolved… | 4 of 5 parts done |
 | P0-020 | Define and validate the machine-profile JSON schema, inheritance/ composition rules,… | not started |
 | P0-021 | Model Atom variants and legal ROM/storage prerequisites. | not started |
 | P0-022 | Model BBC A/B, DFS controller/filing-system differences, common regional variants, input,… | not started |
@@ -259,7 +259,7 @@ are listed rather than quietly counted.
 | EMU-404 | Implement keyboard viewer/remapper, focus capture/release, pasted text policy,… | 7 of 7 parts done |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
 | EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 11 of 15 parts done |
-| EMU-424 | Add Tube host/parasite runtime starting with one selected second | 1 of 3 parts done |
+| EMU-424 | Add Tube host/parasite runtime starting with one selected second | 5 of 6 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |

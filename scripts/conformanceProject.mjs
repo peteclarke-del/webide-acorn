@@ -36,12 +36,23 @@ try {
   const media = await import(`file://${mediaBundle}`);
   const all = suite.CONFORMANCE_CASES;
   /*
-   * The project enables what the applicable cases actually declare they need,
-   * rather than a list somebody kept in step by hand. A case whose capability
-   * is not enabled is reported as not applicable and never runs, so a hardcoded
-   * list quietly decides which areas can be covered at all.
+   * The project enables what the applicable cases declare they need, rather
+   * than a list somebody kept in step by hand — but only where the machine
+   * actually offers it. A case cannot conjure a capability the profile calls
+   * planned: doing that ran the Tube case against a BBC B whose Tube this
+   * build no longer claims, and reported a failure about the machine as though
+   * it were about the product.
    */
-  const capabilities = [...new Set(['dfs', 'sideways', ...all.flatMap((item) => item.requires.capabilities)])].sort();
+  const machinesBundle = join(staging, 'machines.mjs');
+  await run('npx', ['esbuild', 'src/data/machines.ts', '--bundle', '--format=esm', '--platform=node', `--outfile=${machinesBundle}`, '--log-level=warning']);
+  const { machineProfiles } = await import(`file://${machinesBundle}`);
+  const profile = machineProfiles.find((candidate) => candidate.id === machineId);
+  if (!profile) throw new Error(`No machine profile is named ${machineId}.`);
+  const offered = new Set(profile.capabilities.filter((item) => item.state !== 'planned').map((item) => item.id));
+  const wanted = new Set(['dfs', 'sideways', ...all.flatMap((item) => item.requires.capabilities)]);
+  const capabilities = [...wanted].filter((id) => offered.has(id)).sort();
+  const withheld = [...wanted].filter((id) => !offered.has(id)).sort();
+  if (withheld.length) console.log(`Not enabled, because ${machineId} does not offer them: ${withheld.join(', ')}`);
   const applicable = all.filter((item) => suite.caseApplies(item, { machineId, capabilities, romSetId: romId }).applies);
   if (!applicable.length) throw new Error(`No conformance case applies to ${machineId}, so this would have produced a project that proves nothing.`);
 

@@ -79,6 +79,12 @@ verified during the build by SHA-256
 That GPL source-built extension provides the RISC OS 3 HostFS module; it is not
 an Acorn OS ROM and is enabled only for the qualified RISC OS 3 profiles.
 
+## The accepted position
+
+Shipping code under GPL-3.0-or-later is accepted for this product. The three
+copyleft cores stay, and what that acceptance requires is built and enforced
+rather than intended — see below.
+
 ## Meeting the copyleft obligations, not just naming them
 
 Three components ship under a copyleft licence: jsbeeb (GPL-3.0-or-later),

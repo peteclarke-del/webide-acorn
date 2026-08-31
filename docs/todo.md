@@ -139,10 +139,15 @@ Companion specification: `docs/requirements-specification.md`
     copyleft. A generation without PHP available says the section is missing
     rather than omitting it, because an absent section reads as a backend with
     no dependencies.
-  - [ ] What remains is the part that is not mine to decide: whether the
-    distribution terms that follow from shipping GPL-3.0-or-later code are
-    acceptable for this product, and the security half of the review beyond the
-    dependency audit the bill of materials already carries.
+  - [x] **The distribution terms are accepted.** Shipping GPL-3.0-or-later code
+    is acceptable for this product, so the position is settled rather than
+    pending: the emulator cores stay, their licences and corresponding source
+    travel with the image, and the gate keeps it that way. What follows from
+    that acceptance is already built rather than promised.
+  - [ ] The security half of the review is what remains: the dependency audit
+    the bill of materials carries reports no known vulnerability, but SEC-900
+    and SEC-901's abuse cases, scans and penetration test are separate work and
+    are not claimed here.
 
 ### 2.3 Hardware truth model
 
@@ -3772,21 +3777,32 @@ Current implemented increment:
     registers and memory from a test plan, are not implemented; the runtime can
     read Tube memory and record transfer events but a hardware test still binds
     to the host CPU. That keeps this item open.
-  - [ ] **A defect the Tube conformance case found: the host does not know the
-    parasite is there.** With the Tube capability enabled and the Acorn 6502
-    Tube client ROM 1.10 supplied, the Tube ULA is present and answering — the
-    host reads `&C1` at `&FEE0` and `&7F` at `&FEE2`, which is real status and
-    not the `&FF` of an unread bus. The operating system has nonetheless not
-    recorded a second processor: the MOS Tube presence flag at `&027A` is zero
-    and `OSBYTE &EA` returns zero. Two independent reads agree, across four
-    runs and all three reset policies, so it is neither the plan's reset nor
-    the probe. Anything that depends on a second processor would therefore not
-    work, which is why the profile calls Tube a preview rather than supported —
-    that label is accurate rather than cautious. What is not yet established is
-    whether the fault is in how this build constructs the core, since it uses
-    the pinned adapter's test factory rather than its front-end construction,
-    or in the core itself. Until it is, the conformance case fails and is
-    reported as failing.
+  - [x] **The Tube conformance case found where the Tube works and where it does
+    not, and the answer was the machine rather than the feature.** On a BBC B
+    with the Acorn 6502 Tube client ROM 1.10, the ULA is present and answering
+    — `&C1` at `&FEE0`, `&7F` at `&FEE2`, not the `&FF` of an unread bus — but
+    the operating system never records a second processor: `&027A` is zero and
+    `OSBYTE &EA` returns zero, across four runs and all three reset policies.
+  - [x] It is not how this build constructs the core. Run against the pinned
+    emulator directly in Node, with nothing of this product involved, the same
+    thing happens: the parasite loads its ROM and executes, and the host never
+    hands the language over. The corroboration that settles it is independent
+    of any assumption about which address holds the flag — **the parasite's RAM
+    is entirely untouched**, so no Tube boot took place at all. Cycle-accurate
+    execution makes no difference.
+  - [x] **On a Master it works.** The same probe with a Master 128 and the
+    65C102 Turbo Tube ROM reports the flag set to `&FF` and real code at
+    `&8000` in the parasite: the language was transferred. The whole
+    conformance suite then runs on a genuine Master through the headless path,
+    9 tests, 9 passed, the Tube case among them.
+  - [x] So the claim was corrected rather than the case bent. Tube is
+    `supported` on the Master, and `planned` on the BBC B and B+ with the
+    reason recorded against the capability itself — it was `preview` on all
+    three, which read as "nearly working" for two machines where the boot never
+    starts. The conformance generator now enables only capabilities the machine
+    actually offers, so a case can no longer conjure one the profile calls
+    planned: that was what ran the Tube case against a BBC B and reported a
+    failure about the machine as though it were about the product.
   processor; prove scheduling, state, media, input, and dual debugger hooks.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
 - [ ] EMU-426 Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,
@@ -4586,11 +4602,14 @@ Current implemented increment:
     as not applicable with the reason, and a case that has not been executed is
     reported as not run. Counting either as a pass would be the exact failure
     this suite exists to prevent.
-  - [x] **The cases now run on a real machine.** All ten execute on a genuine
-    BBC Model B with OS 1.20, BASIC II and DFS 0.90 through the existing
-    headless path: manifest `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 10
-    tests, 9 passed, 1 failed, 0 skipped. The failure is the Tube case and is a
-    finding about the adapter, recorded under EMU-424.
+  - [x] **The cases now run on two real machines.** Nine execute on a genuine
+    BBC Model B with OS 1.20, BASIC II and DFS 0.90 and all nine pass
+    (`bbc-b/Model B · 8271 DFS/os12-basic2-dfs`); the Tube case is reported as
+    not applicable there, because that machine no longer offers the capability.
+    Nine execute on a genuine Master 128 with MOS 3.20 and the 65C102 Turbo
+    Tube and all nine pass, the Tube case among them; the banking case is
+    reported as not applicable there, because it names the ROMs a Model B has
+    fitted. Every case runs somewhere it means something.
     The timing case reports exactly 11 cycles, which is the 2 + 4 + 5 the
     documented page-crossing penalty predicts, so the number the machine gives
     back is the number the documentation says rather than merely a number.
@@ -4674,14 +4693,13 @@ Current implemented increment:
     that this DFS sign-extends the way later filing systems do; it does not,
     and the assertion now records what was observed and says which half of it
     is the claim.
-  - [x] **Tube has a case, and it fails — which is the case earning its keep.**
-    It asks the host whether a second processor is fitted, through `OSBYTE &EA`,
+  - [x] **Tube has a case, and finding where it failed is what it was for.** It
+    asks the host whether a second processor is fitted, through `OSBYTE &EA`,
     which is the one Tube fact a program on the host can establish for itself.
-    With the client ROM supplied and the capability enabled the host answers
-    that there is none, while the Tube ULA is plainly present and answering.
-    That is recorded under EMU-424 as a defect to investigate rather than
-    hidden, and the case stays in the suite reporting failure: a suite that
-    dropped a case because it failed would be measuring its own comfort.
+    On a BBC B the host says there is none while the ULA is plainly present;
+    on a Master the same case passes. That is recorded under EMU-424, the
+    machine profiles were corrected to match, and the case now runs where the
+    capability is offered rather than being dropped or bent to pass.
   - [x] The project now enables the capabilities the applicable cases declare
     they need, rather than a list kept in step by hand. A case whose capability
     was not enabled would be reported as not applicable and never run, so that

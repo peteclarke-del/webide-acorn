@@ -64,10 +64,10 @@ const ARM_RUNNABLE = new Set(['archimedes-a300']);
 const LIMITATIONS: Record<string, string> = {
   atom: 'The tape and tape-with-floating-point models run here. The MMC and DOS models exist in the engine but need firmware images this build does not register a manifest for.',
   'bbc-a': 'jsbeeb models the BBC B; a Model A differs in fitted RAM and interfaces, and this build registers no separate Model A manifest, so it is described but not run.',
-  'bbc-b': 'The 8271 DFS and 1770 DFS or ADFS models all run here. A 6502 second processor can be fitted through the Tube capability.',
+  'bbc-b': 'The 8271 DFS and 1770 DFS or ADFS models all run here. A second processor is not offered: the interface is fitted and answers, but this core never hands the language over on a BBC-family host — the parasite runs its own ROM and waits, and its RAM is never written. It does boot on the Master.',
   'bbc-bplus': 'jsbeeb 1.19.1 has no BBC B+ model, so the B+ shadow and sideways memory behaviour cannot be executed here. Supplying B+ firmware would not change that; the profile is listed because the product models the machine, not because this build can emulate it.',
   electron: 'The Electron runs on the vendored ElkJS core, which models a base 32 KB machine with an operating system and BASIC only. It has no Plus 1, Plus 3, AP5 or AP6, no ADFS, no cartridge and no usable expansion ROM slot, and it offers no instruction stepping, breakpoints or hardware test execution because that core exposes no per-instruction hook. Those expansions need the Elkulator port recorded in the backlog, not more firmware.',
-  master: 'The Master 128 runs here with its combined MOS 3.20 image, selecting DFS, ADFS or ANFS. A 65C102 Turbo second processor can be fitted through the Tube capability. Master Turbo, 512 and Compact are separate machines with no model in this engine.',
+  master: 'The Master 128 runs here with its combined MOS 3.20 image, selecting DFS, ADFS or ANFS. A 65C102 Turbo second processor can be fitted through the Tube capability, and is the one machine here where the Tube boot completes: the host records it, the language reaches the parasite, and a conformance case asserting it passes on real hardware. Master Turbo, 512 and Compact are separate machines with no model in this engine.',
   'archimedes-a300': 'The qualified A310 slice runs on the pinned Arculator build. Machine state save and restore stay disabled because that core exposes no complete deterministic serializer.',
 };
 

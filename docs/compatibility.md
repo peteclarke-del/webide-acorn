@@ -43,10 +43,10 @@ A planned capability is an absence. It appears here so that it can be read as on
 | --- | --- | --- | --- |
 | Acorn Atom | Cassette interface, Floating-point ROM | AtomDOS, AtoMMC storage | Colour board |
 | Acorn BBC Model A | Cassette interface | Model B interfaces | Econet, Tube interface |
-| Acorn BBC Model B | DFS disk system, Cassette interface, Sideways RAM | 1MHzPi WiFi ROM, Tube second processor | Econet, Speech system |
-| Acorn BBC B+ | Shadow screen RAM, Sideways RAM, 1770 DFS | ADFS, Tube second processor, 1MHzPi WiFi ROM | Econet |
+| Acorn BBC Model B | DFS disk system, Cassette interface, Sideways RAM | 1MHzPi WiFi ROM | Tube second processor, Econet, Speech system |
+| Acorn BBC B+ | Shadow screen RAM, Sideways RAM, 1770 DFS | ADFS, 1MHzPi WiFi ROM | Tube second processor, Econet |
 | Acorn Electron | — | — | Cassette interface, Plus 1 expansion, Plus 3 expansion, Sideways RAM, Joystick interface, 1MHzPi / ElkWiFi |
-| BBC Master Series | Shadow & Hazel RAM, Sideways RAM, ADFS, DFS | Tube / Turbo, 1MHzPi WiFi ROM | Econet |
+| BBC Master Series | Shadow & Hazel RAM, Sideways RAM, ADFS, DFS, Tube / Turbo | 1MHzPi WiFi ROM | Econet |
 | Acorn Archimedes A300 | ADFS floppy | Podule expansion, ST-506 hard disk | Econet, Floating-point accelerator |
 | Acorn Archimedes A400/1 | ADFS, Hard disk | ARM3 upgrade, Podule expansion | FPA10 |
 | BBC Acorn A3000 | ADFS floppy | Internal expansion, External hard disk | Econet |
@@ -57,10 +57,10 @@ A planned capability is an absence. It appears here so that it can be read as on
 
 - **Acorn Atom** — The tape and tape-with-floating-point models run here. The MMC and DOS models exist in the engine but need firmware images this build does not register a manifest for.
 - **Acorn BBC Model A** — jsbeeb models the BBC B; a Model A differs in fitted RAM and interfaces, and this build registers no separate Model A manifest, so it is described but not run.
-- **Acorn BBC Model B** — The 8271 DFS and 1770 DFS or ADFS models all run here. A 6502 second processor can be fitted through the Tube capability.
+- **Acorn BBC Model B** — The 8271 DFS and 1770 DFS or ADFS models all run here. A second processor is not offered: the interface is fitted and answers, but this core never hands the language over on a BBC-family host — the parasite runs its own ROM and waits, and its RAM is never written. It does boot on the Master.
 - **Acorn BBC B+** — jsbeeb 1.19.1 has no BBC B+ model, so the B+ shadow and sideways memory behaviour cannot be executed here. Supplying B+ firmware would not change that; the profile is listed because the product models the machine, not because this build can emulate it.
 - **Acorn Electron** — The Electron runs on the vendored ElkJS core, which models a base 32 KB machine with an operating system and BASIC only. It has no Plus 1, Plus 3, AP5 or AP6, no ADFS, no cartridge and no usable expansion ROM slot, and it offers no instruction stepping, breakpoints or hardware test execution because that core exposes no per-instruction hook. Those expansions need the Elkulator port recorded in the backlog, not more firmware.
-- **BBC Master Series** — The Master 128 runs here with its combined MOS 3.20 image, selecting DFS, ADFS or ANFS. A 65C102 Turbo second processor can be fitted through the Tube capability. Master Turbo, 512 and Compact are separate machines with no model in this engine.
+- **BBC Master Series** — The Master 128 runs here with its combined MOS 3.20 image, selecting DFS, ADFS or ANFS. A 65C102 Turbo second processor can be fitted through the Tube capability, and is the one machine here where the Tube boot completes: the host records it, the language reaches the parasite, and a conformance case asserting it passes on real hardware. Master Turbo, 512 and Compact are separate machines with no model in this engine.
 - **Acorn Archimedes A300** — The qualified A310 slice runs on the pinned Arculator build. Machine state save and restore stay disabled because that core exposes no complete deterministic serializer.
 - **Acorn Archimedes A400/1** — This build qualifies the A310 class only. Later Archimedes and Risc PC profiles are described but have no qualified adapter here, and no other machine is substituted for them.
 - **BBC Acorn A3000** — This build qualifies the A310 class only. Later Archimedes and Risc PC profiles are described but have no qualified adapter here, and no other machine is substituted for them.
