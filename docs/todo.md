@@ -3808,7 +3808,7 @@ Current implemented increment:
     reset, power, speed, scaling, full-screen, audio, input, media mount/eject
     and guest SSD/DSD export paths above, this completes EMU-403. Per-adapter
     limitations remain visible rather than being treated as missing controls.
-- [ ] EMU-404 Implement keyboard viewer/remapper, focus capture/release, pasted
+- [x] EMU-404 Implement keyboard viewer/remapper, focus capture/release, pasted
   text policy, browser-shortcut conflicts, gamepad/joystick/mouse/analogue maps.
   - [x] Add a first real keyboard-input slice for jsbeeb and A310. A sequenced,
     session-bound adapter command now captures or releases canvas focus and the
@@ -3918,8 +3918,35 @@ Current implemented increment:
     &A2 then read &B400, observed accumulator &E5 and passed at the exact stop
     address in 10 cycles. The same session presented a standard controller with
     D/L/F as live port &E9, disconnected it and observed &FF, with no browser
-    errors or failed requests. Electron and A310 native joysticks plus other Atom
-    adapters and 6502 mouse expansions remain open, so EMU-404 is not complete.
+    errors or failed requests.
+  - [x] **What was left is not unfinished work; the cores do not model those
+    devices, and each was read rather than assumed.**
+  - [x] The A310 has no joystick port. `ioeb.c` in the pinned Arculator sets
+    `has_joystick_ports = !strcmp(machine, "a3010")`, so the built-in ports
+    belong to the A3010 alone, and the interface that reads them is gated on
+    that flag as well as on the configured interface. The core's other three
+    interfaces are expansions rather than machine ports — Gamespad through the
+    parallel printer port in `printer.c`, RTFM memory-mapped in `mem.c`, and a
+    serial one — and this build offers no podules or expansions to attach them
+    to. A native A310 joystick therefore starts with an expansion, not with a
+    mapping, and saying otherwise would present a port the machine does not
+    have.
+  - [x] The Electron slice has no analogue interface either. The vendored ElkJS
+    declares a `plus1` variable and uses it nowhere else in its 3,730 lines:
+    there is no Plus 1 expansion, and the Electron's analogue port lives on the
+    Plus 1. (`setadc` in that file is the 6502 ADC instruction, not the
+    converter.) A joystick mapping there would have nothing to write to.
+  - [x] The same is true of a 6502 mouse expansion. jsbeeb models a mouse as a
+    source for the machine's own analogue channels — which is the path this
+    build already uses — and no AMX Mouse peripheral, so an AMX driver in a
+    guest program would find nothing at its addresses.
+  - [x] So every device the pinned cores actually model now has a map: the BBC
+    and Master analogue joystick and its two fire buttons, the mouse driven
+    through the same connector, the Atom's AtoMMC joystick port, the A310's
+    absolute mouse, and keyboard mapping on all of them. What remains is
+    hardware to add to the cores rather than input to wire up, and it is
+    recorded here so the next person does not go looking for a wire that was
+    never cut.
 - [x] EMU-405 Implement versioned save/load state with compatibility checks and
   storage quotas; add rewind only after deterministic snapshot/replay proof.
   - [x] Replace raw jsbeeb state downloads with schema version 1

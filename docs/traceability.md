@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 168 |
+| Complete | 169 |
 | Complete and traced | 97 |
-| Complete and described | 63 |
+| Complete and described | 64 |
 | Complete and untraced | 8 |
-| Open | 126 |
+| Open | 125 |
 
 ## By area
 
@@ -38,7 +38,7 @@ is the part a machine can settle.
 | AST | 21 | 21 | 14 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 16 | 14 | 2 | 0 |
-| EMU | 18 | 11 | 3 | 8 | 0 |
+| EMU | 18 | 12 | 3 | 9 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
 | CLD | 10 | 5 | 4 | 0 | 1 |
@@ -259,7 +259,6 @@ are listed rather than quietly counted.
 | ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 6 of 7 parts done |
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
-| EMU-404 | Implement keyboard viewer/remapper, focus capture/release, pasted text policy,… | 7 of 7 parts done |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
 | EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 11 of 15 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
