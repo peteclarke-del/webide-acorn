@@ -63,7 +63,7 @@ final class NativeBuildRequest
             throw new ApiProblem(400, 'BUILD_CPU_INVALID', $message, false, ['target.processor' => 'Unsupported processor']);
         }
         $outputName = $target['outputName'] ?? null;
-        if (!is_string($outputName) || strlen($outputName) < 1 || strlen($outputName) > 128 || strpbrk($outputName, "/\\") !== false || preg_match('/[\x00-\x1f]/', $outputName)) {
+        if (!is_string($outputName) || strlen($outputName) < 1 || strlen($outputName) > 128 || strpbrk($outputName, '/\\') !== false || preg_match('/[\x00-\x1f]/', $outputName)) {
             throw new ApiProblem(400, 'BUILD_OUTPUT_INVALID', 'Output name must be 1–128 characters without paths or control characters.', false, ['target.outputName' => 'Unsafe output name']);
         }
         $addressMaximum = $dialect === 'arm' ? 0x03ffffff : 0xffff;

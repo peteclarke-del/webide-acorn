@@ -19,6 +19,8 @@ coverage/
 /backend/var/cache/
 /backend/var/log/
 /backend/.phpunit.cache/
+# The formatter's cache of what it has already checked.
+/backend/.php-cs-fixer.cache
 # Composer restores these from composer.lock; they are not project files.
 /backend/vendor/
 

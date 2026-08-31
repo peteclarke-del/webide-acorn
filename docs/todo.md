@@ -504,15 +504,16 @@ Companion specification: `docs/requirements-specification.md`
     image, ran a headless browser against the running container at five sizes,
     and shut down leaving nothing behind. That run also found and fixed two real
     defects in the documented path.
-- [ ] PLAT-202 Establish formatting, static analysis, type checks, unit/
+- [x] PLAT-202 Establish formatting, static analysis, type checks, unit/
   integration/E2E test commands, coverage policy, and CI quality gates.
   - [x] One gate, `npm run ci`, is the single definition of what must pass, so a
-    developer's machine and the pipeline check the same things. Seven stages:
-    the TypeScript project build, help verification, the whole test suite, the
-    production build with its four runtime documents present, the vendored GPL
-    provenance, an executable SEC-903 check that no firmware or media image is
-    tracked, and a headless browser smoke that boots the built workbench and
-    fails on any console error.
+    developer's machine and the pipeline check the same things. Nine stages:
+    the TypeScript project build, help verification, the whole test suite with
+    its coverage floors, the backend suite against the real assemblers, PHPStan
+    and the PHP formatter, the production build with its four runtime documents
+    present, the vendored GPL provenance, an executable SEC-903 check that no
+    firmware or media image is tracked, and a headless browser smoke that boots
+    the built workbench and fails on any console error.
   - [x] A stage that cannot run is reported skipped with the reason and fails
     the gate, so a pipeline cannot drift into checking less than it believes.
     `--allow-skips` is the explicit way to accept that. A stage filter matching
@@ -597,10 +598,43 @@ Companion specification: `docs/requirements-specification.md`
     point and the sample projects, so the figure is not inflated by files whose
     correctness is settled elsewhere. Current: 67.33% statements, 82.69%
     branches, 81.99% functions across 1,507 tests.
-  - [ ] Formatting and lint rules, and static analysis for the PHP backend, are
-    not yet part of the gate. TypeScript runs in strict mode with unused locals
-    and parameters treated as errors, which covers part of what a linter would,
-    but that is not the same thing and is not claimed as it.
+  - [x] The backend now has static analysis and a formatter, both in the gate
+    as an `analysis` stage. PHPStan runs at level 8 — the highest the code
+    passes clean — set there for the same reason the coverage floors are set at
+    what the suite already achieves: a floor guards against regression rather
+    than being a number to chase. Level 9 forbids every `mixed`, which for code
+    whose job is decoding arbitrary JSON is a change worth making deliberately
+    rather than by raising a number, and the configuration says so.
+  - [x] **The first run found real defects, which is the point of running it.**
+    An include-path guard tested for an empty string the pattern above it could
+    never produce, so one arm of it could never fire. A null from `str_getcsv`
+    on a blank field reached `str_contains`, which is a deprecation today and
+    an error in a later PHP. `hexdec` was used as an array key, which is a
+    float wherever the value is wide enough. A closure captured a process it no
+    longer used. And six docblocks put `@param` and `@return` on one line,
+    where the second tag is read as prose — so those return types had never
+    been checked by anything at all.
+  - [x] The formatter is deliberately not a preset. PSR-12 would rewrite this
+    codebase's compact single-line guards into multi-line blocks, which is a
+    change of house style dressed as a standard and would bury every future
+    diff under it. What is enforced is the set nobody would argue about and a
+    person can get wrong without noticing: the strict-types declaration,
+    imports that are used and ordered, consistent quoting and spacing, and a
+    file that ends the way every other one does. It runs in check mode in the
+    gate, because a gate that rewrote files would report a pass on a tree it
+    had just changed.
+  - [x] The suite is also held at zero PHPUnit deprecations, a count that was
+    one — a data provider declared in a doc-comment, which PHPUnit 12 will stop
+    reading — and is now zero. A deprecation is a failure that has not happened
+    yet, and holding the count where it already is costs nothing.
+  - [x] Evidence: both refusals were proved by deliberate breakage rather than
+    by reading the code. A class returning a string from an `int` method failed
+    the stage naming the method and both types; the same class with an unused
+    import and stray spacing failed it naming the file. Removing each probe
+    returned the stage to green. The gate now runs nine stages.
+  - **Evidence** Formatting, static analysis and type checks all run in
+    `npm run ci`: `types` for TypeScript, `analysis` for PHPStan and the PHP
+    formatter, `tests` with its coverage floors, `backend` for PHPUnit.
 - [ ] PLAT-203 Generate typed client contracts from the accepted API description
   and add server/client compatibility tests (API-002).
 - [x] PLAT-204 Implement structured logging/correlation/redaction and baseline

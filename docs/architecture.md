@@ -123,9 +123,10 @@ Three layers, and each exists because the other two cannot answer its question.
 - **Component contracts** — the real surfaces under jsdom, driven the way a
   person drives them.
 - **The release gate** — `npm run ci`. Types, help integrity, the whole test
-  suite, the backend suite, the production build, vendored-file provenance,
-  repository hygiene, and a headless Chromium run against the built artefact
-  under the shipped security headers.
+  suite with its coverage floors, the backend suite, PHPStan and the PHP
+  formatter, the production build, vendored-file provenance, repository
+  hygiene, and a headless Chromium run against the built artefact under the
+  shipped security headers.
 
 The browser stage is where layout, policy and accessibility are settled, because
 none of them is decidable without a rendering engine.
@@ -138,7 +139,11 @@ npm run dev          # the workbench, with hot reload
 npm run typecheck    # everything, tests included
 npm test             # the suite
 npm run ci           # the full release gate
+npm run ci types     # one stage, by name
 ```
+
+The backend's own tools are `composer analyse` for PHPStan and
+`composer format` to apply the formatting the gate checks.
 
 The container path is in the README. Running the native toolchains locally needs
 `scripts/toolchains.mjs`, which clones and builds the pinned BeebAsm commit and

@@ -976,11 +976,12 @@ npm run build
   and preserves entries a newer build wrote; projects, firmware, test history
   and asset drafts are never included, and an import cannot smuggle one back in.
 - One release gate, `npm run ci`, is the single definition of what must pass:
-  the TypeScript build, help verification, the whole test suite, the production
-  build, the vendored GPL provenance, an executable check that no firmware or
-  media image is tracked, and a headless browser smoke that boots the built
-  workbench and fails on any console error, and the backend suite against the
-  real assemblers. No test is allowed to skip: the gate fails if any test in
+  the TypeScript build, help verification, the whole test suite against its
+  coverage floors, the backend suite against the real assemblers, PHPStan at
+  level 8 with the PHP formatter in check mode, the production build, the
+  vendored GPL provenance, an executable check that no firmware or media image
+  is tracked, and a headless browser smoke that boots the built workbench and
+  fails on any console error. No test is allowed to skip: the gate fails if any test in
   either suite did not run, and a stage that cannot run is reported as skipped
   with its reason and fails the gate too, so the pipeline cannot quietly check
   less than it believes it does. `npm run toolchains` obtains the pinned

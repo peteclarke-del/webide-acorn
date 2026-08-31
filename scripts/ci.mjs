@@ -146,9 +146,55 @@ await stage('tests', async () => {
 await stage('backend', async () => {
   const result = await run('node', ['scripts/backend-tests.mjs']);
   expectSuccess(result, 'Backend test suite');
-  const summary = /Tests:\s*(\d+), Assertions:\s*(\d+)/.exec(result.output);
-  return { detail: summary ? `${summary[1]} tests, ${summary[2]} assertions, none skipped` : undefined };
+  /* A deprecation is a failure that has not happened yet, and the count is at
+   * zero, so holding it there costs nothing and keeps the suite from quietly
+   * accumulating work for the next major version of its own test runner. */
+  const deprecated = /PHPUnit Deprecations:\s*(\d+)/.exec(result.output);
+  if (deprecated && Number(deprecated[1]) > 0) {
+    throw new Error(`${deprecated[1]} PHPUnit deprecation(s) were reported. Run the suite with --display-phpunit-deprecations to see them.`);
+  }
+  /* Two forms, because the runner prints a clean run differently from one with
+   * anything to report, and reading only one of them silently loses the
+   * summary on exactly the runs that are fine. */
+  const summary = /OK \((\d+) tests?, (\d+) assertions?\)/.exec(result.output)
+    ?? /Tests:\s*(\d+), Assertions:\s*(\d+)/.exec(result.output);
+  if (!summary) throw new Error('The backend suite reported no test count, so nothing says how much of it ran');
+  return { detail: `${summary[1]} tests, ${summary[2]} assertions, none skipped, no deprecations` };
 });
+
+/* Static analysis and formatting for the backend.
+ *
+ * The TypeScript side has strict mode with unused locals and parameters treated
+ * as errors, which is a compiler doing part of what a linter would. The PHP had
+ * nothing of the sort, and the first run of this stage found a check that could
+ * never fire, a null reaching str_contains, a float used as an array key, an
+ * unused closure capture and six docblocks whose `@return` was never read
+ * because it shared a line with an `@param`.
+ *
+ * The formatter runs in check mode here. A gate that rewrote files would report
+ * a pass on a working tree it had just changed, which is a different tree from
+ * the one that was committed.
+ */
+await stage('analysis', async () => {
+  const analyse = await run('backend/vendor/bin/phpstan', ['analyse', '--no-progress', '--error-format=raw', '--configuration=backend/phpstan.neon']);
+  expectSuccess(analyse, 'PHP static analysis');
+  const format = await run('backend/vendor/bin/php-cs-fixer', ['check', '--config=backend/.php-cs-fixer.dist.php', '--show-progress=none'], {
+    env: { ...process.env, PHP_CS_FIXER_IGNORE_ENV: '1' },
+  });
+  expectSuccess(format, 'PHP formatting');
+  const files = /Found 0 of (\d+) files/.exec(format.output);
+  if (!files) throw new Error('The formatter did not report how many files it checked, so nothing says it checked any');
+  return { detail: `PHPStan level ${await phpstanLevel()} clean, ${files[1]} files formatted as declared` };
+});
+
+async function phpstanLevel() {
+  /* Read from the configuration rather than repeated here: two declarations of
+   * one number are two numbers waiting to disagree. */
+  const configuration = await readFile(join(root, 'backend', 'phpstan.neon'), 'utf8');
+  const level = /^\s*level:\s*(\d+)\s*$/m.exec(configuration);
+  if (!level) throw new Error('backend/phpstan.neon declares no analysis level, so nothing says how strictly it was checked');
+  return level[1];
+}
 
 await stage('build', async () => {
   expectSuccess(await run('npx', ['vite', 'build']), 'Production build');

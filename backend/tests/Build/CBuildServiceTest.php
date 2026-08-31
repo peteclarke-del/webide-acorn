@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Build;
 
-use App\Tests\LogRecorder;
 use App\Build\CBuildManifest;
 use App\Build\CBuildService;
 use App\Build\Cc65OutputParser;
 use App\Build\CSourcePolicy;
-use App\Build\NativeBuildRequest;
 use App\Build\JobWorkspace;
+use App\Build\NativeBuildRequest;
 use App\Build\NativeProcessRunner;
+use App\Tests\LogRecorder;
 use App\Tests\ToolchainEnvironment;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;

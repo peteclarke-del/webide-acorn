@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 162 |
-| Complete and traced | 92 |
+| Complete | 163 |
+| Complete and traced | 93 |
 | Complete and described | 62 |
 | Complete and untraced | 8 |
-| Open | 132 |
+| Open | 131 |
 
 ## By area
 
@@ -51,7 +51,7 @@ is the part a machine can settle.
 | PRJ | 9 | 9 | 6 | 3 | 0 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 2 | 2 | 0 | 0 |
-| PLAT | 7 | 4 | 4 | 0 | 0 |
+| PLAT | 7 | 5 | 5 | 0 | 0 |
 | TST | 7 | 5 | 1 | 4 | 0 |
 | PRF | 6 | 6 | 5 | 1 | 0 |
 | SEC | 5 | 3 | 3 | 0 | 0 |
@@ -89,6 +89,7 @@ are listed rather than quietly counted.
 | A11Y-102 | Build keyboard-only scripts for each workbench surface and all… | 7 further contracts covering an unreachable group, a roving tab stop being accepted, a page with no tab stop at all, dragging with no alternative, an alternative claimed without being stated, a stated one, and a… |
 | A11Y-104 | Add zoom, text spacing, reflow, forced-colours, reduced-motion,… | 6 further contracts covering text a fixed box cuts off, a container whose children scroll being left alone, something clipped to a pixel for a screen reader being left alone, a control that looks identical focused and… |
 | PLAT-201 | Provide Docker Compose, container health checks, migrations, named… | the full lifecycle run recorded under DOC-903, which built both images from a clean state, started them, confirmed health, the served security policies, readable logs and the absence of any firmware in the image, ran a… |
+| PLAT-202 | Establish formatting, static analysis, type checks, unit/… | both refusals were proved by deliberate breakage rather than by reading the code — port 9137 was occupied by a foreign browser, and a profile directory was made unremovable. Each produced its own message and neither… |
 | PLAT-204 | Implement structured logging/correlation/redaction and baseline… | 7 observability contracts plus one that runs a **real BeebAsm build** and searches the bytes the logger actually wrote for the label, mnemonics and directives of the source it was given. Asserting that the redactor was… |
 | PLAT-205 | Integrate liveness/readiness and dependency/toolchain status into… | 6 readiness contracts, including one checked against a program that is certainly present in any environment the suite can run in at all, so the passing case is proved rather than assumed; plus 4 contracts on the status… |
 | PLAT-206 | Produce SBOM, dependency licence report, vulnerability scanning,… | 15 contracts covering every licence class, both connective forms, the -only and -or-later spellings, undetermined against none, unrecognised expressions not being assumed safe, each exclusion rule, evidence of presence… |
@@ -240,7 +241,6 @@ are listed rather than quietly counted.
 | A11Y-103 | Establish manual screen-reader matrix and recruit representative testers before feature… | not started |
 | UX-GATE | Stakeholders and accessibility reviewers accept an interactive prototype for desktop and… | not started |
 | PLAT-200 | Scaffold React/TypeScript/Vite client and supported PHP/Symfony services only after… | not started |
-| PLAT-202 | Establish formatting, static analysis, type checks, unit/ integration/E2E test commands,… | 15 of 16 parts done |
 | PLAT-203 | Generate typed client contracts from the accepted API description and add server/client… | not started |
 | EDT-209 | Implement context-aware completion for commands, opcodes, directives, keywords, labels,… | 5 of 6 parts done |
 | EDT-212 | Implement pointer-hover and keyboard-focus token help with syntax, definition,… | 4 of 5 parts done |

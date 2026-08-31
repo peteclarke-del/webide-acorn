@@ -230,7 +230,11 @@ final class ProjectStoreController
         });
     }
 
-    /** @param array<string, mixed> $body */
+    /**
+     * The decoded request body.
+     *
+     * @return array<string, mixed>
+     */
     private function payload(Request $request): array
     {
         $raw = $request->getContent();

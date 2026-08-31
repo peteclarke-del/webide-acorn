@@ -100,7 +100,7 @@ final class NativeProcessRunner
         $process->setTimeout(null);
         $deadline = microtime(true) + BuildLimits::stageSeconds();
         $timedOut = false;
-        $process->start(function (string $type, string $buffer) use (&$stdout, &$stderr, &$overflow, $process): void {
+        $process->start(function (string $type, string $buffer) use (&$stdout, &$stderr, &$overflow): void {
             $target = $type === Process::ERR ? $stderr : $stdout;
             $remaining = BuildLimits::LOG_BYTES - strlen($target);
             if ($remaining <= 0 || strlen($buffer) > $remaining) {
@@ -138,14 +138,17 @@ final class NativeProcessRunner
             'exitCode' => $process->getExitCode(),
             'stdout' => $stdout,
             'stderr' => $stderr,
-            'durationMs' => max(0.0, (hrtime(true) - $started) / 1_000_000),
+            'durationMs' => max(0.0, (hrtime(true) - $started) / 1_000_000.0),
             'argv' => $this->redactArgv($argv, $directory),
         ];
     }
 
-    /** @param list<string> $argv @return list<string> */
+    /**
+     * @param list<string> $argv
+     * @return list<string>
+     */
     private function redactArgv(array $argv, string $directory): array
     {
-        return array_map(static fn (string $argument): string => str_replace($directory, '<job>', $argument), $argv);
+        return array_values(array_map(static fn (string $argument): string => str_replace($directory, '<job>', $argument), $argv));
     }
 }

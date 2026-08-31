@@ -125,7 +125,7 @@ final class JobWorkspaceTest extends TestCase
             fclose($pipe);
         }
         $status = proc_get_status($writer);
-        if ($status['running'] ?? false) {
+        if ($status['running']) {
             proc_terminate($writer, SIGKILL);
         }
         proc_close($writer);

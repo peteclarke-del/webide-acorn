@@ -90,14 +90,17 @@ final class JobWorkspace
         /* A tool may leave a directory that cannot be read or traversed. Same
          * reasoning: it is this service's directory to repair. */
         @chmod($path, 0700);
-        try {
-            foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $item) {
-                $this->removeTree($item->getPathname(), $job, $unremoved);
-            }
-        } catch (\UnexpectedValueException) {
+        $entries = @scandir($path);
+        if ($entries === false) {
             $unremoved[] = $this->name($path, $job);
 
             return;
+        }
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $this->removeTree($path.'/'.$entry, $job, $unremoved);
         }
         if (!@rmdir($path)) {
             $unremoved[] = $this->name($path, $job);

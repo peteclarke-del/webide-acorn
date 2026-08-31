@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Build;
 
-use App\Observability\StructuredLogger;
-
 use App\Http\ApiProblem;
+
+use App\Observability\StructuredLogger;
 
 final class BeebAsmBuildService
 {

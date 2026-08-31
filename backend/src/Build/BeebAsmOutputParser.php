@@ -6,7 +6,10 @@ namespace App\Build;
 
 final class BeebAsmOutputParser
 {
-    /** @param list<array{id: string, name: string, content: string}> $files @return list<array<string, mixed>> */
+    /**
+     * @param list<array{id: string, name: string, content: string}> $files
+     * @return list<array<string, mixed>>
+     */
     public function diagnostics(string $output, array $files): array
     {
         $byName = array_combine(array_map(static fn (array $file): string => strtolower($file['name']), $files), $files);
@@ -34,7 +37,10 @@ final class BeebAsmOutputParser
         return $symbols;
     }
 
-    /** @param list<array{id: string, name: string, content: string}> $files @return array{origin: int|null, locations: array<int, array{fileId: string, fileName: string, line: int}>, listing: list<string>} */
+    /**
+     * @param list<array{id: string, name: string, content: string}> $files
+     * @return array{origin: int|null, locations: array<int, array{fileId: string, fileName: string, line: int}>, listing: list<string>}
+     */
     public function listing(string $output, array $files): array
     {
         $sources = [];
@@ -44,7 +50,7 @@ final class BeebAsmOutputParser
         $origin = null; $locations = []; $listing = [];
         foreach (preg_split('/\R/u', $output) ?: [] as $line) {
             if (!preg_match('/^\s*([0-9A-F]{4})\s+((?:[0-9A-F]{2}(?:\s+|$))+)(.*)$/i', $line, $match)) continue;
-            $address = hexdec($match[1]); $origin = $origin === null ? $address : min($origin, $address);
+            $address = (int) hexdec($match[1]); /* four hex digits, so never the float hexdec returns for a wider value */ $origin = $origin === null ? $address : min($origin, $address);
             $bytes = preg_split('/\s+/', trim($match[2])) ?: []; $source = trim($match[3]); $candidates = $sources[$this->normalize($source)] ?? [];
             $location = count($candidates) === 1 ? $candidates[0] : null;
             foreach ($bytes as $offset => $_byte) if ($location !== null) $locations[$address + $offset] = $location;

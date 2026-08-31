@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Build;
 
-use App\Tests\LogRecorder;
 use App\Build\ArmBuildManifest;
 use App\Build\ArmBuildService;
 use App\Build\ArmOutputParser;
 use App\Build\ArmSourcePolicy;
-use App\Build\NativeBuildRequest;
 use App\Build\JobWorkspace;
+use App\Build\NativeBuildRequest;
 use App\Build\NativeProcessRunner;
+use App\Tests\LogRecorder;
 use App\Tests\ToolchainEnvironment;
 use PHPUnit\Framework\TestCase;
 
@@ -80,7 +80,12 @@ final class ArmBuildServiceTest extends TestCase
         self::assertSame('gnu.arm-none-eabi-binutils', $first['result']['invocation']['adapterId']);
         self::assertSame('arm-binary', $first['artifact']['kind']); self::assertSame('arm2', $first['artifact']['processor']);
         self::assertSame(0x8000, $first['artifact']['entryPoint']); self::assertSame('main', $first['artifact']['sourceLocations'][0x8000]['fileId']);
-        self::assertSame(12, strlen(base64_decode($first['artifact']['bytesBase64'], true)));
+        $decoded = base64_decode($first['artifact']['bytesBase64'], true);
+        /* Asserted rather than assumed: strict base64_decode returns false on
+         * anything that is not base64, and a length taken from false would be
+         * a length taken from nothing. */
+        self::assertIsString($decoded, 'The artifact bytes were not valid base64.');
+        self::assertSame(12, strlen($decoded));
         self::assertSame($first['artifact']['bytesBase64'], $second['artifact']['bytesBase64']);
         self::assertContains('ELF and ARM attributes', array_column($first['documents'], 'label'));
         self::assertFalse($first['provenance']['toolchain']['output']['riscOsApplication']);

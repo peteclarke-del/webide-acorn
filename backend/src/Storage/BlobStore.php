@@ -104,7 +104,11 @@ final class BlobStore
         return $size === false ? 0 : $size;
     }
 
-    /** Every digest held, for collection and for accounting. */
+    /**
+     * Every digest held, for collection and for accounting.
+     *
+     * @return list<string>
+     */
     public function digests(): array
     {
         $found = [];

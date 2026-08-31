@@ -63,7 +63,10 @@ final class BeebAsmSourcePolicy
         throw new ApiProblem(400, 'BEEBASM_ROOT_MISSING', 'BeebAsm root source is missing.');
     }
 
-    /** @param array<string, list<string>> $edges @param array<string, true> $path */
+    /**
+     * @param array<string, list<string>> $edges
+     * @param array<string, true> $path
+     */
     private function assertAcyclic(string $file, array $edges, array $path): void
     {
         if (isset($path[$file])) throw new ApiProblem(400, 'BEEBASM_INCLUDE_CYCLE', 'BeebAsm INCLUDE graph contains a cycle at '.$file.'.');

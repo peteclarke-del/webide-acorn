@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Build;
 
-use App\Tests\LogRecorder;
 use App\Build\BeebAsmBuildService;
 use App\Build\BeebAsmManifest;
 use App\Build\BeebAsmOutputParser;
 use App\Build\BeebAsmSourcePolicy;
-use App\Build\NativeBuildRequest;
 use App\Build\JobWorkspace;
+use App\Build\NativeBuildRequest;
 use App\Build\NativeProcessRunner;
+use App\Tests\LogRecorder;
 use App\Tests\ToolchainEnvironment;
 use PHPUnit\Framework\TestCase;
 

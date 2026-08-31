@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Build;
 
-use App\Observability\StructuredLogger;
-
 use App\Http\ApiProblem;
+
+use App\Observability\StructuredLogger;
 
 final class CBuildService
 {
@@ -236,7 +236,11 @@ CFG;
         return $starts ? min($starts) : $fallback;
     }
 
-    /** @param array<int, array{fileId: string, fileName: string, line: int}> $locations @param list<array{id: string, name: string, content: string}> $files @return list<string> */
+    /**
+     * @param array<int, array{fileId: string, fileName: string, line: int}> $locations
+     * @param list<array{id: string, name: string, content: string}> $files
+     * @return list<string>
+     */
     private function listingRows(string $bytes, int $origin, array $locations, array $files): array
     {
         $contents = [];

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Build;
 
-use App\Tests\LogRecorder;
 use App\Build\Cc65OutputParser;
+use App\Build\JobWorkspace;
 use App\Build\NativeBuildRequest;
 use App\Build\NativeBuildService;
-use App\Build\JobWorkspace;
 use App\Build\NativeProcessRunner;
 use App\Build\SourcePolicy;
 use App\Build\ToolchainManifest;
+use App\Tests\LogRecorder;
 use PHPUnit\Framework\TestCase;
 
 final class NativeBuildServiceTest extends TestCase

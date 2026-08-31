@@ -31,6 +31,7 @@ final class ProjectStoreControllerTest extends TestCase
         return $found;
     }
 
+    /** @return array<string, array{int, bool}> */
     private function mapping(): array
     {
         $reflection = new \ReflectionClass(ProjectStoreController::class);

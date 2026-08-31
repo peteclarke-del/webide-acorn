@@ -192,7 +192,11 @@ final class ProjectStore
         return $found;
     }
 
-    /** The files of one revision, by name, with their bytes read back and checked. */
+    /**
+     * The files of one revision, by name, with their bytes read back and checked.
+     *
+     * @return array<string, string>
+     */
     public function read(string $owner, string $projectId, string $revisionId): array
     {
         foreach ($this->revisions($owner, $projectId) as $revision) {
@@ -325,7 +329,11 @@ final class ProjectStore
         return $found;
     }
 
-    /** What this owner is using, against what it may use. */
+    /**
+     * What this owner is using, against what it may use.
+     *
+     * @return array{owner: string, projects: int, revisions: int, bytes: int, limits: array<string, int>}
+     */
     public function usage(string $owner): array
     {
         $projects = $this->projects($owner);
