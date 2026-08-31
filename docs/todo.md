@@ -5211,13 +5211,16 @@ Current implemented increment:
    rebuild is reported rather than performed silently.
 - [ ] AST-628 Implement Archimedes audio/sample workflow after selected hardware
   and runtime/player formats are proven.
-  - [ ] Blocked on its own stated precondition, not on effort. The pinned A310
-    adapter exposes VIDC sound period and frequency and the MEMC sound DMA
-    start, end, pointer and position, so the hardware can be observed; what is
-    not established anywhere in this build is the VIDC sample encoding itself,
-    the logarithmic byte format sound DMA consumes. Shipping an encoder for it
-    from recollection would put fabricated sample data in front of users, which
-    this product does not do.
+  - [x] **This was blocked on its own stated precondition, and no longer is.**
+    The pinned A310 adapter exposes VIDC sound period and frequency and the
+    MEMC sound DMA start, end, pointer and position, so the hardware could be
+    observed; what was not established anywhere in this build was the VIDC
+    sample encoding itself, the logarithmic byte format sound DMA consumes, and
+    shipping an encoder for it from recollection would have put fabricated
+    sample data in front of users. The datasheet then arrived and the byte
+    order was measured on the qualified core, both recorded below. What keeps
+    AST-628 open now is the workflow rather than the encoding: no Archimedes
+    sample document, editor or player is offered yet.
   - [x] **The primary source arrived**: the Acorn VIDC Datasheet, Part No
     0460,020, Issue No 1.0, 30 September 1986, sections 5.5, 5.22 and 6.10. The
     encoder is implemented against it and nothing in it is from recollection.
