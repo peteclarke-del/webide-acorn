@@ -5031,8 +5031,41 @@ Current implemented increment:
     nothing listened. And a screen assertion covering more than 65,536 pixels
     made a plan invalid in a way the headless runner reported as an export
     timeout; it now names the plan, the reason and the remedy.
-- [ ] TST-503 Implement input record/edit/replay for keyboard, joystick/gamepad,
+- [x] TST-503 Implement input record/edit/replay for keyboard, joystick/gamepad,
   mouse, analogue, reset, delay, media, and emulator events.
+  - [x] **Every device can now be recorded, not only typed in.** The first
+    slice recorded host keys and let the rest be entered by hand, which is the
+    difference between a feature and a form: nobody writes a joystick gesture
+    by filling in axis values. A gamepad and the pointer are now captured live,
+    each with its own control, because what is being recorded decides what a
+    stray movement means — a pointer crossing the panel while keys are being
+    recorded is not input.
+  - [x] Recording is not sampling, and the reductions are the whole design. A
+    gamepad has no events at all — the browser reports its state only when
+    asked — so it is polled and only a change is written down; recording every
+    frame would fill the 256-action budget in four seconds with entries saying
+    nothing happened. A pointer has the opposite problem, hundreds of events a
+    second, so it is sampled ten times a second: fast enough for a deliberate
+    movement, slow enough that crossing the panel does not exhaust the script.
+  - [x] Releases are emitted before presses. A machine reads one joystick state
+    at a time, and replaying a press before the release it replaced would hold
+    two opposed directions at once — a state the hardware cannot be in and one
+    a program may well act on.
+  - [x] The gamepad reader and its dead zone are the ones the live joystick
+    path already uses, so a recording and a live session agree about when a
+    stick is held. A pointer that leaves the surface records the edge it left
+    by rather than a value outside the range or a hole in the script, and a
+    panel that has not been laid out yet records nothing rather than putting a
+    NaN in somebody's test. When the script is full the newest is dropped
+    rather than the oldest, because a recording that discarded its own
+    beginning would replay something the person never did.
+  - [x] Evidence: 11 contracts in `src/testing/inputRecording.test.ts` covering
+    only-what-changed, release-before-press, several directions changing at
+    once, the sixteen-bit scaling and its clamp, both pointer buttons, a
+    zero-size surface, the sample interval, and all three budget cases. The
+    reductions were extracted from the panel into their own module so that what
+    a recording means can be checked without a browser, a controller or a
+    hand.
   The first deterministic input slice records bounded host key down/up actions,
   edits their order and deletion, adds exact emulated-cycle delays and hard
   resets, persists them in the versioned test target and replays them through

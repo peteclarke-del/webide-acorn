@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 169 |
-| Complete and traced | 97 |
+| Complete | 170 |
+| Complete and traced | 98 |
 | Complete and described | 64 |
 | Complete and untraced | 8 |
-| Open | 125 |
+| Open | 124 |
 
 ## By area
 
@@ -52,7 +52,7 @@ is the part a machine can settle.
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 3 | 3 | 0 | 0 |
 | PLAT | 7 | 5 | 5 | 0 | 0 |
-| TST | 7 | 5 | 1 | 4 | 0 |
+| TST | 7 | 6 | 2 | 4 | 0 |
 | PRF | 6 | 6 | 5 | 1 | 0 |
 | SEC | 5 | 3 | 3 | 0 | 0 |
 | ASSET | 1 | 0 | 0 | 0 | 0 |
@@ -147,6 +147,7 @@ are listed rather than quietly counted.
 | DBG-545 | Implement ARM VIDC/MEMC/IOC/DMA/interrupt/timer/sound/video/storage/… | Covered by 3 ARM memory-map contracts and 3 ARM state contracts for the MEMC and VIDC reads, with the hardware-inspector contracts covering the register file presentation. |
 | DBG-546 | Implement register bitfields/change highlighting, raster timeline,… | 2 raster-timeline contracts and the hardware-inspector contracts cover bitfields, change highlighting and the links into trace, disassembly and memory. |
 | DBG-547 | Implement profiler for cycles/frame/symbol/function/hotspots,… | 3 profiler-model contracts cover cycle aggregation by mapped program counter, the bounded opt-in behaviour and export. |
+| TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad,… | 11 contracts in `src/testing/inputRecording.test.ts` covering only-what-changed, release-before-press, several directions changing at once, the sixteen-bit scaling and its clamp, both pointer buttons, a zero-size… |
 | TST-505 | Implement golden provenance/update approval and tight image/audio… | 25 module contracts and 7 on the approval panel, including that an approval with a two-character reason is refused, that a golden from another machine is marked as unable to settle the question, that a difference is… |
 | AST-INC-02 | Replace the browser-only draft with a validated schema-1… | 7 pixel-asset document contracts, 15 assembly pixel-data contracts, 7 packing contracts and 4 selection contracts, with 25 codec property tests round-tripping every byte value through both packings rather than through… |
 | AST-INC-04 | Make editable assets real build dependencies. The bounded… | 12 project-assembler contracts covering the INCLUDEASSET directive, its validation, the generated output and its place in source provenance and fingerprints, with 3 artifact-document contracts and 1 digest contract for… |
@@ -265,7 +266,6 @@ are listed rather than quietly counted.
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
 | EMU-GATE | Two 8-bit slices and one scoped ARM slice can run exact resolved profiles with correct… | not started |
-| TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad, mouse, analogue,… | not started |
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 15 of 16 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
 | ASSET-GATE | Character/object, screen/palette, tile/block, map, and target- appropriate sound assets… | not started |

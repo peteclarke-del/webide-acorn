@@ -180,6 +180,7 @@ import { validateArmRegisterEdit } from './emulator/armRegisterEditModel';
 import { parseArmMemoryEditBytes, validateArmMemoryEdit } from './emulator/armMemoryEditModel';
 import { compressArmMemoryMap, type ArmMappedPage, type ArmMappedRegion } from './emulator/armMemoryMapModel';
 import { describeProgress } from './analysis/analysisProgress';
+import { appendRecorded, gamepadTransitions, pointerSample, shouldSamplePointer } from './testing/inputRecording';
 import { adfsGeometryFor, adfsMountRefusal } from './media/adfsGeometry';
 import { capturedMemoryMetadata, capturedMemoryName, type CapturedMemoryContext } from './analysis/capturedMemoryContext';
 
@@ -199,6 +200,11 @@ function capturedMemoryFrom(memory: MachineMemory, space: { banked?: boolean }, 
   };
 }
 
+/* The dead zone the live joystick path uses, so a recording and a live
+ * session agree about when a stick is held. */
+const GAMEPAD_RECORD_DEAD_ZONE = 0.35;
+/* What each recorder captures, in the words shown on its own control. */
+const RECORDER_LABELS = { keys: 'host keys', gamepad: 'gamepad', pointer: 'pointer' } as const;
 const workspaceTabs = ['Code', 'Search', 'Analyse', 'Build targets', 'Media', 'Debugger', 'Tests', 'Research', 'Settings', 'Help'];
 const workspaceHelpTopics: Record<string, string> = {
   Code: 'editor', Search: 'projects', Analyse: 'analysis', 'Build targets': 'build-targets', Media: 'media', Tests: 'tests', Research: 'research', Settings: 'rom-import', Help: 'using-help', Characters: 'assets', Sprites: 'assets', Tiles: 'assets', Maps: 'assets', Sound: 'assets', Samples: 'assets',
@@ -3600,7 +3606,10 @@ function TestInputEditor({
   plan: TargetTestPlan;
   onChange: (id: string, update: Partial<TargetTestPlan>) => void;
 }) {
-  const [recording, setRecording] = useState(false);
+  /* What the recorder is capturing. Keys were the first slice; a gamepad and
+   * the pointer are recorded the same way, because a test that can only be
+   * given a joystick position by typing it in is a test nobody writes. */
+  const [recording, setRecording] = useState<'off' | 'keys' | 'gamepad' | 'pointer'>('off');
   const [delayCycles, setDelayCycles] = useState("1000");
   const [gamepadAction, setGamepadAction] = useState<GamepadAction>("fire1");
   const [gamepadCode, setGamepadCode] = useState(90);
@@ -3635,7 +3644,7 @@ function TestInputEditor({
     | "mount-initial-tape"
   >("eject-disc-0");
   useEffect(() => {
-    if (!recording) return;
+    if (recording !== 'keys') return;
     const capture = (event: KeyboardEvent) => {
       if (
         event.repeat ||
@@ -3659,6 +3668,71 @@ function TestInputEditor({
       window.removeEventListener("keyup", capture, true);
     };
   }, [onChange, plan.id, plan.inputs, recording]);
+
+  /*
+   * Recording a real controller.
+   *
+   * A gamepad has no events — the browser only reports its state when asked —
+   * so it is polled, and only a change is written down. Recording the state on
+   * every frame would fill the two-hundred-and-fifty-six input budget in four
+   * seconds with entries that say nothing happened.
+   */
+  useEffect(() => {
+    if (recording !== 'gamepad') return;
+    let recorded: string | null = null;
+    let frame = 0;
+    const poll = () => {
+      frame = requestAnimationFrame(poll);
+      const pad = navigator.getGamepads?.().find((candidate) => candidate) ?? null;
+      if (!pad) return;
+      /* The same reader the live joystick path uses, with the same dead zone,
+       * so a recording and a live session agree about what is held. */
+      const down = activeGamepadActions(pad, GAMEPAD_RECORD_DEAD_ZONE);
+      const pressed = GAMEPAD_ACTIONS.filter((action) => down.has(action.id)).map((action) => action.id);
+      const signature = pressed.join(',');
+      if (signature === recorded) return;
+      const previous: GamepadAction[] = recorded === null ? [] : recorded.split(',').filter(Boolean) as GamepadAction[];
+      recorded = signature;
+      const entries = gamepadTransitions(previous, pressed, validateMachineTapCode(gamepadCode));
+      if (!entries.length) return;
+      onChange(plan.id, { inputs: appendRecorded(plan.inputs, entries) });
+    };
+    frame = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(frame);
+  }, [gamepadCode, onChange, plan.id, plan.inputs, recording]);
+
+  /*
+   * Recording the pointer as the analogue joystick it is mapped to.
+   *
+   * The position is taken relative to the element it moved over and scaled to
+   * the sixteen-bit range the machine reads, inverted the way the real
+   * converter is. Movement is sampled rather than taken from every event: a
+   * pointer produces hundreds of events a second and a test wants the few that
+   * matter.
+   */
+  useEffect(() => {
+    if (recording !== 'pointer') return;
+    let last = 0;
+    const capture = (event: PointerEvent) => {
+      const now = event.timeStamp;
+      if (!shouldSamplePointer(last, now)) return;
+      last = now;
+      const target = event.currentTarget as HTMLElement | null;
+      const box = target?.getBoundingClientRect();
+      if (!box) return;
+      const sample = pointerSample(box, { clientX: event.clientX, clientY: event.clientY, buttons: event.buttons });
+      if (!sample) return;
+      onChange(plan.id, { inputs: appendRecorded(plan.inputs, [sample]) });
+    };
+    const surface = window.document.querySelector('.test-input-surface');
+    surface?.addEventListener('pointermove', capture as EventListener);
+    surface?.addEventListener('pointerdown', capture as EventListener);
+    return () => {
+      surface?.removeEventListener('pointermove', capture as EventListener);
+      surface?.removeEventListener('pointerdown', capture as EventListener);
+    };
+  }, [onChange, plan.id, plan.inputs, recording]);
+
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction;
     if (target < 0 || target >= plan.inputs.length) return;
@@ -3733,17 +3807,23 @@ function TestInputEditor({
         <strong>Deterministic input script</strong>
         <span>
           {plan.inputs.length}/256 actions ·{" "}
-          {recording ? "recording host keys" : "ready"}
+          {recording === "off" ? "ready" : `recording ${RECORDER_LABELS[recording]}`}
         </span>
       </summary>
-      <div className="test-input-actions">
-        <button
-          type="button"
-          aria-pressed={recording}
-          onClick={() => setRecording((value) => !value)}
-        >
-          {recording ? "Stop recording" : "Record key input"}
-        </button>
+      <div className="test-input-actions test-input-surface">
+        {/* One recorder per device rather than one switch, because what is
+            being captured decides what a stray movement means: a pointer moved
+            across the panel while keys are being recorded is not input. */}
+        {(["keys", "gamepad", "pointer"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={recording === mode}
+            onClick={() => setRecording((value) => (value === mode ? "off" : mode))}
+          >
+            {recording === mode ? `Stop recording ${RECORDER_LABELS[mode]}` : `Record ${RECORDER_LABELS[mode]}`}
+          </button>
+        ))}
         <label>
           <span>Delay cycles</span>
           <input
