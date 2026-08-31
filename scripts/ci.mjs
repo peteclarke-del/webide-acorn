@@ -16,6 +16,7 @@
  * skipped stage fails it too unless `--allow-skips` is given, so a pipeline
  * cannot drift into checking less than it thinks it does.
  */
+import { readComposerAudit, readNpmAudit, scanFindings, scanSummary } from './securityScan.mjs';
 import { spawn } from 'node:child_process';
 import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -195,6 +196,29 @@ async function phpstanLevel() {
   if (!level) throw new Error('backend/phpstan.neon declares no analysis level, so nothing says how strictly it was checked');
   return level[1];
 }
+
+/* Dependencies checked against what is known about them today.
+ *
+ * Unlike every other stage, this one fails because the world changed rather
+ * than because this repository did: a package that was clean this morning can
+ * carry a critical advisory this afternoon with nothing here having moved. So
+ * the threshold sits where somebody would actually act — high and critical
+ * fail, moderate and low are reported — and the summary always names the scans
+ * that did not run, because a security stage reporting only its own scope
+ * would read as a clean bill of health for all of SEC-901.
+ */
+await stage('security', async () => {
+  const npmAudit = await run('npm', ['audit', '--json']);
+  /* npm exits non-zero when it finds anything at all, including the low
+   * findings this stage deliberately does not fail on, so the document is what
+   * is read rather than the exit code. */
+  const npm = readNpmAudit(npmAudit.output);
+  const composerAudit = await run('composer', ['audit', '--format=json'], { cwd: join(root, 'backend') });
+  const composer = readComposerAudit(composerAudit.output);
+  const findings = scanFindings(npm, composer);
+  if (findings.length) throw new Error(findings.join(' '));
+  return { detail: scanSummary(npm, composer) };
+});
 
 await stage('build', async () => {
   expectSuccess(await run('npx', ['vite', 'build']), 'Production build');

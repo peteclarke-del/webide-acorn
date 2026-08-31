@@ -260,7 +260,7 @@ are listed rather than quietly counted.
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
-| EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 21 of 27 parts done |
+| EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 22 of 28 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
@@ -282,7 +282,7 @@ are listed rather than quietly counted.
 | OPS-905 | Run backup/restore and disaster-recovery exercise; record RPO/RTO evidence, integrity… | not started |
 | OPS-906 | Verify migration deploy/rollback or roll-forward procedure and compatibility across… | not started |
 | SEC-900 | Resolve threat-model controls and rerun abuse cases for builds, parsers, emulators,… | not started |
-| SEC-901 | Run SAST, dependency/container/secret/licence scans, SBOM review, DAST, fuzz/property… | not started |
+| SEC-901 | Run SAST, dependency/container/secret/licence scans, SBOM review, DAST, fuzz/property… | 4 of 5 parts done |
 | A11Y-900 | Complete automated and manual WCAG 2.2 AA audit of J-01–J-08 in dark/light/high-contrast,… | not started |
 | A11Y-901 | Resolve all A/AA blockers and document any AAA enhancements. | not started |
 | A11Y-902 | Verify structured alternatives for graphics, map, waveform, memory, trace, profiler, and… | 3 of 4 parts done |

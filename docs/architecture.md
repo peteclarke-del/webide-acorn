@@ -125,9 +125,9 @@ Three layers, and each exists because the other two cannot answer its question.
   person drives them.
 - **The release gate** — `npm run ci`. Types, help integrity, the whole test
   suite with its coverage floors, the backend suite, PHPStan and the PHP
-  formatter, the production build, vendored-file provenance, repository
-  hygiene, and a headless Chromium run against the built artefact under the
-  shipped security headers.
+  formatter, a dependency vulnerability scan of both halves, the production
+  build, vendored-file provenance, repository hygiene, and a headless Chromium
+  run against the built artefact under the shipped security headers.
 
 The browser stage is where layout, policy and accessibility are settled, because
 none of them is decidable without a rendering engine.

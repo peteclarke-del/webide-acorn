@@ -985,7 +985,8 @@ npm run build
 - One release gate, `npm run ci`, is the single definition of what must pass:
   the TypeScript build, help verification, the whole test suite against its
   coverage floors, the backend suite against the real assemblers, PHPStan at
-  level 8 with the PHP formatter in check mode, the production build, the
+  level 8 with the PHP formatter in check mode, a dependency vulnerability scan
+  that names what it does not scan, the production build, the
   vendored GPL provenance, an executable check that no firmware or media image
   is tracked, and a headless browser smoke that boots the built workbench and
   fails on any console error. No test is allowed to skip: the gate fails if any test in

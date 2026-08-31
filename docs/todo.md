@@ -6415,6 +6415,42 @@ Current implemented increment:
   parsers, emulators, storage, sharing, references, and administration.
 - [ ] SEC-901 Run SAST, dependency/container/secret/licence scans, SBOM review,
   DAST, fuzz/property suites, and independent penetration test.
+  - [x] Most of what this asks for was already running under other names, and
+    saying so is part of the answer: PHPStan at level 8 is the PHP static
+    analysis, the `hygiene` stage is the secret scan, `licenceCompliance` and
+    the SBOM are their own stages with their own contracts, and the property
+    and adversarial-performance suites are the fuzzing. What was missing was
+    the check that goes stale fastest.
+  - [x] A `security` stage now scans the dependencies of both halves — `npm
+    audit` and `composer audit` — on every gate run. It is unlike every other
+    stage in one way that governs its design: the rest fail because this
+    repository changed, and this one fails because the world did. A package
+    clean this morning can carry a critical advisory this afternoon with
+    nothing here having moved. So the threshold sits where somebody would
+    actually act: high and critical fail, moderate and low are reported and do
+    not, and the exit code of `npm audit` is ignored in favour of reading its
+    document, because it exits non-zero for findings this stage deliberately
+    tolerates.
+  - [x] The stage names what it does not scan, every run. A security stage that
+    reported only its own scope would read as a clean bill of health for all of
+    SEC-901, so the container scan, DAST and the penetration test are listed
+    with reasons rather than omitted, and the count appears in the summary line
+    so they cannot go quiet.
+  - [x] Evidence: 10 contracts in `scripts/securityScan.test.ts` covering both
+    scanner documents and the refusal to read an unreadable one — a scanner
+    that produced nothing must not read as one that found nothing — each
+    failing severity raising a finding with its remedy, each reported severity
+    raising none, composer advisories and abandoned packages, and every
+    unscanned area carrying a reason. Current state: no high or critical
+    advisories across either dependency tree.
+  - [ ] **Needs tools this environment does not have, or people.** A container
+    scan needs `trivy` or `grype` run against the built images, which belongs
+    in the release workflow rather than here. DAST needs the application behind
+    a scanner; the gate boots the built workbench under its shipped security
+    headers and fails on any policy violation, which is a narrow slice of the
+    same idea and is explicitly not claimed as DAST. And the penetration test
+    is required to be *independent*, which nothing this repository runs against
+    itself can satisfy however thorough — that needs commissioning.
 - [x] SEC-902 Verify CSP, worker/frame origins, message validation, CSRF, XSS,
   content disposition, upload types, archive containment, WebSocket origin/auth,
   authorization, rate/quota limits, and log redaction.
