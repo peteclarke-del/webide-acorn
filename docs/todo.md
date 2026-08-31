@@ -6052,9 +6052,59 @@ Current implemented increment:
   tenant-safe drill-down and runbooks.
 - [ ] OPS-901 Load-test API, job queues, sandboxes, object storage, WebSockets,
   trace streaming, cloud sync, and reference search to accepted SLO/capacity.
-- [ ] OPS-902 Benchmark application startup, edit latency, live diagnostics,
+- [x] OPS-902 Benchmark application startup, edit latency, live diagnostics,
   build, emulator input/frame/audio, debugger acknowledgement, trace, and asset
   canvases across supported browsers/hardware classes.
+  - [x] `npm run benchmark` builds the workbench, opens a benchmark page in
+    every browser this machine can produce, and writes `docs/benchmarks.json`
+    and `docs/benchmarks.md`. Six cases cover startup, edit latency, live
+    diagnostics, build, trace filtering and an asset canvas; each names the
+    operation somebody actually performs and says what a regression there would
+    do to them, because a number with no consequence attached is one nobody
+    will defend.
+  - [x] **The page reports by posting its results back, not over a debugging
+    protocol.** Chromium speaks CDP, Firefox speaks WebDriver BiDi and Safari
+    speaks neither, so a harness built on a protocol measures whichever browser
+    that protocol belongs to and calls the result a matrix. A POST works in all
+    of them and needs no client at all.
+  - [x] Startup is measured by loading the real built `index.html` in a frame
+    and waiting for its application shell, rather than by mounting a component
+    in the harness. The number worth knowing is what the product costs, not
+    what one of its parts costs, and the wait a person experiences ends when
+    something is on screen rather than when the load event fires.
+  - [x] **Firefox cost an afternoon and the reason is written down.** A
+    packaged Firefox — the snap here, and Flatpak the same way — is confined and
+    cannot see a profile directory under the system temporary path. Given one it
+    does not fail: it starts, ignores the profile, writes nothing and exits a
+    few seconds later, which from outside is indistinguishable from a browser
+    that ran and reported nothing. The profile now goes somewhere the
+    confinement allows, and the harness says why rather than carrying a magic
+    path.
+  - [x] Ceilings are set from the measurements rather than chosen, for the same
+    reason the coverage floors are: a number picked in advance is a wish, and a
+    number taken from what is already true is a guard against it getting worse.
+    They sit at roughly ten times the slower engine's figure, because a suite
+    that failed on a loaded laptop would be switched off within a week.
+  - [x] What is not measured is named. Safari is declared and cannot be run
+    here — WebKit's browser does not run on Linux, and another WebKit reported
+    under Safari's name would be a different measurement wearing the same
+    label. The emulator and debugger areas need a booted machine, which needs
+    firmware, and no firmware may enter this repository or its image (SEC-903);
+    they are measured with the conformance suite where firmware is supplied.
+    Every one of those carries its reason in the report, because an unmeasured
+    area with nothing beside it reads as an area that was fine.
+  - [x] The measurements need browsers, so refreshing the report is deliberate
+    — as approving a golden is — and what runs on every commit is the contract
+    on the checked-in report: that it is the shape the suite writes, that every
+    figure is inside its ceiling, that every declared browser is accounted for
+    measured or not, and that more than one engine is covered, or it is one
+    browser wearing the word matrix.
+  - [x] Evidence: 11 contracts in `scripts/benchmarks.test.ts`, including each
+    of the three kinds of finding produced deliberately — a figure over its
+    ceiling, a case that produced nothing, and a case that is absent — because
+    a check that cannot fail is not a check. The checked-in report covers Blink
+    (Chrome 152) and Gecko (Firefox 154) on an eight-processor workstation,
+    twelve measurements, all within budget.
 - [x] OPS-903 Enforce and exercise size/concurrency/retention limits with clear
   user errors and no partial corruption.
   - [x] The limits were already enforced, each in the module that owns it. What

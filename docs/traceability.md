@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 165 |
-| Complete and traced | 94 |
+| Complete | 166 |
+| Complete and traced | 95 |
 | Complete and described | 63 |
 | Complete and untraced | 8 |
-| Open | 129 |
+| Open | 128 |
 
 ## By area
 
@@ -50,7 +50,7 @@ is the part a machine can settle.
 | A11Y | 9 | 4 | 4 | 0 | 0 |
 | PRJ | 9 | 9 | 6 | 3 | 0 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
-| OPS | 7 | 2 | 2 | 0 | 0 |
+| OPS | 7 | 3 | 3 | 0 | 0 |
 | PLAT | 7 | 5 | 5 | 0 | 0 |
 | TST | 7 | 5 | 1 | 4 | 0 |
 | PRF | 6 | 6 | 5 | 1 | 0 |
@@ -165,6 +165,7 @@ are listed rather than quietly counted.
 | CLD-803 | Implement explicit local/cloud modes and migration without account… | 10 client contracts covering absence, refusal, a malformed answer and non-ASCII content round-tripping, and 8 panel contracts driving the real panel through copying up, colliding, and taking a revision back. |
 | CLD-804 | Implement sync state machine, offline queue, reconnect, text merge,… | 11 merge contracts, 15 sync-model contracts and 11 panel contracts, including that diverged appears exactly when both sides moved, that a project which vanished from the store is diverged rather than untracked, and that… |
 | CLD-808 | Implement user/project export and deletion with tested retention,… | 6 further store contracts and the whole path exercised against the running container — an unconfirmed delete refused with the remedy, a confirmed one returning its tombstone, the tombstone listed afterwards, and the… |
+| OPS-902 | Benchmark application startup, edit latency, live diagnostics, build,… | 11 contracts in `scripts/benchmarks.test.ts`, including each of the three kinds of finding produced deliberately — a figure over its ceiling, a case that produced nothing, and a case that is absent — because a check… |
 | OPS-903 | Enforce and exercise size/concurrency/retention limits with clear… | 12 register and boundary contracts, and 5 panel contracts driving the real Settings surface — every limit shown and grouped, each row carrying its value, reason and behaviour, byte values written in the unit a person… |
 | OPS-904 | Test cancellation, worker/browser crash, dependency outage,… | 16 resilience contracts covering all of the above, alongside the existing cancellation, timeout and abort-signal contracts in the analysis worker client and the build runner. |
 | SEC-902 | Verify CSP, worker/frame origins, message validation, CSRF, XSS,… | 8 header contracts covering both shipped policies, every refusal, the explained-difference register, and the document policy being stricter; 1 source-wide contract on message-origin checking; and the live policy check… |
@@ -279,7 +280,6 @@ are listed rather than quietly counted.
 | CLOUD-GATE | The entire core remains usable locally; authenticated users can sync, revise, compare,… | not started |
 | OPS-900 | Implement dashboards and alerts for every NFR-007 metric with tenant-safe drill-down and… | not started |
 | OPS-901 | Load-test API, job queues, sandboxes, object storage, WebSockets, trace streaming, cloud… | not started |
-| OPS-902 | Benchmark application startup, edit latency, live diagnostics, build, emulator… | not started |
 | OPS-905 | Run backup/restore and disaster-recovery exercise; record RPO/RTO evidence, integrity… | not started |
 | OPS-906 | Verify migration deploy/rollback or roll-forward procedure and compatibility across… | not started |
 | SEC-900 | Resolve threat-model controls and rerun abuse cases for builds, parsers, emulators,… | not started |

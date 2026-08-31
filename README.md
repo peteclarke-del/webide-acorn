@@ -975,6 +975,13 @@ npm run build
   export and import as a versioned document that validates each entry on its own
   and preserves entries a newer build wrote; projects, firmware, test history
   and asset drafts are never included, and an import cannot smuggle one back in.
+- Benchmarks that say what they did not measure. `npm run benchmark` opens the
+  built workbench in every browser the machine can produce and records startup,
+  edit latency, live diagnostics, build, trace filtering and an asset canvas
+  against ceilings taken from what is already true rather than chosen. Safari
+  cannot be run on Linux and the emulator areas need firmware that may not enter
+  this repository; each is named with its reason, because an unmeasured area
+  with nothing beside it reads as an area that was fine.
 - One release gate, `npm run ci`, is the single definition of what must pass:
   the TypeScript build, help verification, the whole test suite against its
   coverage floors, the backend suite against the real assemblers, PHPStan at

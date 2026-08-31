@@ -1,13 +1,26 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
+/*
+ * The benchmark page is built only when it is asked for, and into its own
+ * directory.
+ *
+ * It is a measuring instrument rather than part of the product: shipping it
+ * would put a page in the image that nobody navigates to, and the startup it
+ * measures is the startup of the real `index.html` beside it, so it has to be
+ * built together with the workbench rather than against it.
+ */
+const benchmark = process.env.BENCHMARK_OUTPUT_DIR;
+
 export default defineConfig({
   plugins: [react()],
   build: {
+    ...(benchmark ? { outDir: benchmark, emptyOutDir: true } : {}),
     rollupOptions: {
       input: {
         workbench: 'index.html',
         emulator: 'emulator.html',
+        ...(benchmark ? { benchmark: 'benchmark.html' } : {}),
       },
       output: {
         manualChunks(id) {

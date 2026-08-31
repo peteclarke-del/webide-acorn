@@ -27,6 +27,7 @@ That split is the central architectural decision and it is deliberate:
 | Directory | What lives there |
 | --- | --- |
 | `src/analysis` | Disassembly, annotation, coverage correlation and export. Reads bytes; never executes them. |
+| `src/benchmark` | What is measured, what is deliberately not, and the operations a benchmark run performs. It is built only when the benchmark asks for it and never ships. |
 | `src/assets` | The editable asset documents — pixels, palettes, fonts, tile maps, screens, songs — and their generators. |
 | `src/build` | The toolchain registry, the browser-local 6502 assembler and BASIC tokeniser, the build graph and the native adapter. |
 | `src/cloud` | Talking to the project store, and reporting honestly when there is none. Local mode does not depend on any of it. |
@@ -140,7 +141,13 @@ npm run typecheck    # everything, tests included
 npm test             # the suite
 npm run ci           # the full release gate
 npm run ci types     # one stage, by name
+npm run benchmark    # measure the workbench in every browser this machine has
 ```
+
+`npm run benchmark` rewrites `docs/benchmarks.json` and `docs/benchmarks.md`.
+It needs browsers, so it is run deliberately rather than in the gate; what the
+gate runs is the contract on the checked-in report, which fails if any figure
+is outside its ceiling or any declared browser is unaccounted for.
 
 The backend's own tools are `composer analyse` for PHPStan and
 `composer format` to apply the formatting the gate checks.
