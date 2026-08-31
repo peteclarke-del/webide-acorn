@@ -4264,13 +4264,29 @@ Current implemented increment:
     so a negative coordinate indexed `electron_screen` below its start; on a
     native heap that writes into whatever sits in front of it and is never
     noticed, and WebAssembly traps it.
-  - [ ] **One fault remains, precisely located.** Execution traps with
-    `memory access out of bounds` inside `yield`, the ULA's raster renderer in
-    `src/ula.c`. It survives the `put_pixel_line` fix, so something else in the
-    same function — most likely a video-memory read through an address the ULA
-    has not finished setting up — still reaches outside its array. An ordinary
-    debugging job now that it is this well located, but not yet done, so every
-    Electron expansion stays planned and the capability controls still say so.
+  - [x] Two more faults found and fixed by running it, both invisible to a
+    native build. Both blit routines called `al_lock_bitmap` and dereferenced
+    the result without checking it; Allegro is entitled to refuse a lock and
+    under the SDL backend it does, so the next line read through a null pointer
+    — a segfault nobody reaches natively, and an out-of-bounds trap on the
+    first frame in WebAssembly. The lock was refused because the surface was
+    asked for as a video bitmap, whose lock is a texture read-back the backend
+    declines; it is a memory bitmap now, which is what a surface written a
+    pixel at a time by the processor should always have been.
+  - [ ] **What remains is the event source, and it is precisely located.** The
+    emulator initialises, loads firmware, creates a WebGL display and enters
+    its event loop — and then waits forever. Instrumenting the loop shows
+    `event_await` entered once and no Allegro event ever delivered, so `runelk`
+    is never called, nothing renders and the canvas stays black. No error
+    appears because nothing has gone wrong as far as the code is concerned: it
+    is waiting for a timer that does not tick. Allegro's timer is an event
+    source on a queue, and under its SDL backend on Emscripten that source
+    produces nothing. Either the timer is started differently for this backend,
+    or the loop is driven from `requestAnimationFrame` through
+    `emscripten_set_main_loop` and the Allegro timer is not used at all — which
+    is what the IDE integration wants regardless, since the IDE decides when
+    the machine steps. Until then every Electron expansion stays planned and
+    the capability controls still say so.
   - [ ] After it runs there is adapter work before the expansions are real:
     a bridge in the shape of `webide_bridge.c`, registers and memory exposed to
     the debugger, and the capability and command classification the ElkJS

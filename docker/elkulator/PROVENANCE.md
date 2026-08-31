@@ -29,9 +29,23 @@ same wait is now a poll that yields — `emscripten_sleep` hands control back an
 ASYNCIFY resumes the C stack where it left off — so the loop above is unchanged
 and every local it holds is still valid. That costs about 500 KB of binary.
 
-**What remains is the raster path.** `yield` walks the screen writing through
-`put_pixel_line` and reading video memory. `put_pixel_line` guarded only the
-upper end of its range — `x + width` past 640, `y` past 256 — and not the
+**What remains is the event source.** The emulator initialises, loads its
+firmware, creates a WebGL display and enters its event loop, and then waits
+forever: instrumenting the loop shows `event_await` entered once and no Allegro
+event ever delivered, so `runelk` is never called, nothing is rendered and the
+canvas stays black. No error is produced because nothing has gone wrong as far
+as the code is concerned — it is waiting for a timer that does not tick.
+
+Allegro's timer is an event source registered on a queue, and under its SDL
+backend on Emscripten that source is not producing events. That is the next
+thing to fix, and it is bounded: either the timer is started differently for
+this backend, or the loop is driven from `requestAnimationFrame` through
+`emscripten_set_main_loop` and the Allegro timer is not used at all. The second
+is what the eventual IDE integration wants anyway, since the IDE will decide
+when the machine steps.
+
+**Also found and fixed along the way.** `yield` walks the screen writing through
+`put_pixel_line` and reading video memory. `put_pixel_line` guarded only the upper end of its range — `x + width` past 640, `y` past 256 — and not the
 lower, so a negative coordinate indexed `electron_screen` below its start. On a
 native heap that writes into whatever sits in front of it and is never noticed;
 WebAssembly traps it. The guard is completed here, which is a real latent bug
