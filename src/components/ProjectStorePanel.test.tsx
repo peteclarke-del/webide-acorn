@@ -176,3 +176,56 @@ describe('what state the project is in with the store', () => {
     await waitFor(() => expect(screen.getByText(/nothing has changed since/)).toBeVisible());
   });
 });
+
+describe('comparing and forking', () => {
+  const twoRevisions = [
+    { id: '000001-a', parent: null, writtenAt: 't', note: '', files: 1 },
+    { id: '000002-b', parent: '000001-a', writtenAt: 't', note: '', files: 1 },
+  ];
+
+  it('compares the two newest revisions and counts lines only for text', async () => {
+    const fetcher = vi.fn(async (input: unknown) => {
+      const url = String(input);
+      if (url.endsWith('000001-a')) return answer({ files: { 'main.asm': encodeContent('one\ntwo'), 'art.ssd': encodeContent('aaa') } });
+      if (url.endsWith('000002-b')) return answer({ files: { 'main.asm': encodeContent('one\ntwo\nthree'), 'art.ssd': encodeContent('bbb') } });
+      if (url.endsWith('/revisions')) return answer({ revisions: twoRevisions });
+      if (url.endsWith('/projects')) return answer({ projects: [{ id: 'demo-project', revisions: 2 }] });
+      return answer(description);
+    });
+    panel(fetcher as unknown as typeof fetch);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Show revisions of demo-project' })).toBeVisible());
+    fireEvent.click(screen.getByRole('button', { name: 'Show revisions of demo-project' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Compare the two newest' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Compare the two newest' }));
+
+    const report = await screen.findByLabelText('Revision comparison');
+    expect(report).toHaveTextContent('2 changed.');
+    expect(report).toHaveTextContent('+1 −0');
+    /* The honest absence: no line count is offered for content that is not
+     * text, rather than a number that looks like one. */
+    expect(report).toHaveTextContent('not text, so no line count is offered');
+  });
+
+  it('forks under a name that says where it came from, leaving the original alone', async () => {
+    const sent: Array<{ url: string; init: RequestInit }> = [];
+    const fetcher = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === 'POST') {
+        sent.push({ url, init });
+        return answer({ revision: { id: '000001-f', parent: null, writtenAt: 't', note: '', files: { 'main.asm': 'd' } } }, 201);
+      }
+      if (/revisions\/[^/]+$/.test(url)) return answer({ files: { 'main.asm': encodeContent('LDA #2') } });
+      if (url.endsWith('/revisions')) return answer({ revisions: twoRevisions });
+      if (url.endsWith('/projects')) return answer({ projects: [{ id: 'demo-project', revisions: 2 }] });
+      return answer(description);
+    });
+    const props = panel(fetcher as unknown as typeof fetch, { files: [{ name: 'main.asm', content: 'LDA #1' }] });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Fork instead, keeping both/ })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /Fork instead, keeping both/ }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]!.url).toContain('demo-project-fork');
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/demo-project is untouched/));
+  });
+});

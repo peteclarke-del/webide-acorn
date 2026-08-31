@@ -5,7 +5,7 @@
  * workbench. These check each way it can be derived, and what is offered.
  */
 import { describe, expect, it } from 'vitest';
-import { MAX_QUEUED_COMMITS, isMergeableName, planMerge, queueCommit, syncActions, syncState, type QueuedCommit } from './syncModel';
+import { MAX_QUEUED_COMMITS, compareRevisions, forkProjectId, isMergeableName, planMerge, queueCommit, syncActions, syncState, type QueuedCommit } from './syncModel';
 
 const facts = (over: Partial<Parameters<typeof syncState>[0]> = {}) => ({
   storeHead: null, syncedAt: null, locallyChanged: false, reachable: true, ...over,
@@ -127,5 +127,46 @@ describe('planning a merge', () => {
     expect(plan.clean).toBe(false);
     expect(plan.files).toEqual([]);
     expect(plan.forkAdvice).toMatch(/share no revision to merge against/);
+  });
+});
+
+describe('comparing two revisions', () => {
+  it('separates added, removed and changed, and counts lines only for text', () => {
+    /* A byte count for a packed sprite looks like a measure of change and is
+     * not; "3 lines added" to a disk image is worse than saying nothing. */
+    const compared = compareRevisions(
+      { 'a.asm': 'one\ntwo', 'gone.asm': 'x', 'art.ssd': 'aaa' },
+      { 'a.asm': 'one\ntwo\nthree', 'new.asm': 'y', 'art.ssd': 'bbb' },
+    );
+    expect(compared.summary).toBe('1 added, 1 removed, 2 changed.');
+    expect(compared.files.find((file) => file.name === 'a.asm')).toMatchObject({ change: 'changed', addedLines: 1, removedLines: 0 });
+    expect(compared.files.find((file) => file.name === 'art.ssd')).toMatchObject({ change: 'changed', addedLines: null, removedLines: null });
+    expect(compared.files.find((file) => file.name === 'new.asm')!.change).toBe('added');
+    expect(compared.files.find((file) => file.name === 'gone.asm')!.change).toBe('removed');
+  });
+
+  it('says plainly when two revisions are the same', () => {
+    expect(compareRevisions({ 'a.asm': 'x' }, { 'a.asm': 'x' }).summary).toBe('Nothing differs between these two revisions.');
+  });
+
+  it('counts a rewritten file as everything removed and everything added', () => {
+    const compared = compareRevisions({ 'a.asm': 'one\ntwo' }, { 'a.asm': 'three\nfour' });
+    expect(compared.files[0]).toMatchObject({ addedLines: 2, removedLines: 2 });
+  });
+});
+
+describe('naming a fork', () => {
+  it('says where it came from, because a fork nobody can trace is a mystery', () => {
+    expect(forkProjectId('demo', [])).toBe('demo-fork');
+  });
+
+  it('does not collide with a fork that already exists', () => {
+    expect(forkProjectId('demo', ['demo-fork'])).toBe('demo-fork-2');
+    expect(forkProjectId('demo', ['demo-fork', 'demo-fork-2'])).toBe('demo-fork-3');
+  });
+
+  it('refuses rather than overwriting when there is no name left', () => {
+    const taken = ['demo-fork', ...Array.from({ length: 98 }, (_, index) => `demo-fork-${index + 2}`)];
+    expect(() => forkProjectId('demo', taken)).toThrow(/too many forks/);
   });
 });

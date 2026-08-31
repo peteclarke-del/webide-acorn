@@ -5571,9 +5571,18 @@ Current implemented increment:
     modified; and identical content is stored once however many revisions name
     it. The owner is recorded on every revision, which is the actor as far as
     one identity can be.
-  - [ ] Compare, fork, retention and shared revisions are not implemented. Fork
-    and sharing both need more than one identity to mean anything, so they wait
-    on CLD-800 with the rest.
+  - [x] **Compare** reports what changed between two revisions, counting lines
+    only where the content is text. A byte count for a packed sprite looks like
+    a measure of change and is not, and "3 lines added" to a disk image is
+    worse than saying nothing, so those say no count is offered.
+  - [x] **Fork** is offered wherever merging would have to guess, and names
+    itself after what it came from: a fork nobody can trace back is two
+    projects and a mystery. It writes a new project and leaves the original and
+    the workbench exactly as they were.
+  - [ ] Retention and shared revisions remain. Sharing needs more than one
+    identity to mean anything, so it waits on CLD-800; retention is a policy
+    decision about what may be deleted and when, which is not one to take by
+    implementing a default.
 - [ ] CLD-806 Implement share/invite/revoke/public template controls with secret,
   ROM, licence, and redistribution scanning.
 - [ ] CLD-807 Implement quota dashboard and predictable cache/artifact/revision

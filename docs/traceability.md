@@ -276,7 +276,7 @@ are listed rather than quietly counted.
 | RESEARCH-GATE | Users can reach cited, licensed, target-correct information from search, diagnostics, and… | not started |
 | CLD-800 | Implement authentication/session lifecycle with revocation, CSRF protection, rate limits,… | not started |
 | CLD-801 | Implement backend-enforced owner/editor/tester/viewer project capabilities and… | not started |
-| CLD-805 | Implement revision timeline, compare, restore, fork, actor/source, retention,… | 1 of 2 parts done |
+| CLD-805 | Implement revision timeline, compare, restore, fork, actor/source, retention,… | 3 of 4 parts done |
 | CLD-806 | Implement share/invite/revoke/public template controls with secret, ROM, licence, and… | not started |
 | CLD-807 | Implement quota dashboard and predictable cache/artifact/revision eviction/deletion with… | not started |
 | CLD-808 | Implement user/project export and deletion with tested retention, tombstone, backup, and… | not started |

@@ -20,7 +20,7 @@ import {
   type StoredProject,
   type StoredRevision,
 } from '../cloud/projectStoreClient';
-import { planMerge, syncActions, syncState, type MergePlan, type SyncState } from '../cloud/syncModel';
+import { compareRevisions, forkProjectId, planMerge, syncActions, syncState, type MergePlan, type RevisionComparison, type SyncState } from '../cloud/syncModel';
 
 interface ProjectStorePanelProps {
   /** The project as it is now: filename to content. */
@@ -54,6 +54,7 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [syncedFiles, setSyncedFiles] = useState<Record<string, string> | null>(null);
   const [merge, setMerge] = useState<MergePlan>();
+  const [comparison, setComparison] = useState<{ from: string; to: string; result: RevisionComparison }>();
   const [ownRevisions, setOwnRevisions] = useState<StoredRevision[]>([]);
 
   const { id: projectId, adjusted } = storeProjectId(projectName);
@@ -127,6 +128,40 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
     } finally { setBusy(false); }
   };
 
+  /*
+   * Forking, which is the honest answer where merging would have to guess. The
+   * name says where it came from, because a fork nobody can trace back is two
+   * projects and a mystery.
+   */
+  const fork = async () => {
+    if (!projectId) return;
+    setBusy(true);
+    try {
+      const name = forkProjectId(projectId, projects.map((project) => project.id));
+      const written = await store.commit(name, current, null, `Forked from ${projectId} because the two versions could not be merged`);
+      if (!written.ok) { onNotice(written.reason); return; }
+      onNotice(`Forked to ${name} as revision ${written.value.id}. ${projectId} is untouched and this workbench still holds what it held.`);
+      await refresh();
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : String(error));
+    } finally { setBusy(false); }
+  };
+
+  /* What changed between the two newest revisions, which is the comparison
+   * somebody asks for first. */
+  const compare = async () => {
+    if (!selected || revisions.length < 2) return;
+    setBusy(true);
+    try {
+      const to = revisions[revisions.length - 1]!.id;
+      const from = revisions[revisions.length - 2]!.id;
+      const [before, after] = await Promise.all([store.read(selected, from), store.read(selected, to)]);
+      if (!before.ok) { onNotice(before.reason); return; }
+      if (!after.ok) { onNotice(after.reason); return; }
+      setComparison({ from, to, result: compareRevisions(before.value, after.value) });
+    } finally { setBusy(false); }
+  };
+
   /* What a merge would produce, shown before anything is written. Nothing is
    * sent or overwritten until somebody has read it. */
   const previewMerge = async () => {
@@ -186,7 +221,10 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
             files to open; it never writes over what you are working on.
           </p>
           {state === 'diverged' && (
-            <button type="button" disabled={busy} onClick={() => void previewMerge()}>Show what a merge would produce</button>
+            <div className="project-store-actions">
+              <button type="button" disabled={busy} onClick={() => void previewMerge()}>Show what a merge would produce</button>
+              <button type="button" disabled={busy} onClick={() => void fork()}>Fork instead, keeping both</button>
+            </div>
           )}
           {merge && (
             <div className="project-store-merge" aria-label="Merge preview">
@@ -225,6 +263,19 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
           {selected && (
             <>
               <h3>Revisions of {selected}</h3>
+              <button type="button" disabled={busy || revisions.length < 2} onClick={() => void compare()}>Compare the two newest</button>
+              {comparison && (
+                <div className="project-store-merge" aria-label="Revision comparison">
+                  <p className="binding-note">{comparison.from} to {comparison.to}: {comparison.result.summary}</p>
+                  <ul className="project-store-revisions">
+                    {comparison.result.files.filter((file) => file.change !== 'unchanged').map((file) => (
+                      <li key={file.name}>
+                        <span><strong>{file.name}</strong><small>{file.change}{file.addedLines === null ? ' · not text, so no line count is offered' : ` · +${file.addedLines} −${file.removedLines}`}</small></span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {revisions.length ? (
                 <ul className="project-store-revisions">
                   {[...revisions].reverse().map((revision) => (

@@ -184,3 +184,99 @@ export function planMerge(
       : 'Some files cannot be merged without deciding what was meant. Review them, or fork and keep both versions under different names.',
   };
 }
+
+export interface FileComparison {
+  name: string;
+  change: 'added' | 'removed' | 'changed' | 'unchanged';
+  /** Lines added and removed, for text. Null where the content is not text. */
+  addedLines: number | null;
+  removedLines: number | null;
+}
+
+export interface RevisionComparison {
+  files: FileComparison[];
+  /** Counted so a summary does not have to re-walk the list. */
+  added: number;
+  removed: number;
+  changed: number;
+  summary: string;
+}
+
+/**
+ * What changed between two revisions.
+ *
+ * Counting lines only where the content is text: a byte count for a packed
+ * sprite would be a number that looks like a measure of change and is not, and
+ * "3 lines added" to a disk image is worse than saying nothing.
+ */
+export function compareRevisions(
+  before: Record<string, string>,
+  after: Record<string, string>,
+): RevisionComparison {
+  const names = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+  const files: FileComparison[] = names.map((name) => {
+    const left = before[name];
+    const right = after[name];
+    if (left === undefined) return { name, change: 'added', addedLines: countable(name, right), removedLines: 0 };
+    if (right === undefined) return { name, change: 'removed', addedLines: 0, removedLines: countable(name, left) };
+    if (left === right) return { name, change: 'unchanged', addedLines: 0, removedLines: 0 };
+    if (!isMergeableName(name)) return { name, change: 'changed', addedLines: null, removedLines: null };
+    const leftLines = left.split('\n');
+    const rightLines = right.split('\n');
+    const shared = sharedLineCount(leftLines, rightLines);
+    return { name, change: 'changed', addedLines: rightLines.length - shared, removedLines: leftLines.length - shared };
+  });
+  const added = files.filter((file) => file.change === 'added').length;
+  const removed = files.filter((file) => file.change === 'removed').length;
+  const changed = files.filter((file) => file.change === 'changed').length;
+  const parts: string[] = [];
+  if (added) parts.push(`${added} added`);
+  if (removed) parts.push(`${removed} removed`);
+  if (changed) parts.push(`${changed} changed`);
+
+  return {
+    files,
+    added,
+    removed,
+    changed,
+    summary: parts.length ? `${parts.join(', ')}.` : 'Nothing differs between these two revisions.',
+  };
+}
+
+function countable(name: string, text: string | undefined): number | null {
+  if (text === undefined) return 0;
+  return isMergeableName(name) ? text.split('\n').length : null;
+}
+
+/** How many lines the two versions have in common, in order. */
+function sharedLineCount(left: readonly string[], right: readonly string[]): number {
+  const lengths: number[] = new Array(right.length + 1).fill(0);
+  for (let index = left.length - 1; index >= 0; index -= 1) {
+    let diagonal = 0;
+    for (let other = right.length - 1; other >= 0; other -= 1) {
+      const previous = lengths[other]!;
+      lengths[other] = left[index] === right[other] ? diagonal + 1 : Math.max(lengths[other]!, lengths[other + 1]!);
+      diagonal = previous;
+    }
+  }
+
+  return lengths[0]!;
+}
+
+/**
+ * A name for a fork of a project.
+ *
+ * Forking is what this build offers where merging would have to guess, so the
+ * name has to say where it came from: a fork nobody can trace back is two
+ * projects and a mystery.
+ */
+export function forkProjectId(source: string, existing: readonly string[]): string {
+  const base = `${source}-fork`.slice(0, 60);
+  if (!existing.includes(base)) return base;
+  for (let attempt = 2; attempt < 100; attempt += 1) {
+    const candidate = `${base}-${attempt}`;
+    if (!existing.includes(candidate)) return candidate;
+  }
+
+  throw new Error(`There are already too many forks of ${source} to name another.`);
+}
