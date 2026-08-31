@@ -31,3 +31,10 @@ coverage/
 # copied into the image; a copy extracted here for a local A310 run is a build
 # output, not source, and must not be committed.
 /public/arculator/
+
+# Emulator sources cloned for investigation belong in a scratch directory, not
+# in the repository. One landed here when a `cd` to the scratchpad failed and
+# the clone ran from the working tree instead.
+/elkulator/
+/arculator-wasm/
+/allegro5/
