@@ -5585,10 +5585,52 @@ Current implemented increment:
     implementing a default.
 - [ ] CLD-806 Implement share/invite/revoke/public template controls with secret,
   ROM, licence, and redistribution scanning.
-- [ ] CLD-807 Implement quota dashboard and predictable cache/artifact/revision
+- [x] CLD-807 Implement quota dashboard and predictable cache/artifact/revision
   eviction/deletion with warnings.
-- [ ] CLD-808 Implement user/project export and deletion with tested retention,
+  - [x] **The dashboard is what the store reports, not what the client
+    assumes.** Projects, revisions and bytes come from the store's own
+    accounting, beside the limits it publishes, so the two cannot disagree.
+  - [x] **The warning arrives before the limit, not at it.** A quota that only
+    speaks when it is exceeded tells somebody their work was refused, which is
+    the worst moment to learn a limit exists. It warns at four fifths, says how
+    full in plain terms, and says what would free space — deleting a project
+    frees what only that project held. A limit the store did not report is
+    ignored rather than invented, and nothing is said while there is room,
+    because a panel that always warns is one nobody reads.
+  - [x] **Eviction is deletion somebody asked for, and nothing else.** There is
+    no automatic eviction: collection removes only content no revision names,
+    and no revision is ever removed to make content collectable. A store that
+    quietly evicted the oldest revision to stay under a limit would lose the
+    history somebody kept it for.
+- [x] CLD-808 Implement user/project export and deletion with tested retention,
   tombstone, backup, and audit behavior.
+  - [x] **Export is everything, including history.** Work somebody cannot get
+    out of a store is work the store has taken, and a history that only leaves
+    as its last state is not a history. It is the same shape the store writes,
+    so restoring is reading rather than translating through a converter nobody
+    maintains.
+  - [x] **Deleting leaves a tombstone** naming what went, when, how many
+    revisions with it and why. Deleting without a trace is indistinguishable
+    from a project that was never there, and somebody who finds their work gone
+    deserves to know which happened.
+  - [x] **Deletion frees only what that project held.** Content another project
+    still names survives, which is checked rather than assumed — content
+    addressing makes sharing between projects the normal case, so a deletion
+    that collected by project rather than by reference would take somebody
+    else's files with it.
+  - [x] **It has to be meant.** Removing every revision cannot be undone here,
+    so the caller names the project again in the body and a mismatch is refused
+    rather than resolved in favour of the URL. Deleting something that is not
+    there is refused too: reporting success would tell somebody their data is
+    gone when it may be somewhere else.
+  - [ ] Backup remains the deployment's: the volume is what holds this, and a
+    product that cannot see how it is mounted cannot honestly claim to back it
+    up. Retention beyond deletion on request is a policy decision rather than a
+    default to implement.
+  - [x] Evidence: 6 further store contracts and the whole path exercised
+    against the running container — an unconfirmed delete refused with the
+    remedy, a confirmed one returning its tombstone, the tombstone listed
+    afterwards, and the export carrying every revision.
 - [ ] CLD-809 Pen-test cross-tenant access, object identifiers, invitations,
   public links, revisions, builds, debug sessions, exports, and WebSockets.
 

@@ -176,4 +176,74 @@ final class ProjectStoreTest extends TestCase
     {
         self::assertSame('2026-08-30T00:00:00Z', $this->store->commit('local', 'demo', ['a' => 'x'])['writtenAt']);
     }
+
+    public function testExportsEveryRevisionRatherThanOnlyTheNewestState(): void
+    {
+        /* Work somebody cannot get out is work the store has taken, and a
+         * history that only leaves as its last state is not a history. */
+        $first = $this->store->commit('local', 'demo', ['main.asm' => 'first']);
+        $this->store->commit('local', 'demo', ['main.asm' => 'second'], $first['id']);
+
+        $export = $this->store->export('local');
+        self::assertSame('8bit-net.project-store-export', $export['schema']);
+        self::assertCount(1, $export['projects']);
+        self::assertCount(2, $export['projects'][0]['revisions']);
+        self::assertSame('first', base64_decode($export['projects'][0]['revisions'][0]['files']['main.asm'], true));
+        self::assertSame('second', base64_decode($export['projects'][0]['revisions'][1]['files']['main.asm'], true));
+    }
+
+    public function testDeletingLeavesATombstoneSayingWhatWentAndWhen(): void
+    {
+        /* Deleting without a trace is indistinguishable from a project that
+         * was never there, and somebody who finds their work gone deserves to
+         * know which happened. */
+        $first = $this->store->commit('local', 'demo', ['main.asm' => 'x']);
+        $this->store->commit('local', 'demo', ['main.asm' => 'y'], $first['id']);
+
+        $tombstone = $this->store->deleteProject('local', 'demo', 'no longer needed');
+        self::assertSame(2, $tombstone['revisions']);
+        self::assertSame('no longer needed', $tombstone['reason']);
+        self::assertSame([], $this->store->projects('local'));
+        self::assertSame(['demo'], array_column($this->store->tombstones('local'), 'projectId'));
+    }
+
+    public function testDeletingKeepsContentAnotherProjectStillNames(): void
+    {
+        /* Deletion frees what only this project held, and nothing else. */
+        $this->store->commit('local', 'one', ['shared.asm' => 'shared content']);
+        $kept = $this->store->commit('local', 'two', ['shared.asm' => 'shared content']);
+
+        $this->store->deleteProject('local', 'one');
+        self::assertSame(['shared.asm' => 'shared content'], $this->store->read('local', 'two', $kept['id']));
+    }
+
+    public function testDeletingFreesContentNothingElseNames(): void
+    {
+        $this->store->commit('local', 'one', ['only.asm' => str_repeat('x', 500)]);
+        self::assertSame(500, $this->store->usage('local')['bytes']);
+        $this->store->deleteProject('local', 'one');
+        self::assertSame(0, $this->store->usage('local')['bytes']);
+    }
+
+    public function testRefusesToDeleteSomethingThatIsNotThere(): void
+    {
+        /* Reporting success for a deletion that removed nothing would tell
+         * somebody their data is gone when it may be somewhere else. */
+        $error = null;
+        try { $this->store->deleteProject('local', 'never-existed'); }
+        catch (StorageError $caught) { $error = $caught; }
+        self::assertNotNull($error);
+        self::assertSame('PROJECT_NOT_FOUND', $error->reason);
+    }
+
+    public function testAnExportedProjectCanBeReadBackWithoutAConverter(): void
+    {
+        /* The export is the shape the store writes, so restoring is reading
+         * rather than translating through something nobody maintains. */
+        $this->store->commit('local', 'demo', ['main.asm' => 'content']);
+        $export = $this->store->export('local');
+        $revision = $export['projects'][0]['revisions'][0];
+        self::assertSame('8bit-net.project-revision', $revision['revision']['schema']);
+        self::assertSame('local', $revision['revision']['owner']);
+    }
 }

@@ -280,3 +280,58 @@ export function forkProjectId(source: string, existing: readonly string[]): stri
 
   throw new Error(`There are already too many forks of ${source} to name another.`);
 }
+
+export interface QuotaWarning {
+  measure: 'bytes' | 'projects';
+  used: number;
+  limit: number;
+  /** How close to the limit, as a fraction. */
+  fraction: number;
+  message: string;
+}
+
+/**
+ * What is close to running out, before it does.
+ *
+ * A quota that only speaks when it is exceeded tells somebody their work was
+ * refused, which is the worst moment to learn a limit exists. The warning
+ * threshold is deliberately low enough to leave room to act — deleting a
+ * project is not instantaneous work — and the message says what to do rather
+ * than only what is wrong.
+ */
+export const QUOTA_WARNING_FRACTION = 0.8;
+
+export function quotaWarnings(
+  usage: { bytes: number; projects: number },
+  limits: { ownerBytes?: number; ownerProjects?: number },
+): QuotaWarning[] {
+  const warnings: QuotaWarning[] = [];
+  const bytesLimit = limits.ownerBytes ?? 0;
+  if (bytesLimit > 0 && usage.bytes / bytesLimit >= QUOTA_WARNING_FRACTION) {
+    const fraction = usage.bytes / bytesLimit;
+    warnings.push({
+      measure: 'bytes',
+      used: usage.bytes,
+      limit: bytesLimit,
+      fraction,
+      message: fraction >= 1
+        ? `The store is full: ${usage.bytes.toLocaleString()} of ${bytesLimit.toLocaleString()} bytes. Nothing more can be written until a project or a revision is deleted.`
+        : `The store is ${Math.round(fraction * 100)}% full, ${usage.bytes.toLocaleString()} of ${bytesLimit.toLocaleString()} bytes. Deleting a project you have finished with will free what only it held.`,
+    });
+  }
+  const projectLimit = limits.ownerProjects ?? 0;
+  if (projectLimit > 0 && usage.projects / projectLimit >= QUOTA_WARNING_FRACTION) {
+    const fraction = usage.projects / projectLimit;
+    warnings.push({
+      measure: 'projects',
+      used: usage.projects,
+      limit: projectLimit,
+      fraction,
+      message: fraction >= 1
+        ? `All ${projectLimit} projects this store may hold are in use. Delete one before copying another up.`
+        : `${usage.projects} of ${projectLimit} projects are in use.`,
+    });
+  }
+
+  return warnings;
+}

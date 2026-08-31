@@ -229,3 +229,90 @@ describe('comparing and forking', () => {
     expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/demo-project is untouched/));
   });
 });
+
+describe('getting work out and removing it', () => {
+  const oneProject = { projects: [{ id: 'demo-project', revisions: 1 }] };
+
+  it('offers the export beside the store’s own numbers, and takes nothing away', async () => {
+    /* The moment somebody wonders whether to trust a store with their work is
+     * the moment they should see they can take it back. */
+    const fetcher = vi.fn(async (input: unknown) => {
+      const url = String(input);
+      if (url.endsWith('/export')) return answer({ schema: '8bit-net.project-store-export', projects: [] });
+      if (url.endsWith('/revisions')) return answer({ revisions: [] });
+      if (url.endsWith('/projects')) return answer(oneProject);
+      return answer(description);
+    });
+    const onDownload = vi.fn();
+    const props = panel(fetcher as unknown as typeof fetch, { onDownload });
+    await waitFor(() => expect(screen.getByRole('button', { name: /Export everything, history included/ })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /Export everything, history included/ }));
+    await waitFor(() => expect(onDownload).toHaveBeenCalledWith('project-store-export.json', expect.stringContaining('project-store-export')));
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/Nothing was removed/));
+  });
+
+  it('does not offer an export nobody can be given', async () => {
+    /* Without somewhere to put it the button would do nothing, and a control
+     * that does nothing is worse than no control. */
+    panel(vi.fn(async (input: unknown) => String(input).endsWith('/projects') ? answer(oneProject) : answer(description)) as unknown as typeof fetch, { onDownload: undefined });
+    await waitFor(() => expect(screen.getByRole('button', { name: /Copy this project to the store/ })).toBeVisible());
+    expect(screen.queryByRole('button', { name: /Export everything/ })).toBeNull();
+  });
+
+  it('asks before deleting, and says what survived', async () => {
+    const sent: Array<{ url: string; init: RequestInit }> = [];
+    const fetcher = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === 'DELETE') { sent.push({ url, init }); return answer({ tombstone: { projectId: 'demo-project', revisions: 2, deletedAt: 't' } }); }
+      if (url.endsWith('/revisions')) return answer({ revisions: [] });
+      if (url.endsWith('/projects')) return answer(oneProject);
+      return answer(description);
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const props = panel(fetcher as unknown as typeof fetch);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Delete demo-project and every revision of it/ })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /Delete demo-project and every revision of it/ }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    /* The store refuses a deletion that does not name what it means, so the
+     * client sends it again. */
+    expect(JSON.parse(String(sent[0]!.init.body)).confirmProjectId).toBe('demo-project');
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/A record of the deletion was kept/));
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/Content other projects still use was not removed/));
+    vi.restoreAllMocks();
+  });
+
+  it('deletes nothing when the question is answered no', async () => {
+    const attempted: string[] = [];
+    const fetcher = vi.fn(async (input: unknown, init?: RequestInit) => {
+      if (init?.method) attempted.push(init.method);
+      return String(input).endsWith('/projects') ? answer(oneProject) : answer(description);
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    panel(fetcher as unknown as typeof fetch);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Delete demo-project/ })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /Delete demo-project/ }));
+    expect(attempted).not.toContain('DELETE');
+    vi.restoreAllMocks();
+  });
+});
+
+describe('warning before the store fills', () => {
+  it('warns at four fifths and says what would free space', async () => {
+    /* Learning a limit exists at the moment work is refused is the worst time
+     * to learn it. */
+    panel(vi.fn(async (input: unknown) => String(input).endsWith('/projects')
+      ? answer({ projects: [] })
+      : answer({ ...description, usage: { projects: 1, revisions: 1, bytes: 900 }, limits: { ownerBytes: 1000, ownerProjects: 10 } })) as unknown as typeof fetch);
+    await waitFor(() => expect(screen.getByText(/90% full/)).toBeVisible());
+    expect(screen.getByText(/free what only it held/)).toBeVisible();
+  });
+
+  it('says nothing while there is room, because a panel that always warns is not read', async () => {
+    panel(vi.fn(async (input: unknown) => String(input).endsWith('/projects')
+      ? answer({ projects: [] })
+      : answer({ ...description, usage: { projects: 1, revisions: 1, bytes: 10 }, limits: { ownerBytes: 1000, ownerProjects: 10 } })) as unknown as typeof fetch);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Copy this project to the store/ })).toBeVisible());
+    expect(screen.queryByText(/full/)).toBeNull();
+  });
+});

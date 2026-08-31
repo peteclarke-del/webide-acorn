@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 154 |
-| Complete and traced | 89 |
+| Complete | 156 |
+| Complete and traced | 90 |
 | Complete and described | 58 |
-| Complete and untraced | 7 |
-| Open | 140 |
+| Complete and untraced | 8 |
+| Open | 138 |
 
 ## By area
 
@@ -41,7 +41,7 @@ is the part a machine can settle.
 | EMU | 18 | 10 | 2 | 8 | 0 |
 | BLD | 17 | 9 | 3 | 6 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
-| CLD | 10 | 3 | 3 | 0 | 0 |
+| CLD | 10 | 5 | 4 | 0 | 1 |
 | DOC | 10 | 8 | 7 | 1 | 0 |
 | DOD | 10 | 0 | 0 | 0 | 0 |
 | EXP | 10 | 0 | 0 | 0 | 0 |
@@ -77,6 +77,7 @@ are listed rather than quietly counted.
 | RSH-704 | Cross-link diagnostics, hover, instruction/disassembly, hardware registers, machine… |
 | RSH-705 | Implement licensed code/example insertion preview with dialect compatibility, provenance… |
 | RSH-706 | Implement reference pack import/update/remove and offline behavior. |
+| CLD-807 | Implement quota dashboard and predictable cache/artifact/revision eviction/deletion with… |
 
 ## Completed requirements and their evidence
 
@@ -159,6 +160,7 @@ are listed rather than quietly counted.
 | CLD-802 | Implement encrypted/isolated project metadata and blob storage,… | 28 backend contracts covering integrity, refusals, quota accounting, collection safety and that every refusal the store can raise has an HTTP answer and nothing is mapped that cannot be raised. Proved through the real… |
 | CLD-803 | Implement explicit local/cloud modes and migration without account… | 10 client contracts covering absence, refusal, a malformed answer and non-ASCII content round-tripping, and 8 panel contracts driving the real panel through copying up, colliding, and taking a revision back. |
 | CLD-804 | Implement sync state machine, offline queue, reconnect, text merge,… | 11 merge contracts, 15 sync-model contracts and 11 panel contracts, including that diverged appears exactly when both sides moved, that a project which vanished from the store is diverged rather than untracked, and that… |
+| CLD-808 | Implement user/project export and deletion with tested retention,… | 6 further store contracts and the whole path exercised against the running container — an unconfirmed delete refused with the remedy, a confirmed one returning its tombstone, the tombstone listed afterwards, and the… |
 | OPS-903 | Enforce and exercise size/concurrency/retention limits with clear… | 12 register and boundary contracts, and 5 panel contracts driving the real Settings surface — every limit shown and grouped, each row carrying its value, reason and behaviour, byte values written in the unit a person… |
 | OPS-904 | Test cancellation, worker/browser crash, dependency outage,… | 16 resilience contracts covering all of the above, alongside the existing cancellation, timeout and abort-signal contracts in the analysis worker client and the build runner. |
 | SEC-902 | Verify CSP, worker/frame origins, message validation, CSRF, XSS,… | 8 header contracts covering both shipped policies, every refusal, the explained-difference register, and the document policy being stricter; 1 source-wide contract on message-origin checking; and the live policy check… |
@@ -278,8 +280,6 @@ are listed rather than quietly counted.
 | CLD-801 | Implement backend-enforced owner/editor/tester/viewer project capabilities and… | not started |
 | CLD-805 | Implement revision timeline, compare, restore, fork, actor/source, retention,… | 3 of 4 parts done |
 | CLD-806 | Implement share/invite/revoke/public template controls with secret, ROM, licence, and… | not started |
-| CLD-807 | Implement quota dashboard and predictable cache/artifact/revision eviction/deletion with… | not started |
-| CLD-808 | Implement user/project export and deletion with tested retention, tombstone, backup, and… | not started |
 | CLD-809 | Pen-test cross-tenant access, object identifiers, invitations, public links, revisions,… | not started |
 | CLOUD-GATE | The entire core remains usable locally; authenticated users can sync, revise, compare,… | not started |
 | OPS-900 | Implement dashboards and alerts for every NFR-007 metric with tenant-safe drill-down and… | not started |

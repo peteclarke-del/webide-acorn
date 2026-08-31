@@ -229,6 +229,102 @@ final class ProjectStore
         return ['examined' => $examined, 'removed' => $removed, 'keptBytes' => $this->bytesUsed($owner)];
     }
 
+    /**
+     * Everything an owner holds, in one document.
+     *
+     * Work somebody cannot get out of a store is work the store has taken. The
+     * export is the whole history rather than the newest revision, because a
+     * history that only leaves as its last state is not a history, and it is
+     * the same shape the store writes so it can be read back without a
+     * converter nobody maintains.
+     *
+     * @return array<string, mixed>
+     */
+    public function export(string $owner): array
+    {
+        $projects = [];
+        foreach ($this->projects($owner) as $projectId) {
+            $revisions = [];
+            foreach ($this->revisions($owner, $projectId) as $revision) {
+                $files = [];
+                foreach ($revision['files'] as $name => $digest) $files[$name] = base64_encode($this->blobs->get((string) $digest));
+                $revisions[] = ['revision' => $revision, 'files' => $files];
+            }
+            $projects[] = ['projectId' => $projectId, 'revisions' => $revisions];
+        }
+
+        return [
+            'schema' => '8bit-net.project-store-export',
+            'version' => 1,
+            'owner' => $owner,
+            'exportedAt' => $this->clock(),
+            'projects' => $projects,
+        ];
+    }
+
+    /**
+     * Delete a project and everything only it referenced.
+     *
+     * A tombstone is left: what was removed, when, and how many revisions went
+     * with it. Deleting without a trace is indistinguishable from a project
+     * that was never there, and somebody who finds their work gone deserves to
+     * know whether it was deleted or lost.
+     *
+     * Content another project still names is kept — deletion frees what only
+     * this project held, and nothing else.
+     *
+     * @return array<string, mixed> the tombstone
+     */
+    public function deleteProject(string $owner, string $projectId, string $reason = ''): array
+    {
+        $this->requireIdentifier($owner, 'An owner');
+        $this->requireIdentifier($projectId, 'A project identifier');
+        $revisions = $this->revisions($owner, $projectId);
+        if ($revisions === []) {
+            throw new StorageError('PROJECT_NOT_FOUND', sprintf('There is no project %s to delete.', $projectId));
+        }
+        $root = $this->projectRoot($owner, $projectId);
+        foreach (glob($root.'/revisions/*.json') ?: [] as $path) unlink($path);
+        @rmdir($root.'/revisions');
+        @rmdir($root);
+
+        $tombstone = [
+            'schema' => '8bit-net.project-tombstone',
+            'version' => 1,
+            'owner' => $owner,
+            'projectId' => $projectId,
+            'deletedAt' => $this->clock(),
+            'revisions' => count($revisions),
+            'reason' => mb_substr($reason, 0, 200),
+        ];
+        $graves = $this->ownerRoot($owner).'/tombstones';
+        if (!is_dir($graves) && !mkdir($graves, 0700, true) && !is_dir($graves)) {
+            throw new StorageError('PROJECT_UNWRITABLE', 'The project store could not be written to.');
+        }
+        file_put_contents(sprintf('%s/%s.json', $graves, $projectId), json_encode($tombstone, JSON_PRETTY_PRINT), LOCK_EX);
+
+        /* Content no surviving revision names is now collectable. Content
+         * another project still names is not, and is left alone. */
+        $this->collect($owner);
+
+        return $tombstone;
+    }
+
+    /** @return list<array<string, mixed>> what has been deleted, and when */
+    public function tombstones(string $owner): array
+    {
+        $graves = $this->ownerRoot($owner).'/tombstones';
+        if (!is_dir($graves)) return [];
+        $found = [];
+        foreach (glob($graves.'/*.json') ?: [] as $path) {
+            $decoded = json_decode((string) file_get_contents($path), true);
+            if (is_array($decoded) && ($decoded['schema'] ?? null) === '8bit-net.project-tombstone') $found[] = $decoded;
+        }
+        usort($found, static fn (array $left, array $right): int => strcmp((string) $left['deletedAt'], (string) $right['deletedAt']));
+
+        return $found;
+    }
+
     /** What this owner is using, against what it may use. */
     public function usage(string $owner): array
     {

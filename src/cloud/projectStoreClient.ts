@@ -179,6 +179,35 @@ export class ProjectStoreClient {
     );
   }
 
+  /** Everything this owner holds, history included, as the store writes it. */
+  exportAll(): Promise<StoreResult<unknown>> {
+    return call(`${this.base}/export`, { method: 'GET' }, (body) => body, this.fetcher);
+  }
+
+  /**
+   * Delete a project and every revision of it.
+   *
+   * The identifier is sent again on purpose: the store refuses a deletion that
+   * does not name what it means, so a stray request cannot remove somebody's
+   * history.
+   */
+  deleteProject(projectId: string, reason: string): Promise<StoreResult<{ projectId: string; revisions: number; deletedAt: string }>> {
+    return call(
+      `${this.base}/projects/${encodeURIComponent(projectId)}`,
+      { method: 'DELETE', headers: JSON_HEADERS, body: JSON.stringify({ confirmProjectId: projectId, reason }) },
+      (body) => {
+        const root = requireObject(body, 'The tombstone');
+        const tombstone = requireObject(root.tombstone, 'The tombstone');
+        return {
+          projectId: String(tombstone.projectId ?? ''),
+          revisions: Number(tombstone.revisions ?? 0),
+          deletedAt: String(tombstone.deletedAt ?? ''),
+        };
+      },
+      this.fetcher,
+    );
+  }
+
   read(projectId: string, revisionId: string): Promise<StoreResult<Record<string, string>>> {
     return call(
       `${this.base}/projects/${encodeURIComponent(projectId)}/revisions/${encodeURIComponent(revisionId)}`,

@@ -20,7 +20,7 @@ import {
   type StoredProject,
   type StoredRevision,
 } from '../cloud/projectStoreClient';
-import { compareRevisions, forkProjectId, planMerge, syncActions, syncState, type MergePlan, type RevisionComparison, type SyncState } from '../cloud/syncModel';
+import { compareRevisions, forkProjectId, planMerge, quotaWarnings, syncActions, syncState, type MergePlan, type RevisionComparison, type SyncState } from '../cloud/syncModel';
 
 interface ProjectStorePanelProps {
   /** The project as it is now: filename to content. */
@@ -29,6 +29,8 @@ interface ProjectStorePanelProps {
   onNotice: (message: string) => void;
   /** Offered a revision's files to open. Never called without being asked. */
   onOpenFiles?: (files: Array<{ name: string; content: string }>) => void;
+  /** Offered the export to save. Without it the export is not shown at all. */
+  onDownload?: (filename: string, text: string) => void;
   client?: ProjectStoreClient;
 }
 
@@ -38,7 +40,7 @@ export function storeProjectId(name: string): { id: string; adjusted: boolean } 
   return { id, adjusted: id !== name };
 }
 
-export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, client }: ProjectStorePanelProps) {
+export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, onDownload, client }: ProjectStorePanelProps) {
   const store = useMemo(() => client ?? new ProjectStoreClient(), [client]);
   const [identity, setIdentity] = useState<StoreIdentity>();
   const [usage, setUsage] = useState<StoreUsage>();
@@ -175,6 +177,37 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
     } finally { setBusy(false); }
   };
 
+  /*
+   * Getting everything out. Offered next to the store's own numbers rather
+   * than hidden in a menu, because the moment somebody wonders whether to
+   * trust a store with their work is the moment they should see they can take
+   * it back.
+   */
+  const exportAll = async () => {
+    setBusy(true);
+    try {
+      const exported = await store.exportAll();
+      if (!exported.ok) { onNotice(exported.reason); return; }
+      onDownload?.('project-store-export.json', `${JSON.stringify(exported.value, null, 2)}\n`);
+      onNotice('Everything in the store, history included, was exported. Nothing was removed.');
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (id: string) => {
+    /* Confirmed here as well as by the store, because the store's confirmation
+     * exists to stop a stray request and this one exists to stop a stray
+     * click. */
+    if (!window.confirm(`Delete ${id} and every revision of it? This cannot be undone here.`)) return;
+    setBusy(true);
+    try {
+      const deleted = await store.deleteProject(id, 'Deleted from the workbench');
+      if (!deleted.ok) { onNotice(deleted.reason); return; }
+      onNotice(`${deleted.value.projectId || id} and its ${deleted.value.revisions} revision${deleted.value.revisions === 1 ? '' : 's'} were deleted. A record of the deletion was kept. Content other projects still use was not removed.`);
+      if (selected === id) { setSelected(undefined); setRevisions([]); }
+      await refresh();
+    } finally { setBusy(false); }
+  };
+
   const copyDown = async (revisionId: string) => {
     if (!selected) return;
     setBusy(true);
@@ -207,6 +240,9 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
           <p className={identity?.authenticated ? 'binding-note' : 'dfs-warning'} role="status">
             {identity ? identity.detail : 'Asking the store who it thinks you are.'}
           </p>
+          {quotaWarnings({ bytes: usage?.bytes ?? 0, projects: usage?.projects ?? 0 }, usage?.limits ?? {}).map((warning) => (
+            <p key={warning.measure} className="binding-warning" role="status">{warning.message}</p>
+          ))}
           <dl className="project-store-usage">
             <div><dt>Projects</dt><dd>{usage?.projects ?? 0}</dd></div>
             <div><dt>Revisions</dt><dd>{usage?.revisions ?? 0}</dd></div>
@@ -216,6 +252,9 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
           <p className="binding-note" role="status">
             <strong>{state.replace('-', ' ')}</strong> · {offered.detail}
           </p>
+          {onDownload && (
+            <button type="button" disabled={busy} onClick={() => void exportAll()}>Export everything, history included</button>
+          )}
           <p className="binding-note">
             Copying puts a revision in the store and changes nothing here. Taking one back offers its
             files to open; it never writes over what you are working on.
@@ -255,6 +294,7 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
                   <button type="button" aria-label={`Show revisions of ${project.id}`} onClick={() => void openRevisions(project.id)}>
                     <strong>{project.id}</strong><small>{project.revisions} revision{project.revisions === 1 ? '' : 's'}</small>
                   </button>
+                  <button type="button" disabled={busy} aria-label={`Delete ${project.id} and every revision of it`} onClick={() => void remove(project.id)}>Delete</button>
                 </li>
               ))}
             </ul>

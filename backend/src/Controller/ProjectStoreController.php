@@ -45,6 +45,7 @@ final class ProjectStoreController
          * fail again; reading the head and merging would not. */
         'REVISION_STALE_PARENT' => [409, false],
         'REVISION_NOT_FOUND' => [404, false],
+        'PROJECT_NOT_FOUND' => [404, false],
         'BLOB_NOT_FOUND' => [404, false],
         /* The store is damaged. Not the caller's doing and not retryable. */
         'BLOB_CORRUPT' => [500, false],
@@ -165,6 +166,51 @@ final class ProjectStoreController
                 'files' => array_map(static fn (string $bytes): string => base64_encode($bytes), $files),
             ]);
     
+        });
+    }
+
+    #[Route('/api/v1/store/export', name: 'api_store_export', methods: ['GET'])]
+    public function export(): JsonResponse
+    {
+        return $this->answer(function (): JsonResponse {
+            /* Everything, including history. Work somebody cannot get out is
+             * work the store has taken. */
+            return $this->json($this->guard(fn (): array => $this->store->export(self::OWNER)));
+        });
+    }
+
+    #[Route('/api/v1/store/projects/{projectId}', name: 'api_store_delete', methods: ['DELETE'])]
+    public function delete(string $projectId, Request $request): JsonResponse
+    {
+        return $this->answer(function () use ($projectId, $request): JsonResponse {
+            /*
+             * Deleting a project removes every revision of it. That cannot be
+             * undone here, so it is not something a stray request should do:
+             * the caller has to name the project it means, in the body, and a
+             * mismatch is refused rather than resolved in favour of the URL.
+             */
+            $payload = $request->getContent() === '' ? [] : $this->payload($request);
+            $confirmed = $payload['confirmProjectId'] ?? null;
+            if ($confirmed !== $projectId) {
+                throw new ApiProblem(400, 'STORE_DELETE_UNCONFIRMED', sprintf('Deleting removes every revision of %s and cannot be undone here. Send {"confirmProjectId":"%s"} to confirm that is the project you mean.', $projectId, $projectId));
+            }
+            $reason = is_string($payload['reason'] ?? null) ? $payload['reason'] : '';
+            $tombstone = $this->guard(fn (): array => $this->store->deleteProject(self::OWNER, $projectId, $reason));
+
+            return $this->json(['schema' => '8bit-net.project-tombstone', 'version' => 1, 'tombstone' => $tombstone]);
+        });
+    }
+
+    #[Route('/api/v1/store/tombstones', name: 'api_store_tombstones', methods: ['GET'])]
+    public function tombstones(): JsonResponse
+    {
+        return $this->answer(function (): JsonResponse {
+            return $this->json([
+                'schema' => '8bit-net.project-store-tombstones',
+                'version' => 1,
+                'tombstones' => $this->guard(fn (): array => $this->store->tombstones(self::OWNER)),
+                'detail' => 'What has been deleted, and when. Deleting without a trace is indistinguishable from a project that was never there.',
+            ]);
         });
     }
 

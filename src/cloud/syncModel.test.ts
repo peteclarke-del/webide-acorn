@@ -5,7 +5,7 @@
  * workbench. These check each way it can be derived, and what is offered.
  */
 import { describe, expect, it } from 'vitest';
-import { MAX_QUEUED_COMMITS, compareRevisions, forkProjectId, isMergeableName, planMerge, queueCommit, syncActions, syncState, type QueuedCommit } from './syncModel';
+import { MAX_QUEUED_COMMITS, compareRevisions, forkProjectId, quotaWarnings, isMergeableName, planMerge, queueCommit, syncActions, syncState, type QueuedCommit } from './syncModel';
 
 const facts = (over: Partial<Parameters<typeof syncState>[0]> = {}) => ({
   storeHead: null, syncedAt: null, locallyChanged: false, reachable: true, ...over,
@@ -168,5 +168,35 @@ describe('naming a fork', () => {
   it('refuses rather than overwriting when there is no name left', () => {
     const taken = ['demo-fork', ...Array.from({ length: 98 }, (_, index) => `demo-fork-${index + 2}`)];
     expect(() => forkProjectId('demo', taken)).toThrow(/too many forks/);
+  });
+});
+
+describe('warning before a quota is reached', () => {
+  const limits = { ownerBytes: 1000, ownerProjects: 10 };
+
+  it('says nothing while there is room', () => {
+    /* A dashboard that warns constantly is one nobody reads. */
+    expect(quotaWarnings({ bytes: 700, projects: 3 }, limits)).toEqual([]);
+  });
+
+  it('warns before the limit rather than after, and says what to do', () => {
+    /* Being told a limit exists at the moment work is refused is the worst
+     * time to learn it. */
+    const warned = quotaWarnings({ bytes: 800, projects: 3 }, limits);
+    expect(warned).toHaveLength(1);
+    expect(warned[0]!.message).toMatch(/80% full/);
+    expect(warned[0]!.message).toMatch(/Deleting a project you have finished with will free what only it held/);
+  });
+
+  it('says plainly when nothing more can be written', () => {
+    const warned = quotaWarnings({ bytes: 1000, projects: 10 }, limits);
+    expect(warned.map((warning) => warning.measure)).toEqual(['bytes', 'projects']);
+    expect(warned[0]!.message).toMatch(/The store is full/);
+    expect(warned[1]!.message).toMatch(/Delete one before copying another up/);
+  });
+
+  it('ignores a limit the store did not report rather than inventing one', () => {
+    /* Dividing by a limit that is not there would warn about everything. */
+    expect(quotaWarnings({ bytes: 10_000, projects: 99 }, {})).toEqual([]);
   });
 });
