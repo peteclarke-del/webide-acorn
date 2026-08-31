@@ -11,15 +11,42 @@ glue, from `demrepofdave/elkulator` at branch `demrepofdave/allegro5_integration
 against Allegro 5.2.9.1 with Allegro's own SDL backend, under
 `emscripten/emsdk:3.1.29`. `configure` exits zero and `make` exits zero.
 
-## What is not
+## What it does when run
 
-**It has not been run.** `main()` still ends in `while (!quited)`, a loop that
-never returns, which in a browser means a tab that never paints and never
-responds. Arculator did not have this problem because its upstream had already
-been given `emscripten_set_main_loop`; Elkulator has not. That is the next
-piece of work, and it is a real one: either restructure the loop into a
-per-frame callback, or link with `-sASYNCIFY`, which is cheaper to write and
-costs binary size and speed.
+It boots as far as executing 6502 code and faults in one identified place.
+
+A headless Chromium run staged fifteen expansion ROMs and `elk.cfg` into the
+virtual file system, called `main`, and observed: the Allegro display created a
+WebGL context, the firmware loaded, and execution reached `exec6502` — the
+machine is running the Electron's own operating system — before trapping with
+`memory access out of bounds` inside `yield`, the ULA's raster renderer in
+`src/ula.c`. The browser kept its thread throughout, which was the point of the
+loop change: a frame counter advanced from 696 to 937 while the emulator ran.
+
+**The blocking loop is solved.** `al_wait_for_event` never returns until
+something arrives, and a page inside it never paints. Under Emscripten the
+same wait is now a poll that yields — `emscripten_sleep` hands control back and
+ASYNCIFY resumes the C stack where it left off — so the loop above is unchanged
+and every local it holds is still valid. That costs about 500 KB of binary.
+
+**What remains is the raster path.** `yield` walks the screen writing through
+`put_pixel_line` and reading video memory. `put_pixel_line` guarded only the
+upper end of its range — `x + width` past 640, `y` past 256 — and not the
+lower, so a negative coordinate indexed `electron_screen` below its start. On a
+native heap that writes into whatever sits in front of it and is never noticed;
+WebAssembly traps it. The guard is completed here, which is a real latent bug
+found by the port, but it is not the fault that remains: the trap survives it,
+so something else in the same function — most likely a video-memory read
+through an address the ULA has not finished setting up — is still reaching
+outside its array. That is the next thing to find, and it is an ordinary
+debugging job now that it is this precisely located.
+
+## After that
+
+A bridge in the shape of `webide_bridge.c`, registers and memory exposed to the
+debugger, and the capability and command classification the ElkJS adapter
+already carries. Elkulator has a genuine `debugger.c`, which is more than ElkJS
+offers, so that part starts from something rather than nothing.
 
 Nothing here is wired into the product image. Building a core that cannot yet
 run on every image build would add minutes and risk for no benefit, so the

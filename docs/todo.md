@@ -4247,13 +4247,30 @@ Current implemented increment:
     contract asserts both halves of that rule and counts the sets waiting on an
     engine — one today — so a second appearing without its engine becoming
     runnable is a deliberate act rather than a drift.
-  - [ ] **It builds; it does not run.** `main()` still ends in `while (!quited)`,
-    a loop that never returns, which in a browser is a tab that never paints.
-    Arculator avoided this because its upstream had already been given
-    `emscripten_set_main_loop`; Elkulator has not. Either the loop becomes a
-    per-frame callback or the link gains `-sASYNCIFY`, which is cheaper to
-    write and costs size and speed. Until then every Electron expansion stays
-    planned and the capability controls say so.
+  - [x] **The blocking loop is solved and the machine now runs.** A headless
+    Chromium run staged fifteen expansion ROMs and `elk.cfg`, called `main`,
+    and observed the Allegro display take a WebGL context, the firmware load,
+    and execution reach `exec6502` — the Electron running its own operating
+    system. The browser kept its thread throughout, which was the whole point:
+    a frame counter advanced from 696 to 937 while the emulator ran.
+    `al_wait_for_event` is now a poll that yields under Emscripten, so
+    `emscripten_sleep` hands control back and ASYNCIFY resumes the C stack
+    where it left off. That costs about 500 KB of binary.
+  - [x] Two faults were found and fixed on the way, and both are the kind only
+    a real run finds. Elkulator `fopen`s `elk.cfg` and `fclose`s it
+    unconditionally, so an absent config is not a default config but
+    `fclose(NULL)` and a dead tab. And `put_pixel_line` guarded only the upper
+    end of its range — `x + width` past 640, `y` past 256 — and not the lower,
+    so a negative coordinate indexed `electron_screen` below its start; on a
+    native heap that writes into whatever sits in front of it and is never
+    noticed, and WebAssembly traps it.
+  - [ ] **One fault remains, precisely located.** Execution traps with
+    `memory access out of bounds` inside `yield`, the ULA's raster renderer in
+    `src/ula.c`. It survives the `put_pixel_line` fix, so something else in the
+    same function — most likely a video-memory read through an address the ULA
+    has not finished setting up — still reaches outside its array. An ordinary
+    debugging job now that it is this well located, but not yet done, so every
+    Electron expansion stays planned and the capability controls still say so.
   - [ ] After it runs there is adapter work before the expansions are real:
     a bridge in the shape of `webide_bridge.c`, registers and memory exposed to
     the debugger, and the capability and command classification the ElkJS
