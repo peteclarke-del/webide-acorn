@@ -5271,7 +5271,7 @@ Current implemented increment:
    channel with bounded volume, and 11 song-workspace contracts driving the
    real editor. Nothing pretends the Atom has multichannel hardware: the
    rebuild is reported rather than performed silently.
-- [ ] AST-628 Implement Archimedes audio/sample workflow after selected hardware
+- [x] AST-628 Implement Archimedes audio/sample workflow after selected hardware
   and runtime/player formats are proven.
   - [x] **This was blocked on its own stated precondition, and no longer is.**
     The pinned A310 adapter exposes VIDC sound period and frequency and the
@@ -5390,12 +5390,53 @@ Current implemented increment:
     exactly the inference that was wrong about VIDC1a in the first place, and a
     contract holds the chosen order to the measured levels so the choice cannot
     drift from the evidence it cites.
+  - [x] **The workflow is now built on top of that encoding.** A versioned
+    sample document carries the machine it is encoded for, the Sound Frequency
+    Register period, the channel mode, a stereo placement per channel, the
+    physical buffer address and the sample itself; an editor edits it; and
+    generated ARM source carries the companded bytes and a player that programs
+    the hardware. Samples arrive by generating a tone at the document's own rate
+    or by importing a RIFF WAVE file, which is read only when it is
+    uncompressed integer PCM and refused by name — floating point, extensible,
+    24-bit, truncated — when it is not.
+  - [x] Three things the player depends on are read from the pinned core rather
+    than recalled, because each one silently produces silence or noise if it is
+    wrong. VIDC takes its register from bits 31 to 24 of the written data
+    (`writevidc` dispatches on `v >> 24`, and `mem.c` routes &03400000 to
+    &035FFFFF to it in supervisor mode only). MEMC takes its register from
+    address bits 17 to 19 and its DMA address from bits 2 to 16, so sound DMA
+    reaches only the first 512 KiB of physical memory and only in sixteen-byte
+    units. Sound DMA fetches sixteen bytes at a time and wraps when the pointer
+    equals the end register, so the end register holds the last block and not
+    the byte after the buffer — an end one block too far would play sixteen
+    bytes of whatever follows on every loop. The contracts decode the generated
+    words with the core's own arithmetic rather than with a second copy of this
+    build's intent.
+  - [x] What the player does not do is stated in the generated source rather
+    than assumed. It does not enable sound DMA: MEMC control is write-only and
+    its page size and operating-system mode cannot be read back, so setting the
+    sound bit would mean guessing at the rest. It does not translate a logical
+    address to a physical one. It does not call a RISC OS sound SWI, because
+    this build has no authoritative source for those numbers and writing them
+    from memory is the fabrication this product refuses. Each assumption is
+    carried into the generated comments and into the editor as a list.
+  - [x] The editor refuses a machine whose byte order has not been measured,
+    naming the machines that have been, rather than encoding for its family.
+    Stereo image 0 is not offered at all, because the datasheet calls it
+    *Undefined* rather than centre. A buffer is held to sixteen-byte alignment
+    inside the DMA region. Nothing is played in the browser and the editor says
+    so: this build has no browser playback that would sound like the machine.
   - [x] Evidence: 25 contracts covering the chord arithmetic against the
     datasheet's printed boundaries, both bit orders round-tripping every byte,
     the companding being coarser at high levels than low, clipping reported
     rather than wrapped, the SFR encoding, and the stereo register mapping for
-    each channel mode; and the seven-byte measurement above on a booted A310
-    running RISC OS 3.11.
+    each channel mode; the seven-byte measurement above on a booted A310
+    running RISC OS 3.11; 27 contracts in
+    `src/assets/vidcSampleDocument.test.ts` covering the document, the
+    generated words against the core's own decode, DMA padding and the end
+    register, determinism, and the WAVE reader's refusals; and 12 in
+    `src/components/SampleWorkspace.test.tsx` covering the editor's refusals,
+    the tone generator's rate, the stereo table and the generated source.
 - [x] AST-629 Add third-party format import/export only with explicit round-trip,
   unsupported-feature, provenance, and licence tests (AST-024).
   - [x] Tiled JSON maps import and export. Import is deliberately narrow and

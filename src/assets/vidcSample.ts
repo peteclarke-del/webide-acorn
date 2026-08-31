@@ -316,6 +316,28 @@ const MEASURED_PARTS: Record<string, VidcPartChoice> = {
   },
 };
 
+/*
+ * The core's own decode says the same thing, read afterwards.
+ *
+ * The measurement above was taken without reading the core's decode table, so
+ * that it would be a measurement rather than a transcription. Reading it since
+ * corroborates the result and adds one fact the measurement could not have
+ * produced: `convbyte` in the pinned core's `src/sound.c` takes the sign from
+ * D0, the point from D1 to D4 and the chord from D5 to D7 — the VIDC2 order —
+ * for every machine except the A500, which it singles out by floppy controller
+ * type and decodes in the VIDC1 order instead.
+ *
+ * That is not enough to answer for the A500 here. This build offers no A500,
+ * and an order taken from an emulator's source without hearing the machine is
+ * the same kind of claim that was wrong about VIDC1a. It is recorded because
+ * it says where to look first if an A500 is ever offered.
+ */
+export const CORE_DECODE_CORROBORATION = Object.freeze({
+  source: 'arculator-wasm src/sound.c convbyte(), revision 579ac437b9a4ebe83b9b5f9b8e50b0c9c530509e',
+  detail: 'Sign D0, point D1-D4, chord D5-D7 for every modelled machine but the A500, which uses sign D7, point D0-D3, chord D4-D6.',
+  measuredIndependently: true,
+});
+
 export class VidcPartUnknownError extends Error {
   constructor(machineId: string) {
     super(`No VIDC byte order has been established for ${machineId}. Only the A310 has been measured, and the order cannot be taken from the family: doing that is what was wrong about VIDC1a. Measure the machine before encoding a sample for it.`);

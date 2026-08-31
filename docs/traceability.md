@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 161 |
-| Complete and traced | 91 |
+| Complete | 162 |
+| Complete and traced | 92 |
 | Complete and described | 62 |
 | Complete and untraced | 8 |
-| Open | 133 |
+| Open | 132 |
 
 ## By area
 
@@ -35,7 +35,7 @@ is the part a machine can settle.
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 0 | 0 | 0 | 0 |
 | EDT | 23 | 17 | 7 | 10 | 0 |
-| AST | 21 | 20 | 13 | 7 | 0 |
+| AST | 21 | 21 | 14 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 14 | 12 | 2 | 0 |
 | EMU | 18 | 10 | 2 | 8 | 0 |
@@ -156,6 +156,7 @@ are listed rather than quietly counted.
 | AST-625 | Implement layered map editor, objects/regions/triggers, validation,… | 14 document contracts, 13 workspace contracts, 3 build contracts and 3 promotion contracts. The Acorn Harvest sample's maze was converted from hand-written `EQUB` rows to a generated map document, and its self test… |
 | AST-626 | Implement target-aware SN76489 music tracker and player/data export. | 15 document contracts and 11 workspace contracts. Two headless runs on a genuine BBC Model B with locally supplied ROMs: a four-row song with three sounding cells issued exactly three OSWORD calls and finished with its… |
 | AST-627 | Implement Atom-appropriate audio/SFX workflow without pretending… | 15 song-document contracts covering the Atom rebuild to one channel with bounded volume, and 11 song-workspace contracts driving the real editor. Nothing pretends the Atom has multichannel hardware: the rebuild is… |
+| AST-628 | Implement Archimedes audio/sample workflow after selected hardware… | 25 contracts covering the chord arithmetic against the datasheet's printed boundaries, both bit orders round-tripping every byte, the companding being coarser at high levels than low, clipping reported rather than… |
 | AST-629 | Add third-party format import/export only with explicit round-trip,… | 11 interchange contracts including a full export and re-import round trip of layers, indices and objects, plus 3 workspace contracts covering the import report, a refusal that leaves the current map untouched, and… |
 | RSH-707 | Add accuracy evaluation set ensuring target/version relevance and… | 72 module contracts across the six research modules and 23 panel contracts. The invariants are proved able to fail by building a library past the parser — generated text carrying a citation, a licence permitting… |
 | CLD-802 | Implement encrypted/isolated project metadata and blob storage,… | 28 backend contracts covering integrity, refusals, quota accounting, collection safety and that every refusal the store can raise has an HTTP answer and nothing is mapped that cannot be raised. Proved through the real… |
@@ -268,7 +269,6 @@ are listed rather than quietly counted.
 | TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad, mouse, analogue,… | not started |
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 15 of 16 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |
-| AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 14 of 14 parts done |
 | ASSET-GATE | Character/object, screen/palette, tile/block, map, and target- appropriate sound assets… | not started |
 | RSH-708 | If AI help is approved, create a separate privacy/threat/quality specification and… | 0 of 1 parts done |
 | RESEARCH-GATE | Users can reach cited, licensed, target-correct information from search, diagnostics, and… | not started |

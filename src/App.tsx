@@ -63,6 +63,7 @@ import { ProjectExportDialog } from './components/ProjectExportDialog';
 import { StartProjectDialog } from './components/StartProjectDialog';
 import { writeDirectory, type FileSystemDirectoryHandleLike } from './project/directoryAccess';
 import { ProjectStorePanel } from './components/ProjectStorePanel';
+import { SampleWorkspace } from './components/SampleWorkspace';
 import { TileMapWorkspace } from './components/TileMapWorkspace';
 import { PaletteWorkspace } from './components/PaletteWorkspace';
 import { FontWorkspace } from './components/FontWorkspace';
@@ -181,9 +182,9 @@ import { compressArmMemoryMap, type ArmMappedPage, type ArmMappedRegion } from '
 
 const workspaceTabs = ['Code', 'Search', 'Analyse', 'Build targets', 'Media', 'Debugger', 'Tests', 'Research', 'Settings', 'Help'];
 const workspaceHelpTopics: Record<string, string> = {
-  Code: 'editor', Search: 'projects', Analyse: 'analysis', 'Build targets': 'build-targets', Media: 'media', Tests: 'tests', Research: 'research', Settings: 'rom-import', Help: 'using-help', Characters: 'assets', Sprites: 'assets', Tiles: 'assets', Maps: 'assets', Sound: 'assets',
+  Code: 'editor', Search: 'projects', Analyse: 'analysis', 'Build targets': 'build-targets', Media: 'media', Tests: 'tests', Research: 'research', Settings: 'rom-import', Help: 'using-help', Characters: 'assets', Sprites: 'assets', Tiles: 'assets', Maps: 'assets', Sound: 'assets', Samples: 'assets',
 };
-const assetTabs = ['Characters', 'Sprites', 'Tiles', 'Fonts', 'Screens', 'Maps', 'Palettes', 'Sound'];
+const assetTabs = ['Characters', 'Sprites', 'Tiles', 'Fonts', 'Screens', 'Maps', 'Palettes', 'Sound', 'Samples'];
 const EMPTY_ARM_BREAKPOINTS: PersistedArmBreakpointIntent[] = [];
 const EMPTY_ARM_BREAKPOINT_GROUPS: ArmBreakpointGroup[] = [];
 const EMPTY_6502_BREAKPOINTS: Persisted6502BreakpointIntent[] = [];
@@ -2183,6 +2184,8 @@ function App() {
               <HelpWorkspace />
             ) : workspaceTab === 'Sound' ? (
               <SongWorkspace onAddSource={addSourceFile} onAddLiveSong={addLiveSong} onNotice={setNotice} />
+            ) : workspaceTab === 'Samples' ? (
+              <SampleWorkspace machineId={machine.id} machineLabel={machine.label} onAddSource={addSourceFile} onNotice={setNotice} />
             ) : workspaceTab === 'Screens' ? (
               <ScreenWorkspace projectPalette={projectPalette} onAddSource={addSourceFile} onAddLiveScreen={addLiveScreen} onNotice={setNotice} />
             ) : workspaceTab === 'Fonts' ? (
