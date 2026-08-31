@@ -3,6 +3,7 @@ import { disassemble6502 } from './disassembler6502';
 import { disassembleArm } from './disassemblerArm';
 import { decodePlainBasic, type PlainBasicDialect } from './plainBasic';
 import type { AnalysisAnnotations } from './analysisAnnotations';
+import type { AnalysisProgressReporter } from './analysisProgress';
 import type { AcornFileMetadata, AnalysisProcessor, FileAnalysis } from './types';
 
 export interface AnalysisOptions {
@@ -87,7 +88,7 @@ function looksLikePlainBasic(name: string, text: string): boolean {
   return Boolean(meaningful.length && (extensionSuggestsBasic || numbered / meaningful.length >= 0.7));
 }
 
-export function analyseFile(bytes: Uint8Array, name: string, options: AnalysisOptions): FileAnalysis {
+export function analyseFile(bytes: Uint8Array, name: string, options: AnalysisOptions, onProgress?: AnalysisProgressReporter): FileAnalysis {
   const basic = decodeTokenizedBasic(bytes);
   if (basic) return basic;
   if (isProbablyText(bytes)) {
@@ -97,9 +98,12 @@ export function analyseFile(bytes: Uint8Array, name: string, options: AnalysisOp
     }
     return { kind: 'text', text, lineCount: text.split('\n').length };
   }
+  /* Only the disassemblers report. A text or BASIC decode is a single pass
+   * that finishes before a progress bar could be drawn, and reporting on it
+   * would be reporting on nothing. */
   return options.processor === 'arm2' || options.processor === 'arm3'
-    ? disassembleArm(bytes, options.origin, options.entryPoint, options.processor)
-    : disassemble6502(bytes, options.origin, options.entryPoint, options.processor, options.annotations);
+    ? disassembleArm(bytes, options.origin, options.entryPoint, options.processor, onProgress)
+    : disassemble6502(bytes, options.origin, options.entryPoint, options.processor, options.annotations, onProgress);
 }
 
 export function parseHexAddress(value: string, maximumDigits = 4): number | null {

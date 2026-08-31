@@ -14,7 +14,9 @@ self.onmessage = (event: MessageEvent<AnalysisWorkerRequest>) => {
     const options = request.options.annotations
       ? { ...request.options, annotations: validateAnalysisAnnotations(request.options.annotations) }
       : request.options;
-    const analysis = analyseFile(new Uint8Array(request.bytes), request.name, options);
+    const analysis = analyseFile(new Uint8Array(request.bytes), request.name, options, (progress) => {
+      self.postMessage({ type: 'progress', requestId: request.requestId, progress });
+    });
     self.postMessage({ type: 'result', requestId: request.requestId, analysis });
   } catch (error) {
     self.postMessage({ type: 'error', requestId: request.requestId, message: error instanceof Error ? error.message : String(error) });

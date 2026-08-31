@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 166 |
-| Complete and traced | 95 |
+| Complete | 167 |
+| Complete and traced | 96 |
 | Complete and described | 63 |
 | Complete and untraced | 8 |
-| Open | 128 |
+| Open | 127 |
 
 ## By area
 
@@ -37,7 +37,7 @@ is the part a machine can settle.
 | EDT | 23 | 17 | 7 | 10 | 0 |
 | AST | 21 | 21 | 14 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
-| ANL | 18 | 14 | 12 | 2 | 0 |
+| ANL | 18 | 15 | 13 | 2 | 0 |
 | EMU | 18 | 11 | 3 | 8 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
@@ -133,6 +133,7 @@ are listed rather than quietly counted.
 | ANL-311 | Add indirect-flow hints, extra entry points, code/data/text marking,… | 41 unit contracts cover the document, the history and the analyser's use of both, including that an indirect jump is *not* followed when nothing is recorded. A headless Chromium run then drove the whole workflow in the… |
 | ANL-312A | Add versioned structured analysis JSON containing SHA-256 source… | 4 analysis-export contracts covering the SHA-256 of the exact source bytes, versioned provenance with configuration, metadata and user labels, the recorded annotations being carried so the document reproduces the… |
 | ANL-312B | Add assembly-source export and guarded, byte-exact reassembly… | 3 assembly-export contracts covering an exact round trip of reachable code, control-flow labels, quoted data and arbitrary bytes; a 65C02-only round trip; and a refusal to claim verification for a processor the browser… |
+| ANL-314 | Move heavy analysis into a cancellable bounded worker, add… | 10 contracts in `src/analysis/analysisProgress.test.ts` covering the throttle interval, the always-sent end of a stage, a new stage reporting immediately, the stages appearing in order and each finishing at the whole… |
 | EMU-420 | Integrate and contract-test BBC Model B adapter for first vertical… | 9 conformance cases passing on real hardware, manifest `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 9 tests, 0 failed, 0 skipped; plus the adapter contract suite, which proves the capability declarations cannot drift and… |
 | EMU-421 | Add second materially different 8-bit slice selected at P0 (Atom or… | 10 Electron adapter contracts parse the vendored ElkJS runtime and prove the two capability declarations cannot drift, that all 24 unavailable capabilities carry a stated reason, and that no workbench command is left… |
 | EMU-424 | Add Tube host/parasite runtime starting with one selected second | the whole conformance suite on a genuine Master 128 with MOS 3.20 and the 65C102 Turbo Tube ROM through the headless path, 10 tests, 10 passed, the new `tube-parasite-execution` case among them with A, X, its own result… |
@@ -257,7 +258,6 @@ are listed rather than quietly counted.
 | ANL-308B | Add catalogue/container, bank/address-space and project-manifest metadata ingestion with… | 3 of 3 parts done |
 | ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 6 of 7 parts done |
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
-| ANL-314 | Move heavy analysis into a cancellable bounded worker, add progress/virtualization and… | 4 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
 | EMU-404 | Implement keyboard viewer/remapper, focus capture/release, pasted text policy,… | 7 of 7 parts done |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |

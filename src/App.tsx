@@ -179,6 +179,7 @@ import { createDebugSession, lifecycleForSnapshot, transitionDebugSession, type 
 import { validateArmRegisterEdit } from './emulator/armRegisterEditModel';
 import { parseArmMemoryEditBytes, validateArmMemoryEdit } from './emulator/armMemoryEditModel';
 import { compressArmMemoryMap, type ArmMappedPage, type ArmMappedRegion } from './emulator/armMemoryMapModel';
+import { describeProgress } from './analysis/analysisProgress';
 
 const workspaceTabs = ['Code', 'Search', 'Analyse', 'Build targets', 'Media', 'Debugger', 'Tests', 'Research', 'Settings', 'Help'];
 const workspaceHelpTopics: Record<string, string> = {
@@ -930,7 +931,15 @@ function App() {
     if (!analysisHistories[digest]) {
       setAnalysisHistories((current) => current[digest] ? current : { ...current, [digest]: createAnnotationHistory(annotations, 'Analysis opened') });
     }
-    const task = startAnalysisTask(bytes, name, { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) });
+    const task = startAnalysisTask(
+      bytes,
+      name,
+      { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) },
+      /* Bytes the parser has settled, in its own words. A stale worker's
+       * progress cannot reach here: the client drops anything whose request
+       * identity is not the current one. */
+      (progress) => { if (analysisTaskRef.current === task) setAnalysisActivity({ status: 'running', message: describeProgress(progress) }); },
+    );
     analysisTaskRef.current = task; setAnalysisActivity({ status: 'running', message: `Analysing ${bytes.length.toLocaleString()} bytes in an isolated browser worker…` }); setWorkspaceTab('Analyse');
     void task.promise.then((analysis) => {
       if (analysisTaskRef.current !== task) return;

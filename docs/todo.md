@@ -3336,7 +3336,7 @@ Current implemented increment:
     finding. Profiler samples outside the analysed file and the profiler's own
     unattributed instruction count are reported rather than dropped. 12
     contracts cover the refusals and the arithmetic.
-- [ ] ANL-314 Move heavy analysis into a cancellable bounded worker, add
+- [x] ANL-314 Move heavy analysis into a cancellable bounded worker, add
   progress/virtualization and adversarial parser performance tests (ANL-016).
   - [x] All standalone and media-origin analysis now runs in a fresh module
     worker rather than the React/UI thread. A superseding request or explicit
@@ -3344,8 +3344,36 @@ Current implemented increment:
     a hard 20-second ceiling terminates pathological input; errors are visible.
     Status reports real stages/byte counts without fabricated percentages, and
     input transfer uses a bounded copy so the retained immutable payload is not
-    detached. The hex view is fixed-window. Fine-grained parser progress keeps
-    the parent open.
+    detached. The hex view is fixed-window.
+  - [x] **The readers now report where they are, in bytes they have settled.**
+    Both disassemblers call back through three named stages — following
+    reachable code, building the listing, naming targets — with a count of what
+    each stage has actually decided about and the number it was given. The
+    6502 reader counts occupied bytes rather than the queue, which grows and
+    shrinks for reasons that have nothing to do with progress through the file;
+    the ARM reader counts four bytes per decoded word.
+  - [x] Nothing is estimated. The failure this avoids is not a bar that is
+    slightly wrong but one that moves when nothing is happening and stops when
+    something is, which makes the only question a person watching it has — is
+    this going to finish — unanswerable. The percentage shown is derived from
+    the two counts rather than being a figure of its own, and the stage is named
+    beside it because a file can spend all its time in one stage and none in the
+    next.
+  - [x] Reports are throttled to every four kilobytes, because one per
+    instruction would cost more than the decoding does across a worker
+    boundary, and one per file would be no better than none. The last report of
+    every stage is always sent whatever the interval, since a stage that stopped
+    at eighty per cent reads as one that stalled. Progress from a superseded
+    worker is dropped by the same request-identity check that already rejects
+    its results, so a stale run cannot move the bar belonging to the one after
+    it.
+  - [x] Evidence: 10 contracts in `src/analysis/analysisProgress.test.ts`
+    covering the throttle interval, the always-sent end of a stage, a new stage
+    reporting immediately, the stages appearing in order and each finishing at
+    the whole file, counts that never exceed the total or go backwards, ARM
+    reporting the same way, and a read with no reporter producing the identical
+    listing — the reporter is optional and every existing caller omits it, so
+    its absence has to cost nothing and change nothing.
   - [x] The adversarial performance corpus exists, and it found two real
     defects on its first run. The property tests already proved these readers
     either parse random bytes or refuse them, which says nothing about what
