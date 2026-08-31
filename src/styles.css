@@ -875,6 +875,15 @@
   .source-hint-rail > * { flex: 0 0 auto; height: var(--editor-line-height); padding: 0 5px; overflow: hidden; border: 0; background: none; color: var(--theme-faint); font: calc(var(--editor-font-size) - 2px)/var(--editor-line-height) var(--font-mono); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
   .source-hint-rail button { cursor: pointer; }
   .source-hint-rail button:hover, .source-hint-rail button:focus-visible { color: var(--theme-ink-strong); background: var(--theme-surface-2); }
+  .project-store-usage { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 0 0 8px; }
+  .project-store-usage div { padding: 6px; border: 1px solid var(--theme-line); background: var(--theme-surface-0); }
+  .project-store-usage dt { color: var(--theme-faint); font: 6px/1 var(--font-mono); text-transform: uppercase; }
+  .project-store-usage dd { margin: 4px 0 0; color: var(--theme-ink-strong); font: 9px/1 var(--font-mono); }
+  .project-store-projects, .project-store-revisions { display: grid; gap: 5px; margin: 0 0 8px; padding: 0; list-style: none; }
+  .project-store-projects button { display: grid; gap: 3px; width: 100%; padding: 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-0); color: var(--theme-ink-strong); font: 7px/1.4 var(--font-mono); text-align: left; cursor: pointer; }
+  .project-store-revisions li { display: flex; gap: 6px; align-items: center; justify-content: space-between; padding: 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-0); }
+  .project-store-revisions span { display: grid; gap: 3px; color: var(--theme-ink-strong); font: 7px/1.4 var(--font-mono); }
+  .project-store-projects small, .project-store-revisions small { color: var(--theme-faint); font: 6px/1.4 var(--font-mono); }
   .tile-map-attributes { display: grid; gap: 4px; margin: 6px 0 0; padding: 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-0); }
   .tile-map-attributes legend { color: var(--theme-faint); font: 6px/1 var(--font-mono); text-transform: uppercase; }
   .tile-map-attributes label { display: flex; gap: 5px; align-items: center; color: var(--theme-ink-strong); font: 7px/1 var(--font-mono); }

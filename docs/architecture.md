@@ -29,6 +29,7 @@ That split is the central architectural decision and it is deliberate:
 | `src/analysis` | Disassembly, annotation, coverage correlation and export. Reads bytes; never executes them. |
 | `src/assets` | The editable asset documents — pixels, palettes, fonts, tile maps, screens, songs — and their generators. |
 | `src/build` | The toolchain registry, the browser-local 6502 assembler and BASIC tokeniser, the build graph and the native adapter. |
+| `src/cloud` | Talking to the project store, and reporting honestly when there is none. Local mode does not depend on any of it. |
 | `src/components` | The workbench surfaces. Presentation and interaction; the rules they present live in the modules above. |
 | `src/data` | Machine profiles, and the generated compatibility and conformance documents. |
 | `src/editor` | Editing operations, document lifecycle, preferences, encodings and line endings. |

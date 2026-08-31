@@ -5502,8 +5502,33 @@ Current implemented increment:
     byte, refused with 409 and a usable message when written against a stale
     parent, surviving a container restart, and collection keeping the content a
     revision still names.
-- [ ] CLD-803 Implement explicit local/cloud modes and migration without account
+- [x] CLD-803 Implement explicit local/cloud modes and migration without account
   coercion or local data loss (CLD-001–CLD-002).
+  - [x] **Local mode is the product and nothing here changes that.** The store
+    panel asks the server who it thinks you are and repeats the answer in the
+    server's own words — one local identity, nothing proving it, as private as
+    the machine it runs on. That is deliberately not "your projects are backed
+    up": the difference decides whether somebody puts something private there,
+    and it comes from the server rather than from an assumption in the client.
+  - [x] **Migration copies and never moves.** Copying a project up writes a
+    revision and leaves the local project exactly as it was; taking one back
+    offers its files to open rather than writing over what somebody is working
+    on. A person who tries the store and stops has lost nothing, which is what
+    CLD-002 asks for, and both promises are stated in the panel where the
+    decision is taken rather than only in a document.
+  - [x] **No coercion, including none by accident.** With no store running the
+    panel says everything stays in this browser and offers nothing; it does not
+    report a fault, because somebody who never asked for a server has not had
+    one fail. A 404 from something that is not the store is reported as absence
+    rather than as a refusal it never made.
+  - [x] A copy is written against the head the store reports, so a second
+    workbench editing the same project collides — with the store's own wording,
+    which names the remedy — rather than one silently overwriting the other. A
+    project name the store cannot take is reduced and the result shown before
+    anything is written.
+  - [x] Evidence: 10 client contracts covering absence, refusal, a malformed
+    answer and non-ASCII content round-tripping, and 8 panel contracts driving
+    the real panel through copying up, colliding, and taking a revision back.
 - [ ] CLD-804 Implement sync state machine, offline queue, reconnect, text merge,
   manifest/asset conflict resolution, and fork fallback.
 - [ ] CLD-805 Implement revision timeline, compare, restore, fork, actor/source,
