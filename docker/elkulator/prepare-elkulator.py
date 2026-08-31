@@ -184,3 +184,56 @@ static void webide_unused_pause_video_blit()
 assert old_pause in body, 'pause_video_blit changed shape; the frame-pacing fix needs revisiting'
 io.open(ula, 'w', encoding='utf-8').write(body.replace(old_pause, new_pause, 1))
 print('frame pacing left to the browser')
+
+# The timer that never ticks, which is why nothing was ever drawn.
+#
+# The HAL creates a 50 Hz Allegro timer and drives the whole emulator from its
+# events: runelk is called when one arrives, and everything else — stepping the
+# processor, drawing a frame — follows from that. Allegro's SDL backend on
+# Emscripten registers the timer's event source and then never posts to it,
+# because there is no thread to tick it from. The emulator therefore initialises
+# perfectly, enters its loop, and waits for ever. No error appears because as
+# far as the code is concerned nothing has gone wrong.
+#
+# The tick is supplied here instead, from the clock the browser does have. This
+# is a platform service the backend does not implement rather than emulator
+# state being invented: the event carries no information beyond "20 ms passed",
+# which is precisely what the real timer would have said.
+handler = '/elkulator/src/host_abstraction_layer/allegro_5/event_handler.c'
+body = io.open(handler, encoding='utf-8').read()
+old_poll = """#ifdef __EMSCRIPTEN__
+        /* Poll and yield rather than block: see the note in prepare-elkulator.py. */
+        while (!al_get_next_event(queue, &event))
+        {
+            emscripten_sleep(1);
+        }
+#else"""
+new_poll = """#ifdef __EMSCRIPTEN__
+        /* Poll and yield rather than block, and supply the 50 Hz tick that
+         * Allegro's SDL backend registers a source for and never posts to.
+         * See the note in prepare-elkulator.py. */
+        {
+            static double webide_next_tick_ms = 0;
+            while (!al_get_next_event(queue, &event))
+            {
+                double now_ms = emscripten_get_now();
+                if (now_ms >= webide_next_tick_ms)
+                {
+                    /* Never more than one frame behind: after a long pause,
+                     * catching up would run the emulator flat out for as many
+                     * frames as elapsed rather than resuming at real speed. */
+                    webide_next_tick_ms = now_ms + 20.0;
+                    memset(&event, 0, sizeof(event));
+                    event.type = ALLEGRO_EVENT_TIMER;
+                    break;
+                }
+                emscripten_sleep(1);
+            }
+        }
+#else"""
+assert old_poll in body, 'the Emscripten poll changed shape; the timer fix needs revisiting'
+body = body.replace(old_poll, new_poll, 1)
+if '#include <string.h>' not in body:
+    body = body.replace('#include', '#include <string.h>\n#include', 1)
+io.open(handler, 'w', encoding='utf-8').write(body)
+print('50 Hz tick supplied from the browser clock')

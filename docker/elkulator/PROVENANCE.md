@@ -29,7 +29,17 @@ same wait is now a poll that yields — `emscripten_sleep` hands control back an
 ASYNCIFY resumes the C stack where it left off — so the loop above is unchanged
 and every local it holds is still valid. That costs about 500 KB of binary.
 
-**What remains is the event source.** The emulator initialises, loads its
+**ASYNCIFY resumes; the machine is not yet stepped.** Instrumenting the loop
+shows `event_await` entered and returning two hundred times over twelve
+seconds, so the unwind-and-resume works and the browser keeps its thread. What
+does not happen is `runelk`: the loop never sees `ELK_EVENT_TIMER_TRIGGERED`.
+The 50 Hz tick is now supplied from the browser clock, because Allegro's SDL
+backend registers the timer's event source and never posts to it — but it is
+raised only when the event queue is empty, and the backend appears to deliver a
+steady stream of real events that satisfy the poll first. Raising the tick on
+elapsed time regardless of what else arrived is the next step.
+
+**What this was.** The emulator initialises, loads its
 firmware, creates a WebGL display and enters its event loop, and then waits
 forever: instrumenting the loop shows `event_await` entered once and no Allegro
 event ever delivered, so `runelk` is never called, nothing is rendered and the

@@ -4310,20 +4310,30 @@ Current implemented increment:
     asked for as a video bitmap, whose lock is a texture read-back the backend
     declines; it is a memory bitmap now, which is what a surface written a
     pixel at a time by the processor should always have been.
-  - [ ] **What remains is the event source, and it is precisely located.** The
-    emulator initialises, loads firmware, creates a WebGL display and enters
-    its event loop — and then waits forever. Instrumenting the loop shows
-    `event_await` entered once and no Allegro event ever delivered, so `runelk`
-    is never called, nothing renders and the canvas stays black. No error
-    appears because nothing has gone wrong as far as the code is concerned: it
-    is waiting for a timer that does not tick. Allegro's timer is an event
-    source on a queue, and under its SDL backend on Emscripten that source
-    produces nothing. Either the timer is started differently for this backend,
-    or the loop is driven from `requestAnimationFrame` through
-    `emscripten_set_main_loop` and the Allegro timer is not used at all — which
-    is what the IDE integration wants regardless, since the IDE decides when
-    the machine steps. Until then every Electron expansion stays planned and
-    the capability controls still say so.
+  - [x] **ASYNCIFY does resume, which was the open question.** Instrumenting
+    the loop shows `event_await` entered and returning two hundred times over a
+    twelve-second run: the C stack unwinds at `emscripten_sleep`, the browser
+    is given its thread, and execution continues where it left off. The loop is
+    alive.
+  - [x] Allegro's timer is the reason nothing draws. The HAL creates a 50 Hz
+    timer and drives everything from its events — `runelk` is called when one
+    arrives, and stepping the processor and drawing a frame both follow from
+    that. Allegro's SDL backend registers the timer's event source and never
+    posts to it, because there is no thread to tick it from. A tick is now
+    supplied from the browser's own clock instead, which is a platform service
+    the backend does not implement rather than emulator state being invented:
+    the event carries nothing beyond "20 ms passed", which is what the real
+    timer would have said.
+  - [ ] **`runelk` is still never reached, and the next step is known.** With
+    the tick supplied, `event_await` returns two hundred times and not once
+    with `ELK_EVENT_TIMER_TRIGGERED`, so the machine is never stepped. The
+    synthetic tick is only produced when the queue is empty, and the SDL
+    backend appears to be delivering a steady stream of real events — display
+    or pointer — which satisfy the poll first and map to a handled event that
+    is not a timer. The fix is to raise the tick on elapsed time regardless of
+    what else arrived, rather than only when nothing did. Until the machine
+    steps, every Electron expansion stays planned and the capability controls
+    still say so.
   - [ ] After it runs there is adapter work before the expansions are real:
     a bridge in the shape of `webide_bridge.c`, registers and memory exposed to
     the debugger, and the capability and command classification the ElkJS
