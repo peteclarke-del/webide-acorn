@@ -2757,6 +2757,43 @@ open):
     no resolvable operand that must be diagnosed.
 - [ ] BLD-330 Implement target-native assertion runtime/result channel and test
   target output for each production CPU family (BLD-014).
+  - [x] **A program can now assert as it runs, not only be judged afterwards.**
+    Every hardware test so far asserts from outside: the host stops the machine
+    at an address and reads its registers and memory. That is the right way to
+    check what a program left behind and it cannot check anything that happened
+    in between — a loop correct on its last iteration and wrong on its fourth
+    looks identical from outside, and a routine called twenty times can only be
+    judged on the twentieth. A program now calls a small routine with what it
+    computed and what it expected, and the host reads the record afterwards.
+  - [x] A failed assertion is recorded and execution continues. Stopping at the
+    first would hide every later one, and on a machine with no operating system
+    to catch it there is nowhere to stop to.
+  - [x] Two things make the block trustworthy rather than merely present. It is
+    **signed**: uninitialised memory is not zero on a real machine, and a block
+    of plausible bytes nobody wrote would otherwise be reported as a run of
+    passing assertions, so a block without the signature is reported as a
+    runtime that never ran. And it **counts what it could not record**: a
+    program that asserts more often than the block has room for must not report
+    only the first few as though that were everything.
+  - [x] **The generated assembly is proved by running it.** Assembly nobody has
+    executed is assembly nobody should trust, so the routine is assembled with
+    this product's own assembler, executed on its own 6502, and the block it
+    leaves in memory is read back by the same reader the host uses. A mistake
+    in the pointer arithmetic or a branch is a failing test rather than a
+    plausible listing. The record offset is computed in one 8-bit accumulator,
+    which is why the capacity is capped at forty: six times forty is 240 and
+    six times anything larger is not, and a limit that cannot be exceeded beats
+    a wider one that is wrong above some value nobody documents.
+  - [x] Evidence: 15 contracts in `src/testing/nativeAssertions.test.ts`, six of
+    them assembling and executing the runtime — a pass, a failure carrying both
+    numbers, a high-byte-only difference that a one-byte comparison would call
+    a pass, execution continuing across a failure, six records proving the
+    stride past the first, and overflow counted rather than dropped — and the
+    rest covering every way a block can fail to be one.
+  - [ ] Only the 6502 is generated. An ARM form would be written the same way,
+    but this build has no ARM execution to prove it against, and the whole
+    point of the contract above is that the assembly is run rather than read.
+    That waits on ARM execution, which is BLD-329's territory.
 
 ### 5.3 Media and artifact workbench
 
