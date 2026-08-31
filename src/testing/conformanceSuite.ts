@@ -563,6 +563,75 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     assertions: ['MEM[present] = &FF'].join('\n'),
     cycleBudget: 200000,
   },
+  {
+    id: 'tube-parasite-execution',
+    area: 'tube',
+    title: 'A program loaded into the second processor runs there',
+    rationale: 'A second processor that is merely detected is a fact about the host. This is the thing a Tube is for: a program placed in the parasite executes on the parasite, with its own registers and its own memory, and can be asked about afterwards. The case is written so that a pass could not be produced by the host — the same program on the host would leave the parasite untouched, and the assertions are all about the parasite.',
+    requires: {
+      /*
+       * The Master only. On a BBC B the operating system never hands the
+       * language over — established under EMU-424 by running the pinned core
+       * directly and finding the parasite's RAM entirely untouched — so the
+       * capability is `planned` there and this case is not applicable.
+       */
+      machines: ['master'], capabilities: ['tube'],
+      unavailableDetail: 'This case runs a program on the second processor and needs a Master with the Tube capability enabled; on a BBC B the Tube boot does not take place, so the capability is planned rather than supported there.',
+    },
+    /*
+     * Interrupts are masked first, and that is not a detail. Without the SEI
+     * the parasite's client operating system takes the Tube interrupt and
+     * carries the program counter out of the halt loop, and the case fails
+     * with a timeout that says nothing. That was observed rather than
+     * anticipated: the first run of this program without it left the right
+     * byte in memory and the registers rewritten by the client.
+     *
+     * The arithmetic is chosen so every value asserted is one the program
+     * computed rather than one it was given: &10 + &32 = &42 appears nowhere
+     * in the source.
+     *
+     * &8000 is what makes this a check on the parasite rather than a check
+     * that happens to have been asked of it. Everything else here would be
+     * equally true if the program had been loaded into the host and run there
+     * — the same arithmetic gives the same registers and the same byte in the
+     * same place. On the parasite &8000 is ordinary RAM, holding the language
+     * the host transferred; on the host it is a sideways ROM slot, where a
+     * write is ignored and a read gives a ROM byte. So writing &42 there and
+     * reading it back into X can only succeed on the parasite, and a run that
+     * had quietly used the host would fail on those two assertions with the
+     * ROM's own byte as the actual value.
+     */
+    source: [
+      'ORG &2000',
+      '.start',
+      ' SEI',
+      ' LDA #&10',
+      ' CLC',
+      ' ADC #&32',
+      ' STA result',
+      ' STA &8000',
+      ' LDX &8000',
+      '.done',
+      ' JMP done',
+      '.result',
+      'EQUB 0',
+    ].join('\n'),
+    stop: 'done',
+    /*
+     * The stop is a branch to itself on purpose. The parasite has no debug
+     * hook of its own, so its program counter is watched at host instruction
+     * boundaries; an address the program passes through could fall between two
+     * of them and never be seen, while one it halts at cannot.
+     */
+    assertions: [
+      'PROCESSOR = PARASITE',
+      'A = &42',
+      'X = &42',
+      'MEM[result] = &42',
+      'MEM[&8000] = &42',
+    ].join('\n'),
+    cycleBudget: 200000,
+  },
 ]);
 
 export interface AreaCoverage {

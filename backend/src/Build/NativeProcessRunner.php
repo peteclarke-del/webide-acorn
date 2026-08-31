@@ -26,10 +26,28 @@ final class NativeProcessRunner
     {
         $pid = $process->getPid();
         if ($pid !== null && function_exists('posix_kill')) {
-            /* Deepest first, so a parent cannot spawn a replacement for a child
-             * that has already been killed. */
-            foreach (array_reverse($this->descendantsOf($pid)) as $descendant) {
+            $descendants = $this->descendantsOf($pid);
+            /*
+             * Stopped before any of them is killed, and stopped shallowest
+             * first.
+             *
+             * Killing them one at a time in any order is not enough, and the
+             * fork-bomb test proved it on a loaded machine: kill a child and
+             * its parent sees the child exit and runs whatever came next in
+             * the shell line, which is how three of twenty-four survived a
+             * sweep that had already enumerated them. A stopped process makes
+             * no progress and starts nothing, so the whole tree is frozen
+             * before any of it is taken apart, and a parent is frozen before
+             * its children so that nothing new is spawned behind the sweep.
+             */
+            foreach ($descendants as $descendant) {
+                @posix_kill($descendant, SIGSTOP);
+            }
+            foreach (array_reverse($descendants) as $descendant) {
                 @posix_kill($descendant, SIGKILL);
+                /* A stopped process does not act on SIGKILL until it is
+                 * allowed to run again. */
+                @posix_kill($descendant, SIGCONT);
             }
         }
         $process->stop(0.0);

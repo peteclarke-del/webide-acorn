@@ -2291,6 +2291,13 @@ below are finished):
     it is still a tree — proved against a bounded fork bomb twenty-four wide
     and three deep, every member of which outlives the deadline and writes a
     file if it survived.
+  - [x] That test then failed once in the gate and was right to. Enumerating a
+    tree and killing it one process at a time is not enough: kill a child and
+    its parent sees the child exit and runs whatever came next on the shell
+    line, which on a loaded machine is how three of the twenty-four survived a
+    sweep that had already found them. The tree is stopped before any of it is
+    killed — shallowest first, so nothing is spawned behind the sweep — and
+    only then taken apart.
   - [x] Cleanup was four copies of one recursion, each ignoring every failure
     it met. There is one workspace now: it repairs the permissions a tool can
     leave behind, never follows a link out of the job, and reports whatever it
@@ -3957,15 +3964,58 @@ Current implemented increment:
     spinning at &1907. Zero console errors.
   - [ ] Plus 1, Plus 3, AP5 and AP6 still need the Elkulator WebAssembly port;
     ElkJS models none of them and no firmware changes that.
-- [ ] EMU-424 Add Tube host/parasite runtime starting with one selected second
+- [x] EMU-424 Add Tube host/parasite runtime starting with one selected second
   - [x] A BBC B with the 6502 second processor fitted boots and runs host code
     correctly: a headless run on the real core with a locally supplied Tube boot
     ROM booted the machine, called its MOS and finished with the expected
     registers and memory, so fitting a parasite does not disturb the host slice.
-  - [ ] Loading and executing a program on the parasite, and asserting parasite
-    registers and memory from a test plan, are not implemented; the runtime can
-    read Tube memory and record transfer events but a hardware test still binds
-    to the host CPU. That keeps this item open.
+  - [x] **A test plan now names the processor it is about, and a program runs
+    on the parasite.** `PROCESSOR = PARASITE` loads the program into the second
+    processor's RAM, sets its program counter, and reads registers, memory and
+    captures back from the parasite's own snapshot rather than the host's. The
+    default is the host, so every plan written before there was a second
+    processor keeps meaning what it meant.
+  - [x] Almost nothing a test can observe means the same thing on both
+    processors, so the assertions available follow from the declaration rather
+    than being offered and quietly answering about the wrong machine. OUTPUT
+    and EVENT are host MOS entries the parasite never executes; SCREEN and
+    AUDIO are host hardware it does not have. Each is refused by name, in the
+    plan parser so an author sees it while writing, and again at the machine so
+    a plan that reached the runtime another way cannot slip through. What is
+    left is what the parasite has: registers, memory and cycles.
+  - [x] Three facts about how the parasite runs are established from the core
+    rather than assumed, and each of them would otherwise be a silent failure.
+    It has **no debug hook** — jsbeeb gives one to the host CPU only — so its
+    program counter is watched at host instruction boundaries; that means a
+    stop address has to be one the program *halts* at rather than passes
+    through, and a run that never sees it says exactly that instead of
+    reporting a bare timeout. It has **no clock of its own**: it executes as a
+    side effect of the host executing. And a program is loaded between &0200
+    and &EFFF, because below that is the parasite's zero page and stack and
+    above it the boot ROM overlays the address space while it is paged in.
+  - [x] **The client operating system will take the program away from you.**
+    The first run of the conformance program without an `SEI` left the right
+    byte in memory and the registers rewritten: the parasite took the Tube
+    interrupt and the client carried the program counter out of the halt loop.
+    That is now the first instruction of the case and the reason is recorded
+    with it, because the symptom — a timeout with correct memory — points
+    nowhere near the cause.
+  - [x] **The case is written so that it could not pass on the host.** Every
+    other assertion in it would be equally true of the same program loaded into
+    the host and run there: the same arithmetic gives the same registers and
+    the same byte in the same place. So the program also writes to &8000 and
+    reads it back, which is ordinary RAM on the parasite — holding the language
+    the host transferred — and a sideways ROM slot on the host, where a write
+    is ignored and a read gives a ROM byte.
+  - [x] Evidence: the whole conformance suite on a genuine Master 128 with MOS
+    3.20 and the 65C102 Turbo Tube ROM through the headless path, 10 tests, 10
+    passed, the new `tube-parasite-execution` case among them with A, X, its
+    own result byte and &8000 all reading &42. The discriminator was then
+    proved to be one: the identical plan with `PROCESSOR = HOST` fails on
+    exactly the two &8000 assertions, reporting the sideways ROM's own &C9 as
+    the actual value, while the other two still pass. 6 plan contracts in
+    `src/testing/testPlan.test.ts` cover the declaration, its duplicate
+    refusal, and each host-only assertion being refused by name.
   - [x] **The Tube conformance case found where the Tube works and where it does
     not, and the answer was the machine rather than the feature.** On a BBC B
     with the Acorn 6502 Tube client ROM 1.10, the ULA is present and answering

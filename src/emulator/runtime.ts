@@ -21,7 +21,7 @@ import { rasterEvents, rasterPositionMatches, validateRasterConfig, type RasterC
 import { DEFAULT_PROFILER_CONFIG, profileBuildFingerprint, profilerMemoryRegion, validateProfilerConfig, type ProfilerConfig } from './profilerModel';
 import { DEFAULT_REPLAY_CONFIG, appendReplayWriteDigest, replayVerificationMatches, validateReplayConfig, type ReplayConfig, type ReplayVerificationState } from './replayModel';
 import { appendCrashDiagnostic, EMPTY_FRAME_PERFORMANCE, observeFrame, type RuntimeCrashDiagnostic } from './runtimePerformanceModel';
-import { MOS_TEST_EVENT_ADDRESSES, type MachineAssertion, type MosTestEvent } from '../testing/testPlan';
+import { MOS_TEST_EVENT_ADDRESSES, type MachineAssertion, type MosTestEvent, type TestProcessor } from '../testing/testPlan';
 import { EMULATOR_SCREEN_WIDTH, base64ToBytes, compareFramebufferRegion, framebufferRegionFnv32, validateScreenRegion } from '../testing/screenAssertion';
 import { validateTapeImage } from '../media/tapeFormat';
 import { isJsBeebKeyboardLayout, validateMachineTapCode, validateMachineText } from './keyboardInputModel';
@@ -177,7 +177,7 @@ let replaySegment = 0;
 let runToHook: JsBeebDebugHookHandle | null = null;
 type HardwareTestCapture = { id: string; kind: 'registers' } | { id: string; kind: 'memory'; address: number; length: number };
 type HardwareTestInput = { kind: 'delay'; cycles: number } | { kind: 'key'; code: string; pressed: boolean } | { kind: 'gamepad'; action: GamepadAction; code: number; pressed: boolean } | { kind: 'bbc-analogue'; channels: [number, number, number, number]; buttons: [boolean, boolean] } | { kind: 'bbc-mouse'; x: number; y: number; buttons: [boolean, boolean] } | { kind: 'atom-atommc'; up: boolean; down: boolean; left: boolean; right: boolean; fire: boolean } | { kind: 'media'; action: 'eject-disc-0' | 'eject-disc-1' | 'eject-tape' | 'mount-initial-disc-0' | 'mount-initial-disc-1' | 'mount-initial-tape' } | { kind: 'emulator-event'; event: 'next-video-frame' } | { kind: 'reset'; reset: 'hard' | 'soft' };
-interface ActiveHardwareTest { name: string; requestId?: string; planId?: string; suite?: string; buildFingerprint?: string; assertions: MachineAssertion[]; output: string; eventCounts: Record<MosTestEvent, number>; addressEventCounts: Map<number, number>; captures: HardwareTestCapture[]; inputs: HardwareTestInput[]; initialDiscs: Map<number, { name: string; bytes: Uint8Array }>; initialTape: typeof mountedTape; inputIndex: number; delayUntil: number | null; eventFrameStart: number | null; appliedInputs: number; teardown: 'pause' | 'reset'; startCycles: number; deadline: number; stopAddress: number; hook: JsBeebDebugHookHandle; reached: boolean }
+interface ActiveHardwareTest { processor: TestProcessor; name: string; requestId?: string; planId?: string; suite?: string; buildFingerprint?: string; assertions: MachineAssertion[]; output: string; eventCounts: Record<MosTestEvent, number>; addressEventCounts: Map<number, number>; captures: HardwareTestCapture[]; inputs: HardwareTestInput[]; initialDiscs: Map<number, { name: string; bytes: Uint8Array }>; initialTape: typeof mountedTape; inputIndex: number; delayUntil: number | null; eventFrameStart: number | null; appliedInputs: number; teardown: 'pause' | 'reset'; startCycles: number; deadline: number; stopAddress: number; hook: JsBeebDebugHookHandle; reached: boolean }
 let activeHardwareTest: ActiveHardwareTest | null = null;
 function discardHardwareTest() {
   if (!activeHardwareTest) return;
@@ -245,7 +245,7 @@ type CommandPayload =
   | { type: 'write-registers'; registers: Record<string, unknown> }
   | { type: 'trace-config'; enabled: boolean; capacity: number; addressStart?: number; addressEnd?: number; opcode?: number; pauseOnMatch?: boolean }
   | { type: 'trace-clear' }
-  | { type: 'run-test'; name: string; requestId?: string; planId?: string; suite?: string; buildFingerprint?: string; bytes: number[]; origin: number; entryPoint: number; stopAddress: number; cycleBudget: number; assertions: MachineAssertion[]; setup?: { reset?: 'hard' | 'soft' | 'none'; media?: 'retain' | 'eject' }; inputs?: HardwareTestInput[]; captures?: HardwareTestCapture[]; teardown?: 'pause' | 'reset'; programManifest: ProgramLoadManifest }
+  | { type: 'run-test'; name: string; processor?: TestProcessor; requestId?: string; planId?: string; suite?: string; buildFingerprint?: string; bytes: number[]; origin: number; entryPoint: number; stopAddress: number; cycleBudget: number; assertions: MachineAssertion[]; setup?: { reset?: 'hard' | 'soft' | 'none'; media?: 'retain' | 'eject' }; inputs?: HardwareTestInput[]; captures?: HardwareTestCapture[]; teardown?: 'pause' | 'reset'; programManifest: ProgramLoadManifest }
   | { type: 'load-basic'; format?: 'bbc-basic-program' | 'atom-basic-text'; bytes: number[]; autorun?: boolean; programManifest: ProgramLoadManifest }
   | { type: 'load-machine-code'; bytes: number[]; origin: number; entryPoint: number; autorun?: boolean; breakpoints?: number[]; sourceLocations?: Record<string, TraceSourceLocation>; symbols?: Record<string, number>; programManifest: ProgramLoadManifest }
   | { type: 'load-disc'; name: string; bytes: number[]; drive?: number }
@@ -1024,6 +1024,82 @@ function sourceStep(mode: 'in' | 'over' | 'out', instructionBudget = 100000) {
   sendSnapshot(`source step ${mode} started`);
 }
 
+/*
+ * Running a program on the second processor.
+ *
+ * The parasite has no debug hook of its own — jsbeeb gives one to the host CPU
+ * only — and it does not run on its own clock either: it executes as a side
+ * effect of the host executing. So a parasite test runs the host and watches
+ * the parasite's program counter at host instruction boundaries.
+ *
+ * That has a consequence a test author has to know about, so it is stated here
+ * and enforced by the failure message: the stop address must be an address the
+ * parasite *stays* at — a branch to itself — and not one it passes through.
+ * A parasite instruction between two host instructions would not be seen.
+ */
+/* The boot ROM overlays &F000 upward while it is paged in, so a program that
+ * lived there could be shadowed by it without anything saying so. */
+const PARASITE_PROGRAM_CEILING = 0xf000;
+/* Zero page and the stack belong to whatever is already running on the
+ * parasite; an image written over them would corrupt the client before the
+ * test's own code ran. */
+const PARASITE_PROGRAM_FLOOR = 0x0200;
+
+function requireParasite(): NonNullable<NonNullable<typeof cpu>['tube']> {
+  const parasite = cpu?.hasTube ? cpu.tube : undefined;
+  if (!parasite) {
+    throw new Error('This test names PROCESSOR = PARASITE and the attached machine has no second processor fitted');
+  }
+  return parasite;
+}
+
+/** The parasite's registers, read from the core's own snapshot. */
+function parasiteRegisters(): RegisterSnapshot {
+  if (!cpu?.hasTube || !cpu.tube) return { a: 0, x: 0, y: 0, s: 0, p: 0, pc: 0 };
+  const state = cpu.tube.snapshotState() as Record<string, unknown>;
+  return {
+    a: Number(state.a ?? 0) & 0xff, x: Number(state.x ?? 0) & 0xff, y: Number(state.y ?? 0) & 0xff,
+    s: Number(state.s ?? 0) & 0xff, p: Number(state.p ?? 0) & 0xff, pc: Number(state.pc ?? 0) & 0xffff,
+  };
+}
+
+/**
+ * One byte of the parasite's RAM.
+ *
+ * Read from the snapshot's memory rather than through `readmem`, because a
+ * read at &FEF8 to &FEFF goes to the ULA and can consume FIFO state — an
+ * assertion must not change what it is asserting about.
+ */
+function parasitePeek(memory: Uint8Array, address: number): number {
+  return memory[address & 0xffff] ?? 0;
+}
+
+function parasiteMemory(): Uint8Array {
+  if (!cpu?.hasTube || !cpu.tube) return new Uint8Array(0x10000);
+  const state = cpu.tube.snapshotState({ includeRoms: true }) as Record<string, unknown>;
+  return state.memory instanceof Uint8Array ? state.memory : new Uint8Array(0x10000);
+}
+
+function loadParasiteCode(bytes: number[], origin: number, entryPoint: number, programManifest: ProgramLoadManifest) {
+  const parasite = requireParasite();
+  if (!Number.isInteger(origin) || !Number.isInteger(entryPoint)) throw new Error('Parasite origin and entry point must be 16-bit addresses');
+  if (bytes.length === 0 || bytes.length > 0x8000) throw new Error('A parasite program must contain 1 to 32,768 bytes');
+  if (origin < PARASITE_PROGRAM_FLOOR || origin + bytes.length > PARASITE_PROGRAM_CEILING) {
+    throw new Error(`A parasite program is loaded between &${PARASITE_PROGRAM_FLOOR.toString(16).toUpperCase().padStart(4, '0')} and &${(PARASITE_PROGRAM_CEILING - 1).toString(16).toUpperCase().padStart(4, '0')}: below that is the parasite's zero page and stack, and above it the boot ROM overlays the address space while it is paged in`);
+  }
+  if (entryPoint < origin || entryPoint >= origin + bytes.length) {
+    throw new Error(`A parasite entry point must be inside the program image, and &${entryPoint.toString(16).toUpperCase()} is outside &${origin.toString(16).toUpperCase()} to &${(origin + bytes.length - 1).toString(16).toUpperCase()}`);
+  }
+  if (!runtimeSessionManifest) throw new Error('Program load requires an initialised runtime session');
+  loadedProgramManifest = validateProgramLoadManifest(programManifest, runtimeSessionManifest.fingerprint, Uint8Array.from(bytes), origin, entryPoint);
+  loadedProgramFingerprint = profileBuildFingerprint(bytes, origin);
+  bytes.forEach((byte, offset) => parasite.writemem(origin + offset, byte & 0xff));
+  /* The program counter is set rather than jumped to. There is no way to make
+   * the parasite call an address from outside it, and a client-OS entry that
+   * would do it is not something this build has an authoritative source for. */
+  parasite.pc = entryPoint & 0xffff;
+}
+
 function testRegisters(): RegisterSnapshot {
   if (!cpu) return { a: 0, x: 0, y: 0, s: 0, p: 0, pc: 0 };
   return { a: cpu.a, x: cpu.x, y: cpu.y, s: cpu.s, p: cpu.p.asByte(), pc: cpu.pc };
@@ -1034,7 +1110,13 @@ function finishHardwareTest(reason: 'stop address reached' | 'timeout') {
   const test = activeHardwareTest;
   test.hook.remove(); activeHardwareTest = null; running = false;
   (keyboard as unknown as { clearKeys?: () => void } | null)?.clearKeys?.();
-  const registers = testRegisters();
+  /* Read from whichever processor the plan named. The two have entirely
+   * separate registers and memory, and reading the host's for a parasite test
+   * would produce a confident answer about the wrong machine. */
+  const onParasite = test.processor === 'parasite';
+  const registers = onParasite ? parasiteRegisters() : testRegisters();
+  const memory = onParasite ? parasiteMemory() : null;
+  const peek = (address: number): number => (memory ? parasitePeek(memory, address) : cpu!.peekmem(address));
   const elapsedCycles = absoluteCpuCycles() - test.startCycles;
   /* Falls back to a reading marked uncaptured where there was no audio device,
    * so an audio assertion refuses rather than comparing against a silence it
@@ -1043,7 +1125,7 @@ function finishHardwareTest(reason: 'stop address reached' | 'timeout') {
   const results = test.assertions.map((assertion) => assertion.kind === 'register'
     ? { ...assertion, actual: registers[assertion.register], passed: registers[assertion.register] === assertion.expected }
     : assertion.kind === 'memory'
-      ? (() => { const actual = assertion.expected.map((_, offset) => cpu!.peekmem(assertion.address + offset)); return { ...assertion, actual, passed: actual.every((byte, index) => byte === assertion.expected[index]) }; })()
+      ? (() => { const actual = assertion.expected.map((_, offset) => peek(assertion.address + offset)); return { ...assertion, actual, passed: actual.every((byte, index) => byte === assertion.expected[index]) }; })()
       : assertion.kind === 'output'
         ? { ...assertion, actual: test.output, passed: test.output === assertion.expected }
         : assertion.kind === 'audio'
@@ -1064,9 +1146,15 @@ function finishHardwareTest(reason: 'stop address reached' | 'timeout') {
   const status = passed ? 'passed' : timedOut ? 'timeout' : 'failed';
   const captures = test.captures.map((capture) => capture.kind === 'registers'
     ? { id: capture.id, kind: 'registers' as const, registers: { ...registers } }
-    : { id: capture.id, kind: 'memory' as const, address: capture.address, bytes: Array.from({ length: capture.length }, (_, offset) => cpu!.peekmem(capture.address + offset)) });
+    : { id: capture.id, kind: 'memory' as const, address: capture.address, bytes: Array.from({ length: capture.length }, (_, offset) => peek(capture.address + offset)) });
   setStatus(`${test.name} ${status}`, passed ? 'ready' : 'error');
-  send({ type: 'test-result', name: test.name, requestId: test.requestId, planId: test.planId, suite: test.suite, buildFingerprint: test.buildFingerprint, programFingerprint: loadedProgramManifest?.fingerprint, status, reason: `${reason} · ${test.appliedInputs} input action${test.appliedInputs === 1 ? '' : 's'} applied`, cycles: elapsedCycles, stopAddress: test.stopAddress, registers, assertions: results, captures, appliedInputs: test.appliedInputs, teardown: test.teardown });
+  /* A parasite test that never saw its stop address gets the reason rather
+   * than a bare timeout, because the cause is nearly always that the stop is
+   * an address the parasite passed through instead of one it halts at. */
+  const detail = timedOut && onParasite
+    ? `${reason} · the parasite's program counter was watched at host instruction boundaries and never held &${test.stopAddress.toString(16).toUpperCase().padStart(4, '0')}; a parasite stop address has to be one the program halts at, such as a branch to itself`
+    : reason;
+  send({ type: 'test-result', name: test.name, processor: test.processor, requestId: test.requestId, planId: test.planId, suite: test.suite, buildFingerprint: test.buildFingerprint, programFingerprint: loadedProgramManifest?.fingerprint, status, reason: `${detail} · ${test.appliedInputs} input action${test.appliedInputs === 1 ? '' : 's'} applied`, cycles: elapsedCycles, stopAddress: test.stopAddress, registers, assertions: results, captures, appliedInputs: test.appliedInputs, teardown: test.teardown });
   if (test.teardown === 'reset') { cpu.reset(true); setStatus(`${test.name} ${status} · reset teardown complete`, passed ? 'ready' : 'error'); }
   sendSnapshot(`test ${status} · ${test.teardown} teardown`);
 }
@@ -1100,6 +1188,8 @@ function runUntilOperatingSystemReady(): { marker: number | null; ready: boolean
 function startHardwareTest(command: Extract<CommandPayload, { type: 'run-test' }>) {
   if (!cpu) return;
   if (!command.name.trim() || command.name.length > 80) throw new Error('Test name must contain 1–80 characters');
+  const processor: TestProcessor = command.processor === 'parasite' ? 'parasite' : 'host';
+  if (processor === 'parasite') requireParasite();
   if (command.programManifest?.mode !== 'test' || command.programManifest.build?.fingerprint !== command.buildFingerprint) throw new Error('Hardware test requires a matching immutable test-mode program manifest');
   if (!Number.isInteger(command.cycleBudget) || command.cycleBudget < 100 || command.cycleBudget > 10_000_000) throw new Error('Test cycle budget must be between 100 and 10,000,000');
   if (!Number.isInteger(command.stopAddress) || command.stopAddress < 0 || command.stopAddress > 0xffff) throw new Error('Test stop address must be a 16-bit address');
@@ -1117,30 +1207,37 @@ function startHardwareTest(command: Extract<CommandPayload, { type: 'run-test' }
       if (!Number.isInteger(assertion.address) || assertion.address < 0 || assertion.expected.length < 1 || assertion.address + assertion.expected.length > 0x10000 || assertion.expected.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) throw new Error('Test contains an invalid memory assertion');
     } else if (assertion.kind === 'output') {
       if (typeof assertion.expected !== 'string' || assertion.expected.length > 4096) throw new Error('Test output assertion is invalid');
+      if (processor === 'parasite') throw new Error('OUTPUT captures the host MOS OSWRCH entry, which the parasite does not execute');
       /* OUTPUT is captured at the BBC MOS OSWRCH entry. The Atom MOS is a
        * different operating system at different addresses, so the same capture
        * on that machine would report whatever happens to sit there. */
       if (cpu.model.isAtom) throw new Error('OUTPUT captures the BBC MOS OSWRCH entry, which is not the Atom operating system; assert registers or memory instead');
     } else if (assertion.kind === 'audio') {
       if (!/^[0-9A-F]{8}$/.test(assertion.expected)) throw new Error('Test audio-write assertion is invalid');
+      if (processor === 'parasite') throw new Error('AUDIO[WRITES] counts writes to the host sound chip, which the parasite does not have');
     } else if (assertion.kind === 'screen') {
       if (!/^[0-9A-F]{8}$/.test(assertion.expected) || validateScreenRegion(assertion)) throw new Error('Test screen-region assertion is invalid');
+      if (processor === 'parasite') throw new Error('SCREEN reads the host video hardware, which the parasite does not have');
     } else if (assertion.kind === 'screen-golden') {
+      if (processor === 'parasite') throw new Error('SCREEN_IMAGE reads the host video hardware, which the parasite does not have');
       const regionError = validateScreenRegion(assertion);
       let expectedBytes: Uint8Array;
       try { expectedBytes = base64ToBytes(assertion.expectedRgbaBase64); } catch { throw new Error('Test screen golden is not valid base64'); }
       if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(assertion.goldenId) || regionError || expectedBytes.length !== assertion.width * assertion.height * 4 || !Number.isInteger(assertion.allowedChannelDelta) || assertion.allowedChannelDelta < 0 || assertion.allowedChannelDelta > 255 || !Number.isInteger(assertion.allowedDifferingPixels) || assertion.allowedDifferingPixels < 0 || assertion.allowedDifferingPixels > assertion.width * assertion.height) throw new Error('Test tolerant screen assertion is invalid');
     } else if (assertion.kind === 'event') {
       if (!(assertion.event in MOS_TEST_EVENT_ADDRESSES) || !Number.isSafeInteger(assertion.expected) || assertion.expected < 0 || assertion.expected > 65_535) throw new Error('Test event assertion is invalid');
+      if (processor === 'parasite') throw new Error('EVENT[MOS_CALL] counts entries to the host MOS, which the parasite does not execute');
       if (cpu.model.isAtom) throw new Error(`EVENT[${assertion.event.toUpperCase()}] counts an entry to the BBC MOS, which the Atom does not have at that address; assert registers or memory instead`);
     } else if (assertion.kind === 'event-address') {
       if (!Number.isInteger(assertion.address) || assertion.address < 0 || assertion.address > 0xffff || !Number.isSafeInteger(assertion.expected) || assertion.expected < 0 || assertion.expected > 65_535) throw new Error('Test address-event assertion is invalid');
+      if (processor === 'parasite') throw new Error('EVENT[address] counts host program counter values, and the parasite has its own');
       watchedEventAddresses.push(assertion.address);
     } else if (assertion.kind === 'audio-speaker') {
       if (!Number.isSafeInteger(assertion.expected) || assertion.expected < 0 || assertion.expected > 1_000_000) throw new Error('Test speaker assertion is invalid');
       /* Only a machine with a one-bit speaker has transitions to count. On a
        * sound-chip machine there is nothing to observe, so the assertion is
        * refused rather than answered with a zero that would look like a pass. */
+      if (processor === 'parasite') throw new Error('AUDIO[SPEAKER] counts transitions of a host speaker, which the parasite does not have');
       if (!browserAudio?.speakerAvailable) throw new Error('AUDIO[SPEAKER] counts transitions of a one-bit speaker, which this machine does not have; assert AUDIO[WRITES] instead');
     } else if (assertion.kind === 'cycles') {
       if (!['eq', 'lte', 'gte', 'range'].includes(assertion.operator) || !Number.isSafeInteger(assertion.expected) || assertion.expected < 0 || assertion.expected > 10_000_000) throw new Error('Test cycle assertion is invalid');
@@ -1192,7 +1289,8 @@ function startHardwareTest(command: Extract<CommandPayload, { type: 'run-test' }
     osBoot = runUntilOperatingSystemReady();
     if (osBoot.marker !== null && !osBoot.ready) throw new Error(`The reset machine did not reach its operating-system entry &${osBoot.marker.toString(16).toUpperCase()} within ${OS_BOOT_CYCLE_CEILING.toLocaleString()} cycles`);
   }
-  loadMachineCode(command.bytes, command.origin, command.entryPoint, false, [], {}, {}, command.programManifest);
+  if (processor === 'parasite') loadParasiteCode(command.bytes, command.origin, command.entryPoint, command.programManifest);
+  else loadMachineCode(command.bytes, command.origin, command.entryPoint, false, [], {}, {}, command.programManifest);
   browserAudio?.beginTestCapture();
   const startCycles = absoluteCpuCycles();
   let test: ActiveHardwareTest;
@@ -1253,15 +1351,18 @@ function startHardwareTest(command: Extract<CommandPayload, { type: 'run-test' }
       test.inputIndex += 1; test.appliedInputs += 1;
     }
     if (test.inputIndex < test.inputs.length) return false;
-    if (pc !== command.stopAddress) return false;
+    /* On the parasite the hook still fires for the host, because the host is
+     * what has a hook; what it reads is the parasite's program counter. */
+    const watched = test.processor === 'parasite' ? (cpu!.tube?.pc ?? -1) & 0xffff : pc;
+    if (watched !== command.stopAddress) return false;
     test.reached = true; running = false;
     queueMicrotask(() => finishHardwareTest('stop address reached'));
     return true;
   });
-  test = { name: command.name.trim(), requestId: command.requestId, planId: command.planId, suite: command.suite, buildFingerprint: command.buildFingerprint, assertions: command.assertions, output: '', eventCounts: { osrdch: 0, osasci: 0, osnewl: 0, oswrcr: 0, oswrch: 0, osword: 0, osbyte: 0, oscli: 0 }, addressEventCounts: new Map(watchedEventAddresses.map((address) => [address, 0])), captures, inputs, initialDiscs, initialTape, inputIndex: 0, delayUntil: null, eventFrameStart: null, appliedInputs: 0, teardown: command.teardown ?? 'pause', startCycles, deadline: startCycles + command.cycleBudget, stopAddress: command.stopAddress, hook, reached: false };
+  test = { processor, name: command.name.trim(), requestId: command.requestId, planId: command.planId, suite: command.suite, buildFingerprint: command.buildFingerprint, assertions: command.assertions, output: '', eventCounts: { osrdch: 0, osasci: 0, osnewl: 0, oswrcr: 0, oswrch: 0, osword: 0, osbyte: 0, oscli: 0 }, addressEventCounts: new Map(watchedEventAddresses.map((address) => [address, 0])), captures, inputs, initialDiscs, initialTape, inputIndex: 0, delayUntil: null, eventFrameStart: null, appliedInputs: 0, teardown: command.teardown ?? 'pause', startCycles, deadline: startCycles + command.cycleBudget, stopAddress: command.stopAddress, hook, reached: false };
   activeHardwareTest = test; running = true;
   setStatus(`${test.name} running`, 'ready');
-  send({ type: 'test-started', name: test.name, requestId: test.requestId, stopAddress: test.stopAddress, cycleBudget: command.cycleBudget, assertionCount: test.assertions.length, osBoot });
+  send({ type: 'test-started', name: test.name, processor, requestId: test.requestId, stopAddress: test.stopAddress, cycleBudget: command.cycleBudget, assertionCount: test.assertions.length, osBoot });
   sendSnapshot('test running');
 }
 

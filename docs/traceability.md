@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 163 |
-| Complete and traced | 93 |
+| Complete | 164 |
+| Complete and traced | 94 |
 | Complete and described | 62 |
 | Complete and untraced | 8 |
-| Open | 131 |
+| Open | 130 |
 
 ## By area
 
@@ -38,7 +38,7 @@ is the part a machine can settle.
 | AST | 21 | 21 | 14 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 14 | 12 | 2 | 0 |
-| EMU | 18 | 10 | 2 | 8 | 0 |
+| EMU | 18 | 11 | 3 | 8 | 0 |
 | BLD | 17 | 13 | 4 | 9 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
 | CLD | 10 | 5 | 4 | 0 | 1 |
@@ -135,6 +135,7 @@ are listed rather than quietly counted.
 | ANL-312B | Add assembly-source export and guarded, byte-exact reassembly… | 3 assembly-export contracts covering an exact round trip of reachable code, control-flow labels, quoted data and arbitrary bytes; a 65C02-only round trip; and a refusal to claim verification for a processor the browser… |
 | EMU-420 | Integrate and contract-test BBC Model B adapter for first vertical… | 9 conformance cases passing on real hardware, manifest `bbc-b/Model B · 8271 DFS/os12-basic2-dfs`, 9 tests, 0 failed, 0 skipped; plus the adapter contract suite, which proves the capability declarations cannot drift and… |
 | EMU-421 | Add second materially different 8-bit slice selected at P0 (Atom or… | 10 Electron adapter contracts parse the vendored ElkJS runtime and prove the two capability declarations cannot drift, that all 24 unavailable capabilities carry a stated reason, and that no workbench command is left… |
+| EMU-424 | Add Tube host/parasite runtime starting with one selected second | the whole conformance suite on a genuine Master 128 with MOS 3.20 and the 65C102 Turbo Tube ROM through the headless path, 10 tests, 10 passed, the new `tube-parasite-execution` case among them with A, X, its own result… |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-… | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round… |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).… | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
 | DBG-523 | Complete decoded call stack, globals, locals, parameters, watches and… | 3 debug-expression contracts and 3 ARM debug-expression contracts cover the decoded call stack, watches and expression evaluation, with the caller-candidate rule proved by the 6502 instruction-state contracts. |
@@ -261,7 +262,6 @@ are listed rather than quietly counted.
 | EMU-404 | Implement keyboard viewer/remapper, focus capture/release, pasted text policy,… | 7 of 7 parts done |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
 | EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 11 of 15 parts done |
-| EMU-424 | Add Tube host/parasite runtime starting with one selected second | 5 of 6 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
