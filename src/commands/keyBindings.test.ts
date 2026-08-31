@@ -3,7 +3,8 @@ import {
   DEFAULT_KEY_BINDINGS, KEY_BINDINGS_STORAGE_KEY, browserReservedNote, chordAssignmentError,
   chordFromEvent, formatChord, keyBindingLookup, normalizeKeyBindingOverrides, parseChord,
   readKeyBindingOverrides, resolveKeyBindings, writeKeyBindingOverrides,
-  ariaKeyShortcuts,
+  ariaKeyShortcuts, chordCandidates, chordPrefixes, chordSteps, emulatedKeyboardConflict,
+  matchKeyBinding, parseChordSequence,
 } from './keyBindings';
 
 describe('key chord normalization', () => {
@@ -30,7 +31,12 @@ describe('key chord normalization', () => {
 
   it('parses typed text with either separator, platform modifier name or alias', () => {
     expect(parseChord('ctrl shift p')).toBe('Ctrl+Shift+P');
-    expect(parseChord('Cmd+/')).toBe('Ctrl+/');
+    /* Cmd names the Command key itself now, where it used to fold into the
+     * shared Control role. Nothing stored says Cmd — recorded chords come from
+     * real key events, which still normalise Command to Ctrl — so this changes
+     * what a person can write deliberately and nothing they already have. */
+    expect(parseChord('Cmd+/')).toBe('Cmd+/');
+    expect(parseChord('Ctrl+/')).toBe('Ctrl+/');
     expect(parseChord('option+shift+f')).toBe('Alt+Shift+F');
     expect(parseChord('ctrl+alt+pgup')).toBe('Ctrl+Alt+PageUp');
     expect(parseChord('ctrl+a+b')).toBeNull();
@@ -169,5 +175,110 @@ describe('assistive-technology advertisement', () => {
     expect(announced).toContain('Control+Alt+D');
     expect(announced).not.toContain('F12');
     expect(announced).not.toContain('Control+Alt+B');
+  });
+});
+
+describe('telling Command apart from Control', () => {
+  it('offers the specific chord before the shared one when Command is pressed', () => {
+    /* Command and Control share a role by default, which is what somebody
+     * moving between an Apple keyboard and any other expects. A binding that
+     * wants one of them specifically had no way to say so while they were
+     * collapsed on the way in. */
+    expect(chordCandidates({ key: 's', code: 'KeyS', metaKey: true })).toEqual(['Cmd+S', 'Ctrl+S']);
+    expect(chordCandidates({ key: 's', code: 'KeyS', ctrlKey: true })).toEqual(['Ctrl+S']);
+    expect(chordCandidates({ key: 's', code: 'KeyS', metaKey: true, ctrlKey: true })).toEqual(['Cmd+Ctrl+S', 'Ctrl+S']);
+    expect(chordCandidates({ key: 'Shift' })).toEqual([]);
+  });
+
+  it('runs the binding that named Command in preference to the shared one', () => {
+    const lookup = new Map([['Cmd+S', 'command-save'], ['Ctrl+S', 'shared-save']]);
+    expect(matchKeyBinding(lookup, new Set(), chordCandidates({ key: 's', code: 'KeyS', metaKey: true }))).toEqual({ kind: 'command', commandId: 'command-save', chord: 'Cmd+S' });
+    expect(matchKeyBinding(lookup, new Set(), chordCandidates({ key: 's', code: 'KeyS', ctrlKey: true }))).toEqual({ kind: 'command', commandId: 'shared-save', chord: 'Ctrl+S' });
+  });
+
+  it('still answers a Command press with the shared binding when that is all there is', () => {
+    /* Which is every binding this build ships, so nothing changes for anybody
+     * who has not asked for the distinction. */
+    const lookup = new Map([['Ctrl+S', 'shared-save']]);
+    expect(matchKeyBinding(lookup, new Set(), chordCandidates({ key: 's', code: 'KeyS', metaKey: true }))).toMatchObject({ commandId: 'shared-save' });
+  });
+});
+
+describe('two-stroke sequences', () => {
+  it('reads a sequence separated by a comma, and no more than two strokes', () => {
+    /* A comma rather than a space, because the chord parser already takes a
+     * space between modifiers — "ctrl shift p" is one chord — so a space
+     * cannot also mean "then". */
+    expect(parseChordSequence('ctrl+k, ctrl+s')).toBe('Ctrl+K, Ctrl+S');
+    expect(parseChordSequence('Ctrl+K, S')).toBe('Ctrl+K, S');
+    expect(parseChordSequence('Ctrl+K')).toBe('Ctrl+K');
+    expect(parseChordSequence('Ctrl+K, S, T')).toBeNull();
+    expect(parseChordSequence('Ctrl+, S')).toBeNull();
+    expect(chordSteps('Ctrl+K, S')).toEqual(['Ctrl+K', 'S']);
+  });
+
+  it('holds the first stroke and then runs the sequence', () => {
+    const lookup = new Map([['Ctrl+K, Ctrl+S', 'save-all'], ['Ctrl+S', 'save']]);
+    const prefixes = new Set(['Ctrl+K']);
+    const held = matchKeyBinding(lookup, prefixes, ['Ctrl+K']);
+    expect(held).toEqual({ kind: 'pending', chord: 'Ctrl+K' });
+    expect(matchKeyBinding(lookup, prefixes, ['Ctrl+S'], 'Ctrl+K')).toEqual({ kind: 'command', commandId: 'save-all', chord: 'Ctrl+K, Ctrl+S' });
+  });
+
+  it('spends a held prefix on whatever follows it, completed or not', () => {
+    /* A prefix that survived a stroke it did not complete would be finished off
+     * by the next unrelated key, which is the failure that makes people stop
+     * trusting sequences. */
+    const lookup = new Map([['Ctrl+K, Ctrl+S', 'save-all'], ['Ctrl+S', 'save']]);
+    const prefixes = new Set(['Ctrl+K']);
+    expect(matchKeyBinding(lookup, prefixes, ['Ctrl+X'], 'Ctrl+K')).toEqual({ kind: 'none' });
+    /* And the single-stroke binding does not fire while a prefix is held, or
+     * the second stroke would run two commands. */
+    expect(matchKeyBinding(lookup, prefixes, ['Ctrl+S'], 'Ctrl+K')).toMatchObject({ commandId: 'save-all' });
+  });
+
+  it('lets a second stroke be a bare letter, and never a first one', () => {
+    /* A second stroke is only read while a prefix is open, so it captures
+     * nothing — which is the whole reason sequences are worth having. */
+    expect(chordAssignmentError('Ctrl+K, S')).toBeNull();
+    expect(chordAssignmentError('S')).toMatch(/cannot capture ordinary typing/);
+    expect(chordAssignmentError('Ctrl+K, Tab')).toBeNull();
+    expect(chordAssignmentError('Ctrl+K, Ctrl+Tab')).toMatch(/reserved for focus movement/);
+  });
+
+  it('keeps sequences out of the ARIA advertisement', () => {
+    /* ARIA has no notation for two strokes, so advertising the first alone
+     * would promise a chord that does nothing on its own. */
+    const resolved = resolveKeyBindings({ 'workbench.build-active': 'Ctrl+K, Ctrl+B' });
+    expect(ariaKeyShortcuts(resolved, 'workbench')).not.toContain('Ctrl+K');
+    expect(chordPrefixes(resolved, 'workbench').has('Ctrl+K')).toBe(true);
+  });
+});
+
+describe('what a running machine does with a chord', () => {
+  it('says the chord never arrives, and what the machine types instead', () => {
+    /* Established from the pinned jsbeeb: keyDown calls preventDefault before
+     * looking at any modifier and passes the key on with Shift alone. */
+    expect(emulatedKeyboardConflict('Ctrl+S')).toEqual({
+      machineKey: 'S',
+      note: expect.stringContaining('The machine receives S instead'),
+    });
+    expect(emulatedKeyboardConflict('Ctrl+S')?.note).toMatch(/never reaches the workbench/);
+    expect(emulatedKeyboardConflict('F10')?.machineKey).toBe('f0');
+    expect(emulatedKeyboardConflict('Ctrl+Enter')?.machineKey).toBe('RETURN');
+  });
+
+  it('says so plainly when the Acorn keyboard has no such key', () => {
+    const conflict = emulatedKeyboardConflict('Ctrl+PageUp');
+    expect(conflict?.machineKey).toBeNull();
+    expect(conflict?.note).toMatch(/the Acorn keyboard has no PageUp/);
+  });
+
+  it('reports a sequence by its first stroke, which is the one that is taken', () => {
+    expect(emulatedKeyboardConflict('Ctrl+K, Ctrl+S')?.note).toMatch(/the first stroke of this sequence/);
+  });
+
+  it('has nothing to say about an unbound command', () => {
+    expect(emulatedKeyboardConflict(null)).toBeNull();
   });
 });

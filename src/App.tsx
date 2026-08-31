@@ -133,7 +133,7 @@ import { closeAllDocuments, closeDocument, closeOtherDocuments, initialDocuments
 import { createSourceBookmark, trackSourceBookmarks } from './editor/sourceBookmarks';
 import { decodeSourceText, encodeSourceText, MAX_PROJECT_SOURCE_BYTES, MAX_SOURCE_FILE_BYTES, sourceUtf8ByteLength, type SourceEncoding, type SourceLineEnding } from './editor/sourceTextFormat';
 import type { WorkbenchCommand } from './commands/commandModel';
-import { chordFromEvent, formatChord, keyBindingLookup, readKeyBindingOverrides, resolveKeyBindings, writeKeyBindingOverrides, type KeyBindingOverrides } from './commands/keyBindings';
+import { CHORD_SEQUENCE_TIMEOUT_MS, chordCandidates, chordPrefixes, formatChord, keyBindingLookup, matchKeyBinding, readKeyBindingOverrides, resolveKeyBindings, writeKeyBindingOverrides, type KeyBindingOverrides } from './commands/keyBindings';
 import {
   changedMemoryAddresses,
   formatMemoryRows,
@@ -437,6 +437,11 @@ function App() {
    * shown is the machine's colours rather than the interface theme's. */
   const projectPalette = useMemo(() => resolveProjectPalette(project.files.map((file) => ({ name: file.name, content: file.content })), 4), [project.files]);
   const workbenchKeyLookup = useMemo(() => keyBindingLookup(resolvedKeyBindings, 'workbench'), [resolvedKeyBindings]);
+  const workbenchChordPrefixes = useMemo(() => chordPrefixes(resolvedKeyBindings, 'workbench'), [resolvedKeyBindings]);
+  /* The first stroke of a two-stroke sequence, and when it was pressed. Held
+   * in a ref rather than state because it must not re-render anything: it is
+   * consumed by the very next key press. */
+  const pendingChord = useRef<{ chord: string; at: number } | null>(null);
   /* Palette labels read the effective chord so a remapped shortcut is never
    * advertised with its replaced default. */
   const commandShortcuts = useMemo(() => {
@@ -1701,10 +1706,22 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      const chord = chordFromEvent(event);
-      if (!chord) return;
-      const commandId = workbenchKeyLookup.get(chord);
-      if (!commandId) return;
+      const candidates = chordCandidates(event);
+      if (!candidates.length) return;
+      /* A prefix that outlived its welcome is abandoned rather than completed
+       * by a key press minutes later. */
+      const held = pendingChord.current;
+      const pending = held && Date.now() - held.at <= CHORD_SEQUENCE_TIMEOUT_MS ? held.chord : null;
+      pendingChord.current = null;
+      const match = matchKeyBinding(workbenchKeyLookup, workbenchChordPrefixes, candidates, pending);
+      if (match.kind === 'pending') {
+        pendingChord.current = { chord: match.chord, at: Date.now() };
+        event.preventDefault();
+        setNotice(`${formatChord(match.chord)} pressed. Waiting for the second stroke.`);
+        return;
+      }
+      if (match.kind !== 'command') return;
+      const commandId = match.commandId;
       if (commandId === 'palette-open') { event.preventDefault(); setCommandPaletteOpen(true); return; }
       if (commandPaletteOpen || goToSourceOpen) return;
       const target = event.target as HTMLElement | null;

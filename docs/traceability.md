@@ -230,7 +230,7 @@ are listed rather than quietly counted.
 | UX-103 | Define global action bar order and state for new/open/save/import/… | not started |
 | UX-104 | Define target/configuration selector, comparison view, compatibility warnings, support… | not started |
 | UX-105 | Define focus movement across docks, tabs, toolbars, trees, editor, emulator, canvas… | not started |
-| UX-106 | Define command palette taxonomy and default/remappable shortcuts, including conflict… | 3 of 4 parts done |
+| UX-106 | Define command palette taxonomy and default/remappable shortcuts, including conflict… | 7 of 8 parts done |
 | UX-107 | User-test J-01, J-04, J-05, and J-07 prototypes with relevant personas and revise before… | not started |
 | UX-120 | Create original logo/icon family and document permissible Acorn- inspired motifs and… | not started |
 | UX-121 | Define semantic theme tokens for every state listed by UX-005 and validate dark, light,… | not started |

@@ -20,7 +20,7 @@ import { sourceLineDiff } from '../editor/sourceDiff';
 import { readBasicNumberingPreferences, writeBasicNumberingPreferences, type BasicNumberingDialect } from '../editor/basicNumberingPreferences';
 import { adjacentSourcePoint, enclosingSourceRange, type SourcePoint } from '../editor/sourceNavigation';
 import { previewMissingBasicLineNumber, type BasicLineNumberFixPreview } from '../language/basicQuickFix';
-import { ariaKeyShortcuts, chordFromEvent, keyBindingLookup, resolveKeyBindings, type ResolvedKeyBinding } from '../commands/keyBindings';
+import { ariaKeyShortcuts, CHORD_SEQUENCE_TIMEOUT_MS, chordCandidates, chordPrefixes, keyBindingLookup, matchKeyBinding, resolveKeyBindings, type ResolvedKeyBinding } from '../commands/keyBindings';
 
 interface EditorHistoryEntry { before: string; after: string; beforeSelection: EditorSelection; afterSelection: EditorSelection; label: string }
 interface EditorCommandHistory { undo: EditorHistoryEntry[]; redo: EditorHistoryEntry[] }
@@ -88,6 +88,10 @@ export function SourceWorkspace({
   const numberingDialect: BasicNumberingDialect = languageTarget?.machineId === 'atom' ? 'atom' : 'bbc';
   const resolvedEditorBindings = useMemo(() => keyBindings ?? resolveKeyBindings(), [keyBindings]);
   const editorKeyLookup = useMemo(() => keyBindingLookup(resolvedEditorBindings, 'editor'), [resolvedEditorBindings]);
+  const editorChordPrefixes = useMemo(() => chordPrefixes(resolvedEditorBindings, 'editor'), [resolvedEditorBindings]);
+  /* The first stroke of a two-stroke sequence. A ref, because it is spent by
+   * the next key press and must not re-render the editor between the two. */
+  const pendingEditorChord = useRef<{ chord: string; at: number } | null>(null);
   /* The advertised shortcut list is generated from what is dispatched, so a
    * remapped or unbound chord cannot be announced to assistive technology. */
   const editorAriaKeyShortcuts = useMemo(() => ariaKeyShortcuts(resolvedEditorBindings, 'editor'), [resolvedEditorBindings]);
@@ -781,9 +785,17 @@ export function SourceWorkspace({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const chord = chordFromEvent(event);
-    const boundCommand = chord ? editorKeyLookup.get(chord) : undefined;
-    if (boundCommand && dispatchEditorBinding(boundCommand, event)) return;
+    const candidates = chordCandidates(event);
+    const held = pendingEditorChord.current;
+    const pending = held && Date.now() - held.at <= CHORD_SEQUENCE_TIMEOUT_MS ? held.chord : null;
+    pendingEditorChord.current = null;
+    const match = candidates.length ? matchKeyBinding(editorKeyLookup, editorChordPrefixes, candidates, pending) : { kind: 'none' as const };
+    if (match.kind === 'pending') {
+      pendingEditorChord.current = { chord: match.chord, at: Date.now() };
+      event.preventDefault();
+      return;
+    }
+    if (match.kind === 'command' && dispatchEditorBinding(match.commandId, event)) return;
     if (completionOpen) {
       if (event.key === 'Escape') { event.preventDefault(); setCompletionOpen(false); return; }
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

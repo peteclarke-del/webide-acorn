@@ -259,9 +259,56 @@ Companion specification: `docs/requirements-specification.md`
     advertising the replacement rather than `F7`, then remapped the palette
     itself and proved that the replaced `F1` default no longer opened it while
     the new `Ctrl+Alt+5` chord did. Zero console or page errors were recorded.
-  - [ ] Emulated-keyboard conflict detection, chorded key sequences, separate
-    Command and Control assignment, and the palette taxonomy review with
-    accessibility reviewers keep this item open.
+  - [x] **Emulated-keyboard conflict detection, and the answer was worse than
+    expected.** The emulator runs in its own frame, and the finding is not that
+    some chords collide but that while a machine is running *every* key press
+    is taken: `keyDown` in the pinned jsbeeb's `src/keyboard.js` calls
+    `evt.preventDefault()` before it has looked at any modifier, and then hands
+    the key on as `keyInterface.keyDown(code, evt.shiftKey)` — Shift and
+    nothing else. So a chord does two surprising things at once: it never
+    reaches the workbench, and the machine receives it as the *unmodified* key.
+    Ctrl+S over a BASIC prompt types S. That is what each binding now says,
+    naming the Acorn key the machine receives, or saying plainly that the Acorn
+    keyboard has no such key. It is reported rather than prevented: a chord
+    unusable over a running machine is perfectly usable everywhere else, and a
+    paused machine takes nothing at all.
+  - [x] Two-stroke sequences, separated by a comma rather than the space most
+    editors use — the chord parser already accepts a space between modifiers,
+    so "ctrl shift p" is one chord and a space cannot also mean "then". Two is
+    the limit: a third stroke is not a shortcut any more, and every stroke is
+    time the workbench holds a key press back from whatever else wanted it. A
+    held prefix is spent by the press that follows it whether or not that press
+    completed anything, because a prefix that survived a stroke it did not
+    complete would be finished off by the next unrelated key — the failure that
+    makes people stop trusting sequences. Only the first stroke has to keep
+    clear of ordinary typing; a bare letter as a second stroke captures
+    nothing, which is what makes sequences worth having. They are recorded by
+    pressing twice, because a comma cannot be typed into a field that is
+    capturing key presses, and a third press starts over.
+  - [x] Command and Control can be assigned separately. `Ctrl+` keeps meaning
+    the shared role — Command on an Apple keyboard, Control everywhere else —
+    because every binding written before this means that and has to keep
+    meaning it. A press of Command now offers `Cmd+X` first and `Ctrl+X`
+    second, so a binding that named Command wins and one that named the shared
+    role still answers, which is exactly the previous behaviour. A press of
+    Control offers only `Ctrl+X`, because Control is not Command anywhere.
+    Nothing stored says `Cmd`: recorded chords come from real key events, which
+    still normalise Command to Ctrl, so this changes what somebody can write
+    deliberately and nothing they already have.
+  - [x] Evidence: 12 further model contracts in
+    `src/commands/keyBindings.test.ts` covering the candidate order, the
+    sequence parser and its two-stroke limit, a spent prefix, a bare second
+    stroke, sequences kept out of the ARIA advertisement, and each emulated-
+    keyboard answer; 5 real-dispatch contracts in
+    `src/components/keyBindingDispatch.test.tsx` proving a sequence runs only
+    on its second stroke, an abandoned prefix stays abandoned, the replaced
+    single-stroke default stops working, a Command press still reaches a shared
+    binding, and a Command-specific binding is not reached by Control; and 4
+    panel contracts in `src/components/KeyboardShortcutsPanel.test.tsx`.
+  - [ ] **Needs the user.** The palette taxonomy review with accessibility
+    reviewers is the one part of this item nobody here can do: it is a review
+    by people, and inventing its outcome would be worth less than leaving it
+    undone. Everything else under UX-106 is closed.
 - [ ] UX-107 User-test J-01, J-04, J-05, and J-07 prototypes with relevant
   personas and revise before component implementation.
 
