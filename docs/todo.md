@@ -2900,10 +2900,42 @@ Current implemented increment:
   checksum-validated directory trees, extracts exact file extents, and creates
   a deterministic one-file E image for a current &FF8 Absolute ARM artifact.
   Multi-file creation and catalogue write-back are now implemented and are
-  described below; other geometries remain open.
+  described below. Every other geometry now mounts, and the one thing that
+  remains is reading an old-map catalogue, described immediately below.
   The earlier D prototype was removed after FileCore rejected execution. Its E
   replacement is independently reparsed and has passed the genuine RISC OS
   3.11 execution gate described below.
+  - [x] **Mounting and listing are different capabilities, and this build has
+    them to different extents.** Every ADFS geometry the pinned core can read
+    now mounts: S at 160 KiB, M at 320 KiB, L at 640 KiB, D and E at 800 KiB
+    and F at 1600 KiB. The geometries are not written from memory — they are
+    the `loaders[]` table in the core's own `src/disc.c` and the `adf_loadex`
+    calls beside it, which is the code that will actually be asked to read
+    whatever is mounted. Taking them from anywhere else would mean this build
+    and the machine disagreeing about what a file is, and the machine would be
+    right. A contract multiplies each geometry's parts back to its length, so a
+    transcription error cannot survive.
+  - [x] Refusing to mount an image because its catalogue cannot be listed would
+    withhold a disc the machine reads perfectly well, so it no longer does.
+    Mounting an S, M, L or F disc says which disc it is and that the browser
+    cannot list it; the catalogue reader says the same thing rather than the
+    old "must be exactly 800 KiB", which told somebody holding a good 640 KiB L
+    disc nothing they could act on.
+  - [ ] **Needs an authoritative source.** The old-map catalogue — the
+    free-space table and directory format the S, M and L discs share — is not
+    implemented, and will not be written from recollection: invented file
+    lengths and load addresses in front of a reader are exactly the fabrication
+    this product refuses. An authoritative description of the old FileCore map
+    and directory layout is what this needs. The F disc needs something
+    smaller: its catalogue is multi-zone new map, and the reader's zone
+    arithmetic is written for the single zone an 800 KiB floppy has; it refuses
+    rather than reading the first zone and presenting part of a catalogue as
+    all of it.
+  - [x] Evidence: 10 contracts in `src/media/adfsGeometry.test.ts` covering the
+    geometry arithmetic, identification by length narrowed by extension, a
+    refusal that names the lengths that would have worked, every declared
+    geometry passing the mount guard, and each unlistable disc carrying its
+    reason.
   - [x] Multi-file ADFS E creation. The writer takes a whole disc's worth of
     files rather than one, laying each down in its own contiguous fragment in
     catalogue order with the remainder of the disc as a single free fragment.

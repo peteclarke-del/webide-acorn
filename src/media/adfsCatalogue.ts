@@ -1,3 +1,5 @@
+import { ADFS_GEOMETRIES } from './adfsGeometry';
+
 export interface AdfsFileEntry {
   name: string;
   path: string;
@@ -247,7 +249,15 @@ function parseDirectory(directory: Uint8Array, format: AdfsCatalogue['format'], 
 }
 
 export function parseAdfsCatalogue(image: Uint8Array): AdfsCatalogue {
-  if (image.length !== D_IMAGE_SIZE) throw new Error('An ADFS D/E image must be exactly 800 KiB');
+  if (image.length !== D_IMAGE_SIZE) {
+    /* Named rather than dismissed by size. Somebody holding a perfectly good
+     * 640 KiB L disc is owed what it is and why this reader cannot list it,
+     * not the arithmetic of what it is not. */
+    const geometry = ADFS_GEOMETRIES.find((candidate) => candidate.bytes === image.length);
+    throw new Error(geometry && !geometry.catalogue.readable
+      ? `This is a ${geometry.label} image. ${geometry.catalogue.reason}`
+      : `An ADFS D or E catalogue is read from an exactly 800 KiB image, and this is ${image.length.toLocaleString()} bytes.`);
+  }
   const warnings: string[] = [];
   let format: AdfsCatalogue['format']; let rootOffset: number;
   if (u24(image, 0xfc) * 256 === D_IMAGE_SIZE) {

@@ -180,6 +180,7 @@ import { validateArmRegisterEdit } from './emulator/armRegisterEditModel';
 import { parseArmMemoryEditBytes, validateArmMemoryEdit } from './emulator/armMemoryEditModel';
 import { compressArmMemoryMap, type ArmMappedPage, type ArmMappedRegion } from './emulator/armMemoryMapModel';
 import { describeProgress } from './analysis/analysisProgress';
+import { adfsGeometryFor, adfsMountRefusal } from './media/adfsGeometry';
 
 const workspaceTabs = ['Code', 'Search', 'Analyse', 'Build targets', 'Media', 'Debugger', 'Tests', 'Research', 'Settings', 'Help'];
 const workspaceHelpTopics: Record<string, string> = {
@@ -3083,8 +3084,18 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
   const loadDisc = async () => {
     if (!discFile || !connected || !discSupported) return;
     if (discFile.size > 2 * 1024 * 1024) { onNotice('Disk images are limited to 2 MiB'); return; }
-    if (archimedesDiscConnected && (!/\.adf$/i.test(discFile.name) || discFile.size !== 800 * 1024)) { onNotice('The qualified A310 floppy adapter currently accepts exact 800 KiB ADFS .adf images'); return; }
-    if (!/\.(ssd|dsd|adl|adf|adm)$/i.test(discFile.name)) { onNotice('Choose a DFS or ADFS disk image (.ssd, .dsd, .adl, .adf or .adm)'); return; }
+    if (archimedesDiscConnected) {
+      /* Mounting and listing are different capabilities, held to different
+       * standards. The core reads the sectors of every geometry its own loader
+       * table declares, so all of them mount; whether this build can then list
+       * the catalogue is said separately rather than used as a reason to
+       * withhold a disc the machine could have read. */
+      const refusal = adfsMountRefusal(discFile.name, discFile.size);
+      if (refusal) { onNotice(refusal); return; }
+      const geometry = adfsGeometryFor(discFile.name, discFile.size);
+      if (geometry && !geometry.catalogue.readable) onNotice(`Mounting ${geometry.label}. ${geometry.catalogue.reason}`);
+    }
+    if (!/\.(ssd|dsd|adl|adf|adm|ads)$/i.test(discFile.name)) { onNotice('Choose a DFS or ADFS disk image (.ssd, .dsd, .adl, .adf, .adm or .ads)'); return; }
     const bytes = new Uint8Array(await discFile.arrayBuffer());
     if (archimedesDiscConnected) {
       try { parseAdfsCatalogue(bytes); }
