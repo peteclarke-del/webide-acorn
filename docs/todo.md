@@ -1930,8 +1930,29 @@ below are finished):
     Provider-authoritative deprecation warnings and replacements have explicit
     alert support; no entry is falsely marked deprecated for demonstration.
     Component tests prove pointer/keyboard parity, cycle detail and related-token
-    navigation. Further catalogue depth and project/compiler documentation keep
-    EDT-212 open.
+    navigation.
+  - [x] **Catalogue depth is now a number rather than a feeling, and the gap is
+    answered rather than left blank.** The reference has cited prose for
+    eighteen BBC BASIC keywords; the ROM tables say there are 121 distinct ones
+    in BASIC II alone, so coverage is measured against firmware and cannot
+    drift the way a hand-kept list would. Writing the other hundred would mean
+    citing sections of a manual this build does not have, which is inventing a
+    citation rather than writing documentation, so it is not done.
+  - [x] What *can* be said exactly about every keyword is what the ROMs say,
+    and now is: hovering an undocumented keyword reports which machines have
+    it, what token each uses, and that nobody has described it yet. An empty
+    panel reads as "this is not a keyword"; it is one, and those are different
+    things. Five pseudo-variables — HIMEM, LOMEM, PAGE, PTR and TIME — carry
+    two tokens each, one for reading and one for assigning, and both are
+    reported because showing one would leave the other decoding as an unknown
+    byte.
+  - [x] A citation may now have no link, because not every authoritative source
+    is a web page and a keyword table read out of firmware has no address.
+    Where there is none the source is named as text rather than rendered as a
+    link that goes nowhere, which reads as a broken control to anybody
+    navigating by them.
+  - [ ] Project and compiler documentation keeps EDT-212 open, for the reason
+    below.
 - [ ] EDT-213 Implement non-focus-stealing, screen-reader-navigable signature
   help with active argument, alternative forms/overloads, optional parameters,
   and explicit invocation (EDT-017).
@@ -1944,6 +1965,17 @@ below are finished):
     version-bound. Component coverage and a technical help procedure prove the
     interaction. Additional compiler-provided complex signatures keep EDT-213
     open.
+  - [ ] **What remains is absent data rather than deferred effort.** Every
+    open part of this item asks for records the compiler is supposed to
+    provide, and the pinned toolchain does not provide them: cc65 2.19-1 emits
+    exactly one type record, `id=0,val="00"`, and points every C symbol at it.
+    There is no type information in the build output to read, which the build's
+    own artifact document already says in those words rather than filling the
+    gap with something inferred. What would change this is a toolchain that
+    records types — a newer cc65, or a different C compiler qualified through
+    the toolchain gate — not more work here. Until then, what the file does
+    carry about a C symbol is its storage class and its frame offset, and those
+    are exact and already surfaced.
 - [ ] EDT-214 Implement click/tap and keyboard navigation for assembly branch/
   jump/call operands, BASIC line references, C/ARM functions, macros, includes,
   labels/data, OS calls/SWIs, hardware symbols, SDK files, and generated sources
@@ -1977,6 +2009,17 @@ below are finished):
     installed conio.h, exact declaration selection and focus restoration.
     Compiler-derived conditional records and bank-qualified generated source
     remain open, so EDT-214 remains open.
+  - [ ] **What remains is absent data rather than deferred effort.** Every
+    open part of this item asks for records the compiler is supposed to
+    provide, and the pinned toolchain does not provide them: cc65 2.19-1 emits
+    exactly one type record, `id=0,val="00"`, and points every C symbol at it.
+    There is no type information in the build output to read, which the build's
+    own artifact document already says in those words rather than filling the
+    gap with something inferred. What would change this is a toolchain that
+    records types — a newer cc65, or a different C compiler qualified through
+    the toolchain gate — not more work here. Until then, what the file does
+    carry about a C symbol is its storage class and its frame offset, and those
+    are exact and already surfaced.
 - [ ] EDT-215 Implement definition/declaration/implementation/type-definition,
   peek, references, call hierarchy where derivable, and back/forward history that
   restores cursor, selection, scroll, file, and split (EDT-019).
@@ -2010,6 +2053,17 @@ below are finished):
     help documents desktop and responsive operation with a production
     screenshot. Conditional compiler records, more complex C type forms and
     indirect call analysis remain open, so EDT-215 remains incomplete.
+  - [ ] **What remains is absent data rather than deferred effort.** Every
+    open part of this item asks for records the compiler is supposed to
+    provide, and the pinned toolchain does not provide them: cc65 2.19-1 emits
+    exactly one type record, `id=0,val="00"`, and points every C symbol at it.
+    There is no type information in the build output to read, which the build's
+    own artifact document already says in those words rather than filling the
+    gap with something inferred. What would change this is a toolchain that
+    records types — a newer cc65, or a different C compiler qualified through
+    the toolchain gate — not more work here. Until then, what the file does
+    carry about a C symbol is its storage class and its frame offset, and those
+    are exact and already surfaced.
 - [x] EDT-216 Implement named source bookmarks, gutter/command actions,
   next/previous/search list, edit-tracking anchors, persistence scopes, orphan
   recovery, private-note-safe import/export, and non-colour-only states.
@@ -2897,13 +2951,52 @@ Current implemented increment:
 - [ ] ANL-309 Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden
   token/line-reference/compound-payload fixtures; refuse ambiguous dialects
   safely (ANL-005, ANL-017).
+  - [ ] BASIC V and VI keep this open. Everything else it asks for is done, and
+    what is missing is a validated reader for the ARM BASIC table rather than
+    effort — see below.
   - [x] First Atom slice routes numbered text through the selected Atom target,
     labels it as Atom rather than BBC BASIC, preserves exact source-byte offsets
     across CR/LF/CRLF input, extracts compact lower-case line labels and numeric
     or label GOTO/GOSUB targets, validates order/range/duplicates, and preserves
-    Atom line form in readable and structured exports. Automatic cross-dialect
-    inference, abbreviation expansion and the remaining BBC ROM dialects keep
-    ANL-309 open.
+    Atom line form in readable and structured exports.
+  - [x] **The remaining BBC ROM dialects are read out of the ROMs, not
+    transcribed.** A hand-copied table of a hundred and twenty entries has a
+    typo in it, and nothing finds that typo until somebody's program decodes
+    wrongly in one place. `scripts/extractBasicTokens.mjs` reads a table from a
+    language ROM, and what makes that trustworthy is that it **reproduces the
+    BASIC II table this repository already carried** — transcribed
+    independently and by hand — which a contract checks without needing a ROM.
+    All four tables also end at the same keyword, `HIMEM`, which is
+    corroboration that the rule for where a table stops belongs to the table.
+    BASIC I, II, III (US) and IV are now tabled, with the digest of the
+    firmware each came from; no ROM is in the repository and none is needed to
+    build.
+  - [x] **BASIC V and VI are deliberately absent.** They are ARM BASICs whose
+    table has a different shape, and the reader is validated against the BBC
+    table it reproduces and nothing else. Reading theirs with it would be a
+    guess wearing the same clothes as a measurement, and a partial table is
+    worse than none: it decodes most of a program and corrupts the rest.
+  - [x] **Abbreviation expansion follows the ROM's own order.** `P.` is PRINT
+    because PRINT is what the table reaches first, not because it sorts first —
+    PAGE and PI come earlier alphabetically. Two dialects can legitimately
+    expand the same abbreviation differently and do: the US ROM lists `COLOR`
+    first and the Master lists `COLOUR`, so `COLO.` is a different keyword on
+    each machine. Nothing inside a string, a REM tail or a DATA payload is ever
+    expanded, an unterminated string protects the rest of its line, and a
+    prefix matching nothing is left as written with the reason said.
+  - [x] **Inference refuses, and the tables show why that is the common case.**
+    Of the four 6502-family BASICs read here, exactly one token belongs to a
+    single dialect — `&CE`, `EDIT`, which only BASIC IV has. Every other token
+    is shared, so a tokenised BBC BASIC file almost never says which ROM wrote
+    it, and an inference that answered anyway would be inventing a dialect for
+    nearly every file it saw. It names BASIC IV where `EDIT` proves it, names
+    Atom where a line label proves it, and otherwise says plainly that the
+    dialect has to come from the machine. A file carrying tokens from more than
+    one dialect is refused rather than resolved in favour of the commonest.
+  - [x] Evidence: 8 table contracts including the reproduction of the hand
+    transcription, 14 abbreviation contracts and 7 inference contracts — among
+    them one asserting that exactly one token distinguishes the four dialects,
+    so if that ever changes the thing that notices is a test rather than a user.
 - [ ] ANL-310 Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers
   behind processor-specific contracts and complete opcode golden suites
   (ANL-007, ANL-017).
@@ -2919,9 +3012,23 @@ Current implemented increment:
     registers and mixed code/data. A headed port-8090 journey loaded the real
     16-byte build, decoded/followed its loop, switched ARM2→ARM3, retained exact
     addresses/raw bytes and reported zero browser errors.
-  - [ ] Add processor-specific contracts and golden corpora for later ARM,
-    Tube 6502/65C102, Z80, 80186/80286, 32016, ARM Tube and every other CPU the
-    target catalogue eventually claims; the parent remains open.
+  - [x] **The Tube 6502 and 65C102 have their corpus, and it is exhaustive.**
+    The 65C102 in a 6502 second processor and the 65C12 in a Master execute the
+    same instruction set the product's `65c02` table decodes, so one corpus
+    covers all three. The bytes are BeebAsm's own `all65C02.6502` — the
+    assembler's exhaustive opcode source — assembled by the pinned BeebAsm,
+    with the mnemonic each opcode is named by read out of that same source, so
+    neither the corpus nor the answer comes from the thing being tested. All
+    178 opcodes decode, the walk lands exactly on the end of the image (which
+    is what proves every instruction length), and the same corpus is refused by
+    the NMOS table, which is what makes the two tables different rather than
+    one table with a flag. The Rockwell bit operations stay undecoded on
+    purpose: the parts Acorn shipped do not have them.
+  - [ ] Z80, 80186/80286, 32016 and the ARM Tube keep this open, and they
+    follow their machines rather than leading them. Each needs a disassembler
+    and a corpus of its own, and writing one for a processor this build cannot
+    run would be code no test could hold to account — EMU-425 gates those
+    machines for the same reason.
 - [x] ANL-311 Add indirect-flow hints, extra entry points, code/data/text marking,
   comments, analysis undo/history and exact project persistence (ANL-008,
   ANL-010, ANL-012).

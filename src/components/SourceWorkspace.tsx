@@ -1012,7 +1012,16 @@ function TokenDefinition({ item, onDismiss, onSelectRelated }: { item: LanguageI
     {!!documentation?.parameters?.length && <dl className="token-definition-parameters" aria-label={`${item.token} parameters`}>
       {documentation.parameters.map((parameter) => <div key={parameter.name}><dt>{parameter.name}</dt><dd>{parameter.detail}{parameter.range && <small>{parameter.range}</small>}</dd></div>)}
     </dl>}
-    <footer>{item.source && <small>{item.source.kind === 'project' ? 'PROJECT' : 'REFERENCE'} · {item.source.label} · {item.source.version}</small>}{documentation?.citations?.map((citation) => <a key={`${citation.url}-${citation.section ?? ''}`} href={citation.url} target="_blank" rel="noreferrer" title={`${citation.section ?? ''}${citation.version ? ` · ${citation.version}` : ''}`}>{citation.title}{citation.section ? ` · ${citation.section}` : ''}</a>)}</footer>
+    <footer>{item.source && <small>{item.source.kind === 'project' ? 'PROJECT' : 'REFERENCE'} · {item.source.label} · {item.source.version}</small>}{documentation?.citations?.map((citation) => {
+      const label = `${citation.title}${citation.section ? ` · ${citation.section}` : ''}`;
+      const hint = `${citation.section ?? ''}${citation.version ? ` · ${citation.version}` : ''}`;
+      /* A source with nowhere to link to is named rather than rendered as a
+       * link that goes nowhere, which reads as a broken control to anybody
+       * navigating by them. */
+      return citation.url
+        ? <a key={`${citation.url}-${citation.section ?? ''}`} href={citation.url} target="_blank" rel="noreferrer" title={hint}>{label}</a>
+        : <span key={`cited-${citation.title}-${citation.section ?? ''}`} title={hint}>{label}</span>;
+    })}</footer>
   </section>;
 }
 

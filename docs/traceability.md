@@ -241,10 +241,10 @@ are listed rather than quietly counted.
 | PLAT-202 | Establish formatting, static analysis, type checks, unit/ integration/E2E test commands,… | 15 of 16 parts done |
 | PLAT-203 | Generate typed client contracts from the accepted API description and add server/client… | not started |
 | EDT-209 | Implement context-aware completion for commands, opcodes, directives, keywords, labels,… | 5 of 6 parts done |
-| EDT-212 | Implement pointer-hover and keyboard-focus token help with syntax, definition,… | 1 of 1 parts done |
-| EDT-213 | Implement non-focus-stealing, screen-reader-navigable signature help with active… | 1 of 1 parts done |
-| EDT-214 | Implement click/tap and keyboard navigation for assembly branch/ jump/call operands,… | 3 of 3 parts done |
-| EDT-215 | Implement definition/declaration/implementation/type-definition, peek, references, call… | 3 of 3 parts done |
+| EDT-212 | Implement pointer-hover and keyboard-focus token help with syntax, definition,… | 4 of 5 parts done |
+| EDT-213 | Implement non-focus-stealing, screen-reader-navigable signature help with active… | 1 of 2 parts done |
+| EDT-214 | Implement click/tap and keyboard navigation for assembly branch/ jump/call operands,… | 3 of 4 parts done |
+| EDT-215 | Implement definition/declaration/implementation/type-definition, peek, references, call… | 3 of 4 parts done |
 | EDT-222 | Create language-assistance conformance fixtures for 6502/65C02 assembly, BBC BASIC, Atom… | 2 of 2 parts done |
 | BLD-300 | Implement toolchain manifest/registry and common adapter lifecycle (BLD-001, API-007). | 1 of 1 parts done |
 | BLD-301 | Implement disposable non-root sandbox, immutable toolchains, network denial,… | 1 of 1 parts done |
@@ -256,8 +256,8 @@ are listed rather than quietly counted.
 | BLD-330 | Implement target-native assertion runtime/result channel and test target output for each… | not started |
 | MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 3 of 3 parts done |
 | ANL-308B | Add catalogue/container, bank/address-space and project-manifest metadata ingestion with… | 3 of 3 parts done |
-| ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 1 of 1 parts done |
-| ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 2 of 3 parts done |
+| ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 6 of 7 parts done |
+| ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | ANL-314 | Move heavy analysis into a cancellable bounded worker, add progress/virtualization and… | 4 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
 | EMU-404 | Implement keyboard viewer/remapper, focus capture/release, pasted text policy,… | 7 of 7 parts done |
