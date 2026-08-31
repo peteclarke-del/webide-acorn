@@ -30,6 +30,15 @@ final class NativeBuildRequest
         public readonly string $dialect,
         public readonly string $profileGoal,
         public readonly string $debugMetadata,
+        /**
+         * Rebuild rather than answer from the cache, and store what comes back.
+         *
+         * Explicit rather than inferred, so that Rebuild means rebuild: a
+         * person who asks again after a toolchain change they suspect has not
+         * been noticed needs a way to find out, and a cache with no way past it
+         * is a cache nobody can trust.
+         */
+        public readonly bool $cacheBypass,
     ) {
     }
 
@@ -154,7 +163,20 @@ final class NativeBuildRequest
             self::address($entryValue, 'target.entry.value', $addressMaximum);
         }
 
-        return new self($requestId, $targetId, $machineId, $profile, $processor, $outputName, $origin, $maximumAddress, $files, array_keys($sourceUnitIds), $defines, $entryMode, $entryValue, $dialect, $profileGoal, $debugMetadata);
+        /* An omitted `cache` is a request that has no opinion, which is the
+         * ordinary case and must not read as a malformed one. An empty JSON
+         * object decodes to the same empty array as no object at all, so the
+         * two cannot be told apart here and neither is an error. */
+        $cache = $payload['cache'] ?? ['bypass' => false];
+        if (!is_array($cache) || (array_is_list($cache) && $cache !== [])) {
+            throw new ApiProblem(400, 'BUILD_FIELD_INVALID', 'cache must be an object.', false, ['cache' => 'Expected an object']);
+        }
+        $bypass = $cache['bypass'] ?? false;
+        if (!is_bool($bypass)) {
+            throw new ApiProblem(400, 'BUILD_CACHE_BYPASS_INVALID', 'cache.bypass must be true or false.', false, ['cache.bypass' => 'Expected a boolean']);
+        }
+
+        return new self($requestId, $targetId, $machineId, $profile, $processor, $outputName, $origin, $maximumAddress, $files, array_keys($sourceUnitIds), $defines, $entryMode, $entryValue, $dialect, $profileGoal, $debugMetadata, $bypass);
     }
 
     /** @return array<string, mixed> */

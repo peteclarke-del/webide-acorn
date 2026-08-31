@@ -17,6 +17,7 @@ final class BeebAsmBuildService
         private readonly NativeProcessRunner $runner,
         private readonly StructuredLogger $logger,
         private readonly JobWorkspace $workspace,
+        private readonly BuildCache $cache,
     ) {}
 
     /** @return array<string, mixed> */
@@ -25,6 +26,19 @@ final class BeebAsmBuildService
         $started = hrtime(true); $this->policy->validate($request);
         $toolchain = $this->manifest->detect();
         if (!$toolchain['ready']) throw new ApiProblem(503, 'BEEBASM_UNAVAILABLE', 'The pinned BeebAsm adapter is not ready.', true);
+        /*
+         * Answered from the cache when the same inputs, toolchain and target
+         * have been built before. The key is checked against the entry's own
+         * record of those inputs on the way out, so a hit is a hit because the
+         * build matches and not because a hash did.
+         */
+        $cacheKey = BuildCache::key(BuildCache::LOCAL_OWNER, BeebAsmManifest::ADAPTER_ID, BeebAsmManifest::ADAPTER_VERSION, (string) $toolchain['digest'], $request);
+        if (!$request->cacheBypass) {
+            $cached = $this->cache->read(BuildCache::LOCAL_OWNER, $cacheKey, $request->files);
+            if ($cached !== null) {
+                return $this->cache->hitEnvelope($cached, BuildCache::LOCAL_OWNER, $cacheKey, max(0.0, (hrtime(true) - $started) / 1_000_000.0));
+            }
+        }
         $job = $this->workspace->allocate('beebasm-');
         if (!mkdir($job.'/.build', 0700)) throw new ApiProblem(500, 'BUILD_JOB_CREATE', 'Could not create the isolated build job.', true);
         try {
@@ -72,7 +86,10 @@ final class BeebAsmBuildService
             $provenance = ['schema' => '8bit-net.build-provenance', 'version' => 2, 'fingerprintAlgorithm' => 'fnv1a32', 'digestAlgorithm' => 'sha256', 'fingerprint' => $this->fingerprint(ToolchainManifest::canonicalJson(['targetId' => $request->targetId, 'machineId' => $request->machineId, 'processor' => $request->processor, 'inputs' => $inputs, 'output' => $artifactRecord[0] ?? null])), 'toolchain' => $toolchain, 'toolchainDigest' => $toolchain['digest'], 'inputs' => $inputs, 'output' => $artifactRecord[0] ?? null];
             if ($artifact) $artifact['provenance'] = $provenance;
             $this->logger->info('native-build-completed', ['adapter' => BeebAsmManifest::ADAPTER_ID, 'outcome' => $reason, 'durationMs' => round($duration, 2), 'outputByteCount' => strlen($bytes), 'errors' => $errors, 'warnings' => $warnings]);
-            return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => [$process], 'provenance' => $provenance];
+            $response = ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => [$process], 'provenance' => $provenance];
+            $this->cache->write(BuildCache::LOCAL_OWNER, $cacheKey, $request->files, $response);
+
+            return $this->cache->storedEnvelope($response, BuildCache::LOCAL_OWNER, $cacheKey, $request->cacheBypass);
         } finally { $this->workspace->remove($job); }
     }
 

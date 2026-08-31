@@ -8,6 +8,7 @@ use App\Build\ArmBuildManifest;
 use App\Build\ArmBuildService;
 use App\Build\ArmOutputParser;
 use App\Build\ArmSourcePolicy;
+use App\Build\BuildCache;
 use App\Build\JobWorkspace;
 use App\Build\NativeBuildRequest;
 use App\Build\NativeProcessRunner;
@@ -18,6 +19,10 @@ use PHPUnit\Framework\TestCase;
 final class ArmBuildServiceTest extends TestCase
 {
     private LogRecorder $log;
+
+    private BuildCache $cache;
+
+    private string $cacheRoot;
 
     private ArmBuildService $service;
 
@@ -40,7 +45,11 @@ final class ArmBuildServiceTest extends TestCase
         $_SERVER['ARM_BINUTILS_PACKAGE_VERSION'] = 'test-toolchain';
         if (!is_dir('/tmp/native-builds')) mkdir('/tmp/native-builds', 0700, true);
         $this->log = new LogRecorder();
-        $this->service = new ArmBuildService(new ArmBuildManifest(), new ArmSourcePolicy(), new NativeProcessRunner(), new ArmOutputParser(), $this->log->logger, new JobWorkspace($this->log->logger));
+        /* Its own root per test, so one test's stored builds cannot answer
+         * another's and make a failure look like a pass. */
+        $this->cacheRoot = sys_get_temp_dir().'/build-cache-'.bin2hex(random_bytes(8));
+        $this->cache = new BuildCache($this->cacheRoot, $this->log->logger);
+        $this->service = new ArmBuildService(new ArmBuildManifest(), new ArmSourcePolicy(), new NativeProcessRunner(), new ArmOutputParser(), $this->log->logger, new JobWorkspace($this->log->logger), $this->cache);
     }
 
     /**
@@ -66,6 +75,11 @@ final class ArmBuildServiceTest extends TestCase
             ),
             $invocations,
         ));
+    }
+
+    protected function tearDown(): void
+    {
+        exec('rm -rf '.escapeshellarg($this->cacheRoot));
     }
 
     public function testBuildsReproducibleArm2RawBinaryWithRealSourceEvidence(): void

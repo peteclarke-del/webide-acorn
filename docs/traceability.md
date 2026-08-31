@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 164 |
+| Complete | 165 |
 | Complete and traced | 94 |
-| Complete and described | 62 |
+| Complete and described | 63 |
 | Complete and untraced | 8 |
-| Open | 130 |
+| Open | 129 |
 
 ## By area
 
@@ -39,7 +39,7 @@ is the part a machine can settle.
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 14 | 12 | 2 | 0 |
 | EMU | 18 | 11 | 3 | 8 | 0 |
-| BLD | 17 | 13 | 4 | 9 | 0 |
+| BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
 | CLD | 10 | 5 | 4 | 0 | 1 |
 | DOC | 10 | 8 | 7 | 1 | 0 |
@@ -250,7 +250,6 @@ are listed rather than quietly counted.
 | EDT-215 | Implement definition/declaration/implementation/type-definition, peek, references, call… | 3 of 4 parts done |
 | EDT-222 | Create language-assistance conformance fixtures for 6502/65C02 assembly, BBC BASIC, Atom… | 2 of 2 parts done |
 | BLD-302 | Add per-tenant job fairness, idempotency, state transitions, progress, retry rules,… | not started |
-| BLD-304 | Implement content-addressed cache with integrity, tenant separation, declared inputs,… | not started |
 | BLD-329 | Implement ARM assembler/linker and RISC OS C adapters before the ARM vertical slice;… | 6 of 8 parts done |
 | BLD-330 | Implement target-native assertion runtime/result channel and test target output for each… | not started |
 | MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 3 of 3 parts done |

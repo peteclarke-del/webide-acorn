@@ -19,8 +19,11 @@ coverage/
 /backend/var/cache/
 /backend/var/log/
 /backend/.phpunit.cache/
-# The formatter's cache of what it has already checked.
+# The formatter's cache of what it has already checked. It is written in the
+# directory the formatter was started from, which is the repository root when
+# the gate runs it and backend/ when composer does.
 /backend/.php-cs-fixer.cache
+/.php-cs-fixer.cache
 # Composer restores these from composer.lock; they are not project files.
 /backend/vendor/
 

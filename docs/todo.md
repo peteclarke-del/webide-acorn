@@ -2275,7 +2275,7 @@ below are finished):
     toolchain records nothing — cc65 writes one empty type record and points
     every C symbol at it — the artifact document says so in those words instead
     of filling the gap with something inferred.
-- [ ] BLD-304 Implement content-addressed cache with integrity, tenant separation,
+- [x] BLD-304 Implement content-addressed cache with integrity, tenant separation,
   declared inputs, metrics, invalidation tests, and bypass control.
 - [x] BLD-305 Test malicious filenames/options/sources, runaway tools, fork/
   output bombs, network attempts, cancellation races, and cleanup failures.
@@ -2383,8 +2383,68 @@ open):
   invalidation, unrelated-file stability, bypass and fault-injected corruption.
   A deployed browser run proves miss → hit → bypass → source-edit miss with the
   correct two-byte output and zero errors. Cross-session persistence, worker-
-  shared caching and server tenant separation remain open under BLD-304 rather
-  than being claimed by this browser-session cache.
+  shared caching and server tenant separation are answered by the server cache
+  below rather than being claimed by this browser-session cache.
+- [x] **The native builder now keeps results between requests.** All four
+  server adapters — ca65/ld65, BeebAsm, cc65 C and the ARM binutils — consult
+  one content-addressed cache before running anything. The key is built from
+  every value that reaches the toolchain: the adapter and its version, the
+  pinned toolchain digest, the machine, the profile and its options, the
+  processor, the origin and address ceiling, the entry point, the output name,
+  the defines, and the name and SHA-256 of every declared input, with the
+  inputs sorted so the same project sent in a different order is the same build
+  rather than a second entry that happens to agree.
+- [x] **Tenant separation is two independent things, and that is deliberate.**
+  A build's output is not only bytes: the listing and dependency documents
+  carry the source itself, so a cache that crossed owners would be a way to
+  read somebody else's program. Identical inputs would give identical outputs,
+  so sharing would in principle be safe — but "in principle" holds only while
+  the key covers everything, and a key is exactly the kind of thing that grows
+  a gap. Entries are partitioned by owner *and* the owner is mixed into the
+  key, so two separate things have to be wrong before one tenant can be handed
+  another's build. An owner name is hashed rather than used as a path
+  component, because a caller-supplied name used as a path is a traversal
+  waiting to be found.
+- [x] A hit is a hit because the build matches, not because a hash did. Every
+  read re-hashes the stored envelope against the digest the entry carries, and
+  checks the entry's own record of its inputs against the ones being built —
+  which is what a key with a gap in it would look like from the inside. A
+  failure of either is counted as a corruption, logged, and the entry removed,
+  because an entry that fails one of those is not a miss but a fault worth
+  being able to see.
+- [x] The counters are on disk rather than in the process. PHP-FPM hands each
+  request its own memory, so an in-process hit count would report 0 or 1
+  forever and say nothing about whether the cache was working. Hits, misses,
+  corruptions, evictions, the entry count, the bytes held and the key all reach
+  the build result envelope and the `*.result.json` document.
+- [x] A hit is told apart from a build in what it reports. The stored envelope
+  carries the timing of the build that produced it, and returning that
+  unchanged would report a duration this request did not take; it is replaced
+  with what the lookup cost and the logs say no toolchain was run. A cached
+  result nobody can tell from a real one is one nobody can debug.
+- [x] Rebuild means rebuild on both sides. `cache.bypass` in the request runs
+  the toolchain and replaces what was stored, and the browser adapter sends it
+  whenever the workbench's own Rebuild is used — a cache with no way past it is
+  a cache nobody can trust.
+- [x] **The browser-session cache stays in memory, on purpose.** Persisting it
+  would spend somebody's browser storage quota — the same quota their projects
+  use — to save work that costs almost nothing: a browser-local build is a
+  JavaScript assembler that finishes in milliseconds. The builds worth keeping
+  are the ones that run a real assembler in a container, and those are what the
+  server cache holds. This is a decision rather than an omission, and it is
+  recorded here so that a later change to it is a change to a decision.
+- [x] Evidence: 10 contracts in `backend/tests/Build/BuildCacheTest.php`
+  covering the hit, every value that changes the key, both halves of the tenant
+  separation, an entry whose inputs are not the ones being built, a corrupted
+  entry rejected through the normal read path, cross-request counters, the
+  timing a hit reports, least-recently-*used* eviction with the recency set
+  rather than waited for, an entry too large to hold whole, and an owner name
+  that cannot become a path; 4 end-to-end contracts in
+  `backend/tests/Build/NativeBuildServiceTest.php` proving a second identical
+  build runs no toolchain, an edited source is a different build, Rebuild is an
+  explicit way past, and a stored entry carries no workspace path; and 1 in
+  `src/build/nativeToolchainAdapter.test.ts` proving the workbench sends the
+  bypass.
 - [x] The browser-local BLD-305 security increment now stops a source expansion
   before forwarding any line that would cross the 100,000-line/2 MiB limits,
   rejects a single data directive that would cross the 16-bit output address

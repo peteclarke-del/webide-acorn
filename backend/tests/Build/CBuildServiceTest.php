@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Build;
 
+use App\Build\BuildCache;
 use App\Build\CBuildManifest;
 use App\Build\CBuildService;
 use App\Build\Cc65OutputParser;
@@ -19,6 +20,10 @@ use Symfony\Component\Process\Process;
 final class CBuildServiceTest extends TestCase
 {
     private LogRecorder $log;
+
+    private BuildCache $cache;
+
+    private string $cacheRoot;
 
     private CBuildService $service;
 
@@ -47,7 +52,16 @@ final class CBuildServiceTest extends TestCase
         $_SERVER['TOOLCHAIN_PACKAGE_VERSION'] = '2.19-1-test';
         if (!is_dir('/tmp/native-builds')) mkdir('/tmp/native-builds', 0700, true);
         $this->log = new LogRecorder();
-        $this->service = new CBuildService(new CBuildManifest(), new CSourcePolicy(), new NativeProcessRunner(), new Cc65OutputParser(), $this->log->logger, new JobWorkspace($this->log->logger));
+        /* Its own root per test, so one test's stored builds cannot answer
+         * another's and make a failure look like a pass. */
+        $this->cacheRoot = sys_get_temp_dir().'/build-cache-'.bin2hex(random_bytes(8));
+        $this->cache = new BuildCache($this->cacheRoot, $this->log->logger);
+        $this->service = new CBuildService(new CBuildManifest(), new CSourcePolicy(), new NativeProcessRunner(), new Cc65OutputParser(), $this->log->logger, new JobWorkspace($this->log->logger), $this->cache);
+    }
+
+    protected function tearDown(): void
+    {
+        exec('rm -rf '.escapeshellarg($this->cacheRoot));
     }
 
     public function testCompilesAssemblesAndLinksRunnableCWithSourceMapping(): void

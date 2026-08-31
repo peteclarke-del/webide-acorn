@@ -69,6 +69,10 @@ export async function invokeNativeToolchain(request: BuildRequest, signal?: Abor
     },
     files: files.map(({ id, name, content }) => ({ id, name, content })), sourceUnitIds: request.target.sourceFileIds,
     defines: parsedBuildDefines(request.target.defines),
+    /* Rebuild means rebuild on the server too. The builder keeps results
+     * between requests, so a person who suspects a stored one is wrong needs
+     * the same way past it that the browser-session cache already gives them. */
+    cache: { bypass: request.cacheMode === 'bypass' },
   };
   let response: Response;
   try {

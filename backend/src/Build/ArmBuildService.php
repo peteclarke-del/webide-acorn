@@ -17,6 +17,7 @@ final class ArmBuildService
         private readonly ArmOutputParser $parser,
         private readonly StructuredLogger $logger,
         private readonly JobWorkspace $workspace,
+        private readonly BuildCache $cache,
     ) {
     }
 
@@ -26,6 +27,19 @@ final class ArmBuildService
         $started = hrtime(true); $manifest = $this->toolchain->detect();
         if (!$manifest['ready']) throw new ApiProblem(503, 'TOOLCHAIN_UNAVAILABLE', 'The pinned GNU ARM2 assembler/linker toolchain is not ready.', true);
         $this->sourcePolicy->validate($request);
+        /*
+         * Answered from the cache when the same inputs, toolchain and target
+         * have been built before. The key is checked against the entry's own
+         * record of those inputs on the way out, so a hit is a hit because the
+         * build matches and not because a hash did.
+         */
+        $cacheKey = BuildCache::key(BuildCache::LOCAL_OWNER, ArmBuildManifest::ADAPTER_ID, ArmBuildManifest::ADAPTER_VERSION, (string) $manifest['digest'], $request);
+        if (!$request->cacheBypass) {
+            $cached = $this->cache->read(BuildCache::LOCAL_OWNER, $cacheKey, $request->files);
+            if ($cached !== null) {
+                return $this->cache->hitEnvelope($cached, BuildCache::LOCAL_OWNER, $cacheKey, max(0.0, (hrtime(true) - $started) / 1_000_000.0));
+            }
+        }
         $job = $this->workspace->allocate();
         $documents = []; $documentBytes = 0; $invocations = []; $diagnostics = []; $logs = []; $terminal = null; $outputBytes = '';
         try {
@@ -122,7 +136,10 @@ final class ArmBuildService
             ];
             if ($artifact !== null) $artifact['provenance'] = $provenance;
             $this->logger->info('native-build-completed', ['adapter' => ArmBuildManifest::ADAPTER_ID, 'outcome' => $exitReason, 'durationMs' => round($duration, 2), 'outputByteCount' => strlen($outputBytes), 'errors' => $errors, 'warnings' => $warnings]);
-            return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
+            $response = ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
+            $this->cache->write(BuildCache::LOCAL_OWNER, $cacheKey, $request->files, $response);
+
+            return $this->cache->storedEnvelope($response, BuildCache::LOCAL_OWNER, $cacheKey, $request->cacheBypass);
         } finally { $this->workspace->remove($job); }
     }
 

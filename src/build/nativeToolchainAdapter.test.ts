@@ -75,3 +75,23 @@ describe('native toolchain browser adapter', () => {
     try { await invokeNativeToolchain(request); } catch (error) { expect(error).toBeInstanceOf(BuildExecutionError); }
   });
 });
+
+describe('what the server cache is told', () => {
+  it('asks the builder to rebuild when the person asked for a rebuild', async () => {
+    /* The builder keeps results between requests, so Rebuild has to mean
+     * rebuild on both sides or it means nothing on one of them. */
+    const sent: unknown[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      sent.push(JSON.parse(String(init?.body)));
+      const artifact = { kind: '6502-binary', bytesBase64: 'qUFg', origin: 0x1900, entryPoint: 0x1900, processor: '6502', symbols: { _start: 0x1900 }, sourceLocations: {}, sourceMap: {}, entryFileId: 'main', dependencies: ['main.s'], listing: [], diagnostics: [] };
+      return new Response(JSON.stringify({ schema: '8bit-net.native-build-response', version: 1, result: metadata('succeeded', 0), artifact, documents: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    await invokeNativeToolchain(request);
+    await invokeNativeToolchain({ ...request, cacheMode: 'bypass' });
+
+    expect((sent[0] as { cache: unknown }).cache).toEqual({ bypass: false });
+    expect((sent[1] as { cache: unknown }).cache).toEqual({ bypass: true });
+    vi.unstubAllGlobals();
+  });
+});

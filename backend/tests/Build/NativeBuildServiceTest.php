@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Build;
 
+use App\Build\BuildCache;
 use App\Build\Cc65OutputParser;
 use App\Build\JobWorkspace;
 use App\Build\NativeBuildRequest;
@@ -18,6 +19,10 @@ final class NativeBuildServiceTest extends TestCase
 {
     private LogRecorder $log;
 
+    private BuildCache $cache;
+
+    private string $cacheRoot;
+
     private NativeBuildService $service;
 
     protected function setUp(): void
@@ -29,7 +34,16 @@ final class NativeBuildServiceTest extends TestCase
             mkdir('/tmp/native-builds', 0700, true);
         }
         $this->log = new LogRecorder();
-        $this->service = new NativeBuildService(new ToolchainManifest(), new SourcePolicy(), new NativeProcessRunner(), new Cc65OutputParser(), $this->log->logger, new JobWorkspace($this->log->logger));
+        /* Its own root per test, so one test's stored builds cannot answer
+         * another's and make a failure look like a pass. */
+        $this->cacheRoot = sys_get_temp_dir().'/build-cache-'.bin2hex(random_bytes(8));
+        $this->cache = new BuildCache($this->cacheRoot, $this->log->logger);
+        $this->service = new NativeBuildService(new ToolchainManifest(), new SourcePolicy(), new NativeProcessRunner(), new Cc65OutputParser(), $this->log->logger, new JobWorkspace($this->log->logger), $this->cache);
+    }
+
+    protected function tearDown(): void
+    {
+        exec('rm -rf '.escapeshellarg($this->cacheRoot));
     }
 
     public function testBuildsRealBinarySymbolsSourceMapAndDocumentsReproducibly(): void
@@ -60,5 +74,66 @@ final class NativeBuildServiceTest extends TestCase
         self::assertSame('error', $response['result']['diagnostics'][0]['severity']);
         self::assertSame('main', $response['result']['diagnostics'][0]['fileId']);
         self::assertSame([], glob('/tmp/native-builds/*') ?: [], 'Failed job directories must be removed.');
+    }
+
+    public function testASecondIdenticalBuildIsAnsweredWithoutRunningTheToolchain(): void
+    {
+        /*
+         * The whole point, and the only way to see it is the cost: a hit runs
+         * no process at all, so it carries no invocations and a duration
+         * measured in the lookup rather than in the assembler.
+         */
+        $first = $this->service->build(NativeBuildRequest::fromArray(NativeBuildRequestTest::payload()));
+        self::assertSame('miss', $first['result']['cache']['status']);
+        self::assertNotSame([], $first['invocations']);
+
+        $second = $this->service->build(NativeBuildRequest::fromArray(NativeBuildRequestTest::payload()));
+        self::assertSame('hit', $second['result']['cache']['status']);
+        self::assertSame(1, $second['result']['cache']['hits']);
+        self::assertSame($first['artifact']['bytesBase64'], $second['artifact']['bytesBase64']);
+        self::assertSame($first['provenance']['fingerprint'], $second['provenance']['fingerprint']);
+        self::assertLessThan($first['result']['timing']['durationMs'], $second['result']['timing']['durationMs']);
+        self::assertStringContainsString('no toolchain was run', $second['result']['logs'][0]);
+    }
+
+    public function testAChangedSourceIsADifferentBuildRatherThanTheSameOne(): void
+    {
+        /* The failure a cache makes possible: returning the previous program
+         * for a source somebody has just edited. */
+        $this->service->build(NativeBuildRequest::fromArray(NativeBuildRequestTest::payload()));
+        $edited = NativeBuildRequestTest::payload(".setcpu \"6502\"\n.export _start\n.segment \"CODE\"\n_start:\n lda #\$42\n rts\n");
+        $changed = $this->service->build(NativeBuildRequest::fromArray($edited));
+
+        self::assertSame('miss', $changed['result']['cache']['status']);
+        self::assertSame('hit', $this->service->build(NativeBuildRequest::fromArray($edited))['result']['cache']['status']);
+    }
+
+    public function testRebuildIsAnExplicitWayPastTheCache(): void
+    {
+        /*
+         * A cache with no way past it is a cache nobody can trust: somebody who
+         * suspects a stored result is wrong needs to be able to find out. The
+         * rebuild runs the toolchain and replaces what was stored.
+         */
+        $this->service->build(NativeBuildRequest::fromArray(NativeBuildRequestTest::payload()));
+        $payload = NativeBuildRequestTest::payload();
+        $payload['cache'] = ['bypass' => true];
+        $forced = $this->service->build(NativeBuildRequest::fromArray($payload));
+
+        self::assertSame('bypassed', $forced['result']['cache']['status']);
+        self::assertNotSame([], $forced['invocations'], 'A bypassed build did not run the toolchain.');
+        self::assertSame('hit', $this->service->build(NativeBuildRequest::fromArray(NativeBuildRequestTest::payload()))['result']['cache']['status']);
+    }
+
+    public function testTheStoredResultCarriesNoWorkspacePath(): void
+    {
+        /* An entry outlives the request that made it, so anything disclosed in
+         * one is disclosed for as long as it is kept. */
+        $this->service->build(NativeBuildRequest::fromArray(NativeBuildRequestTest::payload()));
+        $entries = glob($this->cacheRoot.'/build-cache/*/*/*.json') ?: [];
+        self::assertCount(1, $entries);
+        $stored = (string) file_get_contents($entries[0]);
+        self::assertStringNotContainsString('/tmp/native-builds', $stored);
+        self::assertStringContainsString('<job>', $stored);
     }
 }

@@ -20,5 +20,13 @@ services:
     arguments:
       $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
 
+  # The build cache lives on the same volume, for the same reason: the builder
+  # is read-only apart from /tmp, and /tmp is a tmpfs that a container restart
+  # empties. A cache that vanished on every restart would report misses forever
+  # and be indistinguishable from one that was not working.
+  App\Build\BuildCache:
+    arguments:
+      $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
+
 parameters:
   project_store_root_default: '/var/lib/webide-acorn/store'

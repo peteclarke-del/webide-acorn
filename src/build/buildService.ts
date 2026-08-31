@@ -31,7 +31,10 @@ export interface BuildResultMetadata {
   invocation: { adapterId: string; adapterVersion: string; toolchainDigest: string; engine: 'browser-local' | 'server-native'; profile: BuildTarget['profile']; machineId: string; dependencyTargetIds: string[] };
   exit: { reason: 'succeeded' | 'diagnostics' | 'invalid-configuration' | 'dependency-failure' | 'adapter-failure' | 'timeout' | 'output-limit'; errors: number; warnings: number };
   timing: { durationMs: number };
-  cache: { status: 'hit' | 'miss' | 'bypassed'; reason: string; key?: string; entries: number; hits: number; misses: number; corruptions: number; evictions: number };
+  /* `bytes` is only reported by the server-side cache, which is on a disk
+   * somebody has to keep; the browser-session cache is bounded by entry count
+   * and its own byte budget and reports neither as a total. */
+  cache: { status: 'hit' | 'miss' | 'bypassed'; reason: string; key?: string; entries: number; bytes?: number; hits: number; misses: number; corruptions: number; evictions: number };
   inputs: Array<{ id: string; name: string; bytes: number; fingerprint: string; sha256: string }>;
   artifacts: Array<{ name: string; kind: BuildArtifact['kind']; bytes: number; fingerprint: string; sha256: string }>;
   size: { outputBytes: number; mappedBytes: number; unmappedBytes: number; origin?: number; end?: number; symbols: number; sourceFiles: number };

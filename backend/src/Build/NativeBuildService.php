@@ -17,6 +17,7 @@ final class NativeBuildService
         private readonly Cc65OutputParser $parser,
         private readonly StructuredLogger $logger,
         private readonly JobWorkspace $workspace,
+        private readonly BuildCache $cache,
     ) {
     }
 
@@ -29,6 +30,19 @@ final class NativeBuildService
             throw new ApiProblem(503, 'TOOLCHAIN_UNAVAILABLE', 'The pinned ca65/ld65 toolchain is not ready.', true);
         }
         $this->sourcePolicy->validate($request);
+        /*
+         * Answered from the cache when the same inputs, toolchain and target
+         * have been built before. The key is checked against the entry's own
+         * record of those inputs on the way out, so a hit is a hit because the
+         * build matches and not because a hash did.
+         */
+        $cacheKey = BuildCache::key(BuildCache::LOCAL_OWNER, ToolchainManifest::ADAPTER_ID, ToolchainManifest::ADAPTER_VERSION, (string) $manifest['digest'], $request);
+        if (!$request->cacheBypass) {
+            $cached = $this->cache->read(BuildCache::LOCAL_OWNER, $cacheKey, $request->files);
+            if ($cached !== null) {
+                return $this->cache->hitEnvelope($cached, BuildCache::LOCAL_OWNER, $cacheKey, max(0.0, (hrtime(true) - $started) / 1_000_000.0));
+            }
+        }
         $job = $this->workspace->allocate();
 
         $documents = [];
@@ -187,7 +201,10 @@ final class NativeBuildService
 
             $this->structuredLog($request, $exitReason, $durationMs, strlen($outputBytes), $errors, $warnings);
 
-            return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
+            $response = ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
+            $this->cache->write(BuildCache::LOCAL_OWNER, $cacheKey, $request->files, $response);
+
+            return $this->cache->storedEnvelope($response, BuildCache::LOCAL_OWNER, $cacheKey, $request->cacheBypass);
         } finally {
             $this->workspace->remove($job);
         }
