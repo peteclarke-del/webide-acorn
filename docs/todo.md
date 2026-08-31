@@ -4115,9 +4115,45 @@ Current implemented increment:
   - [ ] The expansions this product would want are provided by `stardot/elkulator`,
     which the sibling bit-chat tests already build and patch, and whose MAME
     expansion ROM sets are already present under `local-roms`. There is no
-    upstream WebAssembly port of it, and it is built on Allegro 4, so a browser
-    slice would need that port doing first, in the way `pdjstone/arculator-wasm`
-    was ported to SDL2 before this build could use it for the A310.
+    upstream WebAssembly port of it, and upstream is built on Allegro 4, so a
+    browser slice needs that port doing first, in the way
+    `pdjstone/arculator-wasm` was ported to SDL2 before this build could use it
+    for the A310.
+  - [x] **That note was written when it was the whole story and is no longer.**
+    `demrepofdave/elkulator` has been porting Elkulator to Allegro 5 since
+    September 2024 — twelve merged pull requests to May 2025 covering the event
+    loop, menus, keyboard redefinition, window resize, movie support, serial and
+    parallel, and joystick. Its `configure.ac` now defaults to Allegro 5 and
+    keeps Allegro 4 behind `--enable-allegro4` with a `HAL_ALLEGRO_4` define, so
+    the platform layer sits behind an abstraction rather than being scattered.
+    That matters because Allegro 5 carries an SDL backend in the official tree —
+    `src/sdl/` for display, keyboard, mouse, joystick, system, threads, time and
+    touch, and `addons/audio/sdl_audio.c` for sound — and SDL2 is a first-class
+    Emscripten target.
+  - [x] **The unproven link in that chain has now been tested, and it holds.**
+    Allegro 5.2.9.1 with the SDL backend builds for WebAssembly **with no source
+    changes at all**: `liballegro-static.a` at 988 KB plus the audio, colour,
+    primitives, memfile and main addons, `make` exiting zero. The recipe is
+    `emscripten/emsdk:3.1.29`, `embuilder build sdl2`, then cmake with
+    `-DALLEGRO_SDL=ON -DSHARED=OFF -DWANT_ALLOW_SSE=OFF`,
+    `-DCMAKE_C_FLAGS=-sUSE_SDL=2`, `SDL2_INCLUDE_DIR` and `SDL2_LIBRARY` pointed
+    at the built port, and `-DWANT_OPENAL=OFF -DWANT_PULSEAUDIO=OFF`.
+  - [x] Three traps cost the spike its time and are recorded so they cost
+    nobody else any. **emcc offers SDL *1* headers unless it is told
+    `-sUSE_SDL=2`**, so Allegro's `<SDL.h>` resolved to SDL1 and every SDL2
+    symbol — `SDL_GetBasePath`, `SDL_GetPrefPath`, `SDL_GetDisplayDPI` — looked
+    unimplemented; a shim was written for all three and then deleted once the
+    flag was right. Allegro's cmake adds `-msse` on x86 unless `WANT_ALLOW_SSE`
+    is off, which Emscripten rejects without `-msimd128`. And its audio addon
+    enables every driver it can detect: Emscripten ships an OpenAL library but
+    no `al.h`, so detection succeeds and the build then fails, which is why the
+    native drivers are turned off and SDL audio is left to it.
+  - [ ] What is still unproven is Elkulator itself against that library: its own
+    Allegro 4 to 5 port is a fork branch rather than upstream, its autotools
+    build has not been run under `emconfigure`, its OpenAL and ALUT sound path
+    needs replacing, and a browser needs `emscripten_set_main_loop` rather than
+    the blocking loop a native binary runs. Those are ordinary porting problems
+    with known shapes; the link nobody had tested is the one now tested.
   - [x] Decision taken: ElkJS first, then the Elkulator port. ADR 0008 records
     the adapter and the GPL position, the latter marked pending sign-off.
   - [x] The Electron now runs. Six ElkJS hardware modules are vendored at a
