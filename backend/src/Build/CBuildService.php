@@ -16,6 +16,7 @@ final class CBuildService
         private readonly NativeProcessRunner $runner,
         private readonly Cc65OutputParser $parser,
         private readonly StructuredLogger $logger,
+        private readonly JobWorkspace $workspace,
     ) {
     }
 
@@ -26,8 +27,7 @@ final class CBuildService
         $manifest = $this->toolchain->detect();
         if (!$manifest['ready']) throw new ApiProblem(503, 'TOOLCHAIN_UNAVAILABLE', 'The pinned cc65 C toolchain and WebIDE BBC runtime are not ready.', true);
         $this->sourcePolicy->validate($request);
-        $job = '/tmp/native-builds/'.bin2hex(random_bytes(16));
-        if (!mkdir($job, 0700, true)) throw new \RuntimeException('Unable to allocate C build workspace.');
+        $job = $this->workspace->allocate();
 
         $documents = [];
         $documentBytes = 0;
@@ -146,7 +146,7 @@ final class CBuildService
             $this->logger->info('native-build-completed', ['adapter' => CBuildManifest::ADAPTER_ID, 'outcome' => $exitReason, 'durationMs' => round($duration, 2), 'outputByteCount' => strlen($outputBytes), 'errors' => $errors, 'warnings' => $warnings]);
             return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
         } finally {
-            $this->removeTree($job);
+            $this->workspace->remove($job);
         }
     }
 
@@ -269,13 +269,5 @@ CFG;
         $hash = 0x811c9dc5;
         for ($index = 0; $index < strlen($bytes); ++$index) { $hash ^= ord($bytes[$index]); $hash = ($hash * 0x01000193) & 0xffffffff; }
         return str_pad(dechex($hash), 8, '0', STR_PAD_LEFT);
-    }
-
-    private function removeTree(string $path): void
-    {
-        if (!file_exists($path) && !is_link($path)) return;
-        if (is_link($path) || !is_dir($path)) { @unlink($path); return; }
-        foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $item) $this->removeTree($item->getPathname());
-        @rmdir($path);
     }
 }

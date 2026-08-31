@@ -16,6 +16,7 @@ final class BeebAsmBuildService
         private readonly BeebAsmOutputParser $parser,
         private readonly NativeProcessRunner $runner,
         private readonly StructuredLogger $logger,
+        private readonly JobWorkspace $workspace,
     ) {}
 
     /** @return array<string, mixed> */
@@ -24,8 +25,8 @@ final class BeebAsmBuildService
         $started = hrtime(true); $this->policy->validate($request);
         $toolchain = $this->manifest->detect();
         if (!$toolchain['ready']) throw new ApiProblem(503, 'BEEBASM_UNAVAILABLE', 'The pinned BeebAsm adapter is not ready.', true);
-        $job = '/tmp/native-builds/beebasm-'.bin2hex(random_bytes(16));
-        if (!mkdir($job.'/.build', 0700, true)) throw new ApiProblem(500, 'BUILD_JOB_CREATE', 'Could not create the isolated build job.', true);
+        $job = $this->workspace->allocate('beebasm-');
+        if (!mkdir($job.'/.build', 0700)) throw new ApiProblem(500, 'BUILD_JOB_CREATE', 'Could not create the isolated build job.', true);
         try {
             foreach ($request->files as $file) {
                 $path = $job.'/'.$file['name']; $directory = dirname($path);
@@ -72,7 +73,7 @@ final class BeebAsmBuildService
             if ($artifact) $artifact['provenance'] = $provenance;
             $this->logger->info('native-build-completed', ['adapter' => BeebAsmManifest::ADAPTER_ID, 'outcome' => $reason, 'durationMs' => round($duration, 2), 'outputByteCount' => strlen($bytes), 'errors' => $errors, 'warnings' => $warnings]);
             return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => [$process], 'provenance' => $provenance];
-        } finally { $this->removeTree($job); }
+        } finally { $this->workspace->remove($job); }
     }
 
     /** @return array{id: string, name: string, content: string} */
@@ -86,5 +87,4 @@ final class BeebAsmBuildService
     private function regular(string $path, string $label): void { if (is_link($path) || !is_file($path) || filetype($path) !== 'file') throw new ApiProblem(400, 'BUILD_OUTPUT_INVALID', $label.' was not a regular file.'); }
     private function terminalMessage(string $reason): string { return $reason === 'timeout' ? 'BeebAsm exceeded its wall-clock limit.' : ($reason === 'output-limit' ? 'BeebAsm exceeded its output limit.' : 'BeebAsm stopped without a parsed diagnostic.'); }
     private function fingerprint(string $bytes): string { $hash = 0x811c9dc5; for ($i = 0; $i < strlen($bytes); ++$i) { $hash ^= ord($bytes[$i]); $hash = ($hash * 0x01000193) & 0xffffffff; } return str_pad(dechex($hash), 8, '0', STR_PAD_LEFT); }
-    private function removeTree(string $path): void { if (!file_exists($path) && !is_link($path)) return; if (is_link($path) || !is_dir($path)) { @unlink($path); return; } foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $item) $this->removeTree($item->getPathname()); @rmdir($path); }
 }

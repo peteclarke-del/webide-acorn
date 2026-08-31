@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 156 |
-| Complete and traced | 90 |
-| Complete and described | 58 |
+| Complete | 161 |
+| Complete and traced | 91 |
+| Complete and described | 62 |
 | Complete and untraced | 8 |
-| Open | 138 |
+| Open | 133 |
 
 ## By area
 
@@ -39,7 +39,7 @@ is the part a machine can settle.
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 18 | 14 | 12 | 2 | 0 |
 | EMU | 18 | 10 | 2 | 8 | 0 |
-| BLD | 17 | 9 | 3 | 6 | 0 |
+| BLD | 17 | 13 | 4 | 9 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
 | CLD | 10 | 5 | 4 | 0 | 1 |
 | DOC | 10 | 8 | 7 | 1 | 0 |
@@ -52,7 +52,7 @@ is the part a machine can settle.
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 2 | 2 | 0 | 0 |
 | PLAT | 7 | 4 | 4 | 0 | 0 |
-| TST | 7 | 4 | 1 | 3 | 0 |
+| TST | 7 | 5 | 1 | 4 | 0 |
 | PRF | 6 | 6 | 5 | 1 | 0 |
 | SEC | 5 | 3 | 3 | 0 | 0 |
 | ASSET | 1 | 0 | 0 | 0 | 0 |
@@ -110,6 +110,7 @@ are listed rather than quietly counted.
 | EDT-210 | Implement accessible completion interaction: explicit/automatic… | 14 further model contracts covering the match scoring, boundaries, camel case, tightness, length, case, the two-character threshold, tier ordering, reported match positions, and every commit- character rule including… |
 | EDT-211 | Implement optional type/inlay hints for languages with authoritative… | 9 rail contracts covering the refusals, the ordering, the multiple-hint count and the detail carrying everything the panel knows, and 4 workspace contracts driving the real editor. the answer about types is a boundary… |
 | EDT-216 | Implement named source bookmarks, gutter/command actions,… | 3 source-bookmark model contracts for anchors, orphan detection and recovery, with persistence scopes and redacted export covered by the project round-trip contracts and by 1 export-dialog contract. Non-colour-only… |
+| BLD-305 | Test malicious filenames/options/sources, runaway tools, fork/ output… | `backend/tests/Build/SandboxAbuseTest.php` (7 abuse cases), `backend/tests/Build/JobWorkspaceTest.php` (5 cleanup cases), `scripts/sandboxDeployment.test.ts` (6 deployment-contract cases). gate being flaky rather than… |
 | BLD-320 | Implement build-target editor covering all fields in BLD-005. | 10 build-target contracts covering every field, its validation and its migration forward from an older schema, with 4 assembler adapter-contract tests proving a target that names an unregistered toolchain is reported… |
 | BLD-322 | Implement live/save/manual build policies, debounce/cancel/stale… | 6 build-service contracts covering the policies, debounce, cancellation and stale-result rejection, 4 build-graph contracts for ordering, 4 build-all contracts including one proving the concurrency ceiling cannot be… |
 | BLD-328 | Implement 8-bit C adapter after ABI/runtime/debug/licence review. | backend suite 41 tests/100 assertions; frontend suite 53 files/ 234 tests; production TypeScript/Vite and both Docker images build. A deployed headed-Chromium journey on port 8090 proved three ready native adapters, a… |
@@ -246,12 +247,8 @@ are listed rather than quietly counted.
 | EDT-214 | Implement click/tap and keyboard navigation for assembly branch/ jump/call operands,… | 3 of 4 parts done |
 | EDT-215 | Implement definition/declaration/implementation/type-definition, peek, references, call… | 3 of 4 parts done |
 | EDT-222 | Create language-assistance conformance fixtures for 6502/65C02 assembly, BBC BASIC, Atom… | 2 of 2 parts done |
-| BLD-300 | Implement toolchain manifest/registry and common adapter lifecycle (BLD-001, API-007). | 1 of 1 parts done |
-| BLD-301 | Implement disposable non-root sandbox, immutable toolchains, network denial,… | 1 of 1 parts done |
 | BLD-302 | Add per-tenant job fairness, idempotency, state transitions, progress, retry rules,… | not started |
-| BLD-303 | Implement normalized build result/provenance, logs, diagnostics, symbols, source map,… | 1 of 1 parts done |
 | BLD-304 | Implement content-addressed cache with integrity, tenant separation, declared inputs,… | not started |
-| BLD-305 | Test malicious filenames/options/sources, runaway tools, fork/ output bombs, network… | 4 of 4 parts done |
 | BLD-329 | Implement ARM assembler/linker and RISC OS C adapters before the ARM vertical slice;… | 6 of 8 parts done |
 | BLD-330 | Implement target-native assertion runtime/result channel and test target output for each… | not started |
 | MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 3 of 3 parts done |
@@ -268,7 +265,6 @@ are listed rather than quietly counted.
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
 | EMU-GATE | Two 8-bit slices and one scoped ARM slice can run exact resolved profiles with correct… | not started |
-| TST-502 | Complete symbol/text/screen/audio/event/result/timing assertions. Live 6502 register and… | 5 of 5 parts done |
 | TST-503 | Implement input record/edit/replay for keyboard, joystick/gamepad, mouse, analogue,… | not started |
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint… | 15 of 16 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,… | not started |

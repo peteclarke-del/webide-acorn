@@ -16,6 +16,7 @@ final class NativeBuildService
         private readonly NativeProcessRunner $runner,
         private readonly Cc65OutputParser $parser,
         private readonly StructuredLogger $logger,
+        private readonly JobWorkspace $workspace,
     ) {
     }
 
@@ -28,10 +29,7 @@ final class NativeBuildService
             throw new ApiProblem(503, 'TOOLCHAIN_UNAVAILABLE', 'The pinned ca65/ld65 toolchain is not ready.', true);
         }
         $this->sourcePolicy->validate($request);
-        $job = '/tmp/native-builds/'.bin2hex(random_bytes(16));
-        if (!mkdir($job, 0700, true)) {
-            throw new \RuntimeException('Unable to allocate native build workspace.');
-        }
+        $job = $this->workspace->allocate();
 
         $documents = [];
         $documentBytes = 0;
@@ -191,7 +189,7 @@ final class NativeBuildService
 
             return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
         } finally {
-            $this->removeTree($job);
+            $this->workspace->remove($job);
         }
     }
 
@@ -343,21 +341,5 @@ CFG;
     private function structuredLog(NativeBuildRequest $request, string $outcome, float $durationMs, int $outputBytes, int $errors, int $warnings): void
     {
         $this->logger->info('native-build-completed', ['targetIdHash' => substr(hash('sha256', $request->targetId), 0, 16), 'adapter' => ToolchainManifest::ADAPTER_ID, 'outcome' => $outcome, 'durationMs' => round($durationMs, 2), 'outputByteCount' => $outputBytes, 'errors' => $errors, 'warnings' => $warnings]);
-    }
-
-    private function removeTree(string $path): void
-    {
-        if (!file_exists($path) && !is_link($path)) {
-            return;
-        }
-        if (is_link($path) || !is_dir($path)) {
-            @unlink($path);
-
-            return;
-        }
-        foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $item) {
-            $this->removeTree($item->getPathname());
-        }
-        @rmdir($path);
     }
 }

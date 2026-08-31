@@ -10,6 +10,7 @@ use App\Build\CBuildService;
 use App\Build\Cc65OutputParser;
 use App\Build\CSourcePolicy;
 use App\Build\NativeBuildRequest;
+use App\Build\JobWorkspace;
 use App\Build\NativeProcessRunner;
 use App\Tests\ToolchainEnvironment;
 use PHPUnit\Framework\TestCase;
@@ -46,7 +47,7 @@ final class CBuildServiceTest extends TestCase
         $_SERVER['TOOLCHAIN_PACKAGE_VERSION'] = '2.19-1-test';
         if (!is_dir('/tmp/native-builds')) mkdir('/tmp/native-builds', 0700, true);
         $this->log = new LogRecorder();
-        $this->service = new CBuildService(new CBuildManifest(), new CSourcePolicy(), new NativeProcessRunner(), new Cc65OutputParser(), $this->log->logger);
+        $this->service = new CBuildService(new CBuildManifest(), new CSourcePolicy(), new NativeProcessRunner(), new Cc65OutputParser(), $this->log->logger, new JobWorkspace($this->log->logger));
     }
 
     public function testCompilesAssemblesAndLinksRunnableCWithSourceMapping(): void

@@ -10,6 +10,7 @@ use App\Build\BeebAsmManifest;
 use App\Build\BeebAsmOutputParser;
 use App\Build\BeebAsmSourcePolicy;
 use App\Build\NativeBuildRequest;
+use App\Build\JobWorkspace;
 use App\Build\NativeProcessRunner;
 use App\Tests\ToolchainEnvironment;
 use PHPUnit\Framework\TestCase;
@@ -38,7 +39,7 @@ final class BeebAsmBuildServiceTest extends TestCase
         ));
         if (!is_dir('/tmp/native-builds')) mkdir('/tmp/native-builds', 0700, true);
         $this->log = new LogRecorder();
-        $this->service = new BeebAsmBuildService($manifest, new BeebAsmSourcePolicy(), new BeebAsmOutputParser(), new NativeProcessRunner(), $this->log->logger);
+        $this->service = new BeebAsmBuildService($manifest, new BeebAsmSourcePolicy(), new BeebAsmOutputParser(), new NativeProcessRunner(), $this->log->logger, new JobWorkspace($this->log->logger));
     }
 
     public function testTheRecordOfARealBuildHoldsItsCostAndNotItsSource(): void

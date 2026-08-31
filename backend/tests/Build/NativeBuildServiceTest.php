@@ -8,6 +8,7 @@ use App\Tests\LogRecorder;
 use App\Build\Cc65OutputParser;
 use App\Build\NativeBuildRequest;
 use App\Build\NativeBuildService;
+use App\Build\JobWorkspace;
 use App\Build\NativeProcessRunner;
 use App\Build\SourcePolicy;
 use App\Build\ToolchainManifest;
@@ -28,7 +29,7 @@ final class NativeBuildServiceTest extends TestCase
             mkdir('/tmp/native-builds', 0700, true);
         }
         $this->log = new LogRecorder();
-        $this->service = new NativeBuildService(new ToolchainManifest(), new SourcePolicy(), new NativeProcessRunner(), new Cc65OutputParser(), $this->log->logger);
+        $this->service = new NativeBuildService(new ToolchainManifest(), new SourcePolicy(), new NativeProcessRunner(), new Cc65OutputParser(), $this->log->logger, new JobWorkspace($this->log->logger));
     }
 
     public function testBuildsRealBinarySymbolsSourceMapAndDocumentsReproducibly(): void

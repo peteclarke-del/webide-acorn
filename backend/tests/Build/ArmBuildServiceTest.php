@@ -10,6 +10,7 @@ use App\Build\ArmBuildService;
 use App\Build\ArmOutputParser;
 use App\Build\ArmSourcePolicy;
 use App\Build\NativeBuildRequest;
+use App\Build\JobWorkspace;
 use App\Build\NativeProcessRunner;
 use App\Tests\ToolchainEnvironment;
 use PHPUnit\Framework\TestCase;
@@ -39,7 +40,7 @@ final class ArmBuildServiceTest extends TestCase
         $_SERVER['ARM_BINUTILS_PACKAGE_VERSION'] = 'test-toolchain';
         if (!is_dir('/tmp/native-builds')) mkdir('/tmp/native-builds', 0700, true);
         $this->log = new LogRecorder();
-        $this->service = new ArmBuildService(new ArmBuildManifest(), new ArmSourcePolicy(), new NativeProcessRunner(), new ArmOutputParser(), $this->log->logger);
+        $this->service = new ArmBuildService(new ArmBuildManifest(), new ArmSourcePolicy(), new NativeProcessRunner(), new ArmOutputParser(), $this->log->logger, new JobWorkspace($this->log->logger));
     }
 
     /**

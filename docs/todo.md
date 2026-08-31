@@ -2201,31 +2201,79 @@ below are finished):
 
 ### 5.1 Adapter runtime and sandbox
 
-- [ ] BLD-300 Implement toolchain manifest/registry and common adapter lifecycle
+- [x] BLD-300 Implement toolchain manifest/registry and common adapter lifecycle
   (BLD-001, API-007).
   - [x] Browser-local adapters and the readiness-gated `cc65.ca65-ld65` and
     `stardot.beebasm` server adapters share build target, result, provenance and
     artifact contracts without conflating their source dialects.
-- [ ] BLD-301 Implement disposable non-root sandbox, immutable toolchains,
+  - [x] **Closed on the state it is actually in rather than the state it was in
+    when that note was written.** The registry now holds eight toolchains — four
+    browser-local and four native — behind one `ToolchainManifest` shape and one
+    lookup. All four native adapters run through the same readiness model, the
+    same process runner and the same `8bit-net.native-build-response` envelope,
+    which is what makes the lifecycle common rather than four lifecycles that
+    resemble each other. A fifth would be added by declaring it, not by writing
+    another pipeline.
+- [x] BLD-301 Implement disposable non-root sandbox, immutable toolchains,
   network denial, resource/output/process limits, cancellation, and cleanup.
   - [x] The local ca65/BeebAsm worker implements this boundary in a dedicated Symfony
     PHP-FPM container; public multi-tenant per-job container scheduling remains
     part of BLD-302 rather than being implied by this local-mode completion.
+  - [x] Every noun the requirement lists is enforced and now tested. The builder
+    runs non-root with a read-only root filesystem, all capabilities dropped, no
+    new privileges, no network at all, and bounded memory, CPU and process
+    count; each job gets its own directory under a `tmpfs` and is removed
+    afterwards. The wall clock that stops a runaway tool had no test until the
+    gate started failing on it — a constant nothing asserted, so the protection
+    could have been deleted anywhere without notice. It is contracted now, along
+    with the distinction between a tool that overruns and one that merely
+    fails.
 - [ ] BLD-302 Add per-tenant job fairness, idempotency, state transitions,
   progress, retry rules, terminal retention, and audit trail (API-003).
-- [ ] BLD-303 Implement normalized build result/provenance, logs, diagnostics,
+- [x] BLD-303 Implement normalized build result/provenance, logs, diagnostics,
   symbols, source map, memory/size map, and artifacts (BLD-009).
   - [x] ca65/ld65 and BeebAsm successes and diagnostic-only failures use the common result
     envelope; successful binaries flow unchanged into run, test and debugger
     consumers and expose listing/map/labels/debug/linker documents read-only.
+  - [x] All four native adapters emit that envelope, and the debug metadata it
+    carries is read rather than described: the linker's own debug file supplies
+    where a variable lives and what a function's frame looks like, and where the
+    toolchain records nothing — cc65 writes one empty type record and points
+    every C symbol at it — the artifact document says so in those words instead
+    of filling the gap with something inferred.
 - [ ] BLD-304 Implement content-addressed cache with integrity, tenant separation,
   declared inputs, metrics, invalidation tests, and bypass control.
-- [ ] BLD-305 Test malicious filenames/options/sources, runaway tools, fork/
+- [x] BLD-305 Test malicious filenames/options/sources, runaway tools, fork/
   output bombs, network attempts, cancellation races, and cleanup failures.
   - [x] Path traversal, absolute/dynamic includes, `INCBIN`, invalid filenames,
     request/file/unit/define/address bounds, timeout/output terminals, regular-
-    file enforcement and job cleanup have automated coverage. Fork/memory bombs,
-    forced cleanup failure and cancellation-race stress remain open.
+    file enforcement and job cleanup have automated coverage.
+  - [x] The remaining abuse cases now have adversarial tests, and the first one
+    written found a real defect: a process a tool spawned outlived the stop
+    that killed the tool. The cause was that the process helper kills the tool
+    before it reports a timeout, so by the time a timeout could be caught the
+    parent links identifying the tool's descendants had already been rewritten
+    by the kernel. The runner owns its deadline now, and sweeps the tree while
+    it is still a tree — proved against a bounded fork bomb twenty-four wide
+    and three deep, every member of which outlives the deadline and writes a
+    file if it survived.
+  - [x] Cleanup was four copies of one recursion, each ignoring every failure
+    it met. There is one workspace now: it repairs the permissions a tool can
+    leave behind, never follows a link out of the job, and reports whatever it
+    could not remove. The contract is held to the disk rather than to a
+    manufactured failure — the workspace is gone if and only if the removal
+    said so — and is exercised against a writer still filling the directory
+    while cleanup runs, which is the cancellation race in its damaging form.
+  - [x] Fork bombs, allocation bombs and network attempts are stopped by
+    namespaces and limits that live in the deployment description and nowhere
+    else, so that file is read as a contract: no network, read-only root, an
+    unprivileged user, every capability dropped, no new privileges, a bounded
+    process count, a memory and processor cap, and a `noexec,nosuid,nodev`
+    scratch mount of a stated size. Each control is removed in turn and the
+    audit must name what went and why it mattered.
+  - [x] Evidence: `backend/tests/Build/SandboxAbuseTest.php` (7 abuse cases),
+    `backend/tests/Build/JobWorkspaceTest.php` (5 cleanup cases),
+    `scripts/sandboxDeployment.test.ts` (6 deployment-contract cases).
 
 ### 5.2 Build experience
 
@@ -4481,7 +4529,7 @@ Current implemented increment:
   action refuses rather than silently rebuilding different bytes. Richer
   target/suite/file tree now presents the active build target, its entry file,
   every suite and keyboard-operable plan selection. The parent item is complete.
-- [ ] TST-502 Complete symbol/text/screen/audio/event/result/timing assertions.
+- [x] TST-502 Complete symbol/text/screen/audio/event/result/timing assertions.
   Live 6502 register and memory-byte assertions with expected/actual reporting
   are implemented and capability-limited to the ROM-aware assembly target.
   Exact textual output assertions now capture bounded bytes only when the live
@@ -4553,6 +4601,20 @@ Current implemented increment:
     II and DFS 0.90 ROMs — OSWRCH, OSBYTE 19 and a MODE 5 change — timed out
     before the fix and pass after it. The Atom has no verified readiness entry
     point in this build, so none is claimed and its behaviour is unchanged.
+  - [x] **Every kind the requirement names now exists, and each has been run on
+    real hardware.** Symbols through register and memory assertions, resolved
+    against the build rather than against a remembered address; text through
+    the captured MOS output stream; screen as a region digest and as a tolerant
+    comparison against an approved golden; audio as the exact sound-chip write
+    digest and as one-bit speaker transitions; events as MOS entry counts and
+    as counts at an address the author names; the result as pass, fail or
+    timeout with the reason; and timing as an exact cycle count or a range.
+  - [x] The two that were least trustworthy were made so. An audio assertion
+    could not tell a capture that heard silence from one that never ran, since
+    both report the FNV offset basis — it now refuses rather than compares when
+    nothing listened. And a screen assertion covering more than 65,536 pixels
+    made a plan invalid in a way the headless runner reported as an export
+    timeout; it now names the plan, the reason and the remedy.
 - [ ] TST-503 Implement input record/edit/replay for keyboard, joystick/gamepad,
   mouse, analogue, reset, delay, media, and emulator events.
   The first deterministic input slice records bounded host key down/up actions,
