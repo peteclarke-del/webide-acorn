@@ -123,3 +123,56 @@ describe('naming a project for the store', () => {
     expect(storeProjectId('***').id).toBe('');
   });
 });
+
+describe('what state the project is in with the store', () => {
+  const listing = (revisions: unknown[]) => ({ revisions });
+
+  it('says untracked when the store has never held it, and does not call that a problem', async () => {
+    panel(vi.fn(async (input: unknown) => {
+      const url = String(input);
+      if (url.endsWith('/revisions')) return answer(listing([]));
+      if (url.endsWith('/projects')) return answer({ projects: [] });
+      return answer(description);
+    }) as unknown as typeof fetch);
+    await waitFor(() => expect(screen.getByText(/This project is not in the store/)).toBeVisible());
+  });
+
+  it('says diverged and offers a merge preview once both sides have moved', async () => {
+    /* The only state where something has to be decided, so it must appear
+     * exactly when it applies and not before. */
+    const fetcher = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === 'POST') return answer({ revision: { id: '000001-a', parent: null, writtenAt: 't', note: '', files: { 'main.asm': 'd' } } }, 201);
+      if (/revisions\/[^/]+$/.test(url)) return answer({ files: { 'main.asm': encodeContent('LDA #2') } });
+      if (url.endsWith('/revisions')) return answer(listing([
+        { id: '000001-a', parent: null, writtenAt: 't', note: '', files: 1 },
+        { id: '000002-b', parent: '000001-a', writtenAt: 't', note: '', files: 1 },
+      ]));
+      if (url.endsWith('/projects')) return answer({ projects: [{ id: 'demo-project', revisions: 2 }] });
+      return answer(description);
+    });
+    panel(fetcher as unknown as typeof fetch, { files: [{ name: 'main.asm', content: 'LDA #1' }] });
+
+    /* Nothing has been synchronised and the files differ from the store's
+     * head, which is what diverged means. */
+    await waitFor(() => expect(screen.getByRole('button', { name: /Show what a merge would produce/ })).toBeVisible());
+    fireEvent.click(screen.getByRole('button', { name: /Show what a merge would produce/ }));
+    await waitFor(() => expect(screen.getByLabelText('Merge preview')).toBeVisible());
+    /* No shared ancestor, so the honest answer is a fork rather than a guess. */
+    expect(screen.getByText(/share no revision to merge against/)).toBeVisible();
+  });
+
+  it('reports being in step after copying up, because reading and writing both synchronise', async () => {
+    const fetcher = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === 'POST') return answer({ revision: { id: '000001-a', parent: null, writtenAt: 't', note: '', files: { 'main.asm': 'd' } } }, 201);
+      if (url.endsWith('/revisions')) return answer(listing([{ id: '000001-a', parent: null, writtenAt: 't', note: '', files: 1 }]));
+      if (url.endsWith('/projects')) return answer({ projects: [{ id: 'demo-project', revisions: 1 }] });
+      return answer(description);
+    });
+    panel(fetcher as unknown as typeof fetch);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Copy this project/ })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /Copy this project/ }));
+    await waitFor(() => expect(screen.getByText(/nothing has changed since/)).toBeVisible());
+  });
+});

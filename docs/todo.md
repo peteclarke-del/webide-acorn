@@ -5529,8 +5529,40 @@ Current implemented increment:
   - [x] Evidence: 10 client contracts covering absence, refusal, a malformed
     answer and non-ASCII content round-tripping, and 8 panel contracts driving
     the real panel through copying up, colliding, and taking a revision back.
-- [ ] CLD-804 Implement sync state machine, offline queue, reconnect, text merge,
+- [x] CLD-804 Implement sync state machine, offline queue, reconnect, text merge,
   manifest/asset conflict resolution, and fork fallback.
+  - [x] **The state is derived, not remembered.** Untracked, in step, ahead,
+    behind, diverged and offline all follow from three facts: what the store's
+    head is, what this workbench last wrote or read, and whether the files have
+    changed since. A remembered flag is wrong exactly when it matters — after a
+    crash, a reload, or a second workbench — so there is no flag to be wrong.
+    Reading a revision synchronises as much as writing one does, which is what
+    gives a later merge its base.
+  - [x] **The merge refuses rather than guesses.** Three-way and line-based, it
+    takes a region only where exactly one side changed it; where both changed
+    the same region differently it reports a conflict and keeps both versions
+    marked, because a merge that dropped a side would lose work silently. The
+    dangerous outcome is not a conflict but a clean-looking wrong merge, and
+    the contracts are written against that: separate edits combine, identical
+    edits collapse, a deletion against an edit conflicts, and a trailing
+    newline survives exactly as it was.
+  - [x] **Content that is not text is never merged as text.** A packed sprite
+    or a disk image merged line by line is corrupt in a way nobody sees until
+    it runs, so those are reported as a choice between two versions with
+    neither taken.
+  - [x] **Fork is the honest answer where merging cannot be.** Two versions
+    with no shared revision have nothing to compare by — there is no telling an
+    addition from a deletion — so the plan says so and advises keeping both
+    rather than producing something plausible.
+  - [x] **The queue is bounded and says so.** Thirty-two changes may wait; a
+    further one is refused rather than absorbed by dropping the oldest, because
+    the oldest is the work somebody has most forgotten making. A second change
+    to the same project supersedes the first and keeps the earliest parent, so
+    the queue describes what still has to happen rather than what was typed.
+  - [x] Evidence: 11 merge contracts, 15 sync-model contracts and 11 panel
+    contracts, including that diverged appears exactly when both sides moved,
+    that a project which vanished from the store is diverged rather than
+    untracked, and that nothing is sent or overwritten before a merge is shown.
 - [ ] CLD-805 Implement revision timeline, compare, restore, fork, actor/source,
   retention, large-binary dedupe, and immutable shared revisions.
   - [x] The timeline, restore, immutability and large-binary deduplication come

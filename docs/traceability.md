@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 153 |
-| Complete and traced | 88 |
+| Complete | 154 |
+| Complete and traced | 89 |
 | Complete and described | 58 |
 | Complete and untraced | 7 |
-| Open | 141 |
+| Open | 140 |
 
 ## By area
 
@@ -41,7 +41,7 @@ is the part a machine can settle.
 | EMU | 18 | 10 | 2 | 8 | 0 |
 | BLD | 17 | 9 | 3 | 6 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
-| CLD | 10 | 2 | 2 | 0 | 0 |
+| CLD | 10 | 3 | 3 | 0 | 0 |
 | DOC | 10 | 8 | 7 | 1 | 0 |
 | DOD | 10 | 0 | 0 | 0 | 0 |
 | EXP | 10 | 0 | 0 | 0 | 0 |
@@ -158,6 +158,7 @@ are listed rather than quietly counted.
 | RSH-707 | Add accuracy evaluation set ensuring target/version relevance and… | 72 module contracts across the six research modules and 23 panel contracts. The invariants are proved able to fail by building a library past the parser — generated text carrying a citation, a licence permitting… |
 | CLD-802 | Implement encrypted/isolated project metadata and blob storage,… | 28 backend contracts covering integrity, refusals, quota accounting, collection safety and that every refusal the store can raise has an HTTP answer and nothing is mapped that cannot be raised. Proved through the real… |
 | CLD-803 | Implement explicit local/cloud modes and migration without account… | 10 client contracts covering absence, refusal, a malformed answer and non-ASCII content round-tripping, and 8 panel contracts driving the real panel through copying up, colliding, and taking a revision back. |
+| CLD-804 | Implement sync state machine, offline queue, reconnect, text merge,… | 11 merge contracts, 15 sync-model contracts and 11 panel contracts, including that diverged appears exactly when both sides moved, that a project which vanished from the store is diverged rather than untracked, and that… |
 | OPS-903 | Enforce and exercise size/concurrency/retention limits with clear… | 12 register and boundary contracts, and 5 panel contracts driving the real Settings surface — every limit shown and grouped, each row carrying its value, reason and behaviour, byte values written in the unit a person… |
 | OPS-904 | Test cancellation, worker/browser crash, dependency outage,… | 16 resilience contracts covering all of the above, alongside the existing cancellation, timeout and abort-signal contracts in the analysis worker client and the build runner. |
 | SEC-902 | Verify CSP, worker/frame origins, message validation, CSRF, XSS,… | 8 header contracts covering both shipped policies, every refusal, the explained-difference register, and the document policy being stricter; 1 source-wide contract on message-origin checking; and the live policy check… |
@@ -275,7 +276,6 @@ are listed rather than quietly counted.
 | RESEARCH-GATE | Users can reach cited, licensed, target-correct information from search, diagnostics, and… | not started |
 | CLD-800 | Implement authentication/session lifecycle with revocation, CSRF protection, rate limits,… | not started |
 | CLD-801 | Implement backend-enforced owner/editor/tester/viewer project capabilities and… | not started |
-| CLD-804 | Implement sync state machine, offline queue, reconnect, text merge, manifest/asset… | not started |
 | CLD-805 | Implement revision timeline, compare, restore, fork, actor/source, retention,… | 1 of 2 parts done |
 | CLD-806 | Implement share/invite/revoke/public template controls with secret, ROM, licence, and… | not started |
 | CLD-807 | Implement quota dashboard and predictable cache/artifact/revision eviction/deletion with… | not started |

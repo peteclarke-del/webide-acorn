@@ -20,6 +20,7 @@ import {
   type StoredProject,
   type StoredRevision,
 } from '../cloud/projectStoreClient';
+import { planMerge, syncActions, syncState, type MergePlan, type SyncState } from '../cloud/syncModel';
 
 interface ProjectStorePanelProps {
   /** The project as it is now: filename to content. */
@@ -46,6 +47,14 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
   const [selected, setSelected] = useState<string>();
   const [unreachable, setUnreachable] = useState<string>();
   const [busy, setBusy] = useState(false);
+  /* What this workbench last wrote or read, and what it held at that moment.
+   * The state is derived from these rather than remembered as a flag, because
+   * a flag is wrong exactly when it matters — after a reload, or when a second
+   * workbench has been at the same project. */
+  const [syncedAt, setSyncedAt] = useState<string | null>(null);
+  const [syncedFiles, setSyncedFiles] = useState<Record<string, string> | null>(null);
+  const [merge, setMerge] = useState<MergePlan>();
+  const [ownRevisions, setOwnRevisions] = useState<StoredRevision[]>([]);
 
   const { id: projectId, adjusted } = storeProjectId(projectName);
 
@@ -72,22 +81,62 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
     else { setRevisions([]); onNotice(listed.reason); }
   };
 
+  const current = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const file of files) map[file.name] = file.content;
+    return map;
+  }, [files]);
+
+  const locallyChanged = useMemo(
+    () => syncedFiles === null || JSON.stringify(syncedFiles) !== JSON.stringify(current),
+    [syncedFiles, current],
+  );
+
+  const storeHead = ownRevisions.length ? ownRevisions[ownRevisions.length - 1]!.id : null;
+  const state: SyncState = syncState({ storeHead, syncedAt, locallyChanged, reachable: !unreachable });
+  const offered = syncActions(state);
+
+  const loadOwnRevisions = useCallback(async () => {
+    if (!projectId) return [] as StoredRevision[];
+    const listed = await store.revisions(projectId);
+    const revisions = listed.ok ? listed.value : [];
+    setOwnRevisions(revisions);
+    return revisions;
+  }, [projectId, store]);
+
+  useEffect(() => { void loadOwnRevisions(); }, [loadOwnRevisions, projects]);
+
   const copyUp = async () => {
     if (!projectId) { onNotice('This project has no name the store can use. Rename it using letters, digits or hyphens.'); return; }
     setBusy(true);
     try {
-      const listed = await store.revisions(projectId);
+      const revisions = await loadOwnRevisions();
       /* Written against the head the store reports, so two workbenches editing
        * the same project collide here rather than one silently overwriting the
        * other. */
-      const head = listed.ok && listed.value.length ? listed.value[listed.value.length - 1]!.id : null;
-      const payload: Record<string, string> = {};
-      for (const file of files) payload[file.name] = file.content;
-      const written = await store.commit(projectId, payload, head, `Copied from the workbench as ${projectName}`);
+      const head = revisions.length ? revisions[revisions.length - 1]!.id : null;
+      const written = await store.commit(projectId, current, head, `Copied from the workbench as ${projectName}`);
       if (!written.ok) { onNotice(written.reason); return; }
+      setSyncedAt(written.value.id);
+      setSyncedFiles({ ...current });
+      setMerge(undefined);
       onNotice(`Copied ${files.length} file${files.length === 1 ? '' : 's'} to the store as revision ${written.value.id}. The local project is unchanged.`);
       await refresh();
+      await loadOwnRevisions();
       await openRevisions(projectId);
+    } finally { setBusy(false); }
+  };
+
+  /* What a merge would produce, shown before anything is written. Nothing is
+   * sent or overwritten until somebody has read it. */
+  const previewMerge = async () => {
+    if (!projectId || !storeHead) return;
+    setBusy(true);
+    try {
+      const theirs = await store.read(projectId, storeHead);
+      if (!theirs.ok) { onNotice(theirs.reason); return; }
+      const base = syncedAt ? await store.read(projectId, syncedAt) : null;
+      setMerge(planMerge(base && base.ok ? base.value : null, current, theirs.value));
     } finally { setBusy(false); }
   };
 
@@ -99,6 +148,10 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
       if (!read.ok) { onNotice(read.reason); return; }
       const opened = Object.entries(read.value).map(([name, content]) => ({ name, content }));
       onOpenFiles?.(opened);
+      /* Reading is synchronising: this workbench now knows what the store held
+       * at that revision, which is what a later merge needs as its base. */
+      setSyncedAt(revisionId);
+      setSyncedFiles(read.value);
       onNotice(`${opened.length} file${opened.length === 1 ? '' : 's'} from revision ${revisionId} were offered to open. Nothing in the project was replaced.`);
     } finally { setBusy(false); }
   };
@@ -125,10 +178,32 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, c
             <div><dt>Bytes</dt><dd>{(usage?.bytes ?? 0).toLocaleString()}</dd></div>
           </dl>
 
+          <p className="binding-note" role="status">
+            <strong>{state.replace('-', ' ')}</strong> · {offered.detail}
+          </p>
           <p className="binding-note">
             Copying puts a revision in the store and changes nothing here. Taking one back offers its
             files to open; it never writes over what you are working on.
           </p>
+          {state === 'diverged' && (
+            <button type="button" disabled={busy} onClick={() => void previewMerge()}>Show what a merge would produce</button>
+          )}
+          {merge && (
+            <div className="project-store-merge" aria-label="Merge preview">
+              <p className={merge.clean ? 'binding-note' : 'binding-warning'}>
+                {merge.clean
+                  ? 'Every file merges without anything having to be decided.'
+                  : merge.forkAdvice}
+              </p>
+              <ul className="project-store-revisions">
+                {merge.files.filter((file) => file.outcome !== 'merged').map((file) => (
+                  <li key={file.name}>
+                    <span><strong>{file.name}</strong><small>{file.outcome === 'conflict' ? `${file.conflicts.length} conflict${file.conflicts.length === 1 ? '' : 's'} to review` : file.outcome === 'not-text' ? 'not text, so neither version was chosen' : `only ${file.outcome === 'ours' ? 'here' : 'in the store'}`}</small></span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {adjusted && projectId && <p className="binding-note">This project will be stored as <code>{projectId}</code>, because a store name is lower-case letters, digits and hyphens.</p>}
           <button type="button" disabled={busy || !projectId} onClick={() => void copyUp()}>
             <Icon name="cloud" size={13} /> Copy this project to the store

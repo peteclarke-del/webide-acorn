@@ -1,0 +1,131 @@
+// @vitest-environment node
+
+/* The state is derived rather than remembered, because a remembered flag is
+ * wrong exactly when it matters: after a crash, a reload, or a second
+ * workbench. These check each way it can be derived, and what is offered.
+ */
+import { describe, expect, it } from 'vitest';
+import { MAX_QUEUED_COMMITS, isMergeableName, planMerge, queueCommit, syncActions, syncState, type QueuedCommit } from './syncModel';
+
+const facts = (over: Partial<Parameters<typeof syncState>[0]> = {}) => ({
+  storeHead: null, syncedAt: null, locallyChanged: false, reachable: true, ...over,
+});
+
+describe('deriving the state', () => {
+  it('calls a project nobody has stored untracked, which is not a problem', () => {
+    expect(syncState(facts())).toBe('untracked');
+    expect(syncActions('untracked').detail).toMatch(/Copying leaves the local one exactly as it is/);
+  });
+
+  it('separates ahead, behind and in step by what the store head is against what was synchronised', () => {
+    expect(syncState(facts({ storeHead: 'r1', syncedAt: 'r1' }))).toBe('in-step');
+    expect(syncState(facts({ storeHead: 'r1', syncedAt: 'r1', locallyChanged: true }))).toBe('ahead');
+    expect(syncState(facts({ storeHead: 'r2', syncedAt: 'r1' }))).toBe('behind');
+  });
+
+  it('calls it diverged only when both moved', () => {
+    /* The one state where something has to be decided, so it must not be
+     * reported for a case where nothing does. */
+    expect(syncState(facts({ storeHead: 'r2', syncedAt: 'r1', locallyChanged: true }))).toBe('diverged');
+    expect(syncActions('diverged').detail).toMatch(/Nothing is sent or overwritten until a merge is reviewed/);
+  });
+
+  it('treats a project that vanished from the store as diverged rather than untracked', () => {
+    /* Having synchronised against something now absent is not the same as
+     * never having stored it, and offering "copy it up" would overwrite
+     * whatever replaced it. */
+    expect(syncState(facts({ storeHead: null, syncedAt: 'r1' }))).toBe('diverged');
+  });
+
+  it('treats a store the workbench has never synchronised as behind when nothing is local', () => {
+    expect(syncState(facts({ storeHead: 'r1', syncedAt: null }))).toBe('behind');
+    expect(syncState(facts({ storeHead: 'r1', syncedAt: null, locallyChanged: true }))).toBe('diverged');
+  });
+
+  it('reports offline without pretending to know anything else', () => {
+    expect(syncState(facts({ storeHead: 'r1', syncedAt: 'r1', locallyChanged: true, reachable: false }))).toBe('offline');
+    expect(syncActions('offline').primary).toBeNull();
+    expect(syncActions('offline').detail).toMatch(/Local work is unaffected/);
+  });
+
+  it('offers nothing to do when there is nothing to do', () => {
+    expect(syncActions('in-step').primary).toBeNull();
+  });
+});
+
+describe('the offline queue', () => {
+  const commit = (over: Partial<QueuedCommit> = {}): QueuedCommit => ({
+    id: 'q1', projectId: 'demo', files: { 'a.asm': 'one' }, parent: 'r1', note: '', queuedAt: 't', ...over,
+  });
+
+  it('supersedes an unsent change for the same project rather than stacking them', () => {
+    /* The queue should say what still has to happen, not what was typed. */
+    const first = queueCommit([], commit({ id: 'q1', files: { 'a.asm': 'one' } }));
+    const second = queueCommit(first.queue, commit({ id: 'q2', files: { 'a.asm': 'two' }, parent: 'r9' }));
+    expect(second.queue).toHaveLength(1);
+    expect(second.queue[0]!.files['a.asm']).toBe('two');
+    /* The earliest parent survives, because that is what the whole run was
+     * written against. */
+    expect(second.queue[0]!.parent).toBe('r1');
+  });
+
+  it('keeps changes to different projects separately', () => {
+    const first = queueCommit([], commit({ projectId: 'one' }));
+    const second = queueCommit(first.queue, commit({ projectId: 'two' }));
+    expect(second.queue.map((entry) => entry.projectId)).toEqual(['one', 'two']);
+  });
+
+  it('refuses a full queue rather than dropping the oldest', () => {
+    /* Dropping the oldest loses the work somebody has most forgotten about. */
+    let queue: QueuedCommit[] = [];
+    for (let index = 0; index < MAX_QUEUED_COMMITS; index += 1) {
+      queue = queueCommit(queue, commit({ projectId: `p${index}` })).queue;
+    }
+    const full = queueCommit(queue, commit({ projectId: 'one-too-many' }));
+    expect(full.queue).toHaveLength(MAX_QUEUED_COMMITS);
+    expect(full.refusal).toMatch(/rather than letting the oldest be forgotten/);
+  });
+});
+
+describe('planning a merge', () => {
+  const base = { 'a.asm': 'one\ntwo\nthree', 'art.asset.json': '{"a":1}' };
+
+  it('merges a file each side changed in a different place', () => {
+    const plan = planMerge(base, { ...base, 'a.asm': 'ONE\ntwo\nthree' }, { ...base, 'a.asm': 'one\ntwo\nTHREE' });
+    expect(plan.clean).toBe(true);
+    expect(plan.files.find((file) => file.name === 'a.asm')!.content).toBe('ONE\ntwo\nTHREE');
+  });
+
+  it('reports a conflict where both changed the same line', () => {
+    const plan = planMerge(base, { ...base, 'a.asm': 'ours\ntwo\nthree' }, { ...base, 'a.asm': 'theirs\ntwo\nthree' });
+    expect(plan.clean).toBe(false);
+    expect(plan.files.find((file) => file.name === 'a.asm')!.outcome).toBe('conflict');
+    expect(plan.forkAdvice).toMatch(/fork and keep both versions/);
+  });
+
+  it('refuses to merge content that is not text, and chooses neither side', () => {
+    /* A packed sprite merged as text is corrupt in a way nobody sees until it
+     * runs. */
+    expect(isMergeableName('sprite.asset.json')).toBe(true);
+    expect(isMergeableName('disk.ssd')).toBe(false);
+    const plan = planMerge({ 'disk.ssd': 'aaa' }, { 'disk.ssd': 'bbb' }, { 'disk.ssd': 'ccc' });
+    const file = plan.files[0]!;
+    expect(file.outcome).toBe('not-text');
+    expect(plan.clean).toBe(false);
+  });
+
+  it('keeps a file only one side has', () => {
+    const plan = planMerge(base, { ...base, 'new.asm': 'ours' }, base);
+    expect(plan.files.find((file) => file.name === 'new.asm')).toMatchObject({ outcome: 'ours', content: 'ours' });
+    expect(plan.clean).toBe(true);
+  });
+
+  it('advises a fork when the two versions share no ancestor to merge against', () => {
+    /* Without a base there is no way to tell an addition from a deletion, so
+     * merging would have to guess. */
+    const plan = planMerge(null, { 'a.asm': 'ours' }, { 'a.asm': 'theirs' });
+    expect(plan.clean).toBe(false);
+    expect(plan.files).toEqual([]);
+    expect(plan.forkAdvice).toMatch(/share no revision to merge against/);
+  });
+});

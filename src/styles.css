@@ -875,6 +875,7 @@
   .source-hint-rail > * { flex: 0 0 auto; height: var(--editor-line-height); padding: 0 5px; overflow: hidden; border: 0; background: none; color: var(--theme-faint); font: calc(var(--editor-font-size) - 2px)/var(--editor-line-height) var(--font-mono); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
   .source-hint-rail button { cursor: pointer; }
   .source-hint-rail button:hover, .source-hint-rail button:focus-visible { color: var(--theme-ink-strong); background: var(--theme-surface-2); }
+  .project-store-merge { margin: 0 0 8px; padding: 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-0); }
   .project-store-usage { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 0 0 8px; }
   .project-store-usage div { padding: 6px; border: 1px solid var(--theme-line); background: var(--theme-surface-0); }
   .project-store-usage dt { color: var(--theme-faint); font: 6px/1 var(--font-mono); text-transform: uppercase; }
