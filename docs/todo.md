@@ -43,10 +43,41 @@ Companion specification: `docs/requirements-specification.md`
   technology users (P-01–P-07, J-01–J-08).
 - [ ] P0-003 Record the exact public-release target profiles and the definition of
   “supports the Acorn line” (DEC-002, ACC-001–ACC-003).
+  - [x] **The definition exists and is a vocabulary rather than a sentence.**
+    `src/rom/adapterSupport.ts` distinguishes three states, because they mean
+    different things to somebody deciding whether to start: *runnable*, the
+    engine has a model and this build registers a ROM manifest, so supplying
+    firmware makes it run; *no ROM manifest*, the engine has a model and the
+    work needed is in this repository; and *no engine model*, where supplying
+    firmware can never make it run and saying "supply the ROM set" would
+    mislead. "Supports" means the first.
+  - [x] The profiles that meet it are not written down twice: `docs/compatibility.md`
+    is generated from the same source and a contract fails the gate when it
+    stops matching, so the list of what this build supports cannot drift from
+    what it does.
+  - [ ] **What is not recorded is which of them a public release would claim.**
+    That is a scope decision — how much of the Acorn line the first release says
+    it covers — and it belongs with the acceptance GOV-001 asks for rather than
+    with the code. Every fact needed to make it is generated; the choice is not
+    mine.
 - [ ] P0-004 Convert the Web64 baseline table into demonstration scripts and
   acceptance scenarios; note any approved deferment (Section 6).
-- [ ] P0-005 Define analytics/feedback needs with privacy minimization; analytics
+- [x] P0-005 Define analytics/feedback needs with privacy minimization; analytics
   cannot be a production prerequisite for local mode (SEC-006, CLD-001).
+  - [x] **The need was defined and the answer is none.** No analytics, no crash
+    reporting, no usage counting and no feedback channel that leaves the
+    machine. `docs/security-and-privacy.md` says so under what is deliberately
+    not collected, and it is a definition rather than a deferral: privacy
+    minimisation taken to its end is collecting nothing, and this product has no
+    question it needs a person's behaviour to answer.
+  - [x] The constraint the item names is met by construction rather than by
+    policy. Local mode has no network path at all — the workbench edits, builds,
+    runs and debugs with the network unplugged — so analytics could not become a
+    prerequisite for it even if somebody later wanted them to be.
+  - [x] Evidence: the `browsers` and `smoke` gate stages load the built
+    workbench under its shipped content security policy, whose `connect-src` is
+    `'self'`, and fail on any policy violation; so a dependency that began
+    calling out would fail the gate rather than ship.
 
 ### 2.2 Upstream and legal matrix
 
@@ -108,7 +139,7 @@ Companion specification: `docs/requirements-specification.md`
     that exists, and `src/emulator/adapterContract.test.ts` for the shared
     vocabulary. Each was proved by a headless run against a real machine and the
     runs are recorded under EMU-423 and EMU-424.
-- [ ] P0-013 Inventory toolchains for BeebAsm-compatible 6502, general 6502/
+- [x] P0-013 Inventory toolchains for BeebAsm-compatible 6502, general 6502/
   65C02, BASIC tokenization, 8-bit C, ARM assembly/linking, and RISC OS C
   (BLD-001–BLD-004, DEC-005).
   - [x] Evaluate the first two external 6502 candidates. The primary-source,
@@ -116,10 +147,24 @@ Companion specification: `docs/requirements-specification.md`
     next native adapter because it proves object/link lifecycle and later C
     reuse; BeebAsm remains required for its distinct BBC-style and direct-DFS
     compatibility workflow. The implemented BASIC and cc65 C decisions are
-    recorded below; ARM and RISC OS inventories remain open, so the parent
-    inventory is not complete. The bounded GNU ARM2 assembler/linker decision
-    is now recorded in ADR 0005; RISC OS C and application packaging remain
-    open.
+    recorded below. The bounded GNU ARM2 assembler/linker decision is in
+    ADR 0005.
+  - [x] **All six families are now inventoried, and the last one's answer is
+    that nothing usable exists.** ADR 0009 records the RISC OS C candidate and
+    its status — accepted direction, toolchain unavailable — which is a
+    finding rather than an omission: an inventory that reported no candidate
+    and an inventory that reported one nobody can obtain are different
+    conclusions, and this is the second. BASIC tokenisation is this build's own,
+    read out of language ROMs rather than transcribed.
+  - [x] Evidence: `docs/toolchain-evaluation.md` carries the scored,
+    primary-source comparison of the 6502 candidates; ADRs 0003, 0004, 0005 and
+    0009 record each adopted or rejected toolchain with its boundary; and the
+    `backend` gate stage runs all four adopted toolchains against their real
+    binaries, so an inventory entry that stopped being true fails there.
+  - [ ] Application packaging is not a toolchain and was not inventoried. A
+    RISC OS application directory is written here — `src/media/riscOsApplication.ts`
+    — but what would package one for distribution is a separate question nobody
+    has asked yet.
 - [ ] P0-014 Prove diagnostic parsing, label/source-map generation, deterministic
   output, cancellation, sandboxing, licence, and version pinning for each
   shortlisted toolchain.
