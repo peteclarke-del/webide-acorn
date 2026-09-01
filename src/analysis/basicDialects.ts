@@ -12,11 +12,15 @@
  * at the same keyword, `HIMEM`, which is corroboration that the rule for where
  * a table stops belongs to the table and not to the reader.
  *
- * BASIC V and VI are deliberately absent. They are ARM BASICs and their table
- * has a different shape; the reader is validated against the BBC table it
- * reproduces and nothing else, so reading theirs with it would be a guess
- * wearing the same clothes as a measurement. A partial table is worse than
- * none, because it decodes most of a program and corrupts the rest.
+ * BASIC V and VI are still absent, and the reason is no longer the one recorded
+ * here before. Their table is not a different shape: BBC BASIC V 1.05 lays its
+ * out exactly like these, keyword then token then flag, and the same reader
+ * takes all 161 entries of it once its terminator stops treating a flag of &80
+ * as code. What stops them being shipped is that an ARM BASIC has two-byte
+ * tokens, so twenty-three token bytes there are shared by two or three
+ * keywords, and which prefix distinguishes them is not settled by anything
+ * measured yet. Shipping the table anyway would decode most of a program and
+ * corrupt the rest, which is worse than not offering the dialect.
  *
  * Two spellings can share one token: `COLOUR` and `COLOR` are both &FB, and
  * which one a ROM lists first is which one that machine would list back. Both

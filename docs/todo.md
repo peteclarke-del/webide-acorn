@@ -3304,11 +3304,37 @@ Current implemented increment:
     BASIC I, II, III (US) and IV are now tabled, with the digest of the
     firmware each came from; no ROM is in the repository and none is needed to
     build.
-  - [x] **BASIC V and VI are deliberately absent.** They are ARM BASICs whose
-    table has a different shape, and the reader is validated against the BBC
-    table it reproduces and nothing else. Reading theirs with it would be a
-    guess wearing the same clothes as a measurement, and a partial table is
-    worse than none: it decodes most of a program and corrupts the rest.
+  - [x] **The reason BASIC V and VI are absent was itself wrong, and has been
+    measured rather than restated.** The claim here was that their table has a
+    different shape. It does not: BBC BASIC V 1.05, read out of a RISC OS 3.11
+    image, lays its table out exactly like the 6502 ones — keyword, token byte,
+    flag byte, beginning at `AND` &80 — and the same reader takes all 161
+    entries of it, ending at `WIDTH` where BASIC's own " unlistable token"
+    message begins.
+  - [x] **What was actually wrong was the reader's terminator, and it is
+    fixed.** It stopped at a flag byte with the top bit set, on the reasoning
+    that such a byte is code rather than a flag. That gives the right answer on
+    all four 6502 ROMs and the wrong one on ARM, where &80 is an ordinary flag —
+    it is what `INSTR(`, `LEFT$(`, `MID$(` and every other keyword ending in a
+    bracket carries — so the table was cut off at `INT`, two thirds of the way
+    through, with no sign that anything had been lost. The terminator is now the
+    keyword pattern alone, which stops in exactly the same place on every 6502
+    ROM read here, 126 entries ending at `HIMEM`, and stops correctly on ARM.
+  - [ ] **What still blocks the dialect is the two-byte tokens.** An ARM BASIC
+    prefixes some keywords, so twenty-three token bytes in that table are shared
+    by two or three keywords each — `&8E` is `APPEND`, `CASE`, `OPENIN` and
+    `SUM` — and which prefix distinguishes them is carried in the flag byte by
+    an encoding no source here settles. The obvious reading of the bits does not
+    survive contact with the data: it would put `APPEND` and `SUM` in the same
+    group under the same token. So the table is read and not shipped, because a
+    decoder that guessed would decode most of a program and corrupt the rest.
+    What this needs is either an authoritative description of that flag byte, or
+    a measurement — BASIC V tokenising a program under the A310 core this build
+    already runs would be one.
+  - [x] Evidence: 7 contracts in `scripts/extractBasicTokens.test.ts` covering
+    the terminator in both families, built as fixtures in the ROMs' own shape
+    rather than copied out of firmware, so they run everywhere. The reproduction
+    of the hand transcription still holds.
   - [x] **Abbreviation expansion follows the ROM's own order.** `P.` is PRINT
     because PRINT is what the table reaches first, not because it sorts first —
     PAGE and PI come earlier alphabetically. Two dialects can legitimately

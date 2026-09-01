@@ -12,10 +12,19 @@
  * long before this existed. If the reader is wrong, that comparison fails.
  *
  * The format is a keyword in printable ASCII, then a token byte, then a flag
- * byte. The table ends where the bytes stop looking like one: a flag byte with
- * its top bit set is code rather than a flag, and every one of the four ROMs
- * read here ends at the same keyword, which is the corroboration that the rule
- * is the table's and not this file's.
+ * byte. The table ends where the bytes stop looking like one: the next thing is
+ * not a keyword. Every one of the four 6502 ROMs read here ends at the same
+ * keyword, which is the corroboration that the rule is the table's and not this
+ * file's.
+ *
+ * The terminator used to be "a flag byte with its top bit set is code rather
+ * than a flag", which gave the same answer on those four ROMs and the wrong one
+ * on an ARM BASIC. There, `&80` is an ordinary flag — it is what `INSTR(`,
+ * `LEFT$(`, `MID$(` and the other keywords ending in a bracket carry — and the
+ * rule cut BBC BASIC V's table off at `INT`, two thirds of the way through. So
+ * the terminator is the keyword pattern alone, which stops in the same place on
+ * every 6502 ROM read here and stops on ARM where BASIC's own " unlistable
+ * token" message begins.
  *
  * ROMs are never committed. Run this against firmware you already have.
  */
@@ -43,10 +52,10 @@ export function readTokenTable(bytes) {
       if (!keyword || end + 1 >= bytes.length) break;
       const token = bytes[end];
       const flag = bytes[end + 1];
-      /* A token is &7F or above — BASIC V uses &7F for OTHERWISE — and a flag
-       * is a small bitfield. A byte with its top bit set in the flag position
-       * is the code that follows the table. */
-      if (token < 0x7f || flag >= 0x80 || !KEYWORD.test(keyword)) break;
+      /* A token is &7F or above — BASIC V uses &7F for OTHERWISE. The flag is
+       * not tested: on ARM BASIC &80 is an ordinary flag value, so testing it
+       * truncates that table rather than terminating it. */
+      if (token < 0x7f || !KEYWORD.test(keyword)) break;
       entries.push({ keyword, token, flag });
       index = end + 2;
     }
