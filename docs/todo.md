@@ -6977,9 +6977,27 @@ Current implemented increment:
   - [ ] The previous major of each engine is not measured either: the gate uses
     the browser the machine has. That needs pinned browser builds in the runner
     image, which is the same infrastructure decision.
+  - [x] **All four runtime documents are started in both engines, framed, and
+    each has to announce itself.** Loading a runtime page on its own says only
+    that its bytes arrived: it announces to its parent, so alone it announces to
+    nobody, and a script that threw before announcing looks exactly like one
+    that had nothing to say. Worse, its status region carries the document's own
+    initial text either way, so reading that would pass on a page that never
+    ran. The pages are therefore framed by a harness on the same origin — which
+    is the integration point the workbench actually depends on — and the check
+    is the announcement.
+  - [x] The result is stronger than expected. In Firefox the jsbeeb runtime
+    announces `bridge-ready`, the Arculator A310 runtime announces
+    `listener-ready` and then `ready`, and both Electron runtimes announce
+    `ready` — so two WebAssembly cores initialise in Firefox, not merely load.
+    What each announced is printed in the stage's own output, so the check is
+    visible rather than implied. The runtime documents are served under the
+    embedded policy the container serves them under, not the workbench's
+    stricter one, because measuring them under a policy the product never
+    applies would test the wrong thing.
   - [ ] Full-screen, gamepad and the clipboard are probed for presence but not
-    exercised, and the emulator runtime pages are not yet loaded in the second
-    engine — only the workbench is. Those are work rather than infrastructure.
+    exercised. That is work rather than infrastructure, and it needs a
+    user-gesture path a headless run does not have by default.
 
 ### 11.4 Documentation and release evidence
 

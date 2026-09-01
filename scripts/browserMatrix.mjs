@@ -131,3 +131,113 @@ export function matrixSummary(results) {
     return `${browser} ${version}: ${page?.controls ?? 0} controls, ${page?.landmarks ?? 0} landmarks${missing.length ? `, without ${missing.join(', ')}` : ', with every recorded capability'}`;
   });
 }
+
+/*
+ * The runtime pages, which are the half of this product a workbench probe never
+ * touches.
+ *
+ * Each is a separate document served under a different policy, and each starts a
+ * different core: two of them are WebAssembly. A browser where the workbench
+ * renders and the emulator page throws on load is a browser this product does
+ * not work in, and nothing above would have noticed.
+ *
+ * What is checked is that the page's own script ran to the end and left the
+ * page saying what it is waiting for. None of them is asked to start a machine,
+ * because that needs firmware which may not enter this repository.
+ */
+export const RUNTIME_PAGES = Object.freeze([
+  Object.freeze({ path: '/emulator.html', label: 'jsbeeb 6502 runtime', status: 'machine-status', channel: '8bit-net-machine' }),
+  Object.freeze({ path: '/archimedes.html', label: 'Arculator A310 runtime', status: 'runtime-status', channel: '8bit-net-archimedes' }),
+  Object.freeze({ path: '/electron.html', label: 'ElkJS Electron runtime', status: 'runtime-status', channel: '8bit-net-electron' }),
+  Object.freeze({ path: '/elkulator.html', label: 'Elkulator Electron runtime', status: 'runtime-status', channel: '8bit-net-elkulator' }),
+]);
+
+/*
+ * The harness that frames a runtime page, and why there is one.
+ *
+ * Loading a runtime document on its own says only that its bytes arrived. What
+ * the workbench actually depends on is that the page announces itself on its
+ * channel, and a page announces to its parent — so on its own it announces to
+ * nobody and a script that threw before announcing looks exactly like one that
+ * did not need to.
+ *
+ * Framing it is therefore not a convenience: it is the difference between
+ * measuring that a file was served and measuring that the integration point
+ * this product is built on works in this browser.
+ */
+export const RUNTIME_HOST_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>runtime host</title><script src="/ci-runtime-host.js"></script></head><body><iframe id="frame" title="runtime under test" width="900" height="700"></iframe></body></html>`;
+
+export const RUNTIME_HOST_SOURCE = `(() => {
+  const announced = [];
+  window.__ciAnnounced = announced;
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data;
+    if (!data || typeof data.channel !== 'string') return;
+    announced.push({ channel: data.channel, type: String(data.type ?? '') });
+  });
+  window.addEventListener('DOMContentLoaded', () => {
+    const page = new URLSearchParams(window.location.search).get('page') ?? '';
+    /* Only a path on this origin, so the harness cannot be pointed elsewhere. */
+    if (!/^\\/[A-Za-z0-9._-]+\\.html$/.test(page)) return;
+    document.getElementById('frame').src = page + '?session=ci-browser-matrix';
+  });
+})();`;
+
+/** Evaluated in the harness once the framed runtime has had time to start. */
+export function runtimeProbe(statusId, channel) {
+  return `(() => {
+    const frame = document.getElementById('frame');
+    const inner = frame && frame.contentDocument;
+    const status = inner ? inner.getElementById(${JSON.stringify(statusId)}) : null;
+    const announced = (window.__ciAnnounced ?? []).filter((entry) => entry.channel === ${JSON.stringify(channel)});
+    const collected = window.__ciCollected ?? { errors: [], rejections: [], violations: [] };
+    return JSON.stringify({
+      framed: Boolean(inner),
+      statusPresent: Boolean(status),
+      statusText: status ? (status.textContent || '').trim().slice(0, 120) : '',
+      canvases: inner ? inner.querySelectorAll('canvas').length : 0,
+      announced: announced.map((entry) => entry.type),
+      errors: collected.errors.slice(0, 6),
+      rejections: collected.rejections.slice(0, 6),
+      violations: collected.violations.slice(0, 6),
+    });
+  })()`;
+}
+
+/**
+ * What must hold for a runtime page in every browser.
+ *
+ * @param {string} browser
+ * @param {{ label: string, expectsAnnouncement: boolean, page: any }[]} pages
+ */
+export function runtimeFindings(browser, pages) {
+  const findings = [];
+  for (const { label, expectsAnnouncement, page } of pages) {
+    if (!page) { findings.push(`${browser} could not load the ${label} at all.`); continue; }
+    if (!page.framed) { findings.push(`${browser} could not reach into the framed ${label}, so nothing about it was measured.`); continue; }
+    if (!page.statusPresent) findings.push(`${browser} loaded the ${label} without its status region, so the document did not render.`);
+    if (!page.canvases) findings.push(`${browser} loaded the ${label} without a display surface.`);
+    /* The announcement is the check that matters: it is the only one a page
+     * whose script threw on load cannot pass, because the status region carries
+     * the document's own initial text either way. */
+    if (expectsAnnouncement && !(page.announced ?? []).length) {
+      findings.push(`${browser} loaded the ${label} and it never announced itself on its channel, so its script did not run to the end.`);
+    }
+    for (const error of page.errors ?? []) findings.push(`${browser} reported an uncaught error in the ${label}: ${error}`);
+    for (const rejection of page.rejections ?? []) findings.push(`${browser} reported an unhandled rejection in the ${label}: ${rejection}`);
+    for (const violation of page.violations ?? []) findings.push(`${browser} reported a policy violation in the ${label}: ${violation}`);
+  }
+  return findings;
+}
+
+/** What each runtime document announced, so the check is visible rather than implied. */
+export function runtimeSummary(results) {
+  const first = results.find((result) => result.runtimes?.length);
+  if (!first) return 'no runtime document was measured';
+  /* Named rather than left as "the runtimes", because every browser is checked
+   * and only one is quoted; a reader should know which one they are reading. */
+  return `in ${first.browser}: ${first.runtimes
+    .map(({ label, page }) => `${label} announced ${(page?.announced ?? []).join('+') || 'nothing'}`)
+    .join(', ')}`;
+}

@@ -15,6 +15,11 @@ import {
   matrixSummary,
   PAGE_PROBE,
   COLLECTOR_SOURCE,
+  RUNTIME_PAGES,
+  RUNTIME_HOST_SOURCE,
+  runtimeFindings,
+  runtimeProbe,
+  runtimeSummary,
 } from './browserMatrix.mjs';
 
 const REQUIRED = ['webAssembly', 'workers', 'indexedDB', 'webgl', 'structuredClone'];
@@ -126,5 +131,74 @@ describe('the cross-browser matrix rules', () => {
     expect(COLLECTOR_SOURCE).toContain('unhandledrejection');
     expect(COLLECTOR_SOURCE).toContain('securitypolicyviolation');
     expect(COLLECTOR_SOURCE).toContain('window.__ciCollected');
+  });
+
+  it('names every runtime document with the channel it announces on', () => {
+    expect(RUNTIME_PAGES.length).toBeGreaterThan(3);
+    for (const page of RUNTIME_PAGES) {
+      expect(page.path, page.label).toMatch(/^\/[a-z]+\.html$/);
+      expect(page.channel, page.label).toMatch(/^8bit-net-/);
+      expect(runtimeProbe(page.status, page.channel)).toContain(page.channel);
+    }
+  });
+});
+
+describe('the runtime page rules', () => {
+  const answered = (overrides: Record<string, unknown> = {}) => ({
+    framed: true,
+    statusPresent: true,
+    statusText: 'Waiting for firmware from the local vault…',
+    canvases: 1,
+    announced: ['ready'],
+    errors: [],
+    rejections: [],
+    violations: [],
+    ...overrides,
+  });
+  const page = (overrides: Record<string, unknown> = {}) => [{ label: 'Elkulator Electron runtime', expectsAnnouncement: true, page: answered(overrides) }];
+
+  it('accepts a runtime that framed, rendered and announced itself', () => {
+    expect(runtimeFindings('Firefox', page())).toEqual([]);
+  });
+
+  it('fails a runtime that never announced itself, whatever its status region says', () => {
+    /* This is the check that matters. A script that throws on load leaves the
+     * document's own initial status text in place, so the status region reads
+     * as populated either way; only the announcement cannot be faked by a page
+     * that did not run. */
+    const findings = runtimeFindings('Firefox', page({ announced: [] }));
+    expect(findings.join(' ')).toContain('never announced itself');
+  });
+
+  it('fails a runtime with no display surface or no status region', () => {
+    expect(runtimeFindings('Chromium', page({ canvases: 0 })).join(' ')).toContain('display surface');
+    expect(runtimeFindings('Chromium', page({ statusPresent: false })).join(' ')).toContain('status region');
+  });
+
+  it('says so rather than reporting nothing when the frame could not be reached', () => {
+    const findings = runtimeFindings('Firefox', page({ framed: false }));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toContain('nothing about it was measured');
+  });
+
+  it('reports an error, a rejection and a violation inside a runtime page', () => {
+    const findings = runtimeFindings('Firefox', page({ errors: ['boom'], rejections: ['nope'], violations: ['script-src blocked inline'] }));
+    expect(findings.join('\n')).toContain('uncaught error in the');
+    expect(findings.join('\n')).toContain('unhandled rejection in the');
+    expect(findings.join('\n')).toContain('policy violation in the');
+  });
+
+  it('names the browser whose runtimes it quotes, and what each announced', () => {
+    const summary = runtimeSummary([{ browser: 'Firefox', runtimes: page() }]);
+    expect(summary).toContain('in Firefox:');
+    expect(summary).toContain('announced ready');
+    expect(runtimeSummary([])).toBe('no runtime document was measured');
+  });
+
+  it('frames only a path on its own origin', () => {
+    /* The harness takes the page to frame from its own query string, so the
+     * pattern is what stops it being pointed anywhere else. */
+    expect(RUNTIME_HOST_SOURCE).toContain('event.origin !== window.location.origin');
+    expect(RUNTIME_HOST_SOURCE).toContain('.html$');
   });
 });

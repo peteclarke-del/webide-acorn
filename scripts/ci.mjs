@@ -740,7 +740,7 @@ await stage('browsers', async () => {
    * on this platform, and reporting Chromium's answers under Safari's name is
    * exactly the claim this product refuses to make.
    */
-  const { COLLECTOR_SOURCE, PAGE_PROBE, matrixFindings, matrixSummary } = await import('./browserMatrix.mjs');
+  const { COLLECTOR_SOURCE, PAGE_PROBE, RUNTIME_PAGES, RUNTIME_HOST_HTML, RUNTIME_HOST_SOURCE, matrixFindings, matrixSummary, runtimeFindings, runtimeProbe, runtimeSummary } = await import('./browserMatrix.mjs');
   const chromium = await firstExisting(CHROMIUM_CANDIDATES);
   const geckodriver = await firstExisting(env.GECKODRIVER_PATH ? [env.GECKODRIVER_PATH] : ['/usr/bin/geckodriver', '/snap/bin/geckodriver', '/usr/local/bin/geckodriver']);
   if (!chromium && !geckodriver) return { skipped: true, reason: 'no browser could be started; set CHROMIUM_PATH or GECKODRIVER_PATH' };
@@ -750,6 +750,11 @@ await stage('browsers', async () => {
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.wasm': 'application/wasm' };
   const { headerPairs } = await import('./securityHeaders.mjs');
   const securityHeaders = headerPairs(await readFile(join(root, 'docker', 'security-headers.conf'), 'utf8'));
+  /* The runtime documents are served under the embedded policy in the
+   * container, so they are served under it here. Measuring them under the
+   * workbench's stricter policy would test something the product never does. */
+  const embeddedHeaders = headerPairs(await readFile(join(root, 'docker', 'security-headers-embedded.conf'), 'utf8'));
+  const RUNTIME_PATHS = new Set(RUNTIME_PAGES.map((page) => page.path));
 
   /*
    * The collector is served as a file and injected as a `<script src>` rather
@@ -757,18 +762,31 @@ await stage('browsers', async () => {
    * is under that policy. That constraint is the point: a collector the policy
    * would have blocked could not report the policy blocking anything else.
    */
-  const indexHtml = (await readFile(join(dist, 'index.html'), 'utf8'))
-    .replace('</head>', '<script src="/ci-collector.js"></script></head>');
+  const indexHtml = await readFile(join(dist, 'index.html'), 'utf8');
 
-  const server = createServer((request, response) => {
+  /* Injected into every document that is measured, not only the workbench. */
+  const withCollector = (html) => html.replace('</head>', '<script src="/ci-collector.js"></script></head>');
+
+  const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://x');
-    for (const [name, value] of securityHeaders) response.setHeader(name, value);
-    if (url.pathname === '/ci-collector.js') {
-      response.setHeader('Content-Type', 'text/javascript');
-      response.end(COLLECTOR_SOURCE);
+    const embedded = RUNTIME_PATHS.has(url.pathname);
+    for (const [name, value] of (embedded ? embeddedHeaders : securityHeaders)) response.setHeader(name, value);
+    if (embedded) {
+      response.setHeader('Content-Type', 'text/html');
+      response.end(withCollector(await readFile(join(dist, url.pathname.slice(1)), 'utf8')));
       return;
     }
-    const sendIndex = () => { response.setHeader('Content-Type', 'text/html'); response.end(indexHtml); };
+    if (url.pathname === '/ci-collector.js' || url.pathname === '/ci-runtime-host.js') {
+      response.setHeader('Content-Type', 'text/javascript');
+      response.end(url.pathname === '/ci-collector.js' ? COLLECTOR_SOURCE : `${COLLECTOR_SOURCE}\n${RUNTIME_HOST_SOURCE}`);
+      return;
+    }
+    if (url.pathname === '/ci-runtime-host.html') {
+      response.setHeader('Content-Type', 'text/html');
+      response.end(RUNTIME_HOST_HTML);
+      return;
+    }
+    const sendIndex = () => { response.setHeader('Content-Type', 'text/html'); response.end(withCollector(indexHtml)); };
     if (url.pathname === '/' || url.pathname === '/index.html') { sendIndex(); return; }
     const path = join(dist, normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, ''));
     const stream = createReadStream(path);
@@ -780,15 +798,18 @@ await stage('browsers', async () => {
     stream.once('error', sendIndex);
   });
   await new Promise((ready, failed) => { server.once('error', failed); server.listen(port, '127.0.0.1', ready); });
-  const target = `http://127.0.0.1:${port}/`;
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const results = [];
   const started = [];
   try {
-    if (geckodriver) results.push(await measureFirefox(geckodriver, target, PAGE_PROBE, started, delay));
-    if (chromium) results.push(await measureChromium(chromium, target, PAGE_PROBE, started, delay));
-    const findings = matrixFindings(results);
+    const base = `http://127.0.0.1:${port}`;
+    if (geckodriver) results.push(await measureFirefox(geckodriver, base, PAGE_PROBE, RUNTIME_PAGES, runtimeProbe, started, delay));
+    if (chromium) results.push(await measureChromium(chromium, base, PAGE_PROBE, RUNTIME_PAGES, runtimeProbe, started, delay));
+    const findings = [
+      ...matrixFindings(results),
+      ...results.flatMap((result) => runtimeFindings(result.browser, result.runtimes ?? [])),
+    ];
     if (findings.length) throw new Error(`${findings.length} browser finding(s): ${findings.slice(0, 4).join(' | ')}`);
     /* Every engine that was not measured is named with the reason, so a run on
      * a machine with one browser reads as a run that checked one browser rather
@@ -798,7 +819,8 @@ await stage('browsers', async () => {
       ...(chromium ? [] : ['Chromium (no binary; set CHROMIUM_PATH)']),
       'Safari (no engine for it on this platform, and none is substituted)',
     ];
-    return { detail: `${results.length} engine${results.length === 1 ? '' : 's'} started the workbench · ${matrixSummary(results).join(' · ')} · not measured: ${absent.join(', ')}` };
+    const runtimes = results[0]?.runtimes?.length ?? 0;
+    return { detail: `${results.length} engine${results.length === 1 ? '' : 's'} started the workbench and its ${runtimes} runtime documents · ${matrixSummary(results).join(' · ')} · ${runtimeSummary(results)} · not measured: ${absent.join(', ')}` };
   } finally {
     for (const stop of started.reverse()) await stop().catch(() => undefined);
     await new Promise((closed) => server.close(closed));
@@ -806,15 +828,15 @@ await stage('browsers', async () => {
 });
 
 /** Firefox, over WebDriver, which is the protocol geckodriver speaks. */
-async function measureFirefox(geckodriver, target, probe, started, delay) {
+async function measureFirefox(geckodriver, base, probe, runtimePages, runtimeProbe, started, delay) {
   const port = Number(env.CI_MATRIX_GECKO_PORT ?? 4546);
   const driver = spawn(geckodriver, ['--host', '127.0.0.1', '--port', String(port)], { stdio: ['ignore', 'ignore', 'ignore'] });
   started.push(async () => { if (driver.exitCode === null) driver.kill('SIGTERM'); });
-  const base = `http://127.0.0.1:${port}`;
-  const ready = await waitFor(async () => (await fetch(`${base}/status`).then((r) => r.json())).value?.ready, 'geckodriver', 20_000, delay);
+  const driverBase = `http://127.0.0.1:${port}`;
+  const ready = await waitFor(async () => (await fetch(`${driverBase}/status`).then((r) => r.json())).value?.ready, 'geckodriver', 20_000, delay);
   if (!ready) throw new Error('geckodriver never became ready');
   const call = async (method, path, body) => {
-    const response = await fetch(`${base}${path}`, { method, ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
+    const response = await fetch(`${driverBase}${path}`, { method, ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
     const json = await response.json();
     if (json.value?.error) throw new Error(`Firefox ${json.value.error}: ${String(json.value.message).split('\n')[0]}`);
     return json.value;
@@ -822,16 +844,25 @@ async function measureFirefox(geckodriver, target, probe, started, delay) {
   const session = await call('POST', '/session', { capabilities: { alwaysMatch: { browserName: 'firefox', 'moz:firefoxOptions': { args: ['-headless'] } } } });
   const id = session.sessionId;
   started.push(async () => { await call('DELETE', `/session/${id}`).catch(() => undefined); });
-  await call('POST', `/session/${id}/url`, { url: target });
+  await call('POST', `/session/${id}/url`, { url: `${base}/` });
   const page = await waitFor(async () => {
     const answer = JSON.parse(await call('POST', `/session/${id}/execute/sync`, { script: `return ${probe}`, args: [] }));
     return answer.rootChildren > 0 ? answer : null;
   }, 'the workbench in Firefox', 60_000, delay);
-  return { browser: 'Firefox', version: session.capabilities?.browserVersion ?? 'unknown', page };
+  const runtimes = [];
+  for (const runtime of runtimePages) {
+    await call('POST', `/session/${id}/url`, { url: `${base}/ci-runtime-host.html?page=${encodeURIComponent(runtime.path)}` });
+    /* Given a moment to fail: a page whose script throws on load leaves the
+     * document there, and asking immediately would read it before it had. */
+    await delay(2_000);
+    const answer = JSON.parse(await call('POST', `/session/${id}/execute/sync`, { script: `return ${runtimeProbe(runtime.status, runtime.channel)}`, args: [] }));
+    runtimes.push({ label: runtime.label, expectsAnnouncement: runtime.expectsAnnouncement !== false, page: answer });
+  }
+  return { browser: 'Firefox', version: session.capabilities?.browserVersion ?? 'unknown', page, runtimes };
 }
 
 /** Chromium, over the DevTools protocol, which is what it speaks. */
-async function measureChromium(chromium, target, probe, started, delay) {
+async function measureChromium(chromium, base, probe, runtimePages, runtimeProbe, started, delay) {
   const port = Number(env.CI_MATRIX_DEVTOOLS_PORT ?? 9139);
   const userDataDir = join(root, `.ci-matrix-${port}`);
   await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
@@ -876,16 +907,26 @@ async function measureChromium(chromium, target, probe, started, delay) {
   const { sessionId } = await call('Target.attachToTarget', { targetId: page.targetId, flatten: true });
   await call('Page.enable', {}, sessionId);
   await call('Runtime.enable', {}, sessionId);
-  await call('Page.navigate', { url: target }, sessionId);
+  const evaluate = async (expression) => {
+    const result = await call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
+    return result.result?.value ?? null;
+  };
+  await call('Page.navigate', { url: `${base}/` }, sessionId);
   const answer = await waitFor(async () => {
-    const result = await call('Runtime.evaluate', { expression: probe, returnByValue: true, awaitPromise: true }, sessionId);
-    const value = result.result?.value;
+    const value = await evaluate(probe);
     if (!value) return null;
     const parsed = JSON.parse(value);
     return parsed.rootChildren > 0 ? parsed : null;
   }, 'the workbench in Chromium', 60_000, delay);
+  const runtimes = [];
+  for (const runtime of runtimePages) {
+    await call('Page.navigate', { url: `${base}/ci-runtime-host.html?page=${encodeURIComponent(runtime.path)}` }, sessionId);
+    await delay(2_000);
+    const value = await evaluate(runtimeProbe(runtime.status, runtime.channel));
+    runtimes.push({ label: runtime.label, expectsAnnouncement: runtime.expectsAnnouncement !== false, page: value ? JSON.parse(value) : null });
+  }
   const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
-  return { browser: 'Chromium', version: (version.Browser ?? 'unknown').replace(/^.*\//, ''), page: answer };
+  return { browser: 'Chromium', version: (version.Browser ?? 'unknown').replace(/^.*\//, ''), page: answer, runtimes };
 }
 
 async function waitFor(op, what, limit, delay) {
