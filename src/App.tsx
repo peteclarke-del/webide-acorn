@@ -960,7 +960,7 @@ function App() {
     const task = startAnalysisTask(
       bytes,
       name,
-      { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) },
+      { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', tokenisedBasicDialect: processor === 'arm2' || processor === 'arm3' ? 'bbc-basic-5' : 'bbc-basic-2', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) },
       /* Bytes the parser has settled, in its own words. A stale worker's
        * progress cannot reach here: the client drops anything whose request
        * identity is not the current one. */

@@ -17,12 +17,17 @@ describe('the generated tables against the hand transcription', () => {
     expect(BBC_BASIC_2.tokens).toEqual(BBC_BASIC_II_TOKENS);
   });
 
-  it('ends every table at the same keyword, which is the table’s rule and not the reader’s', () => {
+  it('ends every 6502 table at the same keyword, which is the table’s rule and not the reader’s', () => {
     /* Four ROMs of different vintages stopping at the same place is
-     * corroboration that the end was found rather than chosen. */
-    for (const dialect of BASIC_DIALECTS) {
+     * corroboration that the end was found rather than chosen. The ARM BASIC
+     * ends somewhere else — at WIDTH, where its own " unlistable token" message
+     * begins — and that it does is the same corroboration from the other
+     * direction: the reader stops where each table stops, not where it was told
+     * to. */
+    for (const dialect of BASIC_DIALECTS.filter((candidate) => candidate.id !== 'bbc-basic-5')) {
       expect(dialect.order[dialect.order.length - 1], dialect.label).toBe('HIMEM');
     }
+    expect(BASIC_DIALECTS.find((dialect) => dialect.id === 'bbc-basic-5')!.order.at(-1)).toBe('WIDTH');
   });
 
   it('records which firmware each table came from', () => {
@@ -32,8 +37,9 @@ describe('the generated tables against the hand transcription', () => {
       expect(dialect.provenance.sha256, dialect.label).toMatch(/^[0-9a-f]{64}$/);
       expect(dialect.provenance.source, dialect.label).toBeTruthy();
     }
-    /* And they are four different ROMs, not one read four times. */
-    expect(new Set(BASIC_DIALECTS.map((dialect) => dialect.provenance.sha256)).size).toBe(4);
+    /* And they are as many different ROMs as there are tables, not one read
+     * several times. */
+    expect(new Set(BASIC_DIALECTS.map((dialect) => dialect.provenance.sha256)).size).toBe(BASIC_DIALECTS.length);
   });
 });
 

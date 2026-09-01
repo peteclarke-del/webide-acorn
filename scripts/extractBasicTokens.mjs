@@ -65,6 +65,87 @@ export function readTokenTable(bytes) {
   return best;
 }
 
+/*
+ * How an entry's flag byte turns into the bytes BASIC actually emits.
+ *
+ * This is measured, not inferred. The 6502 BASICs put one byte per keyword and
+ * the flag says nothing about encoding, but an ARM BASIC prefixes some keywords
+ * — which is why twenty-three token bytes in its table are shared by two or
+ * three entries each. Reading the bits was not enough to settle which: the
+ * obvious reading put APPEND and SUM in the same group under the same token.
+ *
+ * So the mapping was measured. Every distinct flag value in BBC BASIC V 1.05
+ * was typed into a real RISC OS 3.11 machine running on this build's own A310
+ * core, and the tokenised program was read back out of its memory. Sixty-seven
+ * keywords across all seventeen flag values, and the answers are these.
+ */
+export const TOKEN_PREFIX = Object.freeze({ C6: 0xc6, C7: 0xc7, C8: 0xc8 });
+
+/**
+ * The prefix an entry is emitted behind, `'pseudo'` for a keyword that has a
+ * separate statement form, or null for a plain one-byte token.
+ *
+ * @param {number} flag
+ * @returns {number|'pseudo'|null}
+ */
+export function encodingOf(flag) {
+  /* &08 marks a prefixed keyword; &04 and &40 choose which prefix. Measured:
+   * SUM and BEAT (flag &0E) come back as &C6; the eighteen entries with &09,
+   * &0A, &18 and &28 come back as &C7; the twenty-one with &49 and &4A come
+   * back as &C8. */
+  if (flag & 0x08) {
+    if (flag & 0x40) return TOKEN_PREFIX.C8;
+    return (flag & 0x04) ? TOKEN_PREFIX.C6 : TOKEN_PREFIX.C7;
+  }
+  /* &40 without &08 is a pseudo-variable: the table token is what BASIC emits
+   * for it on the right of an assignment, and it has a second token, absent
+   * from the table, for the left. Measured: PTR, PAGE, TIME, LOMEM and HIMEM
+   * come back as &CF to &D3 as statements and as their table tokens — &8F to
+   * &93 — as functions. */
+  if (flag & 0x40) return 'pseudo';
+  return null;
+}
+
+/**
+ * Statement forms that are not in the table at all, in the table's own order.
+ *
+ * Two kinds, both measured rather than assumed. The five pseudo-variables take
+ * &CF to &D3 when they are assigned to. And `ELSE`, whose table token &8B is
+ * what it takes inside `IF ... THEN ... ELSE ...`, takes &CC when it begins a
+ * statement — typing `ELSE` on its own line produced &CC, and
+ * `IF A=1 THEN 920 ELSE 930` produced &8B.
+ */
+export const STATEMENT_FORMS = Object.freeze({ 0xcc: 'ELSE', 0xcf: 'PTR', 0xd0: 'PAGE', 0xd1: 'TIME', 0xd2: 'LOMEM', 0xd3: 'HIMEM' });
+
+/**
+ * A line number inside a program, which is not a token and not text.
+ *
+ * `&8D` introduces three bytes carrying the number with its top bits moved out
+ * of the way, so that none of them can look like a token or a terminator. A
+ * reader that did not know this would print three bytes of noise after every
+ * GOTO. Measured against four line numbers: 900, 910, 920 and 940 came back as
+ * `8D 74 44 43`, `8D 74 4E 43`, `8D 74 58 43` and `8D 74 6C 43`.
+ */
+export const LINE_NUMBER_TOKEN = 0x8d;
+
+/** @param {number[]} triple */
+export function decodeLineNumber(triple) {
+  const [first, second, third] = triple;
+  /* The first byte carries the two top bits of each of the other two, moved out
+   * of the way so that neither can look like a token or a terminator, and then
+   * exclusive-ored with &54. */
+  const carried = (first ^ 0x54) & 0xff;
+  const low = (second & 0x3f) | ((carried << 2) & 0xc0);
+  const high = (third & 0x3f) << 8;
+  return (high | low | ((carried << 12) & 0xc000)) & 0xffff;
+}
+
+/** @param {number} line */
+export function encodeLineNumber(line) {
+  const first = (((line & 0xc0) >> 2) | ((line & 0xc000) >> 12)) ^ 0x54;
+  return [first & 0xff, (line & 0x3f) | 0x40, ((line >> 8) & 0x3f) | 0x40];
+}
+
 /* Compared as resolved paths: a directory with a space in it does not
  * survive a naive comparison against a file URL. */
 if (argv[1] && resolve(fileURLToPath(import.meta.url)) === resolve(argv[1])) {

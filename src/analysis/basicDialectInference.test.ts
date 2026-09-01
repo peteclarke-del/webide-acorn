@@ -21,14 +21,28 @@ describe('how much a tokenised file can say about itself', () => {
     }
     const unique = [...owners].filter(([, dialects]) => dialects.length === 1);
     expect(unique).toHaveLength(1);
-    expect(unique[0]![0]).toBe(0xce);
-    expect(unique[0]![1]).toEqual(['bbc-basic-4']);
+    expect(unique[0]![0]).toBe(0x7f);
+    expect(unique[0]![1]).toEqual(['bbc-basic-5']);
   });
 
   it('names the one dialect a distinguishing token proves', () => {
-    const inferred = inferTokenisedDialect(bytes(0x0d, 0x00, 0x0a, 0xce, 0x0d));
-    expect(inferred.dialect).toBe('bbc-basic-4');
-    expect(inferred.reason).toMatch(/only BBC BASIC IV defines/);
+    /* &7F, OTHERWISE, which only BASIC V has. */
+    const inferred = inferTokenisedDialect(bytes(0x0d, 0x00, 0x0a, 0x7f, 0x0d));
+    expect(inferred.dialect).toBe('bbc-basic-5');
+    expect(inferred.reason).toMatch(/only BBC BASIC V defines/);
+  });
+
+  it('no longer claims &CE proves BASIC IV, because BASIC V calls it something else', () => {
+    /* This is what adding a dialect did to the evidence. &CE was the one token
+     * that identified BASIC IV — EDIT, which no other 6502 BASIC had — and in
+     * BASIC V the same byte is ENDWHILE. A file carrying it could be either, so
+     * the honest answer changed from "BASIC IV" to "cannot tell", and it
+     * changed on its own because the evidence is derived from the tables rather
+     * than written down beside them. */
+    const inferred = inferTokenisedDialect(bytes(0xce));
+    expect(inferred.dialect).toBeNull();
+    expect(inferred.candidates).toContain('bbc-basic-4');
+    expect(inferred.candidates).toContain('bbc-basic-5');
   });
 
   it('refuses when every token is shared, and says the refusal is the normal case', () => {
@@ -43,8 +57,8 @@ describe('how much a tokenised file can say about itself', () => {
   it('refuses a file carrying tokens from more than one dialect rather than picking the commonest', () => {
     /* Two dialects' worth of evidence is not a dialect. It is a file that is
      * not what it claims, or a reader that has lost its place. */
-    const inferred = inferTokenisedDialect(bytes(0xce));
-    expect(inferred.dialect).toBe('bbc-basic-4');
+    const inferred = inferTokenisedDialect(bytes(0x7f));
+    expect(inferred.dialect).toBe('bbc-basic-5');
     /* And with nothing distinguishing at all, no claim. */
     expect(inferTokenisedDialect(bytes()).dialect).toBeNull();
   });

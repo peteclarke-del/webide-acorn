@@ -3320,17 +3320,55 @@ Current implemented increment:
     through, with no sign that anything had been lost. The terminator is now the
     keyword pattern alone, which stops in exactly the same place on every 6502
     ROM read here, 126 entries ending at `HIMEM`, and stops correctly on ARM.
-  - [ ] **What still blocks the dialect is the two-byte tokens.** An ARM BASIC
-    prefixes some keywords, so twenty-three token bytes in that table are shared
-    by two or three keywords each — `&8E` is `APPEND`, `CASE`, `OPENIN` and
-    `SUM` — and which prefix distinguishes them is carried in the flag byte by
-    an encoding no source here settles. The obvious reading of the bits does not
-    survive contact with the data: it would put `APPEND` and `SUM` in the same
-    group under the same token. So the table is read and not shipped, because a
-    decoder that guessed would decode most of a program and corrupt the rest.
-    What this needs is either an authoritative description of that flag byte, or
-    a measurement — BASIC V tokenising a program under the A310 core this build
-    already runs would be one.
+  - [x] **BASIC V ships, and the two-byte encoding was measured rather than
+    read off the bits.** An ARM BASIC prefixes some keywords, so twenty-three
+    token bytes in that table are shared by two or three keywords each — `&8E`
+    is `APPEND`, `CASE`, `OPENIN` and `SUM` — and no reading of the flag byte
+    settled which prefix each takes. The obvious one did not survive contact
+    with the data: it put `APPEND` and `SUM` in the same group under the same
+    token.
+  - [x] So the machine was asked. RISC OS 3.11 was booted on this build's own
+    pinned A310 core, its keyboard driven to a BASIC prompt, and ninety-four
+    lines typed in and read back out of the program area at `&8F00`. Every one
+    of the seventeen distinct flag values in the table is represented, both
+    sides of every pseudo-variable, both forms of `ELSE`, and ten line numbers
+    chosen to exercise every carried bit of their encoding. The answers:
+    flag `&0E` takes the `&C6` prefix, `&09`, `&0A`, `&18` and `&28` take `&C7`,
+    `&49` and `&4A` take `&C8`, and `&43` marks a pseudo-variable whose table
+    token is its read form with a separate write form at `&CF` to `&D3`.
+  - [x] Two things turned up that no table could have said. `ELSE` has two
+    tokens — `&CC` where it begins a statement and its table token `&8B` inside
+    a one-line `IF` — and neither is derivable from the flag, which is the same
+    for `THEN`. And the `&8D` line-number encoding was confirmed against ten
+    numbers spanning every carried bit, after the first implementation of it was
+    found wrong by that comparison rather than by reasoning.
+  - [x] The measurements are kept in `src/analysis/basicVMeasurements.ts` and
+    the decoder is held to reproducing all ninety-four, because a measurement
+    nobody can repeat is a claim. That contract runs without a ROM, a browser or
+    an emulator.
+  - [x] **Adding the dialect changed what a file can prove, and the code noticed
+    on its own.** `&CE` used to be the one token that identified a dialect —
+    `EDIT`, which only BASIC IV had. In BASIC V the same byte is `ENDWHILE`, so
+    a file carrying it could be either and the honest answer became "cannot
+    tell". The inference derives its evidence from the tables rather than
+    carrying a list beside them, so it changed by itself; what needed changing
+    was the contract that recorded the old truth. Exactly one token now belongs
+    to a single dialect: `&7F`, `OTHERWISE`, which only BASIC V has.
+  - [x] Which BASIC a tokenised file is read against comes from the machine,
+    because it is almost never in the file. An ARM machine reads BASIC V and
+    everything else reads BASIC II, and the default is BASIC II rather than
+    whichever was asked for last.
+  - [x] Evidence: 11 contracts in `src/analysis/basicV.test.ts`, including that
+    all ninety-four measured lines decode back to the text that was typed, that
+    the same second byte after each of the three prefixes is three different
+    keywords, that a truncated two-byte keyword is reported rather than
+    invented, and that the 6502 decode is unchanged — a decoder that looked for
+    prefixes everywhere would quietly alter what every existing file says.
+  - [ ] **BASIC VI is still absent.** It is the same language with eight-byte
+    reals and its tokens are widely said to be identical, but no BASIC VI ROM
+    has been read here, and shipping a table on the strength of what is said
+    about it rather than what was measured is the thing this work exists not to
+    do.
   - [x] Evidence: 7 contracts in `scripts/extractBasicTokens.test.ts` covering
     the terminator in both families, built as fixtures in the ROMs' own shape
     rather than copied out of firmware, so they run everywhere. The reproduction

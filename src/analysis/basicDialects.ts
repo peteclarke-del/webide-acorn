@@ -12,15 +12,25 @@
  * at the same keyword, `HIMEM`, which is corroboration that the rule for where
  * a table stops belongs to the table and not to the reader.
  *
- * BASIC V and VI are still absent, and the reason is no longer the one recorded
- * here before. Their table is not a different shape: BBC BASIC V 1.05 lays its
- * out exactly like these, keyword then token then flag, and the same reader
- * takes all 161 entries of it once its terminator stops treating a flag of &80
- * as code. What stops them being shipped is that an ARM BASIC has two-byte
- * tokens, so twenty-three token bytes there are shared by two or three
- * keywords, and which prefix distinguishes them is not settled by anything
- * measured yet. Shipping the table anyway would decode most of a program and
- * corrupt the rest, which is worse than not offering the dialect.
+ * BASIC V is here now, and what took so long was not the table. Its table has
+ * the same shape as these — keyword, token, flag — and the same reader takes all
+ * 161 entries of it. What was missing is that an ARM BASIC writes some keywords
+ * as two bytes, so twenty-three token bytes in that table are shared by two or
+ * three entries each, and reading the flag bits was not enough to settle which
+ * prefix each takes: the obvious reading put `APPEND` and `SUM` in the same
+ * group under the same token.
+ *
+ * So it was measured. Every distinct flag value was typed into a real RISC OS
+ * 3.11 machine, running on this build's own A310 core, and the tokenised
+ * program was read back out of its memory. Sixty-seven keywords across all
+ * seventeen flag values, plus both sides of every pseudo-variable and both
+ * forms of `ELSE`. `scripts/extractBasicTokens.mjs` carries the rule that
+ * measurement established.
+ *
+ * BASIC VI is still absent. It is the same language with eight-byte reals, and
+ * its tokens are widely said to be identical — but no BASIC VI ROM has been
+ * read here, and shipping a table on the strength of what is said about it
+ * rather than what was measured is the thing this file exists not to do.
  *
  * Two spellings can share one token: `COLOUR` and `COLOR` are both &FB, and
  * which one a ROM lists first is which one that machine would list back. Both
@@ -32,13 +42,31 @@
  * tables, and the digests say which firmware each came from.
  */
 
-export type BasicDialectId = 'bbc-basic-1' | 'bbc-basic-2' | 'bbc-basic-3' | 'bbc-basic-4' | 'atom-basic';
+export type BasicDialectId = 'bbc-basic-1' | 'bbc-basic-2' | 'bbc-basic-3' | 'bbc-basic-4' | 'bbc-basic-5' | 'atom-basic';
 
 export interface BasicDialect {
   id: BasicDialectId;
   label: string;
   /** Token to the keyword the ROM lists first for it. */
   tokens: Record<number, string>;
+  /*
+   * Keywords the ROM writes as two bytes, by the prefix that introduces them.
+   *
+   * Only an ARM BASIC has these. A 6502 BASIC has one byte per keyword, so this
+   * is absent there rather than empty: a dialect that has no two-byte tokens and
+   * a dialect whose two-byte tokens nobody has established are different things,
+   * and only the first should read as settled.
+   */
+  extended?: Record<number, Record<number, string>>;
+  /*
+   * Tokens that appear only where a statement begins, and are in no table.
+   *
+   * A keyword can have two tokens: one for where it is read and one for where it
+   * is written to or where it opens a statement. The table carries the first;
+   * these are the second, and a reader without them prints nothing sensible for
+   * a program that assigns to `HIMEM` or uses a multi-line `ELSE`.
+   */
+  statementForms?: Record<number, string>;
   /** Every keyword, in the ROM's own order, which is how an abbreviation resolves. */
   order: string[];
   /** Spellings that share a token with an earlier one, and what they share it with. */
@@ -610,7 +638,218 @@ export const BBC_BASIC_4: BasicDialect = {
 };
 
 
-export const BASIC_DIALECTS: BasicDialect[] = [BBC_BASIC_1, BBC_BASIC_2, BBC_BASIC_3, BBC_BASIC_4];
+const BBC_BASIC_5_TOKENS: Record<number, string> = {
+  0x7f: "OTHERWISE",
+  0x80: "AND",
+  0x81: "DIV",
+  0x82: "EOR",
+  0x83: "MOD",
+  0x84: "OR",
+  0x85: "ERROR",
+  0x86: "LINE",
+  0x87: "OFF",
+  0x88: "STEP",
+  0x89: "SPC",
+  0x8a: "TAB(",
+  0x8b: "ELSE",
+  0x8c: "THEN",
+  0x8e: "OPENIN",
+  0x8f: "PTR",
+  0x90: "PAGE",
+  0x91: "TIME",
+  0x92: "LOMEM",
+  0x93: "HIMEM",
+  0x94: "ABS",
+  0x95: "ACS",
+  0x96: "ADVAL",
+  0x97: "ASC",
+  0x98: "ASN",
+  0x99: "ATN",
+  0x9a: "BGET",
+  0x9b: "COS",
+  0x9c: "COUNT",
+  0x9d: "DEG",
+  0x9e: "ERL",
+  0x9f: "ERR",
+  0xa0: "EVAL",
+  0xa1: "EXP",
+  0xa2: "EXT",
+  0xa3: "FALSE",
+  0xa4: "FN",
+  0xa5: "GET",
+  0xa6: "INKEY",
+  0xa7: "INSTR(",
+  0xa8: "INT",
+  0xa9: "LEN",
+  0xaa: "LN",
+  0xab: "LOG",
+  0xac: "NOT",
+  0xad: "OPENUP",
+  0xae: "OPENOUT",
+  0xaf: "PI",
+  0xb0: "POINT(",
+  0xb1: "POS",
+  0xb2: "RAD",
+  0xb3: "RND",
+  0xb4: "SGN",
+  0xb5: "SIN",
+  0xb6: "SQR",
+  0xb7: "TAN",
+  0xb8: "TO",
+  0xb9: "TRUE",
+  0xba: "USR",
+  0xbb: "VAL",
+  0xbc: "VPOS",
+  0xbd: "CHR$",
+  0xbe: "GET$",
+  0xbf: "INKEY$",
+  0xc0: "LEFT$(",
+  0xc1: "MID$(",
+  0xc2: "RIGHT$(",
+  0xc3: "STR$",
+  0xc4: "STRING$(",
+  0xc5: "EOF",
+  0xc9: "WHEN",
+  0xca: "OF",
+  0xcb: "ENDCASE",
+  0xcd: "ENDIF",
+  0xce: "ENDWHILE",
+  0xd4: "SOUND",
+  0xd5: "BPUT",
+  0xd6: "CALL",
+  0xd7: "CHAIN",
+  0xd8: "CLEAR",
+  0xd9: "CLOSE",
+  0xda: "CLG",
+  0xdb: "CLS",
+  0xdc: "DATA",
+  0xdd: "DEF",
+  0xde: "DIM",
+  0xdf: "DRAW",
+  0xe0: "END",
+  0xe1: "ENDPROC",
+  0xe2: "ENVELOPE",
+  0xe3: "FOR",
+  0xe4: "GOSUB",
+  0xe5: "GOTO",
+  0xe6: "GCOL",
+  0xe7: "IF",
+  0xe8: "INPUT",
+  0xe9: "LET",
+  0xea: "LOCAL",
+  0xeb: "MODE",
+  0xec: "MOVE",
+  0xed: "NEXT",
+  0xee: "ON",
+  0xef: "VDU",
+  0xf0: "PLOT",
+  0xf1: "PRINT",
+  0xf2: "PROC",
+  0xf3: "READ",
+  0xf4: "REM",
+  0xf5: "REPEAT",
+  0xf6: "REPORT",
+  0xf7: "RESTORE",
+  0xf8: "RETURN",
+  0xf9: "RUN",
+  0xfa: "STOP",
+  0xfb: "COLOUR",
+  0xfc: "TRACE",
+  0xfd: "UNTIL",
+  0xfe: "WIDTH",
+  0xff: "OSCLI",
+};
+
+/*
+ * The keywords BASIC V writes as two bytes, by the prefix that introduces them.
+ *
+ * Which prefix an entry takes is carried in its flag byte, and the mapping was
+ * measured rather than read off the bits: every distinct flag value was typed
+ * into a real RISC OS 3.11 machine and the tokenised program read back out of
+ * its memory. See `scripts/extractBasicTokens.mjs`.
+ */
+const BBC_BASIC_5_EXTENDED: Record<number, Record<number, string>> = {
+  0xc6: {
+    0x8e: "SUM",
+    0x8f: "BEAT",
+  },
+  0xc7: {
+    0x8e: "APPEND",
+    0x8f: "AUTO",
+    0x90: "CRUNCH",
+    0x91: "DELETE",
+    0x92: "EDIT",
+    0x93: "HELP",
+    0x94: "LIST",
+    0x95: "LOAD",
+    0x96: "LVAR",
+    0x97: "NEW",
+    0x98: "OLD",
+    0x99: "RENUMBER",
+    0x9a: "SAVE",
+    0x9b: "TEXTLOAD",
+    0x9c: "TEXTSAVE",
+    0x9d: "TWIN",
+    0x9e: "TWINO",
+    0x9f: "INSTALL",
+  },
+  0xc8: {
+    0x8e: "CASE",
+    0x8f: "CIRCLE",
+    0x90: "FILL",
+    0x91: "ORIGIN",
+    0x92: "POINT",
+    0x93: "RECTANGLE",
+    0x94: "SWAP",
+    0x95: "WHILE",
+    0x96: "WAIT",
+    0x97: "MOUSE",
+    0x98: "QUIT",
+    0x99: "SYS",
+    0x9b: "LIBRARY",
+    0x9c: "TINT",
+    0x9d: "ELLIPSE",
+    0x9e: "BEATS",
+    0x9f: "TEMPO",
+    0xa0: "VOICES",
+    0xa1: "VOICE",
+    0xa2: "STEREO",
+    0xa3: "OVERLAY",
+  },
+};
+
+/*
+ * Tokens that appear only where a statement begins, and are in no table.
+ *
+ * Two kinds, both measured. The five pseudo-variables take these when they are
+ * assigned to and their table tokens — &8F to &93 — when they are read; typing
+ * `LOMEM=HIMEM` produced `D2 3D 93`. And `ELSE` takes &CC at the start of a
+ * statement and its table token &8B inside a one-line `IF`; typing
+ * `IF A=1 THEN 920 ELSE 930` produced &8B, and `ELSE` alone produced &CC.
+ */
+const BBC_BASIC_5_STATEMENT_FORMS: Record<number, string> = {
+  0xcc: "ELSE",
+  0xcf: "PTR",
+  0xd0: "PAGE",
+  0xd1: "TIME",
+  0xd2: "LOMEM",
+  0xd3: "HIMEM",
+};
+
+const BBC_BASIC_5_ORDER: string[] = ["AND", "ABS", "ACS", "ADVAL", "ASC", "ASN", "ATN", "AUTO", "APPEND", "BGET", "BPUT", "BEATS", "BEAT", "COLOUR", "CALL", "CASE", "CHAIN", "CHR$", "CLEAR", "CLOSE", "CLG", "CLS", "COS", "COUNT", "CIRCLE", "CRUNCH", "COLOR", "DATA", "DEG", "DEF", "DELETE", "DIV", "DIM", "DRAW", "ENDPROC", "EDIT", "ENDWHILE", "ENDCASE", "ENDIF", "END", "ENVELOPE", "ELSE", "EVAL", "ERL", "ERROR", "EOF", "EOR", "ERR", "EXP", "EXT", "ELLIPSE", "FOR", "FALSE", "FILL", "FN", "GOTO", "GET$", "GET", "GOSUB", "GCOL", "HIMEM", "HELP", "INPUT", "IF", "INKEY$", "INKEY", "INT", "INSTR(", "INSTALL", "LIST", "LINE", "LOAD", "LOMEM", "LOCAL", "LEFT$(", "LEN", "LET", "LOG", "LN", "LIBRARY", "LVAR", "MID$(", "MODE", "MOD", "MOVE", "MOUSE", "NEXT", "NEW", "NOT", "OLD", "ON", "OFF", "OF", "ORIGIN", "OR", "OPENIN", "OPENOUT", "OPENUP", "OSCLI", "OTHERWISE", "OVERLAY", "PRINT", "PAGE", "PTR", "PI", "PLOT", "POINT(", "POINT", "PROC", "POS", "QUIT", "RETURN", "REPEAT", "REPORT", "READ", "REM", "RUN", "RAD", "RESTORE", "RIGHT$(", "RND", "RECTANGLE", "RENUMBER", "STEP", "SAVE", "SGN", "SIN", "SQR", "SOUND", "SPC", "STR$", "STRING$(", "STOP", "STEREO", "SUM", "SWAP", "SYS", "TAN", "TAB(", "TEMPO", "TEXTLOAD", "TEXTSAVE", "THEN", "TIME", "TINT", "TO", "TRACE", "TRUE", "TWINO", "TWIN", "UNTIL", "USR", "VDU", "VAL", "VPOS", "VOICES", "VOICE", "WHILE", "WHEN", "WAIT", "WIDTH"];
+
+export const BBC_BASIC_5: BasicDialect = {
+  id: "bbc-basic-5",
+  label: "BBC BASIC V",
+  tokens: BBC_BASIC_5_TOKENS,
+  extended: BBC_BASIC_5_EXTENDED,
+  statementForms: BBC_BASIC_5_STATEMENT_FORMS,
+  order: BBC_BASIC_5_ORDER,
+  aliases: [{keyword: "COLOR", sameAs: "COLOUR", token: 251}],
+  provenance: { source: "riscos311", sha256: "e916a0b84a2c8d96d43731ec9a02c9dff31312c95bca725b2b60e7eb3bfe7384", detail: "BBC BASIC V 1.05 inside the RISC OS 3.11 image, whose four byte-lane ROMs this build already interleaves for the A310 core." },
+};
+
+export const BASIC_DIALECTS: BasicDialect[] = [BBC_BASIC_1, BBC_BASIC_2, BBC_BASIC_3, BBC_BASIC_4, BBC_BASIC_5];
 
 export function basicDialect(id: BasicDialectId): BasicDialect | undefined {
   return BASIC_DIALECTS.find((dialect) => dialect.id === id);
