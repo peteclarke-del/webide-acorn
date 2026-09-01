@@ -70,6 +70,28 @@ export const ROM_SETS: RomSetDefinition[] = [
     ],
   },
   {
+    /*
+     * The same machine with the earlier BASIC.
+     *
+     * BASIC I and BASIC II are different languages to a program that can tell
+     * them apart — OPENUP, the OSCLI keyword and several error messages arrive
+     * with II — so a build targeting the earlier one deserves a machine that
+     * actually has it rather than a note saying it is close enough. The engine
+     * model is the same; only the image in the language socket differs, and the
+     * vault serves each set from its own directory.
+     */
+    id: 'os12-basic1', machineIds: ['bbc-b'], label: 'BBC MOS 1.20 + BASIC I + DFS', adapterModel: 'B-DFS0.9', engine,
+    requirements: [
+      rom('os', 'MOS 1.20 operating system', 'os.rom', [16384], 'operating-system'),
+      rom('basic1', 'BBC BASIC I', 'BASIC.ROM', [16384], 'language', true, undefined, {
+        provenanceNote: 'The first BBC BASIC, loaded through the path the engine names for the language socket.',
+      }),
+      rom('dfs', 'DFS filing system', 'b/DFS-0.9.rom', [8192, 16384], 'filing-system'),
+      rom('tube6502', '6502 Tube boot ROM', 'tube/6502Tube.rom', [2048], 'extension', false, 'tube'),
+      bbcWifi(),
+    ],
+  },
+  {
     id: 'os12-basic2-adfs', machineIds: ['bbc-b'], label: 'BBC MOS 1.20 + BASIC II + ADFS', adapterModel: 'B1770A', engine,
     requirements: [
       rom('os', 'MOS 1.20 operating system', 'os.rom', [16384], 'operating-system'),
@@ -83,6 +105,30 @@ export const ROM_SETS: RomSetDefinition[] = [
   {
     id: 'mos320', machineIds: ['master'], label: 'Master MOS 3.20', adapterModel: 'Master', engine,
     requirements: [rom('mos320', 'Master MOS 3.20 combined image', 'master/mos3.20', [131072], 'operating-system'), rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube'), bbcWifi()],
+  },
+  {
+    /*
+     * MOS 3.50 is the same machine with later firmware, so it is the same
+     * engine model with a different image in its own vault directory.
+     *
+     * The emulator path says `mos3.20` and that is not a mistake. jsbeeb's
+     * Master model names the file it asks for, and the vault serves each ROM
+     * set from its own directory, so the path is the engine's name for the
+     * socket rather than a claim about which firmware is in it. Putting a 3.50
+     * image at a path called 3.50 would simply mean the emulator never read it.
+     *
+     * No image is shipped. This is a manifest: it says what a person needs to
+     * supply and what will be checked when they do, which is why the set can
+     * exist here before any firmware does.
+     */
+    id: 'mos350', machineIds: ['master'], label: 'Master MOS 3.50', adapterModel: 'Master', engine,
+    requirements: [
+      rom('mos350', 'Master MOS 3.50 combined image', 'master/mos3.20', [131072], 'operating-system', true, undefined, {
+        provenanceNote: 'The later Master 128 firmware, as a 128 KiB combined image of eight 16 KiB banks in the order the engine reads them. It is loaded through the path the engine names for the Master OS socket.',
+      }),
+      rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube'),
+      bbcWifi(),
+    ],
   },
   {
     /* The Electron runs on the vendored ElkJS core, which models a base machine

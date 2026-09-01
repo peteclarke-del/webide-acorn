@@ -44,6 +44,20 @@ the release gate whenever it stops matching the code.
 | 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `os12-basic2-dfs/tube/6502Tube.rom` | — |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `os12-basic2-dfs/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
+### BBC MOS 1.20 + BASIC I + DFS
+
+- Machines: Acorn BBC Model B
+- Engine: jsbeeb 1.19.1
+- Adapter model: `B-DFS0.9`
+
+| ROM | Purpose | Needed | Accepted length | Vault key | Note |
+| --- | --- | --- | --- | --- | --- |
+| MOS 1.20 operating system | operating system | required | 16 KiB | `os12-basic1/os.rom` | — |
+| BBC BASIC I | language | required | 16 KiB | `os12-basic1/BASIC.ROM` | The first BBC BASIC, loaded through the path the engine names for the language socket. |
+| DFS filing system | filing system | required | 8 KiB or 16 KiB | `os12-basic1/b/DFS-0.9.rom` | — |
+| 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `os12-basic1/tube/6502Tube.rom` | — |
+| 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `os12-basic1/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
+
 ### BBC MOS 1.20 + BASIC II + ADFS
 
 - Machines: Acorn BBC Model B
@@ -70,6 +84,18 @@ the release gate whenever it stops matching the code.
 | Master MOS 3.20 combined image | operating system | required | 128 KiB | `mos320/master/mos3.20` | — |
 | 65C102 Turbo Tube boot ROM | extension | optional · needed for tube | 2 KiB | `mos320/tube/65C102Tube.rom` | — |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `mos320/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
+
+### Master MOS 3.50
+
+- Machines: BBC Master Series
+- Engine: jsbeeb 1.19.1
+- Adapter model: `Master`
+
+| ROM | Purpose | Needed | Accepted length | Vault key | Note |
+| --- | --- | --- | --- | --- | --- |
+| Master MOS 3.50 combined image | operating system | required | 128 KiB | `mos350/master/mos3.20` | The later Master 128 firmware, as a 128 KiB combined image of eight 16 KiB banks in the order the engine reads them. It is loaded through the path the engine names for the Master OS socket. |
+| 65C102 Turbo Tube boot ROM | extension | optional · needed for tube | 2 KiB | `mos350/tube/65C102Tube.rom` | — |
+| 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `mos350/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
 ### Electron OS + BASIC
 

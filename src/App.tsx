@@ -530,6 +530,10 @@ function App() {
   );
   const resolved = resolution.target;
   const machineRomSet = romSetFor(machine.id, resolved.rom.id);
+  /* A firmware this build cannot run says why. Without this the run path
+   * reports it as firmware the person has not supplied, which sends them
+   * looking for a file that would not help. */
+  const romUnavailableReason = !machineRomSet ? machine.roms.find((entry) => entry.id === resolved.rom.id)?.unavailableReason : undefined;
   const archimedesRuntime = useMemo(() => archimedesRuntimeConfiguration(machine.id, resolved.variant, resolved.rom.id), [machine.id, resolved.variant, resolved.rom.id]);
   const languageBuildTarget = project.buildTargets.find((target) => target.id === project.activeBuildTargetId);
   const languageToolchainId = languageBuildTarget?.toolchainId;
@@ -1423,6 +1427,7 @@ function App() {
       return artifact;
     }
     if (!isMachineCodeArtifact(artifact) && (destination === 'run' || destination === 'Debugger')) {
+      if (romUnavailableReason) { setNotice(romUnavailableReason); return null; }
       if (!romReady || !machineRomSet) { setNotice(`Supply the selected ROM set in Settings before running ${artifact.dialect}`); return null; }
       queueMachineCommand({ type: 'load-basic', format: artifact.kind, bytes: Array.from(artifact.bytes), autorun: true, programLoadDraft: buildBasicProgramLoadDraft(artifact, destination === 'Debugger' ? 'debug' : 'run') });
       if (destination === 'Debugger') setWorkspaceTab('Debugger');
@@ -1965,10 +1970,11 @@ function App() {
               <label>
                 <span>ROM / operating system</span>
                 <select aria-label="ROM and operating system" value={resolved.rom.id} onChange={(event) => setRomId(event.target.value)}>
-                  {machine.roms.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  {machine.roms.map((item) => <option key={item.id} value={item.id}>{item.label}{item.unavailableReason ? ' · not runnable here' : ''}</option>)}
                 </select>
               </label>
             </div>
+            {romUnavailableReason && <p className="honest-note" role="status">{romUnavailableReason}</p>}
 
             <div className="hardware-summary" aria-label="Hardware summary">
               <div><span>CPU</span><strong>{machine.cpu}</strong></div>

@@ -5,6 +5,16 @@ export interface RomProfile {
   id: string;
   label: string;
   detail: string;
+  /*
+   * Why this firmware cannot be selected, when it cannot.
+   *
+   * A firmware a machine really shipped with belongs in its list whether or not
+   * this build can run it, because the list describes the machine. But an entry
+   * that silently fails to resolve to a ROM set reports itself as missing
+   * firmware, which sends somebody looking for a file that would not help. When
+   * the obstacle is the emulator rather than the vault, it is named here.
+   */
+  unavailableReason?: string;
 }
 
 export interface MachineCapability {

@@ -8018,9 +8018,32 @@ the whole line on one machine without leaving the workbench.
 - [ ] GAME-004 Run a BBC B+. It is the one machine of the five with no engine at
   all: jsbeeb 1.19.1 publishes no B+ model, so nothing here can execute its
   shadow or sideways behaviour, and no ROM set is registered for it.
-- [ ] GAME-005 Register the Master MOS 3.50 and Compact 5.10 ROM sets. Both are
-  offered as firmware variants and neither can be selected, because only MOS
-  3.20 has a manifest.
+- [x] GAME-005 Register the Master MOS 3.50 ROM set, and say plainly why the
+  Compact cannot follow. MOS 3.50 is the same engine model with a different
+  image in its own vault directory, so it is a manifest rather than a fork; the
+  Compact is a different machine — a different keyboard, no Tube, its own MOS
+  entry points — and jsbeeb models no Compact, so running its firmware on the
+  Master 128 model would boot something that is not a Compact and would be
+  wrong where nothing here would catch it.
+
+  Auditing the whole firmware list for the same fault found five more entries
+  that resolved to nothing and therefore reported themselves as missing files:
+  two Model A sets and two B+ sets, which no engine here models, and four ARM
+  sets with no machine in the qualified slice. Each now names its obstacle, and
+  a contract requires that of every firmware a machine offers.
+
+  It also found a real defect. The Electron's firmware list named
+  `electron-plus3`, and the registered Elkulator set is `electron-expanded` —
+  so the entire expanded Electron, the core with the instruction hook, the
+  media path and the expansions, could not be reached from the workbench at
+  all, while every test that asked the registry directly still passed. Fixed,
+  and a contract now requires both Electron cores to be reachable from the
+  machine's own list.
+
+  BBC BASIC I on the Model B was registered the same way as MOS 3.50 rather
+  than excused: the engine model is the same and only the language socket's
+  image differs, and BASIC I is a language a program can tell apart from
+  BASIC II.
 - [ ] GAME-006 Run a hardware test plan on an Electron. Both cores refuse it —
   ElkJS for want of a per-instruction hook, Elkulator because a plan's
   assertions, captures and teardown are not implemented against its bridge.

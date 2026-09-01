@@ -75,8 +75,14 @@ export const machineProfiles: MachineProfile[] = [
     memory: '16 KB RAM',
     variants: ['Model A 16K', 'Model A upgraded 32K'],
     roms: [
-      { id: 'os12-basic2', label: 'OS 1.20 + BASIC II', detail: 'Standard MOS and BASIC' },
-      { id: 'os10-basic1', label: 'OS 1.00 + BASIC I', detail: 'Early firmware profile' },
+      {
+        id: 'os12-basic2', label: 'OS 1.20 + BASIC II', detail: 'Standard MOS and BASIC',
+        unavailableReason: 'jsbeeb models the BBC B and no Model A. The two differ in fitted RAM and in which interfaces are present, so running a Model A profile on the B model would be a Model B wearing the name — and every difference that matters to a program written for a Model A is one this build would not show. The profile is listed because the product models the machine, not because this build can run it.',
+      },
+      {
+        id: 'os10-basic1', label: 'OS 1.00 + BASIC I', detail: 'Early firmware profile',
+        unavailableReason: 'jsbeeb models the BBC B and no Model A, so this early Model A firmware combination has no machine here to run on. Its BASIC I differs from BASIC II in ways a program can detect, and pretending otherwise on a Model B would be worse than saying so.',
+      },
     ],
     capabilities: [
       capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported', true),
@@ -99,7 +105,7 @@ export const machineProfiles: MachineProfile[] = [
     roms: [
       { id: 'os12-basic2-dfs', label: 'OS 1.20 + BASIC II + DFS 0.90', detail: 'Canonical development set' },
       { id: 'os12-basic2-adfs', label: 'OS 1.20 + BASIC II + ADFS', detail: '1770 storage profile' },
-      { id: 'os12-basic1', label: 'OS 1.20 + BASIC I', detail: 'Compatibility profile' },
+      { id: 'os12-basic1', label: 'OS 1.20 + BASIC I + DFS 0.90', detail: 'Compatibility profile: the same machine with the earlier BASIC' },
     ],
     capabilities: [
       capability('dfs', 'DFS disk system', '8271/1770 disk image mastering', 'supported', true),
@@ -123,8 +129,14 @@ export const machineProfiles: MachineProfile[] = [
     memory: '64 or 128 KB RAM',
     variants: ['B+ 64K', 'B+ 128K'],
     roms: [
-      { id: 'bplus-os', label: 'B+ MOS + BASIC II + DFS', detail: 'Standard B+ ROM set' },
-      { id: 'bplus-adfs', label: 'B+ MOS + BASIC II + ADFS', detail: 'ADFS storage set' },
+      {
+        id: 'bplus-os', label: 'B+ MOS + BASIC II + DFS', detail: 'Standard B+ ROM set',
+        unavailableReason: 'No emulator here models a BBC B+. jsbeeb publishes no B+ machine — not in the pinned 1.19.1 and not in the current 1.22.4 — and the B+ is not a Model B with different firmware: it has shadow screen RAM and twelve kilobytes of paged RAM reached through a control register the Model B does not have. Running B+ firmware on the B model would boot, and would be wrong exactly where a B+ program differs from a B one.',
+      },
+      {
+        id: 'bplus-adfs', label: 'B+ MOS + BASIC II + ADFS', detail: 'ADFS storage set',
+        unavailableReason: 'The same obstacle as the DFS set: no emulator here models a BBC B+, so its shadow and paged RAM cannot be executed. The filing system is not what is missing.',
+      },
     ],
     capabilities: [
       capability('shadow', 'Shadow screen RAM', 'Dedicated display memory', 'supported', true),
@@ -149,7 +161,7 @@ export const machineProfiles: MachineProfile[] = [
     variants: ['Electron', 'Electron + Plus 1', 'Electron + Plus 3'],
     roms: [
       { id: 'electron-os', label: 'Electron OS 1.0 + BASIC II', detail: 'Standard firmware' },
-      { id: 'electron-plus3', label: 'Electron OS + ADFS E00', detail: 'Plus 3 disk profile' },
+      { id: 'electron-expanded', label: 'Electron + Plus 1 expansions', detail: 'Elkulator core with the Plus 1, Plus 3 and sideways boards' },
     ],
     /* Two cores can run this machine and they are not equally equipped. ElkJS
      * models a base 32 KB Electron with an operating system and BASIC and
@@ -191,7 +203,10 @@ export const machineProfiles: MachineProfile[] = [
     roms: [
       { id: 'mos320', label: 'MOS 3.20', detail: 'Original Master firmware' },
       { id: 'mos350', label: 'MOS 3.50', detail: 'Updated Master firmware' },
-      { id: 'compact510', label: 'Compact MOS 5.10', detail: 'Master Compact profile' },
+      {
+        id: 'compact510', label: 'Compact MOS 5.10', detail: 'Master Compact profile',
+        unavailableReason: 'The Master Compact is a different machine, not a Master 128 with later firmware: a different keyboard, no Tube and its own MOS entry points. jsbeeb models the Master 128 and no Compact, so running Compact firmware on it would boot something that is not a Compact and would be wrong in ways nothing here would catch. Supplying the ROM would not change that.',
+      },
     ],
     capabilities: [
       capability('shadow', 'Shadow & Hazel RAM', 'Display and private workspace', 'supported', true),
@@ -288,8 +303,14 @@ export const machineProfiles: MachineProfile[] = [
     memory: '2–8 MB RAM',
     variants: ['A5000', 'A5000 Alpha'],
     roms: [
-      { id: 'riscos310-a5k', label: 'RISC OS 3.10', detail: 'Original A5000 release' },
-      { id: 'riscos311-a5k', label: 'RISC OS 3.11', detail: 'Updated desktop ROM' },
+      {
+        id: 'riscos310-a5k', label: 'RISC OS 3.10', detail: 'Original A5000 release',
+        unavailableReason: 'The qualified Arculator slice in this build covers the A310 class only, and the Archimedes firmware inventory carries no A5000 entry, so there is no machine here for this ROM to run on. The A5000 is an ARM3 machine with a different memory controller and IDE rather than floppy-first storage; it is described because the product models it, not because this build emulates it.',
+      },
+      {
+        id: 'riscos311-a5k', label: 'RISC OS 3.11', detail: 'Updated desktop ROM',
+        unavailableReason: 'The same obstacle as the 3.10 set: no A5000 is modelled here and no A5000 firmware entry is registered. The RISC OS version is not what is missing.',
+      },
     ],
     capabilities: [
       capability('adfs', 'IDE + ADFS', 'Integrated hard disk and floppy', 'supported', true),
@@ -311,8 +332,14 @@ export const machineProfiles: MachineProfile[] = [
     memory: '4–256 MB RAM',
     variants: ['Risc PC 600', 'Risc PC 700', 'StrongARM Risc PC'],
     roms: [
-      { id: 'riscos350', label: 'RISC OS 3.50', detail: 'Original Risc PC ROM' },
-      { id: 'riscos370', label: 'RISC OS 3.70', detail: 'StrongARM-era ROM' },
+      {
+        id: 'riscos350', label: 'RISC OS 3.50', detail: 'Original Risc PC ROM',
+        unavailableReason: 'No Risc PC is modelled here: the qualified Arculator slice covers the A310 class, and the Risc PC is a different machine again — ARM610 and later, VIDC20, and a ROM image in a format the Archimedes inventory does not describe. The profile is listed because the product models the machine.',
+      },
+      {
+        id: 'riscos370', label: 'RISC OS 3.70', detail: 'StrongARM-era ROM',
+        unavailableReason: 'The same obstacle as the 3.50 ROM: no Risc PC is modelled here, and a StrongARM-era ROM has no machine in this build to be loaded into.',
+      },
     ],
     capabilities: [
       capability('vidc20', 'VIDC20 display', 'High-colour and multisync modes', 'preview', true),
