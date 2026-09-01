@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 171 |
+| Complete | 172 |
 | Complete and traced | 98 |
-| Complete and described | 65 |
+| Complete and described | 66 |
 | Complete and untraced | 8 |
-| Open | 123 |
+| Open | 122 |
 
 ## By area
 
@@ -51,7 +51,7 @@ is the part a machine can settle.
 | PRJ | 9 | 9 | 6 | 3 | 0 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 3 | 3 | 0 | 0 |
-| PLAT | 7 | 5 | 5 | 0 | 0 |
+| PLAT | 7 | 6 | 5 | 1 | 0 |
 | TST | 7 | 6 | 2 | 4 | 0 |
 | PRF | 6 | 6 | 5 | 1 | 0 |
 | SEC | 5 | 3 | 3 | 0 | 0 |
@@ -246,7 +246,6 @@ are listed rather than quietly counted.
 | A11Y-103 | Establish manual screen-reader matrix and recruit representative testers before feature… | not started |
 | UX-GATE | Stakeholders and accessibility reviewers accept an interactive prototype for desktop and… | not started |
 | PLAT-200 | Scaffold React/TypeScript/Vite client and supported PHP/Symfony services only after… | not started |
-| PLAT-203 | Generate typed client contracts from the accepted API description and add server/client… | not started |
 | EDT-209 | Implement context-aware completion for commands, opcodes, directives, keywords, labels,… | 5 of 6 parts done |
 | EDT-212 | Implement pointer-hover and keyboard-focus token help with syntax, definition,… | 4 of 5 parts done |
 | EDT-213 | Implement non-focus-stealing, screen-reader-navigable signature help with active… | 1 of 2 parts done |

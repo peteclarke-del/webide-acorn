@@ -104,6 +104,17 @@ await stage('types', async () => {
   expectSuccess(await run('npx', ['tsc', '-b', '--pretty', 'false']), 'TypeScript project build');
 });
 
+await stage('contracts', async () => {
+  /* The API description is the contract, and both sides are checked against it:
+   * the generated TypeScript here, and the real routes and real answers in the
+   * backend stage's conformance tests. This compares rather than regenerates,
+   * for the same reason the guides do — a stage that writes the file it then
+   * inspects passes by definition. */
+  const contracts = await run('node', ['scripts/generateApiTypes.mjs', '--check']);
+  expectSuccess(contracts, 'Typed client contracts');
+  return { detail: contracts.output.trim().split('\n').pop() };
+});
+
 await stage('help', async () => {
   expectSuccess(await run('node', ['scripts/verify-help.mjs']), 'Help verification');
   /* The standalone guides are rendered from the same topics the IDE reads, so

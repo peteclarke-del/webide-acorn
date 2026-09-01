@@ -35,6 +35,10 @@ final class BeebAsmManifest
             'adapterVersion' => self::ADAPTER_VERSION, 'label' => 'BeebAsm 1.11 · BBC-style assembler',
             'execution' => 'server-native', 'language' => '6502', 'dialect' => 'beebasm', 'artifactKind' => '6502-binary',
             'processors' => ['6502', '65c02'], 'profiles' => ['debug', 'size', 'speed', 'custom'], 'deterministic' => true,
+            /* Every other manifest carries this and this one did not, so a
+             * client reading four manifests of the same declared schema found
+             * the field missing from one of them. */
+            'packageVersion' => $_SERVER['BEEBASM_PACKAGE_VERSION'] ?? $_ENV['BEEBASM_PACKAGE_VERSION'] ?? 'host-development',
             'upstream' => ['version' => self::UPSTREAM_VERSION, 'commit' => self::COMMIT, 'repository' => 'https://github.com/stardot/beebasm'],
             'binary' => ['path' => $path, 'sha256' => is_file($path) ? hash_file('sha256', $path) : null],
             'licence' => ['spdx' => 'GPL-3.0-or-later', 'path' => $licence, 'sourceArchive' => $source, 'sourceSha256' => is_file($source) ? hash_file('sha256', $source) : null],

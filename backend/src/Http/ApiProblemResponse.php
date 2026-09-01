@@ -27,7 +27,11 @@ final class ApiProblemResponse
                 'correlationId' => $correlationId,
                 'message' => $problem->getMessage(),
                 'retryable' => $problem->retryable,
-                'fields' => $problem->fields,
+                /* An empty map must serialise as {} and not as []. PHP cannot
+                 * tell the two apart and JSON can, and a client typed against
+                 * an object was being handed a list whenever there were no
+                 * field details — which is most refusals. */
+                'fields' => (object) $problem->fields,
             ],
         ], $problem->status, $correlationId);
     }

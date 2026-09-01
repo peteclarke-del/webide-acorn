@@ -682,8 +682,51 @@ Companion specification: `docs/requirements-specification.md`
   - **Evidence** Formatting, static analysis and type checks all run in
     `npm run ci`: `types` for TypeScript, `analysis` for PHPStan and the PHP
     formatter, `tests` with its coverage floors, `backend` for PHPUnit.
-- [ ] PLAT-203 Generate typed client contracts from the accepted API description
+- [x] PLAT-203 Generate typed client contracts from the accepted API description
   and add server/client compatibility tests (API-002).
+  - [x] **There is now an accepted description, and it is the contract rather
+    than a note written after the fact.** `api/openapi.json` declares all
+    twenty routes, twenty-eight schemas and the one shape every refusal takes.
+    What it declares is what a client may rely on: the server answers with more
+    than this and those extra fields are deliberately not part of the contract,
+    while what is declared must be present.
+  - [x] The TypeScript clients are generated from it. `src/api/contracts.ts`
+    carries the types, a route table and `apiPath`, and the gate's `contracts`
+    stage renders in memory and fails when what is committed differs.
+  - [x] **Generating types proves nothing on its own, so the check that matters
+    is that no caller spells a path itself.** Every one of the five callers did
+    before: each declared for itself where a route lived and none of them would
+    have failed when a route moved. They now build every request from the route
+    table, and a test asserts there is no `/api/` literal anywhere in the
+    product outside the generated module — which is a check that fails the
+    moment somebody adds one back. The reverse is asserted too: a route no
+    client calls is named in the test rather than left to be discovered.
+  - [x] **The server half is real requests through the real kernel, and it
+    found four genuine defects rather than confirming what was written.** The
+    conformance test compares the router's routes with the description's in
+    both directions, then drives every route — a whole store lifecycle, writing
+    a revision, listing, reading it back, colliding on a stale parent and
+    deleting — and validates each answer against the schema declared for the
+    status it actually came back with. What it found: `error.fields` serialised
+    as `[]` rather than `{}` whenever a refusal carried no field detail, which
+    is most of them, so a client typed against a map was handed a list; the
+    BeebAsm manifest was missing `packageVersion` that the other three
+    manifests of the same declared schema all carry; the build routes enforce a
+    `X-8bit-Net-Request` header and answer 403 without it, which nothing had
+    written down; and my own description had guessed at three shapes — `unmet`,
+    `readiness` and `toolchains` — and been wrong about all three. The first
+    two were fixed in the server, the second two in the description.
+  - [x] Nothing in the conformance test is conditional on the environment. A
+    build route answers 200 where the toolchains are installed and 503 where
+    they are not, and both are declared, so both are checked and neither is
+    skipped. A status the description does not declare at all fails wherever it
+    happens, which is what turned the undeclared 403 into a finding.
+  - [x] The validator it uses is written here rather than pulled in, because
+    the subset needed is small and a generator nobody can read is a contract
+    nobody can check. It fails on a keyword it does not implement rather than
+    ignoring it — silently passing a rule it did not understand is how a
+    validator comes to be trusted for something it never checked — and a test
+    asserts the description uses nothing outside that subset.
 - [x] PLAT-204 Implement structured logging/correlation/redaction and baseline
   metrics/traces without capturing source or ROM contents (NFR-005–NFR-007).
   - [x] There is now one writer and one owner of the correlation identifier

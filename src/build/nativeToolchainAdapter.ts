@@ -1,3 +1,4 @@
+import { apiPath, type ApiOperationId } from '../api/contracts';
 import type { ProjectFile } from '../project/project';
 import type { BuildDiagnostic, RetainedArtifactDocument, SourceLocation } from './assembler6502';
 import type { ArmArtifact, MachineCodeArtifact } from './artifactTypes';
@@ -36,10 +37,32 @@ interface NativeResponse {
   documents: RetainedArtifactDocument[];
 }
 
+/*
+ * Which operation answers for which toolchain.
+ *
+ * The paths come from the generated contracts rather than from a template, so a
+ * route renamed in the description fails to compile here instead of 404ing at
+ * somebody. The identifiers on the left are this build's toolchain ids and the
+ * ones on the right are the description's operations; the mapping between them
+ * is the only thing left to state.
+ */
+const MANIFEST_OPERATIONS: Record<string, ApiOperationId> = {
+  'stardot.beebasm': 'toolchainBeebAsm',
+  'cc65.c-bbc': 'toolchainCc65C',
+  'gnu.arm-none-eabi-binutils': 'toolchainArmBinutils',
+  'cc65.ca65-ld65': 'toolchainCa65',
+};
+
+const BUILD_OPERATIONS: Record<string, ApiOperationId> = {
+  'stardot.beebasm': 'buildBeebAsm',
+  'cc65.c-bbc': 'buildCc65C',
+  'gnu.arm-none-eabi-binutils': 'buildArmBinutils',
+  'cc65.ca65-ld65': 'buildCa65',
+};
+
 export async function detectNativeToolchain(id: NativeToolchainStatus['id'] = 'cc65.ca65-ld65', signal?: AbortSignal): Promise<NativeToolchainStatus | null> {
   try {
-    const endpoint = id === 'stardot.beebasm' ? 'beebasm' : id === 'cc65.c-bbc' ? 'cc65-c' : id === 'gnu.arm-none-eabi-binutils' ? 'arm-binutils' : 'ca65';
-    const response = await fetch(`/api/v1/toolchains/${endpoint}`, { signal, headers: { Accept: 'application/json' }, cache: 'no-store' });
+    const response = await fetch(apiPath(MANIFEST_OPERATIONS[id] ?? 'toolchainCa65'), { signal, headers: { Accept: 'application/json' }, cache: 'no-store' });
     if (!response.ok) return null;
     const value = await response.json() as NativeToolchainStatus;
     return value.ready && value.id === id && value.adapterVersion === '2026.08.1' ? value : null;
@@ -76,8 +99,7 @@ export async function invokeNativeToolchain(request: BuildRequest, signal?: Abor
   };
   let response: Response;
   try {
-    const endpoint = request.target.toolchainId === 'stardot.beebasm' ? 'beebasm' : request.target.toolchainId === 'cc65.c-bbc' ? 'cc65-c' : request.target.toolchainId === 'gnu.arm-none-eabi-binutils' ? 'arm-binutils' : 'ca65';
-    response = await fetch(`/api/v1/builds/${endpoint}`, { method: 'POST', signal, cache: 'no-store', headers: { 'Content-Type': 'application/json', 'X-8bit-Net-Request': 'native-build', 'X-Correlation-ID': correlationId }, body: JSON.stringify(payload) });
+    response = await fetch(apiPath(BUILD_OPERATIONS[request.target.toolchainId] ?? 'buildCa65'), { method: 'POST', signal, cache: 'no-store', headers: { 'Content-Type': 'application/json', 'X-8bit-Net-Request': 'native-build', 'X-Correlation-ID': correlationId }, body: JSON.stringify(payload) });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
     throw new Error(`Native builder could not be reached: ${error instanceof Error ? error.message : String(error)}`);

@@ -11,6 +11,8 @@
  * fact to report, not an error to throw at somebody who never asked for it.
  */
 
+import { apiPath } from '../api/contracts';
+
 /** What the store said about itself. */
 export interface StoreIdentity {
   owner: string;
@@ -142,19 +144,24 @@ export function decodeContent(encoded: string): string {
 }
 
 export class ProjectStoreClient {
-  constructor(private readonly fetcher: typeof fetch = fetch, private readonly base = '/api/v1/store') {
+  /*
+   * Paths come from the generated contracts. The base was a default argument
+   * spelled out as a string, which meant this client and the description each
+   * declared where the store lives, and nothing made them agree.
+   */
+  constructor(private readonly fetcher: typeof fetch = fetch) {
   }
 
   describe(): Promise<StoreResult<{ identity: StoreIdentity; usage: StoreUsage }>> {
-    return call(this.base, { method: 'GET' }, readIdentity, this.fetcher);
+    return call(apiPath('storeUsage'), { method: 'GET' }, readIdentity, this.fetcher);
   }
 
   projects(): Promise<StoreResult<StoredProject[]>> {
-    return call(`${this.base}/projects`, { method: 'GET' }, readProjects, this.fetcher);
+    return call(apiPath('storeProjects'), { method: 'GET' }, readProjects, this.fetcher);
   }
 
   revisions(projectId: string): Promise<StoreResult<StoredRevision[]>> {
-    return call(`${this.base}/projects/${encodeURIComponent(projectId)}/revisions`, { method: 'GET' }, readRevisions, this.fetcher);
+    return call(apiPath('storeRevisions', { projectId }), { method: 'GET' }, readRevisions, this.fetcher);
   }
 
   /** Write a revision. `parent` is the revision it was written against. */
@@ -162,7 +169,7 @@ export class ProjectStoreClient {
     const encoded: Record<string, string> = {};
     for (const [name, text] of Object.entries(files)) encoded[name] = encodeContent(text);
     return call(
-      `${this.base}/projects/${encodeURIComponent(projectId)}/revisions`,
+      apiPath('storeCommit', { projectId }),
       { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ files: encoded, parent, note }) },
       (body) => {
         const root = requireObject(body, 'The written revision');
@@ -181,7 +188,7 @@ export class ProjectStoreClient {
 
   /** Everything this owner holds, history included, as the store writes it. */
   exportAll(): Promise<StoreResult<unknown>> {
-    return call(`${this.base}/export`, { method: 'GET' }, (body) => body, this.fetcher);
+    return call(apiPath('storeExport'), { method: 'GET' }, (body) => body, this.fetcher);
   }
 
   /**
@@ -193,7 +200,7 @@ export class ProjectStoreClient {
    */
   deleteProject(projectId: string, reason: string): Promise<StoreResult<{ projectId: string; revisions: number; deletedAt: string }>> {
     return call(
-      `${this.base}/projects/${encodeURIComponent(projectId)}`,
+      apiPath('storeDelete', { projectId }),
       { method: 'DELETE', headers: JSON_HEADERS, body: JSON.stringify({ confirmProjectId: projectId, reason }) },
       (body) => {
         const root = requireObject(body, 'The tombstone');
@@ -210,7 +217,7 @@ export class ProjectStoreClient {
 
   read(projectId: string, revisionId: string): Promise<StoreResult<Record<string, string>>> {
     return call(
-      `${this.base}/projects/${encodeURIComponent(projectId)}/revisions/${encodeURIComponent(revisionId)}`,
+      apiPath('storeRead', { projectId, revisionId }),
       { method: 'GET' },
       (body) => {
         const root = requireObject(body, 'The revision content');

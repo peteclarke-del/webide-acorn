@@ -26,6 +26,7 @@ That split is the central architectural decision and it is deliberate:
 
 | Directory | What lives there |
 | --- | --- |
+| `src/api` | The typed client contracts, generated from `api/openapi.json` and never edited by hand. Every caller builds its request from the route table here rather than spelling a path, so a route that moves in the description fails to compile. |
 | `src/analysis` | Disassembly, annotation, coverage correlation and export. Reads bytes; never executes them. |
 | `src/benchmark` | What is measured, what is deliberately not, and the operations a benchmark run performs. It is built only when the benchmark asks for it and never ships. |
 | `src/assets` | The editable asset documents — pixels, palettes, fonts, tile maps, screens, songs — and their generators. |
