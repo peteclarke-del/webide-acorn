@@ -322,3 +322,104 @@ void EMSCRIPTEN_KEEPALIVE elk_webide_clear_keys(void)
 }
 
 int EMSCRIPTEN_KEEPALIVE elk_webide_key_count(void) { return ELK_KEY_MAX; }
+
+/* ---- Media ----------------------------------------------------------------
+ *
+ * Elkulator opens tapes and discs by filename, because it was written for a
+ * machine with a filesystem and a file dialogue. Under Emscripten there is one
+ * anyway — an in-memory filesystem the page can write to — so the honest way to
+ * mount an image is to put the bytes there and hand the core the path it
+ * expects, rather than reaching inside its loaders and duplicating their format
+ * dispatch. Elkulator decides what a `.uef`, a `.ssd` or an `.adf` is; this
+ * bridge only decides which file it is looking at.
+ *
+ * Nothing here reads the host's real filesystem: the page writes the bytes and
+ * the page names the path.
+ */
+#include "disc.h"
+#include "elk.h"
+#include "uef.h"
+#include "csw.h"
+#include "ula.h"
+
+/* Mount a tape image already written into the emulator's filesystem. The
+ * extension is what selects UEF or CSW, so it has to survive the journey. */
+int EMSCRIPTEN_KEEPALIVE elk_webide_load_tape(const char *path)
+{
+    if (!path || !path[0]) return 0;
+    loadtape(path);
+    return is_uef() || is_csw() ? 1 : 0;
+}
+
+void EMSCRIPTEN_KEEPALIVE elk_webide_eject_tape(void)
+{
+    handle_eject_tape();
+}
+
+void EMSCRIPTEN_KEEPALIVE elk_webide_rewind_tape(void)
+{
+    handle_rewind_tape();
+}
+
+/* Whether a tape is mounted, and whether the machine is actually running it.
+ * The second is the machine's business and not the IDE's: the Electron's ULA
+ * turns the cassette motor on when the program asks it to, and a page that
+ * pretended otherwise would show a tape moving when nothing was listening. */
+int EMSCRIPTEN_KEEPALIVE elk_webide_tape_state(void)
+{
+    return (is_uef() || is_csw() ? 1 : 0) | (is_tapeon() ? 2 : 0);
+}
+
+/* Mount a disc image in one of the two drives. Elkulator's loader takes a
+ * writable string, so the path is copied rather than cast. */
+int EMSCRIPTEN_KEEPALIVE elk_webide_load_disc(int drive, const char *path)
+{
+    char local[512];
+    if (drive < 0 || drive > 1) return 0;
+    if (!path || !path[0]) return 0;
+    if (strlen(path) >= sizeof(local)) return 0;
+    strcpy(local, path);
+    loaddisc(drive, local);
+    return 1;
+}
+
+int EMSCRIPTEN_KEEPALIVE elk_webide_eject_disc(int drive)
+{
+    if (drive < 0 || drive > 1) return 0;
+    closedisc(drive);
+    return 1;
+}
+
+/* ---- Sound ----------------------------------------------------------------
+ *
+ * The Electron has one tone generator in its ULA and nothing else: no second
+ * voice, no noise channel, no volume. Two ULA registers describe it — &FE06
+ * sets the divider that fixes the pitch, and two bits of &FE07 turn the tone on
+ * — and both are write-only to the processor, so a program cannot read back
+ * what it asked for and neither could this bridge by reading memory.
+ *
+ * They are published here because the workbench has to be able to compose for
+ * this machine, and composing for the wrong chip produces music that will not
+ * play. What the machine's own operating system does with a SOUND statement is
+ * then a measurement rather than a belief.
+ */
+
+/* Elkulator's own state for that generator: the divider it was last given, and
+ * whether the tone is enabled. */
+extern int soundlimit;
+extern int soundon;
+
+/* The divider byte as the ULA was given it, or -1 when nothing has set one.
+ * Elkulator stores it scaled, and unscaling here keeps the page reading the
+ * number the machine actually wrote. */
+int EMSCRIPTEN_KEEPALIVE elk_webide_sound_divider(void)
+{
+    int divider = (soundlimit - 0x20000) >> 16;
+    if (divider < 0 || divider > 0xff) return -1;
+    return divider;
+}
+
+int EMSCRIPTEN_KEEPALIVE elk_webide_sound_enabled(void)
+{
+    return soundon ? 1 : 0;
+}

@@ -71,9 +71,10 @@ export function SongWorkspace({ onAddSource, onAddLiveSong, onNotice }: SongWork
           <p className="binding-note">
             {profile.detail}. {document.target === 'atom-speaker'
               ? 'The pitch number is the speaker half-period delay count, not a musical pitch, and volume is only on or off because a one-bit speaker has no volume.'
-              : 'Pitch and volume are the numbers OSWORD 7 takes: volume 0 is silence and 1 to 15 become amplitudes −1 to −15, and channel 0 takes pitches 0 to 7.'}
-            {' '}This build ships no verified pitch-to-frequency table for either machine, so nothing is synthesised
-            here; build the song and run it to hear the real hardware play it.
+              : document.target === 'electron-ula'
+                ? 'Pitch is the number OSWORD 7 takes, on the machine\u2019s own scale of forty-eight units to the octave, and volume is only on or off: a real Electron was measured playing every amplitude from \u22121 to \u22125 at exactly the same divider. There is one generator, so a note sent anywhere else would replace this one rather than sound beside it.'
+                : 'Pitch and volume are the numbers OSWORD 7 takes: volume 0 is silence and 1 to 15 become amplitudes \u22121 to \u221215, and channel 0 takes pitches 0 to 7.'}
+            {' '}Nothing is synthesised here; build the song and run it to hear the real hardware play it.
           </p>
           <div className="song-grid-scroll">
             <table className="song-grid">

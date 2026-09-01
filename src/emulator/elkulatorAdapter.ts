@@ -37,6 +37,7 @@ export const ELKULATOR_CAPABILITIES = [
   'display-filter',
   'screen-capture',
   'input-focus',
+  'media',
 ] as const;
 
 export type ElkulatorCapability = (typeof ELKULATOR_CAPABILITIES)[number];
@@ -55,7 +56,6 @@ export const ELKULATOR_UNAVAILABLE: Readonly<Record<string, string>> = Object.fr
   profiler: 'Sampling would run off the instruction hook, but the bridge keeps no sample buffer.',
   replay: 'Reverse execution needs deterministic per-instruction state capture, which this slice does not record.',
   tube: 'The Acorn Electron has no Tube interface, and Elkulator models none.',
-  media: 'Elkulator reads tape and disc images, but the bridge mounts none and this slice has exercised neither path.',
   'basic-load': 'Injecting a tokenised BASIC program needs the Electron BASIC workspace pointers, which this slice does not resolve.',
   'keyboard-mapping': 'The bridge sets Electron key states directly, so there is no host key map to remap.',
   joystick: 'An analogue joystick needs the Plus 1, and this slice fits no expansion ROM.',
@@ -63,6 +63,7 @@ export const ELKULATOR_UNAVAILABLE: Readonly<Record<string, string>> = Object.fr
   volume: 'No gain stage is exposed; the sound path itself is unverified here.',
   'audio-capture': 'There is no tap to record from, and the sound path itself is unverified here.',
   speed: 'The machine is driven one field per animation frame and the bridge exposes no cycle-rate control.',
+  'disc-export': 'A mounted disc can be written to by the machine, but the bridge does not read the image back out, so an export would hand back the bytes that went in rather than the bytes on the disc.',
   'state-save': 'Elkulator has a save-state format, but the bridge does not carry it and a partial restore would be worse than none.',
 });
 
@@ -106,7 +107,7 @@ export const ELKULATOR_COMMAND_CAPABILITY: Readonly<Record<string, string>> = Ob
   'load-disc': 'media',
   'load-tape': 'media',
   'eject-disc': 'media',
-  'export-disc': 'media',
+  'export-disc': 'disc-export',
   'eject-tape': 'media',
   'save-state': 'state-save',
   'load-state': 'state-save',
@@ -146,4 +147,4 @@ export function elkulatorCommandRefusal(type: string): string | null {
 
 /** One sentence naming what the Elkulator slice does offer, for the interface. */
 export const ELKULATOR_ADAPTER_SUMMARY =
-  'The Acorn Electron also runs on the Elkulator core built for WebAssembly, which adds what ElkJS cannot do: instruction stepping and execution breakpoints against a real per-instruction hook, register writing and key injection, alongside execution, reset, memory reading and writing, machine-code loading, the real keyboard over the live display and screen capture. Watchpoints, tracing, disassembly, profiling, replay, hardware inspection, test-plan execution, media, sound and machine-state save are not offered: some because the core provides no hook for them, and the rest because the bridge this build exposes deliberately does not carry them.';
+  'The Acorn Electron also runs on the Elkulator core built for WebAssembly, which adds what ElkJS cannot do: instruction stepping and execution breakpoints against a real per-instruction hook, register writing and key injection, alongside execution, reset, memory reading and writing, machine-code loading, cassette and disc media, the real keyboard over the live display and screen capture. Watchpoints, tracing, disassembly, profiling, replay, hardware inspection, test-plan execution, reading a disc back out, sound and machine-state save are not offered: some because the core provides no hook for them, and the rest because the bridge this build exposes deliberately does not carry them.';

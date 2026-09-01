@@ -31,6 +31,7 @@
     'register-read', 'register-write', 'memory-read', 'memory-write',
     'program-load', 'keyboard-input', 'key-injection',
     'display', 'display-filter', 'screen-capture', 'input-focus',
+    'media',
   ];
   const UNAVAILABLE = {
     'run-test': 'The bridge can stop the machine at an address, and that part is proved; what a test plan also needs — its assertions evaluated, its captures taken and its teardown run — is not implemented here, so a result would come back as a pass with nothing checked.',
@@ -45,7 +46,6 @@
     profiler: 'Sampling would run off the instruction hook, but the bridge keeps no sample buffer.',
     replay: 'Reverse execution needs deterministic per-instruction state capture, which this slice does not record.',
     tube: 'The Acorn Electron has no Tube interface, and Elkulator models none.',
-    media: 'Elkulator reads tape and disc images, but the bridge mounts none and this slice has exercised neither path.',
     'basic-load': 'Injecting a tokenised BASIC program needs the Electron BASIC workspace pointers, which this slice does not resolve.',
     'keyboard-mapping': 'The bridge sets Electron key states directly, so there is no host key map to remap.',
     joystick: 'An analogue joystick needs the Plus 1, and this slice fits no expansion ROM.',
@@ -53,6 +53,7 @@
     volume: 'No gain stage is exposed; the sound path itself is unverified here.',
     'audio-capture': 'There is no tap to record from, and the sound path itself is unverified here.',
     speed: 'The machine is driven one field per animation frame and the bridge exposes no cycle-rate control.',
+    'disc-export': 'A mounted disc can be written to by the machine, but the bridge does not read the image back out, so an export would hand back the bytes that went in rather than the bytes on the disc.',
     'state-save': 'Elkulator has a save-state format, but the bridge does not carry it and a partial restore would be worse than none.',
   };
   /* Every command the workbench emulator panel can emit, against the capability
@@ -74,7 +75,8 @@
     'trace-config': 'trace', 'trace-clear': 'trace',
     'run-test': 'run-test',
     'load-machine-code': 'program-load', 'load-basic': 'basic-load',
-    'load-disc': 'media', 'load-tape': 'media', 'eject-disc': 'media', 'export-disc': 'media', 'eject-tape': 'media',
+    'load-disc': 'media', 'load-tape': 'media', 'eject-disc': 'media', 'eject-tape': 'media',
+    'export-disc': 'disc-export',
     'save-state': 'state-save', 'load-state': 'state-save',
     'capture-screen': 'screen-capture',
     'focus-input': 'input-focus', 'release-input': 'input-focus',
@@ -97,13 +99,24 @@
     0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10,
     a: 11, b: 12, c: 13, d: 14, e: 15, f: 16, g: 17, h: 18, i: 19, j: 20, k: 21, l: 22, m: 23,
     n: 24, o: 25, p: 26, q: 27, r: 28, s: 29, t: 30, u: 31, v: 32, w: 33, x: 34, y: 35, z: 36,
-    '=': 37, ',': 38, '.': 39, '/': 40, ';': 41, ':': 42,
+    /* The two punctuation keys are the other way round from what the core's own
+     * enumeration suggests: pressing what it calls COLON produces a semicolon
+     * on the machine, and so `*` — which is shift on the colon key, and the
+     * first character of every Acorn command — came out as `+`. Elkulator's
+     * matrix carries a note doubting this row, and the machine settled it: with
+     * these two swapped, `:` `;` `*` `+` all arrive as themselves. */
+    '-': 37, ',': 38, '.': 39, '/': 40, ':': 41, ';': 42,
     left: 43, right: 44, up: 45, down: 46,
     func: 47, copy: 48, ctrl: 49, shift: 50, delete: 51, ' ': 52, enter: 53, escape: 54, break: 55,
   };
   const SHIFTED = {
     '!': '1', '"': '2', '#': '3', $: '4', '%': '5', '&': '6', "'": '7', '(': '8', ')': '9', '@': '0',
     '<': ',', '>': '.', '?': '/', '+': ';', '*': ':',
+    /* The key the core enumerates as EQUALS is the Electron's `- =` key, and
+     * unshifted it produces a minus. Without this the workbench could not type
+     * a minus at all — which is every negative amplitude in a SOUND statement —
+     * and an equals sign came out as one. */
+    '=': '-',
   };
 
   /* Allegro's SDL backend finds its drawing surface with the selector
@@ -219,6 +232,13 @@
       instructions: call('elk_webide_counting') ? call('elk_webide_instructions') : null,
       displayFilter,
       inputCaptured,
+      /* The tape as the machine has it, not as the page remembers it: whether
+       * an image is loaded, and whether the Electron's own cassette motor is
+       * running. A page that reported the second from its own state would show
+       * a tape moving while nothing was listening. */
+      tape: mountedTape ? { ...mountedTape, ...tapeState() } : { mounted: false, running: false },
+      sound: soundState(),
+      discs: [...mountedDiscs.entries()].sort(([left], [right]) => left - right).map(([drive, disc]) => ({ drive, ...disc })),
     });
   }
 
@@ -265,6 +285,80 @@
     if (!core) throw new Error('The Electron is not initialised');
   }
 
+  /* ---- media ------------------------------------------------------------
+   *
+   * Elkulator opens media by filename because it was written for a desktop with
+   * a file dialogue. Under Emscripten there is a filesystem in memory, so the
+   * honest way to mount an image is to write the bytes there and hand the core
+   * the path: Elkulator's own loaders then decide what a UEF, a CSW, an SSD or
+   * an ADF is, which is knowledge that belongs to the emulator and not to this
+   * page. Nothing here touches the host's real filesystem.
+   *
+   * The extension matters — it is what selects the format — so it is preserved
+   * from the name the workbench gave, and refused when it is not one Elkulator
+   * reads, rather than mounting a file the core will silently make nothing of.
+   */
+  const MEDIA_DIRECTORY = '/webide-media';
+  const TAPE_EXTENSIONS = ['uef', 'csw'];
+  const DISC_EXTENSIONS = ['ssd', 'dsd', 'adf', 'adl', 'img', 'fdi'];
+  let mountedTape = null;
+  const mountedDiscs = new Map();
+
+  function writeMedia(name, bytes, allowed, what) {
+    const extension = /\.([A-Za-z0-9]+)$/.exec(String(name ?? ''))?.[1]?.toLowerCase();
+    if (!extension || !allowed.includes(extension)) {
+      throw new Error(`Elkulator reads ${what} images ending ${allowed.map((entry) => `.${entry}`).join(', ')}, and ${JSON.stringify(name)} is not one`);
+    }
+    const data = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes ?? []);
+    if (!data.length) throw new Error(`An empty file is not a ${what} image`);
+    try { core.FS.mkdir(MEDIA_DIRECTORY); } catch { /* already there on the second mount */ }
+    /* One file per slot, so a remount replaces rather than accumulating images
+     * in a filesystem that only exists in this tab's memory. */
+    const path = `${MEDIA_DIRECTORY}/${what}.${extension}`;
+    core.FS.writeFile(path, data);
+    return { path, extension, bytes: data.length };
+  }
+
+  function mountTape(command) {
+    requireCore();
+    const written = writeMedia(command.name, command.bytes, TAPE_EXTENSIONS, 'tape');
+    const accepted = core.ccall('elk_webide_load_tape', 'number', ['string'], [written.path]);
+    if (!accepted) throw new Error(`Elkulator did not accept ${JSON.stringify(command.name)} as a cassette image`);
+    mountedTape = { name: String(command.name), bytes: written.bytes, format: written.extension.toUpperCase() };
+    send({ type: 'media', action: 'load-tape', tapeMounted: true, name: mountedTape.name, format: mountedTape.format, size: mountedTape.bytes, source: 'live Elkulator tape state' });
+    return undefined;
+  }
+
+  function mountDisc(command) {
+    requireCore();
+    const drive = command.drive === 1 ? 1 : 0;
+    const written = writeMedia(command.name, command.bytes, DISC_EXTENSIONS, `disc${drive}`);
+    const accepted = core.ccall('elk_webide_load_disc', 'number', ['number', 'string'], [drive, written.path]);
+    if (!accepted) throw new Error(`Elkulator did not accept ${JSON.stringify(command.name)} as a disc image for drive ${drive}`);
+    mountedDiscs.set(drive, { name: String(command.name), bytes: written.bytes, format: written.extension.toUpperCase() });
+    send({ type: 'media', action: 'load-disc', drive, mountedDiscs: [...mountedDiscs.keys()].sort(), name: String(command.name), size: written.bytes, source: 'live Elkulator 1770 state' });
+    return undefined;
+  }
+
+  /* The one tone generator this machine has, as its ULA holds it: the divider
+   * that fixes the pitch and whether the tone is on. Both registers are
+   * write-only to the processor, so this is the only place the workbench can
+   * see what a program actually asked the hardware for. */
+  function soundState() {
+    if (!core) return { divider: null, enabled: false };
+    const divider = call('elk_webide_sound_divider');
+    return { divider: divider < 0 ? null : divider, enabled: call('elk_webide_sound_enabled') === 1 };
+  }
+
+  /* What the machine itself says about the tape, rather than what the page
+   * remembers mounting: bit 0 is a tape present, bit 1 is the Electron's own
+   * cassette motor being on. */
+  function tapeState() {
+    if (!core) return { mounted: false, running: false };
+    const state = call('elk_webide_tape_state');
+    return { mounted: (state & 1) !== 0, running: (state & 2) !== 0 };
+  }
+
   function loadProgram(payload) {
     requireCore();
     const bytes = payload.bytes ?? [];
@@ -306,6 +400,10 @@
    * bridge sets the Electron's own key state, so this does not depend on the
    * page having focus and cannot be swallowed by the workbench around it. */
   function keyName(character) {
+    /* A line of text has to be able to end. Without this, injected text could
+     * spell a command and not submit it, and the caller would have to follow it
+     * with a separate key tap to press RETURN. */
+    if (character === '\n' || character === '\r') return { key: 'enter', shift: false };
     const lower = String(character).toLowerCase();
     if (ELK_KEY[lower] !== undefined) return { key: lower, shift: false };
     const unshifted = SHIFTED[character];
@@ -480,6 +578,23 @@
          * matrix, which is how a machine ends up typing by itself. */
         if (!inputCaptured && core) call('elk_webide_clear_keys');
         send({ type: 'input-focus', captured: inputCaptured });
+        return;
+      }
+      case 'load-tape': return mountTape(command);
+      case 'eject-tape': {
+        requireCore();
+        call('elk_webide_eject_tape');
+        mountedTape = null;
+        send({ type: 'media', action: 'eject-tape', tapeMounted: false, source: 'live Elkulator tape state' });
+        return;
+      }
+      case 'load-disc': return mountDisc(command);
+      case 'eject-disc': {
+        requireCore();
+        const drive = command.drive === 1 ? 1 : 0;
+        if (!call('elk_webide_eject_disc', drive)) throw new Error(`The Electron refused to eject drive ${drive}`);
+        mountedDiscs.delete(drive);
+        send({ type: 'media', action: 'eject-disc', drive, mountedDiscs: [...mountedDiscs.keys()].sort(), source: 'live Elkulator 1770 state' });
         return;
       }
       case 'capture-screen': return captureScreen();

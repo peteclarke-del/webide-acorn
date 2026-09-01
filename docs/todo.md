@@ -7969,12 +7969,12 @@ the whole line on one machine without leaving the workbench.
 | Project and firmware | yes | yes | yes | **no ROM set** | MOS 3.20 only |
 | Author 6502 source | yes | yes | yes | yes | yes |
 | Author graphics | yes | yes | yes | yes | yes |
-| Author sound | yes | **wrong chip** | yes | yes | yes |
+| Author sound | yes | yes | yes | yes | yes |
 | Build | yes | yes | yes | yes | yes |
 | Run | yes | yes | yes | **no engine** | yes |
 | Debug | yes | yes | yes | **no engine** | yes |
-| Package to media | ATM and tape | **none** | DFS and tape | none | DFS and tape |
-| Boot the packaged media | tape, yes | **no** | yes | **no** | yes |
+| Package to media | ATM and tape | tape | DFS and tape | none | DFS and tape |
+| Boot the packaged media | tape, yes | tape, yes | yes | **no** | yes |
 
 - [x] GAME-001 Author an Acorn tape image from built files, for the BBC/Electron
   block format and the Atom's, so a game can leave the workbench on the medium
@@ -7989,11 +7989,32 @@ the whole line on one machine without leaving the workbench.
   BASIC program written here was saved to tape and CHAINed on a real machine,
   which printed it back. The Electron shares the BBC's block format but has no
   engine that can prove it here; that is GAME-002.
-- [ ] GAME-002 Mount tape and disc media on the Elkulator Electron core, so a
-  packaged Electron game can be booted where it was built.
-- [ ] GAME-003 Give the song editor an Electron target. It has the BBC's SN76489
-  and the Atom's single speaker bit; the Electron has neither, and composing on
-  the wrong chip produces music that will not play.
+- [x] GAME-002 Mount tape media on the Elkulator Electron core, so a packaged
+  Electron game can be booted where it was built. The bridge writes the image
+  into the emulator's own filesystem and hands Elkulator the path, so its own
+  loaders decide the format. Proved rather than asserted: a headless Chromium
+  run mounted a UEF written by this build, typed `*LOAD "GAME"` at the machine
+  over the ordinary command envelope, and the Electron turned its own cassette
+  motor on, ran the tape and left all 300 bytes at &2000. That run also found a
+  real defect — Elkulator's colon and semicolon keys are transposed, so `*`
+  arrived as `+` and every star command was silently a mistake. Disc mounting is
+  implemented on the same path and is not proved, because an Electron reads
+  discs through a Plus 3 and this vault holds no ADFS or DFS ROM to fit one
+  with; the Plus 3 capability stays planned and says so.
+- [x] GAME-003 Give the song editor an Electron target. What that machine's
+  sound hardware actually does was measured rather than assumed, by driving a
+  real Electron under Elkulator and reading its ULA — both sound registers are
+  write-only to the processor, so the bridge publishes them and
+  `scripts/measureElectronSound.mjs` takes the readings. Three findings shaped
+  the target and none could have been guessed from the BBC: a note sent to a
+  second channel replaces the one playing rather than queueing behind it, and
+  the first is lost without a word; there is no volume at all, with every
+  amplitude from -1 to -15 producing the same divider; and channel 0 makes
+  noise by modulating the same single generator, so noise and tone cannot sound
+  together either. The target therefore offers one channel, on or off, at the
+  machine's own scale of forty-eight pitch units to the octave — measured, at
+  `src/assets/electronSoundMeasurements.ts` — and generates a player that uses
+  channel 1 with no channel loop, because there is nothing to loop over.
 - [ ] GAME-004 Run a BBC B+. It is the one machine of the five with no engine at
   all: jsbeeb 1.19.1 publishes no B+ model, so nothing here can execute its
   shadow or sideways behaviour, and no ROM set is registered for it.

@@ -151,25 +151,30 @@ export const machineProfiles: MachineProfile[] = [
       { id: 'electron-os', label: 'Electron OS 1.0 + BASIC II', detail: 'Standard firmware' },
       { id: 'electron-plus3', label: 'Electron OS + ADFS E00', detail: 'Plus 3 disk profile' },
     ],
-    /* The vendored ElkJS core models a base 32 KB Electron with an operating
-     * system and BASIC and nothing else, so every expansion below is planned
-     * rather than supported: enabling one here would change no behaviour in the
-     * only adapter that can run this machine.
+    /* Two cores can run this machine and they are not equally equipped. ElkJS
+     * models a base 32 KB Electron with an operating system and BASIC and
+     * nothing else; Elkulator, built for WebAssembly, is the full machine with
+     * sideways banks, the Plus 1 and the Plus 3.
      *
-     * The Elkulator port they wait on now exists as far as a build — it
-     * compiles and links to WebAssembly, and `electron-expanded` registers the
-     * firmware each expansion needs — but it does not yet run, because its
-     * main loop never returns and would hang a browser tab. So these stay
-     * planned. The requirement named on each control is now that core running
-     * rather than that core existing, which is a smaller and more honest gap
-     * than the one that was there before. */
+     * The cassette interface is supported because it was proved rather than
+     * assumed: a tape written by this build was mounted on a real Electron
+     * under Elkulator in a browser, `*LOAD` was typed at its keyboard, the
+     * machine turned its own cassette motor on, and every byte of the file
+     * arrived at its load address.
+     *
+     * The expansions below stay planned, and the reason has changed. It is no
+     * longer that no core can run them — Elkulator runs, and the bridge mounts
+     * disc images through its own loader. It is that each one needs firmware
+     * this vault does not hold: a Plus 1 ROM, an ADFS or DFS ROM. An expansion
+     * whose ROM is absent is an expansion that is not fitted, and saying it is
+     * supported would promise a machine nobody here can start. */
     capabilities: [
-      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'planned', false, 'the Elkulator core running; it builds but its main loop does not yet return'),
-      capability('plus1', 'Plus 1 expansion', 'Cartridge, printer and analogue interfaces', 'planned', false, 'the Elkulator core running; its firmware manifest is registered and it builds, but it does not yet run'),
-      capability('plus3', 'Plus 3 expansion', '3.5-inch disk and ADFS', 'planned', false, 'the Elkulator core running; ADFS and DFS firmware are registered against it already'),
-      capability('sideways', 'Sideways RAM', 'Expansion banked memory', 'planned', false, 'the Elkulator core running; ElkJS decodes every unclaimed ROM bank to BASIC'),
-      capability('joystick', 'Joystick interface', 'Configurable expansion joystick', 'planned', false, 'the Plus 1, which arrives with the Elkulator core once it runs'),
-      capability('1mhzpi', '1MHzPi / ElkWiFi', 'Development Plus 1 RH and modified ElkWiFi firmware', 'planned', false, 'the Elkulator core running; the ElkWiFi firmware is registered against it already'),
+      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported', true),
+      capability('plus1', 'Plus 1 expansion', 'Cartridge, printer and analogue interfaces', 'planned', false, 'a Plus 1 ROM in the firmware vault; the Elkulator core fits one when it is there'),
+      capability('plus3', 'Plus 3 expansion', '3.5-inch disk and ADFS', 'planned', false, 'an ADFS or DFS ROM in the firmware vault; the bridge mounts disc images through Elkulator\'s own loader once a machine has an interface to read them with'),
+      capability('sideways', 'Sideways RAM', 'Expansion banked memory', 'planned', false, 'a sideways ROM manifest for the Elkulator core; ElkJS decodes every unclaimed ROM bank to BASIC'),
+      capability('joystick', 'Joystick interface', 'Configurable expansion joystick', 'planned', false, 'the Plus 1, which needs its ROM'),
+      capability('1mhzpi', '1MHzPi / ElkWiFi', 'Development Plus 1 RH and modified ElkWiFi firmware', 'planned', false, 'the Plus 1 the ElkWiFi board plugs into'),
     ],
     accent: '#cf6857',
   },

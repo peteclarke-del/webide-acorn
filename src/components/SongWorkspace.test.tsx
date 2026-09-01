@@ -65,7 +65,8 @@ describe('SongWorkspace', () => {
 
   it('says it does not synthesise the machine sound in the browser', () => {
     renderWorkspace();
-    expect(screen.getByText(/no verified pitch-to-frequency table/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is synthesised here/)).toBeInTheDocument();
+    expect(screen.getByText(/run it to hear the real hardware play it/)).toBeInTheDocument();
   });
 
   it('offers generated source and a live build target', () => {

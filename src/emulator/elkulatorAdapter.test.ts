@@ -112,7 +112,14 @@ describe('Elkulator Electron adapter declaration', () => {
     expect(elkulatorCommandRefusal('watchpoint')).toContain('no hook');
     expect(elkulatorCommandRefusal('read-tube-memory')).toContain('no Tube interface');
     expect(elkulatorCommandRefusal('set-audio')).toContain('has not been verified');
-    expect(elkulatorCommandRefusal('load-disc')).toContain('mounts none');
+    /* Media is offered now: the bridge writes the image into the emulator's own
+     * filesystem and lets Elkulator's loaders decide what it is. Reading a disc
+     * back out is still refused, and for a stated reason rather than by
+     * omission — an export would hand back the bytes that went in. */
+    expect(elkulatorCommandRefusal('load-disc')).toBeNull();
+    expect(elkulatorCommandRefusal('load-tape')).toBeNull();
+    expect(elkulatorCommandRefusal('eject-tape')).toBeNull();
+    expect(elkulatorCommandRefusal('export-disc')).toContain('bytes that went in');
   });
 
   it('covers every command type the jsbeeb runtime accepts, so nothing falls through untaught', () => {
@@ -154,6 +161,7 @@ describe('Elkulator Electron adapter declaration', () => {
       'program-load': 'elk_webide_load',
       'run-test': 'elk_webide_breakpoint_hit',
       'key-injection': 'elk_webide_set_key',
+      media: 'elk_webide_load_tape',
     };
     for (const capability of ELKULATOR_CAPABILITIES) {
       const entry = behind[capability];

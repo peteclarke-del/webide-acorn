@@ -6,7 +6,7 @@ cartridge interface. EMU-423 has wanted one since the Electron slice shipped.
 
 ## What is proved
 
-`Dockerfile.wasm` builds `elkulator.wasm` — 1,302,443 bytes — and its JavaScript
+`Dockerfile.wasm` builds `elkulator.wasm` — 1,305,019 bytes — and its JavaScript
 glue, from `demrepofdave/elkulator` at commit
 `6785521aba2c237861f29d9dee9cfc6725989b1e` on branch
 `demrepofdave/allegro5_integration`, against Allegro 5.2.9.1 with Allegro's own
@@ -270,3 +270,55 @@ and a page has neither. The IDE supplies its own, exactly as it does for the
 Archimedes core, so Elkulator's menu layer has nothing to draw and nothing to
 ask. Every entry point answers the way its caller already handles a refused
 dialog.
+
+
+## It loads a cassette, and the machine says so
+
+The bridge mounts media the way Elkulator expects to receive it: the page writes
+the image into the emulator's own in-memory filesystem and hands the core the
+path, so Elkulator's loaders decide what a UEF, a CSW, an SSD or an ADF is.
+That knowledge belongs to the emulator, and duplicating its format dispatch in
+the page would be a second opinion that could disagree with the first.
+
+A headless Chromium run mounted a 445-byte UEF written by `src/media/acornTape.ts`
+carrying a 300-byte file at &2000, typed `*LOAD "GAME"` at the Electron's
+keyboard over the ordinary command envelope, and watched the machine: it turned
+its own cassette motor on — reported by the ULA's `is_tapeon()` rather than by
+anything this build set — ran the tape, stopped it, and left all 300 bytes at
+&2000 exactly as written. No runtime error, no page error.
+
+Getting there found a real defect in the key table. Elkulator's own matrix
+carries the note `// TODO: Key COLON2 may not be correct.`, and it is not: what
+the core enumerates as the colon key produces a semicolon on the machine. So
+`*`, which is shift on the colon key and the first character of every Acorn
+command, was arriving as `+`, and every star command silently became a mistake.
+The two are swapped in `public/elkulator-runtime.js`, and `:` `;` `*` `+` now
+each arrive as themselves.
+
+Disc mounting is implemented on the same path and is **not** proved here, for a
+stated reason rather than by omission: an Electron reads discs through a Plus 3,
+and this firmware vault holds no ADFS or DFS ROM to fit one with. The Plus 3
+capability stays planned until it does.
+
+
+## It publishes the one thing its sound hardware will not tell a program
+
+The Electron has a single tone generator in its ULA, driven by two write-only
+registers: &FE06 sets the divider that fixes the pitch, and two bits of &FE07
+turn the tone on. Write-only means neither a program nor a debugger reading
+memory can see what was asked for, so the bridge publishes Elkulator's own state
+for both.
+
+That turned the song editor's Electron target from a guess into a measurement.
+Driving a real Electron and watching the ULA while it played established that a
+note sent to a second channel *replaces* the one playing rather than queueing
+behind it — the first is lost silently — that there is no volume at all, and
+that channel 0 makes noise by modulating the same generator rather than by
+having a noise source. `scripts/measureElectronSound.mjs` takes those readings
+and `src/assets/electronSoundMeasurements.ts` holds them.
+
+Getting there found a second key-table defect beside the transposed colon. The
+core's enumeration has no minus key: what it calls EQUALS is the Electron's
+`- =` key, and unshifted it produces a minus. So the workbench could not type a
+minus at all — which is every negative amplitude in a SOUND statement — and an
+equals sign came out as one.
