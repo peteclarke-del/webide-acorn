@@ -75,6 +75,7 @@ import { loadSdkDocument, type SdkDocument } from './language/sdkDocumentClient'
 import { ROM_SETS, requiredRomRequirements, romSetFor, romStorageKey, runtimeSidewaysRomPaths } from './rom/romProfiles';
 import { ELECTRON_ADAPTER_SUMMARY, ELECTRON_CAPABILITIES, ELECTRON_UNAVAILABLE, electronCommandRefusal } from './emulator/electronAdapter';
 import { ELKULATOR_ADAPTER_SUMMARY, ELKULATOR_CAPABILITIES, ELKULATOR_UNAVAILABLE, elkulatorCommandRefusal } from './emulator/elkulatorAdapter';
+import { electronRuntimeRoute, isElectronEngine } from './emulator/electronRuntimeRouting';
 import { listRoms, type StoredRom } from './rom/romStore';
 import { archimedesCmosKey, archimedesCombinedRomKey, archimedesRuntimeConfiguration, type ArchimedesRuntimeConfiguration } from './rom/archimedesRom';
 import {
@@ -6211,7 +6212,8 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
    * envelope and report the same state, so everything below treats them
    * together; where they differ — the page, the channel and what each can be
    * asked to do — is decided by this one flag. */
-  const electronMachine = engineId === 'elkjs' || engineId === 'elkulator';
+  const electronRoute = electronRuntimeRoute(engineId);
+  const electronMachine = isElectronEngine(engineId);
   const elkulatorMachine = engineId === 'elkulator';
   const fullElectronMachine = romReady && electronMachine && !!machineModel && !!romSetId && !!sessionManifest;
   const full6502Machine = romReady && !electronMachine && !!machineModel && !!romSetId && !!sessionManifest;
@@ -6247,8 +6249,8 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
    * stepping. */
   const declaredCapabilities: readonly string[] = elkulatorMachine ? ELKULATOR_CAPABILITIES : ELECTRON_CAPABILITIES;
   const declaredUnavailable = elkulatorMachine ? ELKULATOR_UNAVAILABLE : ELECTRON_UNAVAILABLE;
-  const electronPage = elkulatorMachine ? '/elkulator.html' : '/electron.html';
-  const electronChannel = elkulatorMachine ? '8bit-net-elkulator' : '8bit-net-electron';
+  const electronPage = electronRoute?.page ?? '/electron.html';
+  const electronChannel = electronRoute?.channel ?? '8bit-net-electron';
   const frameSource = fullArchimedesMachine ? `/archimedes.html?boot=${fastArchimedesBoot ? 'fast' : 'authentic'}&session=${encodeURIComponent(debugSessionId)}` : fullElectronMachine ? `${electronPage}?session=${encodeURIComponent(debugSessionId)}` : `/emulator.html?session=${encodeURIComponent(debugSessionId)}`;
   const framebufferWidth = fullArchimedesMachine ? archimedesState?.hardware.vidc.width : fullElectronMachine ? 640 : 1024;
   const framebufferHeight = fullArchimedesMachine ? archimedesState?.hardware.vidc.height : fullElectronMachine ? 512 : 625;
@@ -7694,7 +7696,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
       {fullElectronMachine && !collapsed && (
         <details className="adapter-capability-note">
           <summary>
-            {elkulatorMachine ? "Elkulator" : "ElkJS"} Electron adapter ·{" "}
+            {electronRoute?.label ?? "ElkJS"} Electron adapter ·{" "}
             {(electronState?.capabilities ?? declaredCapabilities).length} of{" "}
             {(electronState?.capabilities ?? declaredCapabilities).length +
               Object.keys(electronState?.unavailable ?? declaredUnavailable)

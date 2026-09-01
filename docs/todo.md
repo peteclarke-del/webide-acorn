@@ -4564,10 +4564,21 @@ Current implemented increment:
     browser makes typing take longer rather than lose letters. Thirty characters
     of `THE QUICK BROWN FOX 0123456789` then arrived complete, read back off the
     emulated display.
-  - [ ] Not yet exercised: the routing has been proved by driving the shipped
-    page directly, and no run has yet gone through the workbench itself with the
-    expansion ROM set selected and firmware in the vault. Nor has any expansion
-    been exercised through the core, so every one of them stays marked planned.
+  - [x] **The routing is a rule with a contract rather than a conditional
+    nothing could check.** Which core a ROM set starts, which document the panel
+    frames and which channel its commands carry now come from one function, and
+    a test asserts each half against the runtime file that implements it. That
+    pairing is the part worth checking: sending a command on the wrong channel
+    is silent, because a runtime ignores anything not addressed to it, so a
+    panel pointed at the right page with the wrong channel would show a machine
+    that never answered with nothing anywhere to say why. An engine this build
+    cannot start is refused rather than routed to a default, and every Electron
+    ROM set registered here is asserted to have a route.
+  - [ ] Not yet exercised end to end: no run has gone through the workbench
+    itself with the expansion ROM set selected and firmware in the vault. The
+    shipped page has been driven directly and the routing has a contract, but
+    the two have not been joined up in one run. Nor has any expansion been
+    exercised through the core, so every one of them stays marked planned.
   - [ ] What the run does not show is also recorded: the frame rate was
     measured in headless Chromium on a software renderer with nothing but the
     operating system and BASIC fitted and no program running, and no keyboard,
