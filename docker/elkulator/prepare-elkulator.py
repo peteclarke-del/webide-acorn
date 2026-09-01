@@ -211,10 +211,17 @@ old_poll = """#ifdef __EMSCRIPTEN__
 new_poll = """#ifdef __EMSCRIPTEN__
         /* Poll and yield rather than block, and supply the 50 Hz tick that
          * Allegro's SDL backend registers a source for and never posts to.
-         * See the note in prepare-elkulator.py. */
+         * See the note in prepare-elkulator.py.
+         *
+         * The clock is read before the queue, not after it. Raising the tick
+         * only when nothing else had arrived starved it completely: the
+         * backend delivers a steady stream of display and pointer events, each
+         * of which satisfied the poll first and mapped to a handled event that
+         * was not a timer, so the machine was never stepped. Elapsed time is
+         * what decides a tick is due; other events are delivered in between. */
         {
             static double webide_next_tick_ms = 0;
-            while (!al_get_next_event(queue, &event))
+            for (;;)
             {
                 double now_ms = emscripten_get_now();
                 if (now_ms >= webide_next_tick_ms)
@@ -227,6 +234,7 @@ new_poll = """#ifdef __EMSCRIPTEN__
                     event.type = ALLEGRO_EVENT_TIMER;
                     break;
                 }
+                if (al_get_next_event(queue, &event)) break;
                 emscripten_sleep(1);
             }
         }

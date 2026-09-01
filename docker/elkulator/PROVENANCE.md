@@ -29,7 +29,22 @@ same wait is now a poll that yields — `emscripten_sleep` hands control back an
 ASYNCIFY resumes the C stack where it left off — so the loop above is unchanged
 and every local it holds is still valid. That costs about 500 KB of binary.
 
-**ASYNCIFY resumes; the machine is not yet stepped.** Instrumenting the loop
+**ASYNCIFY cannot carry this loop.** Instrumenting both sides shows
+`event_await` called two hundred times and returning two hundred times with
+`elkEvent=0x8004` — handled, timer-triggered, from a synthesised
+`ALLEGRO_EVENT_TIMER` — and the statement immediately after
+`elkEvent = event_await()` in `main` never executing. On rewind, execution
+resumes inside the frame that unwound and returns, but `main`'s frame was never
+saved, so control goes back to the runtime rather than into the loop body.
+`-sASYNCIFY_ADD=["main"]` does not help: Allegro's main addon renames the
+program's `main`, so the name in the list matches nothing.
+
+The fix is `emscripten_set_main_loop` — the browser calls one iteration at a
+time, no stack is unwound, and ASYNCIFY leaves the build along with its 500 KB.
+The loop body's locals become statics. This is also what the IDE integration
+wants, since the IDE decides when the machine steps.
+
+**Superseded note.** Instrumenting the loop
 shows `event_await` entered and returning two hundred times over twelve
 seconds, so the unwind-and-resume works and the browser keeps its thread. What
 does not happen is `runelk`: the loop never sees `ELK_EVENT_TIMER_TRIGGERED`.

@@ -4324,16 +4324,25 @@ Current implemented increment:
     the backend does not implement rather than emulator state being invented:
     the event carries nothing beyond "20 ms passed", which is what the real
     timer would have said.
-  - [ ] **`runelk` is still never reached, and the next step is known.** With
-    the tick supplied, `event_await` returns two hundred times and not once
-    with `ELK_EVENT_TIMER_TRIGGERED`, so the machine is never stepped. The
-    synthetic tick is only produced when the queue is empty, and the SDL
-    backend appears to be delivering a steady stream of real events — display
-    or pointer — which satisfy the poll first and map to a handled event that
-    is not a timer. The fix is to raise the tick on elapsed time regardless of
-    what else arrived, rather than only when nothing did. Until the machine
-    steps, every Electron expansion stays planned and the capability controls
-    still say so.
+  - [x] **The tick is delivered correctly, and the cause of the freeze is now
+    certain rather than suspected.** Instrumenting both sides shows
+    `event_await` called two hundred times and returning two hundred times with
+    `elkEvent=0x8004` — `ELK_EVENT_HANDLED | ELK_EVENT_TIMER_TRIGGERED`, from a
+    synthesised `ALLEGRO_EVENT_TIMER` — and the statement immediately after
+    `elkEvent = event_await()` in `main` never executing. The tick arrives; the
+    caller never resumes.
+  - [ ] **ASYNCIFY cannot carry this loop, and the fix is to stop asking it
+    to.** On rewind, execution resumes inside the frame that unwound and
+    returns, but `main`'s frame was never saved, so control goes back to the
+    runtime instead of into the loop body — which is why `event_await` is
+    re-entered from the top for ever. `-sASYNCIFY_ADD=["main"]` does not help,
+    because Allegro's main addon renames the program's `main` and the name in
+    the list matches nothing. The answer is `emscripten_set_main_loop`: the
+    browser calls one iteration at a time, no C stack is ever unwound, ASYNCIFY
+    comes out of the build entirely along with its 500 KB, and the loop body's
+    locals become statics. It is also what the IDE integration wants regardless,
+    since the IDE decides when the machine steps. Until that is done every
+    Electron expansion stays planned and the capability controls still say so.
   - [ ] After it runs there is adapter work before the expansions are real:
     a bridge in the shape of `webide_bridge.c`, registers and memory exposed to
     the debugger, and the capability and command classification the ElkJS
