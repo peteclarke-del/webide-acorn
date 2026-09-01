@@ -5,7 +5,7 @@
 These are the same procedures the IDE carries under Help, published so they can be read
 without starting it. They are generated from one source, so the two cannot disagree.
 
-77 procedures across 16 areas.
+78 procedures across 16 areas.
 
 ## [First run](first-run.md)
 
@@ -26,6 +26,7 @@ without starting it. They are generated from one source, so the two cannot disag
 
 - **Create, recover, save, import and export projects** — Manage browser-recovered working state and explicit saved baselines without confusing recovery with a user save.
 - **Create a project from an existing codebase** — Turn a folder of existing Acorn source into a working project, reviewing the whole plan before anything is created and optionally recovering editable assets from data already in the source.
+- **Keep a project on the server and read its history** — Copy a project into the server-side store, see its revisions, compare or merge two of them, fork when a merge would have to guess, and export or delete what is held.
 - **Inspect imported and generated read-only source** — Use persisted provenance and access state to distinguish authored, imported and generated files, then inspect protected source without accidentally treating output as editable input.
 - **Compare working source with its saved baseline** — Inspect line additions and removals against the explicit saved baseline without leaving the source editor or changing either version.
 
@@ -134,6 +135,6 @@ without starting it. They are generated from one source, so the two cannot disag
 
 ## Areas with no guide, and why
 
-### Cloud projects, revisions and sharing
+### Sharing a project with another person
 
-This build stores projects in the browser and on disk, and has no server-side project store, no revision history and no sharing. There is nothing to write a procedure for, and a procedure for an absent feature would be read as evidence the feature exists. The work is tracked as CLD-800 onward and this guide is due with it.
+The server-side project store, its revision history, comparison, merge and fork all ship and are documented. What does not exist is a second person: the store has one identity, `local`, and nothing proves it, so it is storage on a machine somebody already controls rather than an account. There is no procedure for granting anyone access, and one written anyway would be read as evidence that the store is safe to share, which it is not. Authorisation is tracked as CLD-800 and this guide is due with it.

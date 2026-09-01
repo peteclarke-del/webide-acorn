@@ -83,7 +83,50 @@ Turn a folder of existing Acorn source into a working project, reviewing the who
 
 In the IDE: Help → `#help/import-codebase`
 
-## 3. Inspect imported and generated read-only source
+## 3. Keep a project on the server and read its history
+
+Copy a project into the server-side store, see its revisions, compare or merge two of them, fork when a merge would have to guess, and export or delete what is held.
+
+**Before you start**
+
+- The native-builder container is running, because the store lives there rather than in the browser
+- A project name made of letters, digits or hyphens, which is the name the store uses
+
+**Procedure**
+
+1. Open Settings from the activity bar and find Project store.
+2. Read the offered action. It reflects where the workbench and the store stand relative to each other: untracked, in step, ahead, behind, diverged or offline.
+3. Use Copy this project to the store for a project the store does not hold, or Send these changes for one it does. Either writes a revision.
+4. Under Stored projects choose a project to see Revisions of it, newest last.
+5. Use Compare the two newest to see what changed between them, file by file.
+6. When both sides have changed, use Show what a merge would produce and read Merge preview before anything is written.
+7. Use Fork instead, keeping both when the merge would have to guess. The fork's name records where it came from.
+8. Use Open its files to bring a stored revision into the workbench, Export everything, history included to take the store away with you, and Delete to remove a project.
+
+**What should happen**
+
+- Copying leaves the local project exactly as it is. The store is a copy, not a move.
+- Every write is made against the revision the store reports as head, so two workbenches editing the same project collide and are told rather than one silently overwriting the other.
+- A divergence sends and overwrites nothing until a merge has been reviewed.
+- Refusals name their reason and their remedy: a quota reached, a file too large, a stale parent, a project that is not there. Retrying the same write after a stale parent would fail again, and it says so.
+
+**Limits**
+
+- There is one identity and nothing proves it. This is storage on a machine somebody already controls, not an account, so it is not a way to share a project with another person and must not be relied on as one. Authorisation is tracked as CLD-800.
+- The store is bounded by a byte quota and a project quota, and warns before either is reached rather than failing at it.
+- Merging is line-based and only for text. A binary or generated file is not merged; the plan says so and offers the fork instead.
+- The store holds project files. It does not hold imported firmware, which stays in the browser and is never sent anywhere.
+- Deleting leaves a tombstone so that a workbench which still has the project learns it was deleted rather than resurrecting it.
+
+**If it goes wrong**
+
+- If the store does not answer, local work is unaffected and queued changes stay queued; the state reads offline rather than in step.
+- If a write is refused for a stale parent, read the head and merge rather than sending the same revision again.
+- If a quota is reached, export everything and delete what is no longer needed, then collect to reclaim the space the deleted revisions held.
+
+In the IDE: Help → `#help/project-store`
+
+## 4. Inspect imported and generated read-only source
 
 Use persisted provenance and access state to distinguish authored, imported and generated files, then inspect protected source without accidentally treating output as editable input.
 
@@ -138,7 +181,7 @@ Use persisted provenance and access state to distinguish authored, imported and 
 
 In the IDE: Help → `#help/source-provenance`
 
-## 4. Compare working source with its saved baseline
+## 5. Compare working source with its saved baseline
 
 Inspect line additions and removals against the explicit saved baseline without leaving the source editor or changing either version.
 

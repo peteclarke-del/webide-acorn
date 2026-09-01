@@ -20,7 +20,7 @@ export const GUIDE_AREAS = [
   { id: 'first-run', title: 'First run', topics: ['first-run', 'using-help', 'sample-projects', 'settings-layers'] },
   { id: 'target-selection', title: 'Choosing a target', topics: ['target-selection'] },
   { id: 'rom-import', title: 'Importing firmware', topics: ['rom-import'] },
-  { id: 'projects', title: 'Projects and source', topics: ['projects', 'import-codebase', 'source-provenance', 'source-comparison'] },
+  { id: 'projects', title: 'Projects and source', topics: ['projects', 'import-codebase', 'project-store', 'source-provenance', 'source-comparison'] },
   { id: 'editing', title: 'Writing and editing source', topics: ['editor', 'source-text-format', 'editor-splits', 'bookmarks', 'clipboard-safety', 'safe-rename-quick-fixes', 'basic-numbering', 'basic-range-renumber', 'basic-line-diagnostics'] },
   { id: 'navigation', title: 'Finding your way around a codebase', topics: ['source-navigation-workflow', 'symbol-navigation', 'go-to-source', 'call-hierarchy', 'target-navigation', 'generated-symbol-navigation', 'sdk-document-navigation', 'c-source-relationships'] },
   { id: 'assistance', title: 'Completion, signatures and type hints', topics: ['context-completion', 'completion-interaction', 'completion-snippets', 'target-reference-completion', 'c-scope-completion', 'token-help', 'signature-help', 'source-type-hints', 'language-request-safety'] },
@@ -47,11 +47,26 @@ export const GUIDE_AREAS = [
  */
 export const UNAVAILABLE_AREAS = [
   {
-    id: 'cloud',
-    title: 'Cloud projects, revisions and sharing',
+    id: 'sharing',
+    title: 'Sharing a project with another person',
     reason:
-      'This build stores projects in the browser and on disk, and has no server-side project store, no revision history and no sharing. There is nothing to write a procedure for, and a procedure for an absent feature would be read as evidence the feature exists. The work is tracked as CLD-800 onward and this guide is due with it.',
-    absentMarkers: ['CloudProjectWorkspace', 'RevisionHistoryPanel', 'aria-label="Share project"'],
+      'The server-side project store, its revision history, comparison, merge and fork all ship and are documented. What does not exist is a second person: the store has one identity, `local`, and nothing proves it, so it is storage on a machine somebody already controls rather than an account. There is no procedure for granting anyone access, and one written anyway would be read as evidence that the store is safe to share, which it is not. Authorisation is tracked as CLD-800 and this guide is due with it.',
+    absentMarkers: [],
+    /* Inverted, and this is the point. The first version of this declaration
+     * guessed at symbols a sharing feature might one day introduce, and guessed
+     * wrong twice over: it declared the store and its revisions absent when
+     * both had shipped, and no invented marker could have caught that, because
+     * the code it named was never going to exist under those names.
+     *
+     * A declaration of absence is only checkable against something that is
+     * true now. The single unproven owner is that something: it is what makes
+     * sharing unsafe, it is one line in the controller, and the day it stops
+     * being a constant is the day the owner comes from the request instead —
+     * at which point this fails and demands the guide. */
+    stillPresent: [
+      'private const OWNER = ProjectStore::LOCAL_OWNER;',
+      "LOCAL_OWNER = 'local'",
+    ],
   },
 ];
 
@@ -133,13 +148,26 @@ export function unpublishedTopics(topics) {
   return topics.filter((topic) => !published.has(topic.id)).map((topic) => topic.id);
 }
 
-/** Areas declared absent that the interface source shows are not absent. */
+/**
+ * Ways a declaration of absence has stopped being true.
+ *
+ * Both directions are checked. A marker in `absentMarkers` failing means the
+ * feature appeared; a marker in `stillPresent` missing means the thing that
+ * made it absent is gone. Either way the declaration outlived what it
+ * described, and a note that outlives what it describes is worse than no note,
+ * because it is read as current.
+ */
 export function unavailableFailures(sourceText) {
   const failures = [];
   for (const area of UNAVAILABLE_AREAS) {
-    for (const marker of area.absentMarkers) {
+    for (const marker of area.absentMarkers ?? []) {
       if (sourceText.includes(marker)) {
-        failures.push(`The guides declare ${area.title} absent from this build, but the interface source contains ${marker}. Write the guide or correct the declaration.`);
+        failures.push(`The guides declare ${area.title} absent from this build, but the source contains ${marker}. Write the guide or correct the declaration.`);
+      }
+    }
+    for (const marker of area.stillPresent ?? []) {
+      if (!sourceText.includes(marker)) {
+        failures.push(`The guides declare ${area.title} absent because the source contains ${marker}, and it no longer does. Write the guide or correct the declaration.`);
       }
     }
   }

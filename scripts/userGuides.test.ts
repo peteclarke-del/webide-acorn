@@ -24,7 +24,7 @@ describe('what the guides cover', () => {
   it('names an area for every part of DOC-901, with cloud declared absent', () => {
     const covered = [...GUIDE_AREAS.map((area) => area.id), ...UNAVAILABLE_AREAS.map((area) => area.id)];
     for (const area of ['first-run', 'target-selection', 'rom-import', 'projects', 'builds', 'media',
-      'emulator', 'debugging', 'tests', 'assets', 'research', 'cloud', 'accessibility', 'troubleshooting']) {
+      'emulator', 'debugging', 'tests', 'assets', 'research', 'sharing', 'accessibility', 'troubleshooting']) {
       expect(covered, area).toContain(area);
     }
   });
@@ -59,29 +59,55 @@ describe('what the guides cover', () => {
 });
 
 describe('an area with no feature to document', () => {
+  it('documents the store and its history, which do ship, and declares only sharing absent', () => {
+    /* The first version of this declaration said the build had no server-side
+     * store and no revision history. Both had shipped — in PHP and in React at
+     * once — and the declaration was wrong rather than merely stale. What is
+     * genuinely absent is the second person. */
+    expect(UNAVAILABLE_AREAS.map((area) => area.id)).toEqual(['sharing']);
+    const projects = GUIDE_AREAS.find((area) => area.id === 'projects')!;
+    expect(projects.topics).toContain('project-store');
+  });
+
   it('is named with a reason rather than omitted', () => {
     /* A book that quietly leaves out an area reads as a book that covered
      * everything. */
-    const cloud = UNAVAILABLE_AREAS.find((area) => area.id === 'cloud')!;
-    expect(cloud.reason).toMatch(/no server-side project store/);
-    expect(cloud.reason).toMatch(/CLD-800/);
-    expect(cloud.reason.length).toBeGreaterThan(120);
+    const sharing = UNAVAILABLE_AREAS.find((area) => area.id === 'sharing')!;
+    expect(sharing.reason).toMatch(/one identity/);
+    expect(sharing.reason).toMatch(/CLD-800/);
+    expect(sharing.reason.length).toBeGreaterThan(120);
   });
 
-  it('fails once the feature it declares absent is present', () => {
+  it('fails when what made the area absent is gone', () => {
     /* Without this the declaration is a note that outlives the thing it
-     * describes: cloud projects could ship and the book would still say they
-     * do not exist. */
-    expect(unavailableFailures('nothing of the sort here')).toEqual([]);
-    const failures = unavailableFailures('export function CloudProjectWorkspace() {}');
-    expect(failures).toHaveLength(1);
+     * describes: the owner could start coming from the request and the book
+     * would still say sharing is impossible. */
+    const owner = UNAVAILABLE_AREAS[0]!.stillPresent!;
+    expect(unavailableFailures(owner.join('\n'))).toEqual([]);
+    const failures = unavailableFailures('an owner read from the request');
+    expect(failures).toHaveLength(owner.length);
     expect(failures[0]).toMatch(/Write the guide or correct the declaration/);
   });
 
-  it('checks for markers specific enough to mean the feature', () => {
+  it('fails when a feature it declares absent appears', () => {
+    const withMarker = { ...UNAVAILABLE_AREAS[0]!, absentMarkers: ['ProjectSharingWorkspace'] };
+    UNAVAILABLE_AREAS.splice(0, 1, withMarker);
+    try {
+      const failures = unavailableFailures(`${withMarker.stillPresent!.join('\n')}\nexport function ProjectSharingWorkspace() {}`);
+      expect(failures).toHaveLength(1);
+      expect(failures[0]).toMatch(/but the source contains ProjectSharingWorkspace/);
+    } finally {
+      UNAVAILABLE_AREAS.splice(0, 1, { ...withMarker, absentMarkers: [] });
+    }
+  });
+
+  it('checks against something true now rather than a guessed future symbol', () => {
+    /* Guessing at symbols a feature might one day introduce is what let the
+     * first declaration be wrong: no invented name could have caught code that
+     * was never going to exist under that name. */
     for (const area of UNAVAILABLE_AREAS) {
-      expect(area.absentMarkers.length, area.id).toBeGreaterThan(0);
-      for (const marker of area.absentMarkers) expect(marker.length, marker).toBeGreaterThan(10);
+      expect(area.stillPresent?.length, area.id).toBeGreaterThan(0);
+      for (const marker of area.stillPresent ?? []) expect(marker.length, marker).toBeGreaterThan(10);
     }
   });
 });

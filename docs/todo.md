@@ -6778,14 +6778,28 @@ Current implemented increment:
     all nine asset tabs and the trace are covered. A test asserts each of the
     nine tab names appears in the asset guide, which is what "every asset
     editor" has to mean to be checkable.
-  - [x] **Cloud projects, revisions and sharing are declared absent with a
-    reason, and the declaration can fail.** This build stores projects in the
-    browser and on disk and has no server-side store, no revision history and
-    no sharing, so there is no procedure to write and one written anyway would
-    be read as evidence the feature exists. The declaration names the interface
-    symbols that would exist had it shipped, and the gate fails if any of them
-    appear — so the guide becomes due the moment CLD-800 lands, rather than the
-    note outliving the thing it describes.
+  - [x] **The first declaration of what was absent was itself wrong, and
+    fixing it is why the check is now inverted.** It said this build had no
+    server-side project store and no revision history. Both had shipped — a
+    `ProjectStoreController` with revisions, comparison, merge, fork, export,
+    tombstones and quotas, and a typed client and sync model in front of it —
+    and the declaration was not stale but false. It was written from a reading
+    of the requirement rather than of the product, and it guessed at symbols a
+    cloud feature might one day introduce, so no marker it named could have
+    caught code that was never going to exist under those names. It also read
+    only the React components, which is how it missed a feature that shipped in
+    PHP and React at once. The store and its history are now documented as the
+    working features they are, and the check reads the controllers and the
+    storage layer as well as the interface.
+  - [x] **What is genuinely absent is the second person, and the declaration is
+    checked against something true now rather than a guessed future symbol.**
+    The store has one identity, `local`, and nothing proves it, so it is
+    storage on a machine somebody already controls rather than an account; a
+    sharing procedure written anyway would be read as evidence that the store
+    is safe to share, which it is not. The declaration therefore names the
+    single unproven owner — one line in the controller — and the gate fails the
+    day it stops being a constant, which is the day the owner starts coming
+    from the request. Absence is only checkable against a fact that holds now.
 - [x] DOC-901A Ship those guides inside the IDE as searchable, deep-linkable,
   keyboard and screen-reader accessible help. Cover every visible operation with
   prerequisites, steps, expected result, limitations and recovery.

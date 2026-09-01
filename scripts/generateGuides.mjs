@@ -43,11 +43,22 @@ if (unpublished.length > 0) {
   failures.push(`These topics are in the IDE and in no published guide: ${unpublished.join(', ')}. Add them to an area in scripts/userGuides.mjs.`);
 }
 
-const interfaceSource = (await Promise.all(
-  (await readdir(join(root, 'src/components'))).filter((name) => name.endsWith('.tsx') && !name.includes('.test.'))
-    .map((name) => readFile(join(root, 'src/components', name), 'utf8')),
-)).join('\n') + await readFile(join(root, 'src/App.tsx'), 'utf8');
-failures.push(...unavailableFailures(interfaceSource));
+/* Both sides, because an area can become available in either of them: the
+ * store shipped in PHP and in React at once, and reading only the components
+ * is how the first version of this check missed it. */
+async function sourcesUnder(directory, extension) {
+  return Promise.all(
+    (await readdir(join(root, directory))).filter((name) => name.endsWith(extension) && !name.includes('.test.'))
+      .map((name) => readFile(join(root, directory, name), 'utf8')),
+  );
+}
+const productSource = [
+  ...await sourcesUnder('src/components', '.tsx'),
+  ...await sourcesUnder('backend/src/Controller', '.php'),
+  ...await sourcesUnder('backend/src/Storage', '.php'),
+  await readFile(join(root, 'src/App.tsx'), 'utf8'),
+].join('\n');
+failures.push(...unavailableFailures(productSource));
 
 let files;
 try {

@@ -1,7 +1,7 @@
 import type { HelpTopic } from '../src/help/helpTopics';
 
 export interface GuideArea { id: string; title: string; topics: string[] }
-export interface UnavailableArea { id: string; title: string; reason: string; absentMarkers: string[] }
+export interface UnavailableArea { id: string; title: string; reason: string; absentMarkers?: string[]; stillPresent?: string[] }
 
 export const GUIDE_AREAS: GuideArea[];
 export const UNAVAILABLE_AREAS: UnavailableArea[];
