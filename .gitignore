@@ -14,6 +14,10 @@ coverage/
 /ci/results/
 /ci/gate-report.json
 /.ci-smoke-*
+# And the cross-browser stage's, for the same reason. Both are browser profiles
+# the gate creates and removes; a run that is interrupted between the two leaves
+# one behind, and it must not be mistaken for a project file.
+/.ci-matrix-*
 /.toolchains/
 # Symfony regenerates these on every boot; they are not project files.
 /backend/var/cache/
