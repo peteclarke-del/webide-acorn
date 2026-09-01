@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 188 |
-| Complete and traced | 122 |
-| Complete and described | 66 |
+| Complete | 196 |
+| Complete and traced | 124 |
+| Complete and described | 72 |
 | Complete and untraced | 0 |
-| Open | 106 |
+| Open | 98 |
 
 ## By area
 
@@ -43,7 +43,7 @@ is the part a machine can settle.
 | UX | 16 | 0 | 0 | 0 | 0 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
 | DOC | 10 | 9 | 7 | 2 | 0 |
-| DOD | 10 | 0 | 0 | 0 | 0 |
+| DOD | 10 | 8 | 2 | 6 | 0 |
 | EXP | 10 | 0 | 0 | 0 | 0 |
 | MED | 10 | 9 | 6 | 3 | 0 |
 | RSH | 10 | 9 | 8 | 1 | 0 |
@@ -193,6 +193,8 @@ None. Every completed requirement records how it was verified.
 | DOC-903 | Verify fresh-clone Docker Compose startup, migrations, seed-free… | a full lifecycle run against the built containers. Both services reached healthy from a clean start with no seed data and no migration step, `GET /healthz` returned 200 with `ok`, the workbench and the emulator frame… |
 | DOC-904 | Generate traceability report mapping all in-scope requirements to… | 12 contracts covering the requirement count against the backlog's own text, wrapped titles, an Evidence sub-item told apart from prose, part-counting on an open requirement, all four states including the refusal to… |
 | DOC-906 | Establish release/version/deprecation policy for APIs, schemas,… | 6 contracts covering the checked-in document matching the generator, every stated version being read from its defining module rather than transcribed, no surface left without a promise, the newer-document wording, the… |
+| DOD-002 | Unit, contract, integration, E2E, accessibility, security, and… | the gate report at `ci/gate-report.json`, written on every run with each stage's status and detail. |
+| DOD-010 | No unrelated user work is overwritten and no secret/private or… | 26 contracts in `backend/tests/Storage/ProjectStoreTest.php`, among them the stale-parent refusal, and 25 in `scripts/hygiene.test.ts` for what counts as firmware, a capture or a credential and why each allowlist entry… |
 
 ## Open requirements
 
@@ -294,13 +296,5 @@ None. Every completed requirement records how it was verified.
 | EXP-008 | Complete A4/A3010/A3020/A4000/A5000 tier. | not started |
 | EXP-009 | Complete Risc PC/A7000 tier without calling it Archimedes. | not started |
 | EXP-010 | Add additional toolchain dialects, media formats, expansion devices, trackers/codecs, and… | not started |
-| DOD-001 | Behavior and boundaries match linked requirements and accepted design. | not started |
-| DOD-002 | Unit, contract, integration, E2E, accessibility, security, and performance tests… | not started |
-| DOD-003 | Keyboard, screen-reader semantics, zoom/reflow, theme/contrast,… | not started |
-| DOD-004 | Authorization is server-enforced and sensitive action auditing/ redaction/retention is… | not started |
-| DOD-005 | Logs, metrics, traces, health, limits, cancellation, cleanup, upgrade, rollback/recovery,… | not started |
-| DOD-006 | Schemas/APIs include validation, compatibility, migrations, typed contracts, safe errors,… | not started |
-| DOD-007 | Third-party code/content/fixtures have version, licence, provenance, integrity, SBOM, and… | not started |
-| DOD-008 | Documentation and support/limitation matrices are updated. | not started |
-| DOD-009 | Requirement traceability and acceptance evidence are linked. | not started |
-| DOD-010 | No unrelated user work is overwritten and no secret/private or proprietary data is… | not started |
+| DOD-001 | Behavior and boundaries match linked requirements and accepted design. | 1 of 2 parts done |
+| DOD-004 | Authorization is server-enforced and sensitive action auditing/ redaction/retention is… | 1 of 2 parts done |

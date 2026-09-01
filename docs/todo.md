@@ -7955,22 +7955,114 @@ profile definition rather than reusing another target cosmetically.
 
 ## 13. Definition of done for every backlog item
 
-An item is complete only when, as applicable:
+An item is complete only when, as applicable. These are standing rules rather
+than deliverables, so what "done" means for one of them is that it is *enforced*
+— checked on every run of the gate rather than remembered by whoever is
+reviewing. Where a rule is enforced automatically it is ticked and says how;
+where it depends on something this build does not have, it is not.
 
 - [ ] DOD-001 Behavior and boundaries match linked requirements and accepted design.
-- [ ] DOD-002 Unit, contract, integration, E2E, accessibility, security, and
+  - [x] Every completed requirement records how it was verified, and a generated
+    report names any that does not: it currently names none.
+  - [ ] **"Accepted design" is the half that cannot be enforced.** Nothing has
+    been accepted, because acceptance is what GOV-001 asks for and has not
+    happened. Until it does, this checks behaviour against requirements and not
+    against an agreement.
+- [x] DOD-002 Unit, contract, integration, E2E, accessibility, security, and
   performance tests proportional to risk are automated and passing.
-- [ ] DOD-003 Keyboard, screen-reader semantics, zoom/reflow, theme/contrast,
+  - [x] Enforced by `npm run ci`, which is the single definition and which the
+    workflow calls rather than restating: TypeScript, the whole test suite
+    against coverage floors, the backend suite against the real assemblers,
+    PHPStan at level 8, a dependency scan that names what it does not scan, the
+    production build, provenance, hygiene, a browser smoke under the shipped
+    headers and a cross-browser stage. Performance is `docs/benchmarks.md`,
+    generated from real runs.
+  - [x] **No test may skip.** The gate fails if any test in either suite did not
+    run, and a stage that cannot run is reported as skipped and fails the gate
+    too, so a pipeline cannot drift into checking less than it believes it does.
+    That rule is what makes this enforceable rather than aspirational.
+  - [x] Evidence: the gate report at `ci/gate-report.json`, written on every run
+    with each stage's status and detail.
+- [x] DOD-003 Keyboard, screen-reader semantics, zoom/reflow, theme/contrast,
   loading/error/empty/offline/stale/permission/unsupported states are addressed.
+  - [x] Enforced by the `smoke` stage against the built application under its
+    shipped headers: nineteen workspaces scanned after a real build, reflow
+    clean at five widths down to 320 CSS pixels, five user conditions honoured,
+    and every drawing surface required to carry an alternative. A finding fails
+    the gate.
+  - [x] The honest states are a rule the code follows rather than a checklist
+    item: no fabricated registers, memory, runtime output or debug state, and an
+    unavailable capability is refused with the reason the core itself recorded.
 - [ ] DOD-004 Authorization is server-enforced and sensitive action auditing/
   redaction/retention is correct.
-- [ ] DOD-005 Logs, metrics, traces, health, limits, cancellation, cleanup,
+  - [x] Auditing, redaction and retention are done and enforced. There is one
+    writer of the structured log and one owner of the correlation identifier,
+    which is accepted only in a shape that could not carry anything else;
+    redaction is by construction rather than by stripping; source and ROM
+    contents never enter a log; and retention and deletion are stated in
+    `docs/security-and-privacy.md`.
+  - [ ] **There is no authorization to enforce.** One local identity, and
+    nothing proves who they are. This becomes checkable when CLD-800 and
+    CLD-801 exist, and claiming it now would describe a control that is absent.
+- [x] DOD-005 Logs, metrics, traces, health, limits, cancellation, cleanup,
   upgrade, rollback/recovery, and runbook impact are addressed.
-- [ ] DOD-006 Schemas/APIs include validation, compatibility, migrations, typed
+  - [x] Logs, metrics and traces are PLAT-204; health is the container's own
+    check; limits are published by the store and enforced at both the controller
+    and nginx; cancellation and cleanup are exercised under OPS-903 and OPS-904.
+  - [x] Recovery and the runbook are `docs/operations.md`, and the procedure is
+    performed on every run of the gate rather than described:
+    `backend/tests/Storage/StoreRecoveryTest.php` destroys a store and restores
+    it byte for byte, and `store:verify` exists so a restore can be stopped
+    before the service starts.
+- [x] DOD-006 Schemas/APIs include validation, compatibility, migrations, typed
   contracts, safe errors, and documentation.
-- [ ] DOD-007 Third-party code/content/fixtures have version, licence,
+  - [x] `api/openapi.json` is the contract rather than a description of one, and
+    both sides are checked against it — generated TypeScript clients here, and
+    the real routes and real answers driven through the real kernel in the
+    backend. No caller may spell a path itself, and a test fails the moment one
+    does.
+  - [x] The project document and the machine-profile manifest are versioned and
+    migrate forward, and a document from a newer build is refused by name rather
+    than parsed as though its missing fields were simply absent.
+  - [x] Errors are one declared shape, and writing that down found four real
+    defects rather than confirming what was believed.
+- [x] DOD-007 Third-party code/content/fixtures have version, licence,
   provenance, integrity, SBOM, and redistribution approval.
-- [ ] DOD-008 Documentation and support/limitation matrices are updated.
-- [ ] DOD-009 Requirement traceability and acceptance evidence are linked.
-- [ ] DOD-010 No unrelated user work is overwritten and no secret/private or
+  - [x] Enforced by the `provenance` and `security` stages: seven vendored-file
+    checksums, four copyleft components each shipping its licence and its
+    corresponding source, and a bill of materials in `docs/sbom.md`. The licence
+    obligation is derived from the inventory rather than from a list somebody
+    remembers to update, so a copyleft dependency added without its source fails
+    the gate.
+  - [x] Redistribution approval is answered by there being nothing to approve
+    for the one category that matters: no firmware or media image is in this
+    repository or the image, and the `hygiene` stage refuses one that is added.
+- [x] DOD-008 Documentation and support/limitation matrices are updated.
+  - [x] Enforced by generation. `docs/compatibility.md`, `docs/firmware.md`,
+    `docs/traceability.md`, `docs/benchmarks.md`, `docs/sbom.md`,
+    `docs/versioning-policy.md`, `docs/accessibility-conformance.md` and the
+    standalone user guides are all produced from the code and held to it by
+    contracts, so a matrix that stopped describing the product fails the gate
+    rather than quietly ageing.
+  - [x] The architecture document is held to naming every module directory that
+    exists and none that does not, and to linking only documents that exist.
+- [x] DOD-009 Requirement traceability and acceptance evidence are linked.
+  - [x] Enforced by the generated report, which counts this directly and lists
+    by name every completed requirement recording no verification. It found
+    thirty-five when it was first written and names none today. A tick added
+    without evidence appears in the next report rather than passing unnoticed,
+    and the report's own contract runs in the gate.
+- [x] DOD-010 No unrelated user work is overwritten and no secret/private or
   proprietary data is introduced.
+  - [x] Not overwriting is enforced in the store rather than by care: a commit
+    names the revision it was written against and a stale parent is refused, so
+    a second writer is told rather than silently losing the first.
+  - [x] Nothing proprietary is introduced, and it is checked rather than
+    intended: the `hygiene` stage scans every tracked file and every built file
+    for firmware, captures and credentials, and the one time scratch files from
+    a browser profile were committed by accident, they were removed and the
+    directory ignored the way its sibling already was.
+  - [x] Evidence: 26 contracts in `backend/tests/Storage/ProjectStoreTest.php`,
+    among them the stale-parent refusal, and 25 in `scripts/hygiene.test.ts` for
+    what counts as firmware, a capture or a credential and why each allowlist
+    entry exists.
