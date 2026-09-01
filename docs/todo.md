@@ -6939,6 +6939,47 @@ Current implemented increment:
 - [ ] A11Y-903 Test current/previous major Chromium, Firefox, and Safari including
   file system, audio, WebAssembly, workers, full-screen, clipboard, gamepad,
   storage quota, and fallback paths (NFR-010).
+  - [x] **A second engine now starts the workbench in the gate, which is the
+    part that was missing.** The release gate has always driven one browser,
+    which proves the build works in Chromium and says nothing about anywhere
+    else. A `browsers` stage now loads the built workbench in every engine the
+    machine can start — Chromium over the DevTools protocol, Firefox over
+    WebDriver through geckodriver — and both are measured with the same two
+    probes rather than two separately written checks that could disagree.
+  - [x] The rules are separated from the business of starting a browser, so the
+    part that decides pass or fail runs everywhere. A browser that mounts
+    nothing, renders too little to have finished starting, reports an uncaught
+    error, an unhandled rejection or a policy violation, or lacks WebAssembly,
+    workers, IndexedDB, WebGL or `structuredClone` is a failure. Every other
+    capability is recorded rather than required, because a capability one
+    browser lacks is a fact about the web and not a defect in this build.
+  - [x] **The error collector runs under the shipped policy, which is the point
+    rather than an inconvenience.** It is served as a file and loaded before the
+    application, because the policy forbids inline script — and a collector the
+    policy would have blocked could not report the policy blocking anything
+    else. It is what lets a run distinguish "the workbench did not start" from
+    "the workbench started and threw", which an empty document alone cannot.
+  - [x] Evidence: the stage runs and passes on both engines. Chromium
+    152.0.7977.64 and Firefox 154.0.1 each render 171 controls and 28 landmarks
+    of the real workbench with no error, rejection or policy violation. The one
+    difference the probe found is real and already handled: Firefox has no File
+    System Access API and no WebGPU, and the folder importer already reports
+    that in words rather than offering a control that would fail. 13 contracts
+    in `scripts/browserMatrix.test.ts` cover the rules themselves.
+  - [x] Every engine that was not measured is named in the stage's own output
+    with the reason, so a run on a machine with one browser reads as a run that
+    checked one browser rather than as a clean cross-browser result.
+  - [ ] **Safari is not measured and nothing is substituted for it.** No Safari
+    engine runs on this platform, and reporting Chromium's answers under
+    Safari's name would be exactly the claim this product refuses to make. That
+    needs a macOS or iOS runner, which is a decision about infrastructure rather
+    than work here.
+  - [ ] The previous major of each engine is not measured either: the gate uses
+    the browser the machine has. That needs pinned browser builds in the runner
+    image, which is the same infrastructure decision.
+  - [ ] Full-screen, gamepad and the clipboard are probed for presence but not
+    exercised, and the emulator runtime pages are not yet loaded in the second
+    engine — only the workbench is. Those are work rather than infrastructure.
 
 ### 11.4 Documentation and release evidence
 

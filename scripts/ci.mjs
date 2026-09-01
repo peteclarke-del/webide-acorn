@@ -725,6 +725,179 @@ await stage('smoke', async () => {
   }
 });
 
+await stage('browsers', async () => {
+  /*
+   * The workbench, started in every browser the gate can start.
+   *
+   * The smoke stage above drives one browser deeply. This one drives every
+   * available engine shallowly, because those are different questions: the
+   * first asks whether the product works, and this asks whether "works" is
+   * true anywhere other than where it was developed. The answers are compared,
+   * so a capability one browser lacks is recorded as a fact about the web
+   * rather than reported as a defect in this build.
+   *
+   * Safari is not measured and no engine is substituted for it. It does not run
+   * on this platform, and reporting Chromium's answers under Safari's name is
+   * exactly the claim this product refuses to make.
+   */
+  const { COLLECTOR_SOURCE, PAGE_PROBE, matrixFindings, matrixSummary } = await import('./browserMatrix.mjs');
+  const chromium = await firstExisting(CHROMIUM_CANDIDATES);
+  const geckodriver = await firstExisting(env.GECKODRIVER_PATH ? [env.GECKODRIVER_PATH] : ['/usr/bin/geckodriver', '/snap/bin/geckodriver', '/usr/local/bin/geckodriver']);
+  if (!chromium && !geckodriver) return { skipped: true, reason: 'no browser could be started; set CHROMIUM_PATH or GECKODRIVER_PATH' };
+
+  const port = Number(env.CI_MATRIX_PORT ?? 8139);
+  const dist = join(root, 'dist');
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.wasm': 'application/wasm' };
+  const { headerPairs } = await import('./securityHeaders.mjs');
+  const securityHeaders = headerPairs(await readFile(join(root, 'docker', 'security-headers.conf'), 'utf8'));
+
+  /*
+   * The collector is served as a file and injected as a `<script src>` rather
+   * than inline, because the shipped policy forbids inline script and this run
+   * is under that policy. That constraint is the point: a collector the policy
+   * would have blocked could not report the policy blocking anything else.
+   */
+  const indexHtml = (await readFile(join(dist, 'index.html'), 'utf8'))
+    .replace('</head>', '<script src="/ci-collector.js"></script></head>');
+
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? '/', 'http://x');
+    for (const [name, value] of securityHeaders) response.setHeader(name, value);
+    if (url.pathname === '/ci-collector.js') {
+      response.setHeader('Content-Type', 'text/javascript');
+      response.end(COLLECTOR_SOURCE);
+      return;
+    }
+    const sendIndex = () => { response.setHeader('Content-Type', 'text/html'); response.end(indexHtml); };
+    if (url.pathname === '/' || url.pathname === '/index.html') { sendIndex(); return; }
+    const path = join(dist, normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, ''));
+    const stream = createReadStream(path);
+    stream.once('open', () => {
+      response.setHeader('Content-Type', types[extname(path)] ?? 'application/octet-stream');
+      response.setHeader('Service-Worker-Allowed', '/');
+      stream.pipe(response);
+    });
+    stream.once('error', sendIndex);
+  });
+  await new Promise((ready, failed) => { server.once('error', failed); server.listen(port, '127.0.0.1', ready); });
+  const target = `http://127.0.0.1:${port}/`;
+  const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const results = [];
+  const started = [];
+  try {
+    if (geckodriver) results.push(await measureFirefox(geckodriver, target, PAGE_PROBE, started, delay));
+    if (chromium) results.push(await measureChromium(chromium, target, PAGE_PROBE, started, delay));
+    const findings = matrixFindings(results);
+    if (findings.length) throw new Error(`${findings.length} browser finding(s): ${findings.slice(0, 4).join(' | ')}`);
+    /* Every engine that was not measured is named with the reason, so a run on
+     * a machine with one browser reads as a run that checked one browser rather
+     * than as a clean cross-browser result. */
+    const absent = [
+      ...(geckodriver ? [] : ['Firefox (no geckodriver; set GECKODRIVER_PATH)']),
+      ...(chromium ? [] : ['Chromium (no binary; set CHROMIUM_PATH)']),
+      'Safari (no engine for it on this platform, and none is substituted)',
+    ];
+    return { detail: `${results.length} engine${results.length === 1 ? '' : 's'} started the workbench · ${matrixSummary(results).join(' · ')} · not measured: ${absent.join(', ')}` };
+  } finally {
+    for (const stop of started.reverse()) await stop().catch(() => undefined);
+    await new Promise((closed) => server.close(closed));
+  }
+});
+
+/** Firefox, over WebDriver, which is the protocol geckodriver speaks. */
+async function measureFirefox(geckodriver, target, probe, started, delay) {
+  const port = Number(env.CI_MATRIX_GECKO_PORT ?? 4546);
+  const driver = spawn(geckodriver, ['--host', '127.0.0.1', '--port', String(port)], { stdio: ['ignore', 'ignore', 'ignore'] });
+  started.push(async () => { if (driver.exitCode === null) driver.kill('SIGTERM'); });
+  const base = `http://127.0.0.1:${port}`;
+  const ready = await waitFor(async () => (await fetch(`${base}/status`).then((r) => r.json())).value?.ready, 'geckodriver', 20_000, delay);
+  if (!ready) throw new Error('geckodriver never became ready');
+  const call = async (method, path, body) => {
+    const response = await fetch(`${base}${path}`, { method, ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
+    const json = await response.json();
+    if (json.value?.error) throw new Error(`Firefox ${json.value.error}: ${String(json.value.message).split('\n')[0]}`);
+    return json.value;
+  };
+  const session = await call('POST', '/session', { capabilities: { alwaysMatch: { browserName: 'firefox', 'moz:firefoxOptions': { args: ['-headless'] } } } });
+  const id = session.sessionId;
+  started.push(async () => { await call('DELETE', `/session/${id}`).catch(() => undefined); });
+  await call('POST', `/session/${id}/url`, { url: target });
+  const page = await waitFor(async () => {
+    const answer = JSON.parse(await call('POST', `/session/${id}/execute/sync`, { script: `return ${probe}`, args: [] }));
+    return answer.rootChildren > 0 ? answer : null;
+  }, 'the workbench in Firefox', 60_000, delay);
+  return { browser: 'Firefox', version: session.capabilities?.browserVersion ?? 'unknown', page };
+}
+
+/** Chromium, over the DevTools protocol, which is what it speaks. */
+async function measureChromium(chromium, target, probe, started, delay) {
+  const port = Number(env.CI_MATRIX_DEVTOOLS_PORT ?? 9139);
+  const userDataDir = join(root, `.ci-matrix-${port}`);
+  await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
+  const browser = spawn(chromium, [
+    '--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu',
+    '--remote-allow-origins=*', '--remote-debugging-address=127.0.0.1',
+    `--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`, 'about:blank',
+  ], { stdio: ['ignore', 'ignore', 'ignore'] });
+  let socket = null;
+  started.push(async () => {
+    socket?.close();
+    if (browser.exitCode === null) {
+      await new Promise((exited) => {
+        const escalate = setTimeout(() => browser.kill('SIGKILL'), 5_000);
+        browser.once('exit', () => { clearTimeout(escalate); exited(); });
+        browser.kill('SIGTERM');
+      });
+    }
+    await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
+  });
+  const endpoint = await waitFor(async () => (await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json())).webSocketDebuggerUrl, 'Chromium DevTools', 30_000, delay);
+  socket = new WebSocket(endpoint);
+  await new Promise((open, failed) => { socket.addEventListener('open', open); socket.addEventListener('error', failed); });
+  let nextId = 0;
+  const pending = new Map();
+  socket.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data);
+    if (message.id !== undefined) { pending.get(message.id)?.(message); pending.delete(message.id); }
+  });
+  /* Resolves with the command's own result, and turns a protocol error into an
+   * exception rather than an undefined the caller trips over later. */
+  const call = (method, params = {}, sessionId) => new Promise((done, failed) => {
+    const id = ++nextId;
+    pending.set(id, (message) => {
+      if (message.error) { failed(new Error(`${method}: ${message.error.message}`)); return; }
+      done(message.result ?? {});
+    });
+    socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+  });
+  const { targetInfos } = await call('Target.getTargets');
+  const page = targetInfos.find((info) => info.type === 'page');
+  const { sessionId } = await call('Target.attachToTarget', { targetId: page.targetId, flatten: true });
+  await call('Page.enable', {}, sessionId);
+  await call('Runtime.enable', {}, sessionId);
+  await call('Page.navigate', { url: target }, sessionId);
+  const answer = await waitFor(async () => {
+    const result = await call('Runtime.evaluate', { expression: probe, returnByValue: true, awaitPromise: true }, sessionId);
+    const value = result.result?.value;
+    if (!value) return null;
+    const parsed = JSON.parse(value);
+    return parsed.rootChildren > 0 ? parsed : null;
+  }, 'the workbench in Chromium', 60_000, delay);
+  const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
+  return { browser: 'Chromium', version: (version.Browser ?? 'unknown').replace(/^.*\//, ''), page: answer };
+}
+
+async function waitFor(op, what, limit, delay) {
+  const deadline = Date.now() + limit;
+  let last;
+  while (Date.now() < deadline) {
+    try { const value = await op(); if (value) return value; } catch (error) { last = error; }
+    await delay(250);
+  }
+  throw new Error(`${what} timed out${last ? `: ${last.message}` : ''}`);
+}
+
 /* ---- verdict -------------------------------------------------------------- */
 
 /* A filter that matches nothing must not read as a pass. */

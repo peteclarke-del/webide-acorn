@@ -285,7 +285,7 @@ are listed rather than quietly counted.
 | A11Y-900 | Complete automated and manual WCAG 2.2 AA audit of J-01–J-08 in dark/light/high-contrast,… | not started |
 | A11Y-901 | Resolve all A/AA blockers and document any AAA enhancements. | not started |
 | A11Y-902 | Verify structured alternatives for graphics, map, waveform, memory, trace, profiler, and… | 5 of 6 parts done |
-| A11Y-903 | Test current/previous major Chromium, Firefox, and Safari including file system, audio,… | not started |
+| A11Y-903 | Test current/previous major Chromium, Firefox, and Safari including file system, audio,… | 5 of 8 parts done |
 | DOC-905 | Demonstrate J-01–J-08 and ACC-001–ACC-007 to stakeholders and capture acceptance. | not started |
 | RELEASE-GATE | All applicable acceptance criteria in Section 23 of the specification pass; no… | not started |
 | EXP-001 | Complete remaining BBC Model A/B controller/regional profiles. | not started |
