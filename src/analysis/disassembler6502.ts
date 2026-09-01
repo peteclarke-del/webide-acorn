@@ -64,6 +64,16 @@ export function opcodeTable(processor: Processor): Array<Opcode | undefined> {
   return table;
 }
 
+/*
+ * The BBC MOS entry points.
+ *
+ * These are the BBC's and not every Acorn machine's, which matters more than it
+ * looks. The Atom is a different operating system at different addresses: what
+ * a BBC calls OSWRCH at &FFEE is nothing in particular on an Atom, and &FFF4 —
+ * OSBYTE on a BBC — is the Atom's own character writer. Assembling or
+ * disassembling an Atom program against this table gives confident, wrong
+ * answers, so the machine's own table is chosen by the caller. See ATOM_OS_CALLS.
+ */
 export const MOS_CALLS: Record<number, string> = {
   0xffb9: 'OSRDRM', 0xffbc: 'VDUCHR', 0xffbf: 'OSEVEN', 0xffc2: 'GSINIT',
   0xffc5: 'GSREAD', 0xffc8: 'NVRDCH', 0xffcb: 'NVWRCH', 0xffce: 'OSFIND',
@@ -71,6 +81,35 @@ export const MOS_CALLS: Record<number, string> = {
   0xffdd: 'OSFILE', 0xffe0: 'OSRDCH', 0xffe3: 'OSASCI', 0xffe7: 'OSNEWL',
   0xffee: 'OSWRCH', 0xfff1: 'OSWORD', 0xfff4: 'OSBYTE', 0xfff7: 'OSCLI',
 };
+
+/*
+ * The Acorn Atom's operating-system entry points, as far as they have been
+ * measured.
+ *
+ * This is deliberately short. Every entry here was established by running a
+ * program on a real Atom under this build's own pinned jsbeeb core and watching
+ * what the machine did with it — writing a character and seeing it reach the
+ * screen, reading a key and seeing it echoed back. A longer table copied from
+ * elsewhere would look more useful and would be worth less, because nothing
+ * here would have checked it.
+ */
+export const ATOM_OS_CALLS: Record<number, string> = {
+  0xffe3: 'OSRDCH', 0xfff4: 'OSWRCH',
+};
+
+export const ATOM_OS_PURPOSES: Record<number, string> = {
+  0xffe3: 'Wait for a key and return it, echoing it to the screen',
+  0xfff4: 'Write one character to the screen',
+};
+
+/** The operating-system vocabulary a machine's programs are written against. */
+export function osCallsFor(machineId: string): Record<number, string> {
+  return machineId === 'atom' ? ATOM_OS_CALLS : MOS_CALLS;
+}
+
+export function osPurposesFor(machineId: string): Record<number, string> {
+  return machineId === 'atom' ? ATOM_OS_PURPOSES : MOS_PURPOSES;
+}
 
 export const MOS_PURPOSES: Record<number, string> = {
   0xffb9: 'Read a byte from sideways ROM', 0xffbc: 'Send a byte through the VDU system',

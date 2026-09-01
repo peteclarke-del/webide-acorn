@@ -381,10 +381,29 @@
       core._free(buffer);
     }
     const entry = payload.entryPoint & 0xffff;
-    call('elk_webide_set_register', REGISTER.pc, entry);
     loadedProgram = { origin, entryPoint: entry, bytes: bytes.length, programManifest };
-    if (payload.autorun !== false) call('elk_webide_resume');
-    send({ type: 'program-loaded', format: '6502 machine code', size: bytes.length, address: origin, entryPoint: entry, programManifest });
+    if (payload.autorun === false) {
+      /* Loaded for the debugger: the program counter is moved to the entry
+       * point and the machine left standing there, which is what stepping and
+       * breakpoints are written against. */
+      call('elk_webide_set_register', REGISTER.pc, entry);
+    } else {
+      /*
+       * Run it the way a person would, by asking BASIC to call it.
+       *
+       * Moving the program counter into a loaded program looks equivalent and
+       * is not: it abandons whatever the operating system was in the middle of,
+       * with a stack that no longer describes how to get back. On this machine
+       * a program launched that way prints correctly until it makes a blocking
+       * OS call — and then the screen clears and the machine ends up back in
+       * ROM, with nothing to say why. Entered through CALL, the same program
+       * prints, waits for its key, returns, and leaves BASIC working. That was
+       * measured both ways.
+       */
+      call('elk_webide_resume');
+      tapKeys(`CALL &${entry.toString(16).toUpperCase().padStart(4, '0')}\n`);
+    }
+    send({ type: 'program-loaded', format: '6502 machine code', size: bytes.length, address: origin, entryPoint: entry, autorun: payload.autorun !== false, programManifest });
     snapshot('program loaded');
   }
 

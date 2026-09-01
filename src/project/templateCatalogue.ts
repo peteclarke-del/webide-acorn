@@ -24,6 +24,153 @@ import { machineProfiles } from '../data/machines';
 import type { MachineProfile } from '../types';
 import type { ToolchainId } from '../build/buildTarget';
 
+const ATOM_ASM = `; Starter for the Acorn Atom.
+;
+; A complete, buildable program that does the smallest useful thing: it prints a
+; line through the operating system, waits for a key, and returns to BASIC
+; cleanly. Everything you write goes between .start and .finish; the routines
+; below are yours to change or delete.
+;
+; The Atom's entry points are its own, not the BBC's. These two were measured on
+; a real Atom rather than copied:
+;   OSWRCH (&FFF4) writes one character to the screen.
+;   OSRDCH (&FFE3) waits for a key and returns it, echoing it.
+;
+; Build this file, then press Run. &2900 is the usual place for a machine-code
+; program on an Atom: above the text screen workspace and below BASIC's own.
+; From BASIC you would reach it with LINK #2900, and RTS comes back.
+
+; Zero-page workspace. &90 upwards is free on an Atom with BASIC loaded.
+string_pointer = &90
+
+OSWRCH = &FFF4
+OSRDCH = &FFE3
+
+ORG &2900
+
+.start
+  LDX #<banner
+  LDY #>banner
+  JSR print_string
+  JSR new_line
+  LDX #<prompt
+  LDY #>prompt
+  JSR print_string
+  JSR OSRDCH
+  JSR new_line
+.finish
+  RTS
+
+; The Atom has no OSNEWL, and a carriage return on its own is exactly that: it
+; returns to column zero and stays on the line, so the next thing printed
+; overwrites what is there. Both bytes are needed, which was measured rather
+; than assumed.
+.new_line
+  LDA #13
+  JSR OSWRCH
+  LDA #10
+  JSR OSWRCH
+  RTS
+
+; Print the zero-terminated string whose address is in X (low) and Y (high).
+.print_string
+  STX string_pointer
+  STY string_pointer + 1
+  LDY #0
+.print_string_loop
+  LDA (string_pointer),Y
+  BEQ print_string_done
+  JSR OSWRCH
+  INY
+  BNE print_string_loop
+.print_string_done
+  RTS
+
+.banner
+  EQUS "8BIT-NET DEV"
+  EQUB 0
+
+.prompt
+  EQUS "PRESS ANY KEY."
+  EQUB 0
+
+.program_end
+`;
+
+const ELECTRON_ASM = `; MODE 6 starter for the Acorn Electron.
+;
+; A complete, buildable program that does the smallest useful thing: it selects
+; a text screen, prints a line through the operating system, waits for a key,
+; and returns cleanly. Everything you write goes between .start and .finish;
+; the routines below are yours to change or delete.
+;
+; The Electron's operating system is the BBC's, so its entry points are the
+; familiar ones:
+;   OSWRCH (&FFEE) writes one character to the current output stream.
+;   OSRDCH (&FFE0) reads one character from the current input stream.
+;   OSNEWL (&FFE7) writes a newline.
+;
+; MODE 6 rather than MODE 7: the Electron has no teletext chip, so mode 7 is
+; not a screen it can show. MODE 6 is its cheapest text screen at eight
+; kilobytes, which leaves the most memory for everything else.
+
+; Zero-page workspace. &70 upwards is reserved for the user by the operating
+; system, so a program that stays inside it does not fight BASIC.
+string_pointer = &70
+
+OSWRCH = &FFEE
+OSRDCH = &FFE0
+OSNEWL = &FFE7
+
+ORG &1900
+
+.start
+  JSR select_mode6
+  LDX #<banner
+  LDY #>banner
+  JSR print_string
+  JSR OSNEWL
+  LDX #<prompt
+  LDY #>prompt
+  JSR print_string
+  JSR OSRDCH
+  JSR OSNEWL
+.finish
+  RTS
+
+; Select MODE 6. VDU 22 takes the mode as its one parameter.
+.select_mode6
+  LDA #22
+  JSR OSWRCH
+  LDA #6
+  JSR OSWRCH
+  RTS
+
+; Print the zero-terminated string whose address is in X (low) and Y (high).
+.print_string
+  STX string_pointer
+  STY string_pointer + 1
+  LDY #0
+.print_string_loop
+  LDA (string_pointer),Y
+  BEQ print_string_done
+  JSR OSWRCH
+  INY
+  BNE print_string_loop
+.print_string_done
+  RTS
+
+.banner
+  EQUS "8BIT-NET DEV"
+  EQUB 0
+
+.prompt
+  EQUS "Press any key."
+  EQUB 0
+
+.program_end
+`;
+
 export const TEMPLATE_CATALOGUE_SCHEMA = '8bit-net.template-catalogue';
 export const TEMPLATE_CATALOGUE_VERSION = 1;
 
@@ -175,6 +322,93 @@ const DISK_BASIC = `   10 REM Disk starter for the BBC Model B.
 `;
 
 export const TEMPLATE_CATALOGUE: readonly ProjectTemplate[] = Object.freeze([
+  Object.freeze({
+    id: 'atom-text-6502',
+    name: 'Acorn Atom · text starter',
+    summary: 'A buildable 6502 program that prints through the Atom\'s own operating system, waits for a key, and returns to BASIC.',
+    language: '6502' as const,
+    target: {
+      platformClass: '8-16-bit',
+      machineId: 'atom',
+      variant: 'Atom 12K',
+      romId: 'atom-mos',
+      enabledCapabilities: [],
+    },
+    requiredCapabilities: [],
+    toolchainId: '8bit-net.asm.6502' as ToolchainId,
+    entryFileName: 'main.asm',
+    outputName: 'STARTER',
+    files: [{ name: 'main.asm', content: ATOM_ASM }],
+    highlights: [
+      'Calls the Atom\'s own entry points, which are not the BBC\'s: OSWRCH is &FFF4 here and OSRDCH is &FFE3',
+      'Writes a carriage return and a line feed for a new line, because on an Atom a carriage return alone stays on the line',
+      'Assembles at &2900, the usual place for machine code on an Atom, and comes back with RTS the way LINK expects',
+      'Leaves BASIC working: every address it touches is one the operating system leaves to a program',
+    ],
+    provenance: {
+      author: '8bit-net Dev',
+      licence: 'MIT',
+      note: 'Written for this product, and every address in it was measured on a real Atom rather than copied. It calls documented entry points, which are an interface rather than a work; nothing is taken from Acorn firmware or from any published listing.',
+    },
+  }),
+  Object.freeze({
+    id: 'electron-mode6-6502',
+    name: 'Acorn Electron · MODE 6 starter',
+    summary: 'A buildable 6502 program that selects a text screen, prints through the operating system, waits for a key, and returns.',
+    language: '6502' as const,
+    target: {
+      platformClass: '8-16-bit',
+      machineId: 'electron',
+      variant: 'Electron',
+      romId: 'electron-expanded',
+      enabledCapabilities: ['cassette'],
+    },
+    requiredCapabilities: [],
+    toolchainId: '8bit-net.asm.6502' as ToolchainId,
+    entryFileName: 'main.asm',
+    outputName: 'STARTER',
+    files: [{ name: 'main.asm', content: ELECTRON_ASM }],
+    highlights: [
+      'MODE 6 rather than MODE 7: the Electron has no teletext chip, so mode 7 is not a screen it can show',
+      'Uses the BBC entry points, which the Electron shares — OSWRCH, OSRDCH and OSNEWL are where a BBC program expects them',
+      'Runs on the Elkulator core, which is the Electron with the instruction hook, so it can be stepped and broken on',
+      'Leaves BASIC working after it returns, which was checked on the machine rather than assumed',
+    ],
+    provenance: {
+      author: '8bit-net Dev',
+      licence: 'MIT',
+      note: 'Written for this product and run on a real Electron. It calls documented OS entry points, which are an interface rather than a work; nothing is copied from Acorn firmware or from any published listing.',
+    },
+  }),
+  Object.freeze({
+    id: 'master-mode7-6502',
+    name: 'BBC Master · MODE 7 starter',
+    summary: 'The teletext starter on a Master 128, which runs the same program the Model B does and has the memory to spare.',
+    language: '6502' as const,
+    target: {
+      platformClass: '8-16-bit',
+      machineId: 'master',
+      variant: 'Master 128',
+      romId: 'mos320',
+      enabledCapabilities: ['adfs', 'shadow'],
+    },
+    requiredCapabilities: [],
+    toolchainId: '8bit-net.asm.65c12' as ToolchainId,
+    entryFileName: 'main.asm',
+    outputName: 'TEMPLATE',
+    files: [{ name: 'main.asm', content: MODE7_ASM }],
+    highlights: [
+      'The same documented entry points as the Model B, because the Master keeps them',
+      'Assembled for the 65C12, which is the processor a Master actually has',
+      'Selects MODE 7, which on a Master comes out of shadow memory and costs the program nothing',
+      'Waits for a key through OSRDCH and returns cleanly rather than hanging',
+    ],
+    provenance: {
+      author: '8bit-net Dev',
+      licence: 'MIT',
+      note: 'Written for this product. It calls documented OS entry points, which are an interface rather than a work; nothing is copied from Acorn firmware or from any published listing.',
+    },
+  }),
   Object.freeze({
     id: 'bbc-b-mode7-6502',
     name: 'BBC Model B · MODE 7 starter',

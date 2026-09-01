@@ -7968,6 +7968,7 @@ the whole line on one machine without leaving the workbench.
 | --- | --- | --- | --- | --- | --- |
 | Project and firmware | yes | yes | yes | **no ROM set** | MOS 3.20 only |
 | Author 6502 source | yes | yes | yes | yes | yes |
+| Start from a template | yes | yes | yes | no | yes |
 | Author graphics | yes | yes | yes | yes | yes |
 | Author sound | yes | yes | yes | yes | yes |
 | Build | yes | yes | yes | yes | yes |
@@ -8070,6 +8071,26 @@ the whole line on one machine without leaving the workbench.
   fail on any console error, policy violation or refusal that is not expected.
   That is what "smoothly, with no crashes or errors" has to mean if it is to be
   checked rather than asserted.
+
+  Started, and already worth it. Walking the line by hand found three defects
+  that every existing test passed through:
+
+  - The assembler seeded the **BBC MOS** vocabulary for every machine. An Atom
+    program calling `OSWRCH` assembled to &FFEE, which is nothing in particular
+    on an Atom, and an Atom listing opening with `OSWRCH = &FFF4` — as they all
+    do — was rejected for contradicting a fact the assembler had no business
+    assuming. The vocabulary is now the machine's, threaded from the build
+    target, and the Atom's two entry points were measured on the machine.
+  - Four of the five machines had **no starter template at all**: the catalogue
+    held two, both for the Model B. There is now one for the Atom, the Electron
+    and the Master, each run on its own machine and each leaving BASIC working
+    afterwards.
+  - The Electron's **Run** was broken in a way nothing would have reported.
+    Loading a program set the program counter, which abandons whatever the
+    operating system was doing; the program printed until it made a blocking OS
+    call and then the screen cleared and the machine ended in ROM. It is now
+    called the way a person would call it, and the same program prints, waits,
+    returns, and leaves BASIC working.
 
 ## 13. Definition of done for every backlog item
 

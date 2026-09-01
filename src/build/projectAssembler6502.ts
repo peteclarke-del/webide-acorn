@@ -8,7 +8,16 @@ import { generateScreenOutput, parseScreenDocument } from '../assets/screenDocum
 import { generateSongOutput, parseSongDocument } from '../assets/songDocument';
 
 export interface AssemblySourceFile { id: string; name: string; content: string }
-export interface ProjectAssemblyOptions { defaultOrigin?: number; maximumAddress?: number; defines?: Record<string, number>; sourceFileIds?: string[] }
+export interface ProjectAssemblyOptions {
+  defaultOrigin?: number;
+  maximumAddress?: number;
+  defines?: Record<string, number>;
+  sourceFileIds?: string[];
+  /* Which machine's operating-system vocabulary the source is written against.
+   * The Atom's entry points are not the BBC's, and assembling against the wrong
+   * table produces a program that builds and calls the wrong addresses. */
+  machineId?: string;
+}
 
 const MAX_EXPANDED_CHARACTERS = 2 * 1024 * 1024;
 const MAX_EXPANDED_LINES = 100_000;
@@ -159,7 +168,7 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
     if (!pushLine(`; source unit ${sourceUnit.name}`, { fileId: sourceUnit.id, fileName: sourceUnit.name, line: 1 })) break;
     expand(sourceUnit, []);
   }
-  const artifact = assemble6502(lines.join('\n'), processor, options.defaultOrigin ?? 0x1900, options.defines);
+  const artifact = assemble6502(lines.join('\n'), processor, options.defaultOrigin ?? 0x1900, options.defines, options.machineId);
   const mappedDiagnostics = artifact.diagnostics.map((item) => {
     const location = locations[item.line - 1];
     return location ? { ...item, line: location.line, fileId: location.fileId, fileName: location.fileName } : item;

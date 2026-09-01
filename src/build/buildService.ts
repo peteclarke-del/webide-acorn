@@ -107,7 +107,7 @@ function executeSingleBuild(request: BuildRequest, dependencyInputIds = new Set<
   if (!file) throw buildExecutionError(request, 'invalid-configuration', 'The selected build target has no entry file', started);
 
   let built: AdapterArtifact;
-  try { built = invokeBrowserToolchain({ target, entry: file, files }); }
+  try { built = invokeBrowserToolchain({ target, entry: file, files, machineId: machineTarget.machineId }); }
   catch (error) {
     if (error instanceof BuildExecutionError) throw error;
     throw buildExecutionError(request, 'adapter-failure', error instanceof Error ? error.message : String(error), started);
