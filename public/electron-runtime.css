@@ -2,8 +2,10 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: #0b0d0b; color: #cfd6cf; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 main { display: grid; gap: 8px; padding: 8px; }
-#screen { width: 100%; max-width: 820px; image-rendering: pixelated; background: #000; border: 1px solid #314030; border-radius: 4px; }
-#screen:focus-visible { outline: 2px solid #f2c14e; outline-offset: 2px; }
+/* The Elkulator page must name its canvas "canvas": that is the selector
+   Allegro's SDL backend looks it up by. Both pages are styled the same. */
+#screen, #canvas { width: 100%; max-width: 820px; image-rendering: pixelated; background: #000; border: 1px solid #314030; border-radius: 4px; }
+#screen:focus-visible, #canvas:focus-visible { outline: 2px solid #f2c14e; outline-offset: 2px; }
 #runtime-status { color: #9fb79f; }
 #runtime-status[data-state="error"] { color: #f08a7a; }
 #runtime-status[data-state="pending"] { color: #e6c86e; }

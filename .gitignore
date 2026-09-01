@@ -32,6 +32,11 @@ coverage/
 # output, not source, and must not be committed.
 /public/arculator/
 
+# The Elkulator WASM core is built the same way, from the recipe in
+# docker/elkulator, and copied into the image. A copy extracted here for a local
+# Electron run is a build output, not source.
+/public/elkulator/
+
 # Emulator sources cloned for investigation belong in a scratch directory, not
 # in the repository. One landed here when a `cd` to the scratchpad failed and
 # the clone ran from the working tree instead.

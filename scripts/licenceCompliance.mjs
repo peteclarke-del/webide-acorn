@@ -29,6 +29,17 @@ export const COPYLEFT_COMPONENTS = Object.freeze([
     source: 'source/elkjs-upstream-source.tar',
   }),
   Object.freeze({
+    id: 'elkulator',
+    /* Upstream has no licence file at all: the README points at COPYING, but it
+     * was an autotools symlink deleted in commit 54b1bae. The source headers
+     * settle the version — GPL 3 or later in socket.c and serial.c, 2 or later
+     * in the imported fdi2raw.c — so the text is supplied by the image rather
+     * than copied from a fork that does not carry it. */
+    what: 'The second Acorn Electron core, built from pinned upstream source; the one with a per-instruction hook.',
+    licence: 'licenses/elkulator-COPYING.txt',
+    source: 'source/elkulator-upstream-source.tar',
+  }),
+  Object.freeze({
     id: 'arculator-wasm',
     what: 'The Archimedes A310 core, built from pinned upstream source.',
     licence: 'licenses/arculator-wasm-COPYING.txt',

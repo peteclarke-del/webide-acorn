@@ -163,14 +163,86 @@ anything, rather than zero being reported as though nothing had executed. And a
 step resumed the machine and never stopped it, for the same reason: it now arms
 the hook it depends on.
 
+## The runtime page and the adapter
+
+`public/elkulator.html` drives this core over the same envelope the workbench
+already speaks, and `src/emulator/elkulatorAdapter.ts` classifies all
+fifty-seven commands the emulator panel can emit: sixteen capabilities offered,
+twenty refused with a reason. Where the ElkJS adapter has to refuse stepping,
+breakpoints, register writing, key injection and stop-address tests, this one
+offers them.
+
+The refusals are of two kinds and both are said plainly, because "this core
+cannot" and "this build does not" are different promises. The Electron has no
+Tube; Elkulator's memory access has no hook to hang a watchpoint on. But
+tracing, profiling and save-state are absent because the bridge deliberately
+does not carry them, however capable the emulator underneath is.
+
+Capturing the screen needed a decision rather than a call. A WebGL canvas
+discards its drawing buffer at the end of every frame unless asked not to, and
+SDL creates the context, so the page forces `preserveDrawingBuffer` before
+anything can create one. It costs a copy per frame and buys a capture that is
+the machine's picture rather than a black rectangle.
+
+The canvas is called `canvas` and not something more descriptive because that is
+the selector Allegro's SDL backend looks it up by. A canvas named anything else
+is simply not the one the emulator renders into, which fails as a null
+`addEventListener` deep inside SDL rather than as anything that names the cause.
+
+### What a run of it showed
+
+A headless Chromium run drove the shipped page in an iframe over its own message
+channel, under the exact content security policy the image serves it with. The
+machine initialised from two ROM images, booted, took a ten-byte program at
+`&1900`, and stopped on a breakpoint at `&1907` with the slot recording the hit,
+`A` and `X` at `&42` and `7`, and `&2000` reading `&42`. Three single steps
+walked the program counter `&1900`, `&1902`, `&1905`, `&1907` — the three
+instruction lengths — leaving the machine paused between each. A register write
+took. A stop-address test reached its address in 20 ms, and one that could not
+reach its address timed out at 614 ms rather than waiting. A watchpoint, an
+unknown command and an unknown key were each refused with the reason recorded.
+The screen capture came back as a 640×512 PNG holding the machine's own
+`Acorn Electron` banner. No page error, no console error, no policy violation.
+
+## Licence
+
+Elkulator is GPL-3.0-or-later and Allegro 5 is zlib. Conveying `elkulator.wasm`
+means conveying its corresponding source, as this build already does for jsbeeb,
+Arculator and ElkJS.
+
+Two things about that are not the usual case.
+
+**Upstream has no licence file.** The README points at `COPYING`, but that file
+was an autotools symlink and was deleted in commit `54b1bae` along with the
+other generated links. So the text is supplied by this build rather than copied
+from a fork that does not carry it. Which version is settled from the source
+rather than assumed: `src/socket.c` and `src/serial.c` state "version 3 of the
+License, or (at your option) any later version", and the imported
+`src/fdi2raw.c`, which comes from UAE, states version 2 or later. Version 2 or
+later is compatible with version 3, so the work as a whole is conveyed as
+GPL-3.0-or-later.
+
+**Upstream ships Acorn firmware.** `roms/` in that repository holds the real
+operating system, BASIC, ADFS, DFS, Master RAM Board OS, Plus 1 support and
+sound ROMs, under a note saying they are explicitly not covered by the GPL. None
+of it is ours to distribute, so the corresponding source shipped here excludes
+that directory and the build then proves it absent — the same guard jsbeeb
+already has, for the same reason.
+
+The branch is a fork rather than upstream. So is `pdjstone/arculator-wasm`,
+which this build already pins, but it is a standing maintenance cost and was
+accepted deliberately rather than by omission.
+
 ## After that
 
-The runtime page and the adapter: the capability and command classification the
-ElkJS adapter already carries, and the workbench wiring beside it.
+The workbench wiring: the emulator panel does not yet offer this core as a
+choice beside ElkJS.
 
-Nothing here is wired into the product image. Building a core that cannot yet
-run on every image build would add minutes and risk for no benefit, so the
-recipe is kept and exercised deliberately until it runs.
+The core itself does ship. The product `Dockerfile` builds it in its own stage
+from the files in this directory rather than a second copy of them, pins the
+Elkulator revision instead of the branch tip, and copies the artefacts, the
+licence, the corresponding source and the build hashes into the image beside
+Arculator's. It was kept out of the image while it could not run; it runs.
 
 ## The three traps, so they cost nobody else a day
 
@@ -198,14 +270,3 @@ and a page has neither. The IDE supplies its own, exactly as it does for the
 Archimedes core, so Elkulator's menu layer has nothing to draw and nothing to
 ask. Every entry point answers the way its caller already handles a refused
 dialog.
-
-## Licence
-
-Elkulator is GPL-3.0 and Allegro 5 is zlib. Conveying `elkulator.wasm` means
-conveying its corresponding source, as this build already does for jsbeeb,
-Arculator and ElkJS: the pinned revision, this patch set, and the upstream
-archive travel with the image.
-
-The branch is a fork rather than upstream. So is `pdjstone/arculator-wasm`,
-which this build already pins, but it is a standing maintenance cost and was
-accepted deliberately rather than by omission.

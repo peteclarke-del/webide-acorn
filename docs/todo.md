@@ -4463,10 +4463,59 @@ Current implemented increment:
     number means anything, so nobody reports zero as though nothing had
     executed. And a step resumed the machine and never stopped it, for the same
     reason — it arms the hook it depends on now.
-  - [ ] The runtime page and the adapter remain: the capability and command
-    classification the ElkJS adapter already carries, and the workbench wiring
-    beside it. Until that is done every Electron expansion stays planned and the
-    capability controls still say so.
+  - [x] **The runtime page and the adapter are written, and the second core
+    ships.** `public/elkulator.html` drives the WebAssembly core over the same
+    envelope the workbench already speaks, and `src/emulator/elkulatorAdapter.ts`
+    classifies all fifty-seven commands the panel can emit against sixteen
+    capabilities offered and twenty refused. Where the ElkJS adapter has to
+    refuse stepping, breakpoints, register writing, key injection and
+    stop-address tests, this one offers them, and a contract test asserts the
+    two adapters answer for exactly the same command vocabulary — two adapters
+    for one machine that disagreed about which commands exist would read as the
+    same machine behaving differently by accident.
+  - [x] The refusals are of two kinds and both are said plainly, because "this
+    core cannot" and "this build does not" are different promises. The Electron
+    has no Tube and Elkulator's memory access has no hook to hang a watchpoint
+    on; but tracing, profiling and save-state are absent because the bridge
+    deliberately does not carry them, however capable the emulator underneath
+    is. A contract test also checks each offered capability names a bridge entry
+    point that exists, so a capability with nothing behind it fails rather than
+    being discovered by a user.
+  - [x] Evidence: a headless Chromium run drove the shipped page in an iframe
+    over its own message channel, under the exact content security policy the
+    image serves it with. The machine initialised from two ROM images, booted,
+    took a ten-byte program at `&1900`, stopped on a breakpoint at `&1907` with
+    the slot recording the hit, `A` and `X` at `&42` and `7` and `&2000` reading
+    `&42`. Three single steps walked the program counter `&1900`, `&1902`,
+    `&1905`, `&1907` — the three instruction lengths — leaving the machine
+    paused between each. A register write took. A stop-address test reached its
+    address in 20 ms, and one that could not reach its address timed out at
+    614 ms rather than waiting. A watchpoint, an unknown command and an unknown
+    key were each refused with the reason recorded. The screen capture came back
+    as a 640×512 PNG holding the machine's own `Acorn Electron` banner rather
+    than a black rectangle. No page error, no console error, no policy
+    violation.
+  - [x] Capturing the screen needed a decision rather than a call. A WebGL
+    canvas discards its drawing buffer at the end of every frame unless asked
+    not to, and SDL creates the context, so the page forces
+    `preserveDrawingBuffer` before anything can create one. It costs a copy per
+    frame and buys a capture that is the machine's picture instead of a black
+    rectangle, which was the alternative.
+  - [x] **Two licence findings, both in the core this now ships.** Elkulator's
+    repository carries real Acorn firmware — the operating system, BASIC, ADFS,
+    DFS, the Master RAM Board OS, the Plus 1 support ROM and the sound ROM —
+    under a note saying it is explicitly not covered by the GPL. The
+    corresponding source this image ships excludes it and then proves it absent,
+    the same guard jsbeeb already has. And upstream has no licence file at all:
+    the README points at `COPYING`, which was an autotools symlink deleted in
+    commit `54b1bae`. The version is settled from the source rather than assumed
+    — `socket.c` and `serial.c` say version 3 or later, the imported `fdi2raw.c`
+    says version 2 or later — so the work is conveyed as GPL-3.0-or-later with
+    the licence text supplied by this build. The gate's licence check now counts
+    four copyleft components shipping licence and source rather than three.
+  - [ ] What remains is the workbench wiring: the panel does not yet offer this
+    core as a choice beside ElkJS, and until it does every Electron expansion
+    stays planned and the capability controls still say so.
   - [ ] What the run does not show is also recorded: the frame rate was
     measured in headless Chromium on a software renderer with nothing but the
     operating system and BASIC fitted and no program running, and no keyboard,

@@ -64,9 +64,14 @@ RUN autoreconf -i > /autoreconf.log 2>&1 || (tail -20 /autoreconf.log; exit 1)
 # GL_INVALID_OPERATION and the display stays black while the emulator runs
 # perfectly. Emscripten's FULL_ES2 emulates client-side vertex arrays by copying
 # them into a buffer, which is the behaviour Allegro is written against.
+#
+# MODULARIZE gives the page a createElkulator() it can await, rather than a
+# global Module it has to have declared before the script tag. That matters here
+# because the ROM images have to be fetched and written into the file system
+# between the module being ready and main being called.
 RUN emconfigure ./configure --host=wasm32-unknown-emscripten \
       CFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -O2 -I/elkulator/src" \
-      LDFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -sFULL_ES2=1 -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"callMain\",\"FS\"] -sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_free\"] -sINVOKE_RUN=0 -sFORCE_FILESYSTEM" \
+      LDFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -sFULL_ES2=1 -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"callMain\",\"FS\"] -sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_free\"] -sINVOKE_RUN=0 -sFORCE_FILESYSTEM -sMODULARIZE=1 -sEXPORT_NAME=createElkulator" \
       LIBS="-L/emsdk/upstream/emscripten/cache/sysroot/lib -lallegro_image-static -lallegro_font-static -lallegro_audio-static -lallegro_acodec-static -lallegro_primitives-static -lallegro_color-static -lallegro_memfile-static -lallegro-static -lopenal -lSDL2" \
       > /elk-configure.log 2>&1 || (grep -iE 'undefined symbol|unable to find library' config.log | sort -u | head -12; exit 1)
 RUN emmake make -j"$(nproc)" > /elk-build.log 2>&1 || (grep -iE 'error:|undefined symbol' /elk-build.log | head -20; exit 1)
