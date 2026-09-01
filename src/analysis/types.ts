@@ -67,7 +67,7 @@ export interface AcornFileMetadata {
   declaredLength?: number;
   locked?: boolean;
   sidecarName?: string;
-  containerFormat?: 'Atom ATM' | 'DFS SSD' | 'DFS DSD' | 'ADFS D' | 'ADFS E';
+  containerFormat?: 'Atom ATM' | 'DFS SSD' | 'DFS DSD' | 'ADFS D' | 'ADFS E' | 'ADFS S' | 'ADFS M' | 'ADFS L';
   containerByteLength?: number;
   filetype?: number;
   buildTargetId?: string;

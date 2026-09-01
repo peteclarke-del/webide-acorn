@@ -251,7 +251,7 @@ None. Every completed requirement records how it was verified.
 | BLD-302 | Add per-tenant job fairness, idempotency, state transitions, progress, retry rules,… | not started |
 | BLD-329 | Implement ARM assembler/linker and RISC OS C adapters before the ARM vertical slice;… | 6 of 8 parts done |
 | BLD-330 | Implement target-native assertion runtime/result channel and test target output for each… | 5 of 6 parts done |
-| MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 6 of 7 parts done |
+| MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 10 of 12 parts done |
 | ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 15 of 17 parts done |
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |

@@ -34,7 +34,12 @@ export interface AdfsGeometry {
    * Named rather than left as an absence: somebody with a 640 KiB L disc that
    * mounts and boots but does not appear in the browser is owed the reason.
    */
-  catalogue: { readable: true } | { readable: false; reason: string };
+  /*
+   * A `note` is not a `reason`. A reason says why a disc cannot be listed; a
+   * note says something a reader should know about a disc that can be. Keeping
+   * them apart stops a caveat being displayed as a refusal.
+   */
+  catalogue: { readable: true; note?: string } | { readable: false; reason: string };
 }
 
 /* The old map — a free-space table in the first two sectors, and directories of
@@ -42,7 +47,19 @@ export interface AdfsGeometry {
  * share and what this build's reader does not implement. The one exception is
  * the 800 KiB D disc, whose old map the reader does handle, because the E disc
  * it shares a size with forced both to be told apart anyway. */
-const OLD_MAP_UNREAD = 'This build reads the catalogue of an 800 KiB ADFS D or E disc. The older S, M and L discs use a different free-space map and directory format, and no authoritative description of it has been established here — writing one from recollection would put invented file lengths and load addresses in front of somebody. The disc mounts and the machine reads it; only this build\'s own browser cannot list it.';
+/*
+ * S and M are read with the structure L was measured with.
+ *
+ * The three share one catalogue — an old free-space map and a 47-entry old
+ * directory — and differ only in how much disc there is and whether it has two
+ * sides. L is the one that could be measured: RISC OS 3.11 formats F, E, D and
+ * L and no others, which its own `*Help Format` says, so no S or M disc could be
+ * produced on the machine this build runs. What makes reading them credible is
+ * that nothing is assumed of a particular disc — both directory signatures, the
+ * sequence number at each end and the map's own checksums are all verified, so
+ * a disc that is not this shape is refused rather than misread.
+ */
+const OLD_MAP_UNMEASURED = 'This structure was measured on an ADFS L disc formatted by RISC OS 3.11, which offers no S or M format. It is read here with the same reader, and a disc that is not this shape is refused rather than guessed at.';
 
 export const ADFS_GEOMETRIES: readonly AdfsGeometry[] = Object.freeze([
   {
@@ -51,7 +68,7 @@ export const ADFS_GEOMETRIES: readonly AdfsGeometry[] = Object.freeze([
     bytes: 160 * 1024,
     sectorsPerTrack: 16, sectorBytes: 256, sides: 1, tracks: 40,
     extensions: ['adf', 'ads'],
-    catalogue: { readable: false, reason: OLD_MAP_UNREAD },
+    catalogue: { readable: true, note: OLD_MAP_UNMEASURED },
   },
   {
     id: 'adfs-m',
@@ -59,7 +76,7 @@ export const ADFS_GEOMETRIES: readonly AdfsGeometry[] = Object.freeze([
     bytes: 320 * 1024,
     sectorsPerTrack: 16, sectorBytes: 256, sides: 1, tracks: 80,
     extensions: ['adf', 'adm'],
-    catalogue: { readable: false, reason: OLD_MAP_UNREAD },
+    catalogue: { readable: true, note: OLD_MAP_UNMEASURED },
   },
   {
     id: 'adfs-l',
@@ -67,7 +84,7 @@ export const ADFS_GEOMETRIES: readonly AdfsGeometry[] = Object.freeze([
     bytes: 640 * 1024,
     sectorsPerTrack: 16, sectorBytes: 256, sides: 2, tracks: 80,
     extensions: ['adl', 'adf'],
-    catalogue: { readable: false, reason: OLD_MAP_UNREAD },
+    catalogue: { readable: true, note: OLD_MAP_UNMEASURED },
   },
   {
     id: 'adfs-de',

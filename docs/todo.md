@@ -2980,8 +2980,8 @@ Current implemented increment:
   checksum-validated directory trees, extracts exact file extents, and creates
   a deterministic one-file E image for a current &FF8 Absolute ARM artifact.
   Multi-file creation and catalogue write-back are now implemented and are
-  described below. Every other geometry now mounts, and the one thing that
-  remains is reading an old-map catalogue, described immediately below.
+  described below. Every geometry now mounts, and S, M, L, D and E all list;
+  only F does not, because its catalogue spans more than one allocation zone.
   The earlier D prototype was removed after FileCore rejected execution. Its E
   replacement is independently reparsed and has passed the genuine RISC OS
   3.11 execution gate described below.
@@ -3001,16 +3001,55 @@ Current implemented increment:
     cannot list it; the catalogue reader says the same thing rather than the
     old "must be exactly 800 KiB", which told somebody holding a good 640 KiB L
     disc nothing they could act on.
-  - [ ] **Needs an authoritative source.** The old-map catalogue — the
-    free-space table and directory format the S, M and L discs share — is not
-    implemented, and will not be written from recollection: invented file
-    lengths and load addresses in front of a reader are exactly the fabrication
-    this product refuses. An authoritative description of the old FileCore map
-    and directory layout is what this needs. The F disc needs something
-    smaller: its catalogue is multi-zone new map, and the reader's zone
-    arithmetic is written for the single zone an 800 KiB floppy has; it refuses
-    rather than reading the first zone and presenting part of a catalogue as
-    all of it.
+  - [x] **The old-map catalogue is read, and it was measured rather than
+    recalled.** RISC OS 3.11 was booted on this build's own pinned A310 core,
+    told to `*Format 0 L`, given two subdirectories and two files, told to `*Ex`
+    its root, and then told to `*Dismount` so that everything it held was on the
+    disc rather than in its cache. The image was read back out of the emulator
+    and every field is what was found in it, against a listing the machine
+    itself printed. The reader reproduces that listing exactly.
+  - [x] Two things the measurement settled that no amount of care would have.
+    **The attributes are not a byte**: they are the top bits of the first four
+    characters of the name — read, write, locked, directory — so a reader taking
+    the name as ASCII would render `alpha` as `\xE1\xECpha` and lose the
+    attributes entirely. And **a double-sided image is interleaved**: ADFS
+    numbers L sectors through all eighty tracks of side 0 and then all eighty of
+    side 1, while the image stores them track by track with both sides together.
+    A directory near the start lands where a naive reader expects and one
+    further in does not, which is the bug that looks like a corrupt disc rather
+    than a wrong offset. Five directories spread across a disc confirmed the
+    mapping, and a sixth, deliberately placed past the end, proved the bound:
+    sector 2560 of a 2560-sector disc maps onto file sector 32, so a bounds
+    check on the file offset alone would have returned somebody else's data
+    without complaint.
+  - [x] The old free-space map needed nothing new. It is the same map D-format
+    discs use, and the checksum this build already computes reproduces both map
+    sectors of every L disc measured, which is corroboration that the existing
+    reader was right rather than merely untested.
+  - [ ] **The directory check byte is recorded and not verified, and the reader
+    says so.** The algorithm was not established: a broad search over
+    accumulator shapes — forward and reverse, with and without carry, with and
+    without a rotate, over every plausible range and seed — reproduced none of
+    the twelve directories measured across four discs. Checking it against a
+    guess would be worse than not checking it, because it would reject good
+    discs and call them damaged. What is verified instead is stated: both
+    `Hugo` signatures, the sequence number appearing identically at each end,
+    the map's two checksums, and the map agreeing with the file about how big
+    the disc is.
+  - [ ] **S and M discs are read with the structure L was measured with, and
+    that is said rather than implied.** RISC OS 3.11 offers F, E, D and L and no
+    others — its own `*Help Format` says so — so no S or M disc could be
+    produced on the machine this build runs. The three share one catalogue and
+    differ only in size and sides. Nothing is assumed of a particular disc, so a
+    file that is not this shape is refused rather than misread.
+  - [x] Evidence: 13 contracts in `src/media/adfsOldDirectory.test.ts`,
+    including that the reader lists exactly what the machine listed, that a
+    subdirectory at logical sector 140 is followed to file sector 268, that a
+    single-sided disc maps straight through, that a directory loop is reported
+    rather than followed, and that a half-written directory, a missing
+    signature and an off-disc sector are each refused by name. The measured
+    sectors are kept in `src/media/adfsOldMeasurements.ts` — five structures,
+    run-length encoded, because a disc image may not enter this repository.
   - [x] Evidence: 10 contracts in `src/media/adfsGeometry.test.ts` covering the
     geometry arithmetic, identification by length narrowed by extension, a
     refusal that names the lengths that would have worked, every declared
