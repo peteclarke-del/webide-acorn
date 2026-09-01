@@ -22,6 +22,10 @@ That split is the central architectural decision and it is deliberate:
   has no network route at all, drops every capability, runs read-only as an
   unprivileged user, and is bounded on memory, processes, CPU and stage time.
 
+Firmware is the one input this product asks a person for and cannot supply, so
+what each machine needs, what lengths are accepted, where an image is kept and
+what is never done with it are generated into one place: `docs/firmware.md`.
+
 The store this service holds is the only thing in it nobody else has a copy of,
 so backing it up, verifying it and restoring it are written down as a procedure
 to be performed rather than as intentions: `docs/operations.md`.

@@ -104,9 +104,37 @@ Companion specification: `docs/requirements-specification.md`
     Archimedes output. The parent remains open for RISC OS C and packaging.
 - [ ] P0-015 Inventory media and asset format implementations and run malicious-
   input review before adopting a parser (MED-001–MED-009, SEC-003).
-- [ ] P0-016 Produce ROM/firmware matrix by profile: required/optional ROM,
+- [x] P0-016 Produce ROM/firmware matrix by profile: required/optional ROM,
   version, ownership, redistribution status, user-supplied flow, accepted hashes,
   storage/share rules, and clean CI substitute (TGT-008–TGT-009, DEC-004).
+  - [x] **`docs/firmware.md` is generated from the manifests rather than
+    maintained beside them.** It names every ROM of every set with its purpose,
+    whether it is required or which capability makes it needed, the lengths that
+    are accepted, and the vault key it is stored under; and the Archimedes
+    profiles with their four byte lanes and their CMOS. A contract regenerates
+    it and fails the gate the moment it stops matching the code, which is the
+    only way a matrix like this stays true.
+  - [x] The positions this item asks about are stated rather than implied.
+    Nothing is redistributed, because nothing ships — no ROM or media image is
+    in this repository or the image and an executable check refuses one that is
+    added. Ownership does not change: the images are the person's, stored
+    origin-private in their own browser, served to the emulator frame through a
+    service worker, and deliberately excluded from a project export so a project
+    sent to somebody else carries no firmware they may not have. There is
+    therefore no sharing rule to write, because the store holds none.
+  - [x] **Two of the things it asks for are answered by saying they do not
+    exist, which is the honest answer.** There are no accepted hashes: a
+    manifest checks length, and a digest list would refuse the regional and
+    revision variants people legitimately own, none of which this build has
+    measured. And there is no clean CI substitute: the headless runner takes a
+    ROM manifest naming local files, so a pipeline supplies firmware exactly as
+    a person does, and a run without it is reported as a run that did not
+    happen rather than passing against a stand-in.
+  - [x] Evidence: 6 contracts in `src/rom/firmwareMatrix.test.ts`, including
+    that the document matches what the manifests generate, that every ROM and
+    every vault key appears, that every optional ROM names the capability that
+    needs it, and that the positions on redistribution, ownership and hashing
+    are present rather than assumed.
 - [ ] P0-017 Produce manuals/reference-content matrix with title, owner, version,
   applicable targets, licence, allowed indexing/snippets/cache, citation URL,
   update/removal process (RSH-001–RSH-007, DEC-008).
