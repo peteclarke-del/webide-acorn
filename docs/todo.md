@@ -6730,6 +6730,54 @@ Current implemented increment:
     analysis worker client and the build runner.
 - [ ] OPS-905 Run backup/restore and disaster-recovery exercise; record RPO/RTO
   evidence, integrity verification, and permission/audit restoration.
+  - [x] **The exercise is performed on every run of the gate rather than
+    written down.** A restore procedure that has never been carried out is a
+    belief. `backend/tests/Storage/StoreRecoveryTest.php` builds a store with
+    two projects and two revisions each over shared content, verifies it, copies
+    it, **destroys the original entirely**, restores from the copy, verifies
+    again, and then reads every file of every revision back and compares it byte
+    for byte against what was written — because a restore that produced a store
+    which merely opens is not a restore, and the question is whether the content
+    came back.
+  - [x] **Integrity verification is real product code, not test scaffolding.**
+    The store addresses content by SHA-256, so damage is detectable rather than
+    merely suspectable, but that was only ever checked one blob at a time when
+    something happened to read it — and the file nobody has opened since the
+    disk went bad is precisely the file a restore is for. It would have been
+    copied into the backup unremarked. `App\Storage\StoreIntegrity` walks the
+    whole store and names every inconsistency as a sentence rather than throwing
+    at the first, because the first fault is rarely the only one: an unreadable
+    revision file, a revision naming a digest no blob holds, a revision whose
+    parent is not in its project, a blob that no longer hashes to its own name,
+    an unreadable tombstone. It reads and never repairs, because a store that
+    quietly fixed itself would destroy the evidence of what went wrong.
+  - [x] `backend/bin/console store:verify` runs the same check against a live
+    store or a restored one, with an honest exit code so it can stand inside a
+    restore procedure and stop it. Proved against both: an intact store reports
+    one owner, one project, two revisions, four file references and three blobs
+    and exits zero; the same store with one blob overwritten by different bytes
+    of the same length names that blob and exits one.
+  - [x] The verifier is held to naming damage rather than passing it on. Three
+    kinds are inflicted deliberately and each must be reported: a blob
+    overwritten with different bytes of the same length, a blob removed while a
+    revision still names it, and a revision file truncated the way an
+    interrupted write leaves it. A verifier that passes everything is
+    indistinguishable from no verifier, and these are what stop it becoming one.
+  - [x] **The objectives are stated as what this store actually gives.** There
+    is no replication and no write-ahead log, so the recovery point is the backup
+    interval and nothing else, and `docs/operations.md` says so rather than
+    implying continuity it does not have. The recovery time is the copy plus the
+    verify, both measured on the deployment rather than assumed from a number
+    written here. A file-level copy is safe while running because a blob is
+    written beside its own name and renamed into place and a manifest is written
+    whole under a lock as the last act of a commit, so a copy can hold a
+    revision or not hold it but never half of one.
+  - [ ] **Permission and audit restoration is not covered, and cannot honestly
+    be.** There is one owner, nothing proves who they are, and there are no roles
+    to restore. That section of the runbook has to be written when
+    authentication arrives, and describing it now would be describing something
+    that does not exist. Off-site copies, retention and rotation are deployment
+    decisions this repository does not make.
 - [ ] OPS-906 Verify migration deploy/rollback or roll-forward procedure and
   compatibility across rolling versions.
 

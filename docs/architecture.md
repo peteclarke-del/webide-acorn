@@ -22,6 +22,10 @@ That split is the central architectural decision and it is deliberate:
   has no network route at all, drops every capability, runs read-only as an
   unprivileged user, and is bounded on memory, processes, CPU and stage time.
 
+The store this service holds is the only thing in it nobody else has a copy of,
+so backing it up, verifying it and restoring it are written down as a procedure
+to be performed rather than as intentions: `docs/operations.md`.
+
 ## Modules
 
 | Directory | What lives there |

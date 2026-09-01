@@ -278,7 +278,7 @@ are listed rather than quietly counted.
 | CLOUD-GATE | The entire core remains usable locally; authenticated users can sync, revise, compare,… | not started |
 | OPS-900 | Implement dashboards and alerts for every NFR-007 metric with tenant-safe drill-down and… | not started |
 | OPS-901 | Load-test API, job queues, sandboxes, object storage, WebSockets, trace streaming, cloud… | not started |
-| OPS-905 | Run backup/restore and disaster-recovery exercise; record RPO/RTO evidence, integrity… | not started |
+| OPS-905 | Run backup/restore and disaster-recovery exercise; record RPO/RTO evidence, integrity… | 5 of 6 parts done |
 | OPS-906 | Verify migration deploy/rollback or roll-forward procedure and compatibility across… | not started |
 | SEC-900 | Resolve threat-model controls and rerun abuse cases for builds, parsers, emulators,… | not started |
 | SEC-901 | Run SAST, dependency/container/secret/licence scans, SBOM review, DAST, fuzz/property… | 4 of 5 parts done |

@@ -28,5 +28,11 @@ services:
     arguments:
       $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
 
+  # The verifier reads the same root, because verifying a different directory
+  # from the one the service writes to would be a check that could never fail.
+  App\Storage\StoreIntegrity:
+    arguments:
+      $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
+
 parameters:
   project_store_root_default: '/var/lib/webide-acorn/store'
