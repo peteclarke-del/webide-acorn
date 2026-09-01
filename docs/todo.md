@@ -4374,23 +4374,69 @@ Current implemented increment:
     synthesised `ALLEGRO_EVENT_TIMER` — and the statement immediately after
     `elkEvent = event_await()` in `main` never executing. The tick arrives; the
     caller never resumes.
-  - [ ] **ASYNCIFY cannot carry this loop, and the fix is to stop asking it
+  - [x] **The machine boots, and the screen it draws is its own.** A headless
+    Chromium run staged the operating system and BASIC ROMs, called `main`, and
+    let it run for twelve seconds: 470 animation frames, about 39 a second, no
+    page exception, no console error, every WebGL draw call succeeding, and the
+    drawing buffer read back inside the emulator's own draw call holding 882
+    white pixels on black that read `Acorn Electron` above `BASIC` with the
+    cursor beside them. That is the boot banner produced by the Electron's own
+    operating system ROM, so what is proved is the machine executing rather
+    than the port linking.
+  - [x] **ASYNCIFY could not carry the loop, and the fix was to stop asking it
     to.** On rewind, execution resumes inside the frame that unwound and
-    returns, but `main`'s frame was never saved, so control goes back to the
-    runtime instead of into the loop body — which is why `event_await` is
-    re-entered from the top for ever. `-sASYNCIFY_ADD=["main"]` does not help,
-    because Allegro's main addon renames the program's `main` and the name in
-    the list matches nothing. The answer is `emscripten_set_main_loop`: the
-    browser calls one iteration at a time, no C stack is ever unwound, ASYNCIFY
-    comes out of the build entirely along with its 500 KB, and the loop body's
-    locals become statics. It is also what the IDE integration wants regardless,
-    since the IDE decides when the machine steps. Until that is done every
+    returns, but `main`'s frame was never saved, so control went back to the
+    runtime instead of into the loop body — which is why `event_await` was
+    re-entered from the top for ever. `-sASYNCIFY_ADD=["main"]` does not help.
+    The loop is turned inside out instead: `event_await` returns whether or not
+    anything happened, `main` hands its body to `emscripten_set_main_loop`, and
+    no C stack is ever unwound. That took ASYNCIFY out of the build along with
+    520 KB — 1,822,049 bytes became 1,302,443 — and it is what the IDE
+    integration wants anyway, since the IDE decides when the machine steps.
+  - [x] **Every draw call was failing, and nothing said so.** With the loop
+    running and the machine executing, the canvas stayed black — not even the
+    border colour appeared. Instrumenting the WebGL context showed 638
+    `drawArrays` calls and 638 `GL_INVALID_OPERATION`s: Allegro's primitives
+    addon hands `glVertexAttribPointer` a pointer into client memory, which
+    desktop GL accepts and GLES2 does not. `-sFULL_ES2=1` emulates client-side
+    vertex arrays by copying them into a buffer, which is what Allegro is
+    written against. This is the reason a previous session concluded the bitmap
+    lock was at fault: with every draw failing, no change to what was being
+    drawn could have made any difference.
+  - [x] Two faults were reached only because the ones above were fixed first.
+    `loadconfig` closes `elk.cfg` unconditionally, and a page has no home
+    directory to have put one in, so the ordinary case was `fclose(NULL)` and a
+    dead instance before anything drew — every accessor between the open and
+    the close already defaults correctly when the handle is NULL, so the file
+    being absent was a case the code otherwise handled. And a missing expansion
+    ROM called `exit(1)`: `loadroms` demands the Master RAM Board OS, ADFS, DFS,
+    the sound ROM and the Plus 1 support ROM alongside the two that are really
+    required. Here the ROMs are whichever ones the person owns, so most being
+    absent is normal. A missing expansion is now an absent expansion, named on
+    stderr, which is what this build already means by an Electron.
+  - [x] The memory-bitmap change from the previous session is withdrawn, having
+    been measured rather than reasoned about. The lock is refused exactly once,
+    on the first frame before the bitmap's texture exists — one refusal against
+    a hundred successes — and the null check already skips that frame
+    harmlessly. Making the surface a memory bitmap costs two and a half times
+    the frame rate, because a memory source drawn to a video target sends
+    Allegro down a path that reads the whole backbuffer back every frame.
+  - [x] The build recipe now builds. The committed `Dockerfile.wasm` named
+    files that do not exist under those names and omitted every link flag the
+    artefact was actually produced with, so it could not have been run by
+    anybody; it pins the Elkulator commit rather than the branch tip, copies
+    the files this directory actually holds, and fails rather than continuing
+    when `configure`, `make` or the artefacts are missing.
+  - [ ] Adapter work remains before the expansions are real: a bridge in the
+    shape of `webide_bridge.c`, registers and memory exposed to the debugger,
+    and the capability and command classification the ElkJS adapter already
+    carries. Elkulator has a genuine `debugger.c`, which is more than ElkJS
+    offers, so that part starts from something. Until that is done every
     Electron expansion stays planned and the capability controls still say so.
-  - [ ] After it runs there is adapter work before the expansions are real:
-    a bridge in the shape of `webide_bridge.c`, registers and memory exposed to
-    the debugger, and the capability and command classification the ElkJS
-    adapter already carries. Elkulator has a genuine `debugger.c`, which is
-    more than ElkJS offers, so that part starts from something.
+  - [ ] What the run does not show is also recorded: the frame rate was
+    measured in headless Chromium on a software renderer with nothing but the
+    operating system and BASIC fitted and no program running, and no keyboard,
+    sound, disc or expansion path has been exercised at all.
   - [x] Evidence: 5 contracts in `src/rom/romProfiles.test.ts` covering the
     pinned engine, the required-versus-gated split, the sizes, the boards
     covered and where each ROM mounts; and the advertising rule in

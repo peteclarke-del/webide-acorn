@@ -6,79 +6,115 @@ cartridge interface. EMU-423 has wanted one since the Electron slice shipped.
 
 ## What is proved
 
-`Dockerfile.wasm` builds `elkulator.wasm` — 1,301,872 bytes — and its JavaScript
-glue, from `demrepofdave/elkulator` at branch `demrepofdave/allegro5_integration`
-against Allegro 5.2.9.1 with Allegro's own SDL backend, under
-`emscripten/emsdk:3.1.29`. `configure` exits zero and `make` exits zero.
+`Dockerfile.wasm` builds `elkulator.wasm` — 1,302,443 bytes — and its JavaScript
+glue, from `demrepofdave/elkulator` at commit
+`6785521aba2c237861f29d9dee9cfc6725989b1e` on branch
+`demrepofdave/allegro5_integration`, against Allegro 5.2.9.1 with Allegro's own
+SDL backend, under `emscripten/emsdk:3.1.29`. `configure` exits zero, `make`
+exits zero, and the build fails rather than continuing if either produces no
+`.wasm`.
 
 ## What it does when run
 
-It boots as far as executing 6502 code and faults in one identified place.
+**It boots an Acorn Electron and draws its screen.**
 
-A headless Chromium run staged fifteen expansion ROMs and `elk.cfg` into the
-virtual file system, called `main`, and observed: the Allegro display created a
-WebGL context, the firmware loaded, and execution reached `exec6502` — the
-machine is running the Electron's own operating system — before trapping with
-`memory access out of bounds` inside `yield`, the ULA's raster renderer in
-`src/ula.c`. The browser kept its thread throughout, which was the point of the
-loop change: a frame counter advanced from 696 to 937 while the emulator ran.
+A headless Chromium run staged the operating system and BASIC ROMs into the
+virtual file system, called `main`, and let it run for twelve seconds. The
+browser kept its thread throughout — 470 animation frames, about 39 a second —
+and the drawing buffer, read back inside the emulator's own draw call, held 882
+white pixels on black which read:
 
-**The blocking loop is solved.** `al_wait_for_event` never returns until
-something arrives, and a page inside it never paints. Under Emscripten the
-same wait is now a poll that yields — `emscripten_sleep` hands control back and
-ASYNCIFY resumes the C stack where it left off — so the loop above is unchanged
-and every local it holds is still valid. That costs about 500 KB of binary.
+```
+Acorn Electron        [cursor]
+BASIC
+```
 
-**ASYNCIFY cannot carry this loop.** Instrumenting both sides shows
-`event_await` called two hundred times and returning two hundred times with
-`elkEvent=0x8004` — handled, timer-triggered, from a synthesised
-`ALLEGRO_EVENT_TIMER` — and the statement immediately after
-`elkEvent = event_await()` in `main` never executing. On rewind, execution
-resumes inside the frame that unwound and returns, but `main`'s frame was never
-saved, so control goes back to the runtime rather than into the loop body.
-`-sASYNCIFY_ADD=["main"]` does not help: Allegro's main addon renames the
-program's `main`, so the name in the list matches nothing.
+That is the machine's own boot banner, produced by its own operating system ROM.
+No page exception, no console error, and every WebGL draw call succeeded.
 
-The fix is `emscripten_set_main_loop` — the browser calls one iteration at a
-time, no stack is unwound, and ASYNCIFY leaves the build along with its 500 KB.
-The loop body's locals become statics. This is also what the IDE integration
-wants, since the IDE decides when the machine steps.
+## The five faults that stood between the build and that picture
 
-**Superseded note.** Instrumenting the loop
-shows `event_await` entered and returning two hundred times over twelve
-seconds, so the unwind-and-resume works and the browser keeps its thread. What
-does not happen is `runelk`: the loop never sees `ELK_EVENT_TIMER_TRIGGERED`.
-The 50 Hz tick is now supplied from the browser clock, because Allegro's SDL
-backend registers the timer's event source and never posts to it — but it is
-raised only when the event queue is empty, and the backend appears to deliver a
-steady stream of real events that satisfy the poll first. Raising the tick on
-elapsed time regardless of what else arrived is the next step.
+Each was found by running it, and none of them is visible in a native build.
 
-**What this was.** The emulator initialises, loads its
-firmware, creates a WebGL display and enters its event loop, and then waits
-forever: instrumenting the loop shows `event_await` entered once and no Allegro
-event ever delivered, so `runelk` is never called, nothing is rendered and the
-canvas stays black. No error is produced because nothing has gone wrong as far
-as the code is concerned — it is waiting for a timer that does not tick.
+1. **`fclose(NULL)` on a missing `elk.cfg`.** `loadconfig` opens the file and
+   closes it unconditionally. Every accessor between the two already returns its
+   default when the handle is NULL — so an absent config is a case the code
+   otherwise handles correctly — but the close aborts the WebAssembly instance
+   before anything is drawn. Natively it is undefined behaviour that happens to
+   be survivable, so nobody has met it. A page has no home directory to have put
+   a config in, so this is the ordinary path here. `saveconfig` closes the same
+   way and is reached whenever the machine is stopped.
 
-Allegro's timer is an event source registered on a queue, and under its SDL
-backend on Emscripten that source is not producing events. That is the next
-thing to fix, and it is bounded: either the timer is started differently for
-this backend, or the loop is driven from `requestAnimationFrame` through
-`emscripten_set_main_loop` and the Allegro timer is not used at all. The second
-is what the eventual IDE integration wants anyway, since the IDE will decide
-when the machine steps.
+2. **A missing expansion ROM killed the machine.** `loadrom` prints and calls
+   `exit(1)`, and `loadroms` calls it for the Master RAM Board OS, ADFS, DFS, the
+   sound ROM and the Plus 1 support ROM as well as for the operating system and
+   BASIC. On a desktop those five sit in a directory beside the binary and are
+   simply always there. Here they are whichever ROMs the person owns, so the
+   ordinary case is that most are absent. A missing expansion is now an absent
+   expansion, named on stderr; only the operating system and BASIC are required,
+   which is what this build already means by an Electron.
 
-**Also found and fixed along the way.** `yield` walks the screen writing through
-`put_pixel_line` and reading video memory. `put_pixel_line` guarded only the upper end of its range — `x + width` past 640, `y` past 256 — and not the
-lower, so a negative coordinate indexed `electron_screen` below its start. On a
-native heap that writes into whatever sits in front of it and is never noticed;
-WebAssembly traps it. The guard is completed here, which is a real latent bug
-found by the port, but it is not the fault that remains: the trap survives it,
-so something else in the same function — most likely a video-memory read
-through an address the ULA has not finished setting up — is still reaching
-outside its array. That is the next thing to find, and it is an ordinary
-debugging job now that it is this precisely located.
+3. **ASYNCIFY could not carry the main loop.** The first attempt turned
+   `al_wait_for_event` into a poll that yielded through `emscripten_sleep`, and
+   it half worked: `event_await` was entered and returned two hundred times over
+   twelve seconds, and the statement immediately after `elkEvent = event_await()`
+   never executed once. On rewind, execution resumes inside the frame that
+   unwound and returns from it, but `main`'s frame was never saved, so control
+   goes back to the runtime rather than into the loop body.
+   `-sASYNCIFY_ADD=["main"]` does not help. The loop is now turned inside out:
+   `event_await` returns whether or not anything happened, `main` hands its body
+   to `emscripten_set_main_loop`, and no C stack is ever unwound. That takes
+   ASYNCIFY out of the build along with 520 KB — 1,822,049 bytes became
+   1,302,443 — and it is what the IDE integration wants anyway, since the IDE
+   decides when the machine steps.
+
+4. **The 50 Hz timer never ticked.** Allegro's SDL backend registers the timer's
+   event source and never posts to it, because it has no thread to tick it from,
+   and the whole emulator is driven from those events. The tick is supplied from
+   the clock the browser does have. This is a platform service the backend does
+   not implement rather than emulator state being invented: the event carries
+   nothing beyond "20 ms passed", which is what the real timer would have said.
+
+5. **Every WebGL draw call failed, and nothing said so.** With the loop running
+   and the machine executing, the canvas stayed black. Instrumenting the context
+   showed 638 `drawArrays` calls and 638 `GL_INVALID_OPERATION`s: Allegro's
+   primitives addon hands `glVertexAttribPointer` a pointer into client memory,
+   which desktop GL accepts and GLES2 does not. `-sFULL_ES2=1` emulates
+   client-side vertex arrays by copying them into a buffer, which is the
+   behaviour Allegro is written against. With it, every draw succeeds and the
+   picture appears.
+
+## Two more, found while proving the above
+
+**A latent out-of-bounds the browser catches and a native build does not.**
+`put_pixel_line` guarded the upper end of its range — `x + width` past 640, `y`
+past 256 — and not the lower, so a negative coordinate indexed
+`electron_screen` below its start. On a native heap that writes into whatever
+sits in front of it and is never noticed; WebAssembly traps it. Separately, the
+ULA brings a video address back inside memory by subtracting the mode's screen
+length once, which is only correct while the address is at most `0x8000` plus
+that length — mode 6's length is `0x2000`, so an address near `0xFFFF` is still
+above `0x8000` after one subtraction, and the read lands outside a 32 KB `ram`.
+On a native build `ram2` is declared immediately after `ram` and the read
+quietly returns a neighbouring array. It wraps as many times as it takes now,
+which is what the hardware does.
+
+**An unchecked bitmap lock.** Both blit routines call `al_lock_bitmap` and
+dereference the result without checking it. Allegro is entitled to refuse a lock
+and under this backend it does — exactly once, on the first frame, before the
+bitmap's texture exists; counting it gave one refusal against a hundred
+successes. The lock is checked now and a refused frame is skipped. Making the
+surface a memory bitmap also stops the refusal and was tried: it costs two and a
+half times the frame rate, because a memory source drawn to a video target sends
+Allegro down a path that reads the whole backbuffer back every frame. The bitmap
+stays a video bitmap.
+
+## What is not yet known
+
+The frame rate above was measured in headless Chromium on a software renderer,
+with only the operating system and BASIC fitted and nothing running. Neither
+the expansions nor the machine under load has been measured, and no keyboard,
+sound or disc path has been exercised.
 
 ## After that
 

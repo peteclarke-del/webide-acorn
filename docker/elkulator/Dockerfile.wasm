@@ -1,10 +1,19 @@
+# Elkulator for WebAssembly.
+#
+# Build from this directory, which is the context:
+#   docker build -f Dockerfile.wasm -t 8bit-net/elkulator-wasm:local .
+#
+# Every file it copies is in this directory under the name used here, and every
+# flag it passes is the one the artefact was actually built with. A recipe that
+# does not run is not a recipe.
 FROM emscripten/emsdk:3.1.29
 RUN apt-get update && apt-get install --yes --no-install-recommends \
         ca-certificates git cmake build-essential autoconf automake libtool pkg-config \
     && rm -rf /var/lib/apt/lists/*
 RUN embuilder build sdl2 zlib
 
-# Allegro 5 with the SDL backend, by the recipe the previous spike proved.
+# Allegro 5 with the SDL backend, by the recipe the spike proved. It builds for
+# WebAssembly with no source changes; the flags are what the spike cost.
 ARG ALLEGRO_REF=5.2.9.1
 RUN git clone --depth 1 --branch "${ALLEGRO_REF}" https://github.com/liballeg/allegro5.git /allegro5
 WORKDIR /allegro5/build
@@ -21,21 +30,48 @@ RUN emcmake cmake .. -DCMAKE_BUILD_TYPE=Release \
       -DWANT_AUDIO=ON -DWANT_PRIMITIVES=ON -DWANT_COLOR=ON -DWANT_MEMFILE=ON \
       -DWANT_OPENAL=OFF -DWANT_PULSEAUDIO=OFF -DWANT_ALSA=OFF -DWANT_OSS=OFF \
       > /a5-configure.log 2>&1 && emmake make -j"$(nproc)" > /a5-build.log 2>&1 && make install > /a5-install.log 2>&1
-RUN ls /emsdk/upstream/emscripten/cache/sysroot/lib/liballegro* 2>/dev/null | head
+RUN ls /emsdk/upstream/emscripten/cache/sysroot/lib/liballegro-static.a
 
-ARG ELK_REF=demrepofdave/allegro5_integration
-RUN git clone --branch "${ELK_REF}" https://github.com/demrepofdave/elkulator.git /elkulator
-COPY alut_shim.h /elkulator/src/webide_alut_shim.h
-COPY alut_shim.h /elkulator/src/host_abstraction_layer/allegro_5/webide_alut_shim.h
-COPY stubs/allegro5/allegro_native_dialog.h /emsdk/upstream/emscripten/cache/sysroot/include/allegro5/allegro_native_dialog.h
-COPY prepare.py /tmp/
-RUN python3 /tmp/prepare.py
+# Elkulator at a commit rather than a branch tip, so this image is the same
+# image tomorrow. The branch is named for provenance, not for resolution.
+ARG ELK_BRANCH=demrepofdave/allegro5_integration
+ARG ELK_COMMIT=6785521aba2c237861f29d9dee9cfc6725989b1e
+RUN git clone --branch "${ELK_BRANCH}" https://github.com/demrepofdave/elkulator.git /elkulator \
+    && git -C /elkulator checkout --detach "${ELK_COMMIT}"
+
+# ALUT has no Emscripten port; the two functions Elkulator uses are thin
+# wrappers over ALC and are implemented directly here.
+COPY webide_alut_shim.h /elkulator/src/webide_alut_shim.h
+COPY webide_alut_shim.h /elkulator/src/host_abstraction_layer/allegro_5/webide_alut_shim.h
+# Allegro builds no native-dialog library for the SDL backend, so the header it
+# installs is missing too. A file chooser and a menu bar are the host operating
+# system's furniture, and a page has neither: the IDE supplies its own.
+COPY allegro_native_dialog_stub.h /emsdk/upstream/emscripten/cache/sysroot/include/allegro5/allegro_native_dialog.h
+COPY prepare-elkulator.py /tmp/
+RUN python3 /tmp/prepare-elkulator.py
 
 WORKDIR /elkulator
-RUN autoreconf -i > /autoreconf.log 2>&1 ; echo "autoreconf exit=$?" ; tail -5 /autoreconf.log
+RUN autoreconf -i > /autoreconf.log 2>&1 || (tail -20 /autoreconf.log; exit 1)
+# No ASYNCIFY. The browser drives the loop through emscripten_set_main_loop, so
+# no C stack is ever unwound and the 500 KB ASYNCIFY costs is not spent. See the
+# note in prepare-elkulator.py for why unwinding could not work here.
+#
+# FULL_ES2 is what makes anything appear on the canvas. Allegro's primitives
+# addon hands glVertexAttribPointer a pointer into client memory, which desktop
+# GL accepts and GLES2 does not: without this every draw call returns
+# GL_INVALID_OPERATION and the display stays black while the emulator runs
+# perfectly. Emscripten's FULL_ES2 emulates client-side vertex arrays by copying
+# them into a buffer, which is the behaviour Allegro is written against.
 RUN emconfigure ./configure --host=wasm32-unknown-emscripten \
       CFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -O2 -I/elkulator/src" \
-      LDFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1" \
+      LDFLAGS="-sUSE_SDL=2 -sUSE_ZLIB=1 -sFULL_ES2=1 -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"callMain\",\"FS\"] -sEXPORTED_FUNCTIONS=[\"_main\",\"_malloc\",\"_free\"] -sINVOKE_RUN=0 -sFORCE_FILESYSTEM" \
       LIBS="-L/emsdk/upstream/emscripten/cache/sysroot/lib -lallegro_image-static -lallegro_font-static -lallegro_audio-static -lallegro_acodec-static -lallegro_primitives-static -lallegro_color-static -lallegro_memfile-static -lallegro-static -lopenal -lSDL2" \
-      > /elk-configure.log 2>&1 ; echo "configure exit=$?" ; grep -iE 'undefined symbol|unable to find library' config.log | sort -u | head -12
-RUN emmake make -j"$(nproc)" > /elk-build.log 2>&1 ; echo "make exit=$?" ; grep -iE 'error:|undefined symbol' /elk-build.log | head -15 ; ls -la elkulator* src/elkulator* 2>/dev/null | head
+      > /elk-configure.log 2>&1 || (grep -iE 'undefined symbol|unable to find library' config.log | sort -u | head -12; exit 1)
+RUN emmake make -j"$(nproc)" > /elk-build.log 2>&1 || (grep -iE 'error:|undefined symbol' /elk-build.log | head -20; exit 1)
+
+# The two artefacts, named where the extraction step expects them. A build that
+# produced no wasm has not built, whatever make exited with.
+RUN test -f /elkulator/elkulator.wasm && test -f /elkulator/elkulator \
+    && mkdir -p /out && cp /elkulator/elkulator.wasm /out/elkulator.wasm \
+    && cp /elkulator/elkulator /out/elkulator.js \
+    && ls -l /out
