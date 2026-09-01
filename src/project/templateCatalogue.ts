@@ -332,7 +332,11 @@ export const TEMPLATE_CATALOGUE: readonly ProjectTemplate[] = Object.freeze([
       machineId: 'atom',
       variant: 'Atom 12K',
       romId: 'atom-mos',
-      enabledCapabilities: [],
+      /* An Atom's medium is tape, so the starter leaves the cassette interface
+       * on: opening a template sets the machine's configuration, and a starter
+       * that turned it off would leave somebody unable to package what they
+       * had just built. */
+      enabledCapabilities: ['cassette'],
     },
     requiredCapabilities: [],
     toolchainId: '8bit-net.asm.6502' as ToolchainId,
@@ -390,7 +394,7 @@ export const TEMPLATE_CATALOGUE: readonly ProjectTemplate[] = Object.freeze([
       machineId: 'master',
       variant: 'Master 128',
       romId: 'mos320',
-      enabledCapabilities: ['adfs', 'shadow'],
+      enabledCapabilities: ['adfs', 'shadow', 'cassette'],
     },
     requiredCapabilities: [],
     toolchainId: '8bit-net.asm.65c12' as ToolchainId,
@@ -419,9 +423,10 @@ export const TEMPLATE_CATALOGUE: readonly ProjectTemplate[] = Object.freeze([
       machineId: 'bbc-b',
       variant: 'Model B · 8271 DFS',
       romId: 'os12-basic2-dfs',
-      enabledCapabilities: ['dfs'],
+      enabledCapabilities: ['dfs', 'cassette'],
     },
-    /* Nothing beyond the base machine: this runs on a cassette Model B too. */
+    /* Nothing beyond the base machine: this runs on a cassette Model B too, and
+     * the cassette interface is left on so it can be packaged for one. */
     requiredCapabilities: [],
     toolchainId: '8bit-net.asm.6502' as ToolchainId,
     entryFileName: 'main.asm',

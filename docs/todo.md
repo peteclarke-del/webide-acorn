@@ -7976,6 +7976,7 @@ the whole line on one machine without leaving the workbench.
 | Debug | yes | yes | yes | **no engine** | yes |
 | Package to media | ATM and tape | tape | DFS and tape | none | DFS and tape |
 | Boot the packaged media | tape, yes | tape, yes | yes | **no** | yes |
+| The whole line, unattended | yes | yes | yes | refuses, stating why | yes |
 
 - [x] GAME-001 Author an Acorn tape image from built files, for the BBC/Electron
   block format and the Atom's, so a game can leave the workbench on the medium
@@ -8067,30 +8068,37 @@ the whole line on one machine without leaving the workbench.
   one that times out, and two that are refused —
   `scripts/measureElectronTestPlan.mjs` reproduces them and will not exit zero
   unless each still does what a working runner would.
-- [ ] GAME-007 Walk the whole journey on each machine in one headless run, and
+- [x] GAME-007 Walk the whole journey on each machine in one headless run, and
   fail on any console error, policy violation or refusal that is not expected.
-  That is what "smoothly, with no crashes or errors" has to mean if it is to be
-  checked rather than asserted.
+  `scripts/journey.mjs` does it, and the release gate runs it as a stage: each
+  of the five machines is walked in a fresh page of the built workbench —
+  choose the machine, start from its template, enable the medium, build, and
+  write a cassette — with every console error, uncaught exception and blocked
+  resource collected and any of them failing the walk. All five walk: four from
+  an empty workbench to a UEF, and the B+ refuses with the reason that is true
+  rather than crashing or blaming a missing file.
 
-  Started, and already worth it. Walking the line by hand found three defects
-  that every existing test passed through:
+  What needs firmware — running, debugging, booting the packaged media — is
+  measured against a real vault by the scripts beside it and frozen where the
+  always-running tests hold the product to it, because firmware cannot be
+  committed and a test that skips is not a test.
+
+  Walking it by hand first found three defects that the entire suite passed
+  through, all now fixed:
 
   - The assembler seeded the **BBC MOS** vocabulary for every machine. An Atom
-    program calling `OSWRCH` assembled to &FFEE, which is nothing in particular
-    on an Atom, and an Atom listing opening with `OSWRCH = &FFF4` — as they all
-    do — was rejected for contradicting a fact the assembler had no business
-    assuming. The vocabulary is now the machine's, threaded from the build
-    target, and the Atom's two entry points were measured on the machine.
-  - Four of the five machines had **no starter template at all**: the catalogue
-    held two, both for the Model B. There is now one for the Atom, the Electron
-    and the Master, each run on its own machine and each leaving BASIC working
-    afterwards.
-  - The Electron's **Run** was broken in a way nothing would have reported.
-    Loading a program set the program counter, which abandons whatever the
-    operating system was doing; the program printed until it made a blocking OS
-    call and then the screen cleared and the machine ended in ROM. It is now
-    called the way a person would call it, and the same program prints, waits,
-    returns, and leaves BASIC working.
+    program calling `OSWRCH` assembled to &FFEE, and an Atom listing opening
+    with `OSWRCH = &FFF4` — as they all do — was rejected for contradicting a
+    fact the assembler had no business assuming.
+  - Four of the five machines had **no starter template at all**.
+  - The Electron's **Run** was broken silently: loading a program moved the
+    program counter, which abandons whatever the operating system was doing, so
+    the program printed until its first blocking OS call and then the screen
+    cleared with no error at all.
+
+  The walk also closed a smaller gap: the Master 128 has a cassette port and
+  this build did not offer one, although a tape written here had already been
+  loaded on a Master. It is offered now, on that measurement.
 
 ## 13. Definition of done for every backlog item
 

@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 301 |
-| Complete | 201 |
+| Complete | 202 |
 | Complete and traced | 124 |
-| Complete and described | 75 |
+| Complete and described | 76 |
 | Complete and untraced | 2 |
-| Open | 100 |
+| Open | 99 |
 
 ## By area
 
@@ -49,7 +49,7 @@ is the part a machine can settle.
 | RSH | 10 | 9 | 8 | 1 | 0 |
 | A11Y | 9 | 4 | 4 | 0 | 0 |
 | PRJ | 9 | 9 | 6 | 3 | 0 |
-| GAME | 7 | 5 | 0 | 3 | 2 |
+| GAME | 7 | 6 | 0 | 4 | 2 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 3 | 3 | 0 | 0 |
 | PLAT | 7 | 6 | 5 | 1 | 0 |
@@ -304,6 +304,5 @@ are listed rather than quietly counted.
 | EXP-009 | Complete Risc PC/A7000 tier without calling it Archimedes. | not started |
 | EXP-010 | Add additional toolchain dialects, media formats, expansion devices, trackers/codecs, and… | not started |
 | GAME-004 | Run a BBC B+. It is the one machine of the five with no engine at all: jsbeeb 1.19.1… | not started |
-| GAME-007 | Walk the whole journey on each machine in one headless run, and fail on any console… | not started |
 | DOD-001 | Behavior and boundaries match linked requirements and accepted design. | 1 of 2 parts done |
 | DOD-004 | Authorization is server-enforced and sensitive action auditing/ redaction/retention is… | 1 of 2 parts done |

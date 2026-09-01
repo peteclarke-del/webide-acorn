@@ -46,7 +46,7 @@ A planned capability is an absence. It appears here so that it can be read as on
 | Acorn BBC Model B | DFS disk system, Cassette interface, Sideways RAM | 1MHzPi WiFi ROM | Tube second processor, Econet, Speech system |
 | Acorn BBC B+ | Shadow screen RAM, Sideways RAM, 1770 DFS | ADFS, 1MHzPi WiFi ROM | Tube second processor, Econet |
 | Acorn Electron | Cassette interface | — | Plus 1 expansion, Plus 3 expansion, Sideways RAM, Joystick interface, 1MHzPi / ElkWiFi |
-| BBC Master Series | Shadow & Hazel RAM, Sideways RAM, ADFS, DFS, Tube / Turbo | 1MHzPi WiFi ROM | Econet |
+| BBC Master Series | Cassette interface, Shadow & Hazel RAM, Sideways RAM, ADFS, DFS, Tube / Turbo | 1MHzPi WiFi ROM | Econet |
 | Acorn Archimedes A300 | ADFS floppy | Podule expansion, ST-506 hard disk | Econet, Floating-point accelerator |
 | Acorn Archimedes A400/1 | ADFS, Hard disk | ARM3 upgrade, Podule expansion | FPA10 |
 | BBC Acorn A3000 | ADFS floppy | Internal expansion, External hard disk | Econet |

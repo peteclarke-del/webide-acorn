@@ -944,6 +944,41 @@ async function waitFor(op, what, limit, delay) {
 /* A filter that matches nothing must not read as a pass. */
 if (!results.length) { console.error(only ? `No gate stage matches "${only}".` : 'The gate ran no stages.'); exit(2); }
 
+await stage('journey', async () => {
+  /*
+   * The whole authoring line, once per machine, in the built workbench.
+   *
+   * Every other stage asks whether a part works. This asks the only question
+   * the product is actually for: can a person go from an empty workbench to a
+   * game for one of these machines without being stopped by something this
+   * build should have handled. Those are different questions, and the second
+   * one is the one somebody writing a game cares about.
+   *
+   * Walking it by hand first found an assembler that gave every machine the
+   * BBC's operating-system vocabulary, four machines with no starter project at
+   * all, and an Electron whose Run printed nothing and reported no error.
+   * All three passed the entire suite. None of them survives this.
+   *
+   * No firmware is involved, because none can be committed: this covers
+   * choosing a machine, starting from its template, building, and packaging to
+   * the medium the machine shipped with. Running and booting the packaged media
+   * are measured against a real vault by the scripts beside this one, and
+   * frozen where the always-running tests hold the product to them.
+   */
+  const chromium = await firstExisting(CHROMIUM_CANDIDATES);
+  if (!chromium) return { skipped: true, reason: env.CHROMIUM_PATH ? `CHROMIUM_PATH names ${env.CHROMIUM_PATH}, which is not there` : 'no Chromium binary found; set CHROMIUM_PATH to include the authoring journey' };
+  const { walkJourneys, JOURNEYS } = await import('./journey.mjs');
+  const results = await walkJourneys(join(root, 'dist'), { chromium, port: Number(env.CI_JOURNEY_PORT ?? 8139) });
+  const stopped = results.filter((result) => !result.ok);
+  if (stopped.length) {
+    throw new Error(stopped.map((result) => `${result.label}: ${result.failure}${result.complaints?.length ? ` · ${result.complaints.join(' · ')}` : ''}`).join('; '));
+  }
+  if (results.length !== JOURNEYS.length) throw new Error(`${JOURNEYS.length} machines were to be walked and ${results.length} were`);
+  const packaged = results.filter((result) => result.runnable).length;
+  const refused = results.length - packaged;
+  return { detail: `${packaged} machines walked from an empty workbench to a cassette, ${refused} refused for a stated reason, no console or policy error on any of them` };
+});
+
 const failed = results.filter((result) => result.status === 'failed');
 const skipped = results.filter((result) => result.status === 'skipped');
 const report = {

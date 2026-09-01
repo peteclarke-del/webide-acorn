@@ -209,6 +209,11 @@ export const machineProfiles: MachineProfile[] = [
       },
     ],
     capabilities: [
+      /* The Master 128 has a cassette port like the machines before it, and it
+       * is here because a tape written by this build was loaded on one: see
+       * MASTER_TAPE_LOAD in src/media/acornTapeMeasurements.ts, where the
+       * machine printed its own Searching/Loading and every byte arrived. */
+      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported'),
       capability('shadow', 'Shadow & Hazel RAM', 'Display and private workspace', 'supported', true),
       capability('sideways', 'Sideways RAM', 'Four writable bank slots', 'supported', true),
       capability('adfs', 'ADFS', 'Integrated hierarchical filing system', 'supported', true),
