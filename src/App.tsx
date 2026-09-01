@@ -94,6 +94,7 @@ import { createDfsImageFromFiles, openDfsImageProject, type CreatedDfsImage, typ
 import { parseDfsCatalogue, type DfsCatalogue } from './media/dfsCatalogue';
 import { createDfsDsdImage, openDfsDsdProject, splitDfsDsdImage, type CreatedDfsDsdImage, type DfsDsdProject } from './media/dfsDsdImage';
 import { createAtomAtm, parseAtomAtm, type AtomAtmFile } from './media/atomAtm';
+import { createTapeImage, createAtomTapeImage, encodeTapeFile, encodeAtomTapeFile, MAX_NAME_LENGTH, MAX_ATOM_NAME_LENGTH, type TapeFile } from './media/acornTape';
 import { extractAdfsFile, parseAdfsCatalogue, type AdfsCatalogue, type AdfsFileEntry } from './media/adfsCatalogue';
 import { createAdfsEImage, type CreatedAdfsEImage } from './media/adfsImage';
 import { AdfsEntryEditor } from './components/AdfsEntryEditor';
@@ -2992,6 +2993,10 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
   const archimedesTarget = machineId.startsWith('archimedes-') || machineId === 'a3000' || machineId === 'a5000';
   const [discFile, setDiscFile] = useState<File>();
   const [tapeFile, setTapeFile] = useState<File>();
+  const [tapeDraft, setTapeDraft] = useState<TapeFile>();
+  const [createdTape, setCreatedTape] = useState<Uint8Array>();
+  const [createdTapeBlocks, setCreatedTapeBlocks] = useState(0);
+  const [tapeCreatorStatus, setTapeCreatorStatus] = useState('Build a target, then write it to a cassette the machine can load.');
   const [tapeReport, setTapeReport] = useState<TapeReport | null>(null);
   const [dfsCatalogue, setDfsCatalogue] = useState<DfsCatalogue>();
   const [adfsCatalogue, setAdfsCatalogue] = useState<AdfsCatalogue>();
@@ -3307,6 +3312,60 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
     const project = dfsDsdProject.sides[side]; setDfsSide(side); setDfsProject(project); setDfsTitle(project.title);
     setDfsCatalogue(createdDsd?.sides[side].catalogue); setCatalogueStatus(`Editing DSD side ${side}; changes remain a logical draft until the complete image is rebuilt.`);
   };
+  /*
+   * Writing a tape the machine will load.
+   *
+   * The two formats here are not interchangeable and neither is a preference:
+   * the Atom's ROM and the BBC's MOS read different headers, so the machine the
+   * project targets decides which one is written. Both were verified by making
+   * real machines load them; see src/media/acornTapeMeasurements.ts.
+   */
+  const atomTapeTarget = machineId === 'atom';
+  const rebuildTape = (draft = tapeDraft) => {
+    if (!draft) return;
+    try {
+      const image = atomTapeTarget ? createAtomTapeImage([draft]) : createTapeImage([draft]);
+      const blocks = atomTapeTarget ? encodeAtomTapeFile(draft) : encodeTapeFile(draft);
+      setCreatedTape(image); setCreatedTapeBlocks(blocks.length);
+      setTapeCreatorStatus(`${atomTapeTarget ? 'Atom' : 'BBC/Electron'} cassette · ${draft.name} · load ${formatAddress(draft.loadAddress)} · execute ${formatAddress(draft.executionAddress)} · ${draft.bytes.length.toLocaleString()} bytes in ${blocks.length} block${blocks.length === 1 ? '' : 's'} · ${image.length.toLocaleString()} bytes of UEF.`);
+    } catch (error) {
+      setCreatedTape(undefined); setCreatedTapeBlocks(0);
+      setTapeCreatorStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const packageCurrentBuildToTape = () => {
+    if (!buildArtifact || buildArtifact.kind !== '6502-binary') { onNotice('Build a 6502 target before writing a cassette'); return; }
+    const limit = atomTapeTarget ? MAX_ATOM_NAME_LENGTH : MAX_NAME_LENGTH;
+    const outputName = buildArtifact.provenance?.target.outputName.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_!-]/g, '').toUpperCase().slice(0, limit) || 'GAME';
+    const draft: TapeFile = { name: outputName, loadAddress: buildArtifact.origin, executionAddress: buildArtifact.entryPoint, bytes: buildArtifact.bytes };
+    setTapeDraft(draft); rebuildTape(draft);
+  };
+  const updateTapeDraft = (patch: Partial<TapeFile>) => {
+    setCreatedTape(undefined); setTapeDraft((current) => current ? { ...current, ...patch } : current);
+    setTapeCreatorStatus('Cassette metadata changed; write the tape again before downloading or mounting it.');
+  };
+  const mountCreatedTape = () => {
+    if (!createdTape || !tapeDraft || !connected || !tapeSupported) return;
+    onCommand({ type: 'load-tape', name: `${safeFilename(tapeDraft.name) || 'game'}.uef`, bytes: Array.from(createdTape) });
+    onNotice(atomTapeTarget
+      ? `Cassette mounted · type *LOAD"${tapeDraft.name}" then press RETURN when the machine asks you to play the tape`
+      : `Cassette mounted · type *TAPE then *RUN "${tapeDraft.name}" or CHAIN"${tapeDraft.name}"`);
+  };
+  const tapeCreator = tapeSupported && <section className="media-subsection dfs-creator" aria-label="Write a cassette image from the current build">
+    <h3>Write cassette</h3>
+    <p>Writes a UEF carrying {atomTapeTarget ? "the Atom's own block format: a shorter header, addresses written high byte first, each block naming its own load address, and a summed check byte covering the synchronising asterisks." : 'the block format the MOS reads: name, load and execution addresses, block number and length, each half checked by its own CRC.'} Nothing validates these blocks on the way in, so the encoder is held to bytes real machines accepted.</p>
+    <div className="media-fields">
+      <button type="button" disabled={!buildArtifact || buildArtifact.kind !== '6502-binary'} onClick={packageCurrentBuildToTape}>Package current build</button>
+      <label><span>Name</span><input aria-label="Cassette file name" maxLength={atomTapeTarget ? MAX_ATOM_NAME_LENGTH : MAX_NAME_LENGTH} value={tapeDraft?.name ?? ''} onChange={(event) => updateTapeDraft({ name: event.target.value.toUpperCase() })} /></label>
+      <label><span>Load</span><input aria-label="Cassette load address" type="number" min={0} max={atomTapeTarget ? 0xffff : 0xffffffff} value={tapeDraft?.loadAddress ?? 0} onChange={(event) => updateTapeDraft({ loadAddress: Number(event.target.value) })} /></label>
+      <label><span>Execute</span><input aria-label="Cassette execution address" type="number" min={0} max={atomTapeTarget ? 0xffff : 0xffffffff} value={tapeDraft?.executionAddress ?? 0} onChange={(event) => updateTapeDraft({ executionAddress: Number(event.target.value) })} /></label>
+      <button type="button" disabled={!tapeDraft} onClick={() => rebuildTape()}>Write tape</button>
+      <button type="button" disabled={!createdTape} onClick={() => createdTape && tapeDraft && downloadBlob(new Blob([createdTape], { type: 'application/octet-stream' }), `${safeFilename(tapeDraft.name) || 'game'}.uef`)}><Icon name="download" size={14} /> Download UEF</button>
+      <button type="button" disabled={!createdTape || !connected} onClick={mountCreatedTape}><Icon name="open" size={14} /> Mount cassette</button>
+    </div>
+    <div className="dfs-preview-status" role="status" aria-live="polite">{tapeCreatorStatus}</div>
+    {createdTape && tapeDraft && <div className="dfs-facts"><span>Format <strong>{atomTapeTarget ? 'Acorn Atom' : 'BBC / Electron'}</strong></span><span>Blocks <strong>{createdTapeBlocks}</strong></span><span>Image <strong>{createdTape.length.toLocaleString()} bytes</strong></span></div>}
+  </section>;
   const updateAtomAtmDraft = (patch: Partial<AtomAtmFile>) => {
     setCreatedAtm(undefined); setAtomAtmDraft((current) => current ? { ...current, ...patch } : current);
     setAtomAtmStatus('ATM metadata changed; rebuild and validate before download or live RAM handoff.');
@@ -3350,6 +3409,7 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
   return <div className="media-workspace">
     <div className="runtime-heading"><div><span className="eyebrow">LIVE MACHINE MEDIA ADAPTER</span><h2>Packaging and machine media</h2></div></div>
     {atomAtmEditor}
+    {tapeCreator}
     {riscOsPackage && <RiscOsResourcePanel application={riscOsPackage} onChange={setRiscOsPackage} onNotice={onNotice} onDownload={(bytes, filename) => downloadBlob(new Blob([bytes], { type: 'application/zip' }), filename)} onDisc={(created, filename) => { setCreatedAdfs(created); setDiscFile(new File([created.image], filename, { type: 'application/octet-stream' })); setDfsCatalogue(undefined); setAdfsCatalogue(created.catalogue); setAdfsImage(created.image); setAdfsEditing(undefined); }} />}
     {(discSupported || archimedesConnected) && <AdfsDiscBuilder artifact={armArtifact ? { name: riscOsName, bytes: armArtifact.bytes, entryPoint: armArtifact.entryPoint } : null} onNotice={onNotice} onCreated={(created, filename) => { setCreatedAdfs(created); setDiscFile(new File([created.image], filename, { type: 'application/octet-stream' })); setDfsCatalogue(undefined); setAdfsCatalogue(created.catalogue); setAdfsImage(created.image); setAdfsEditing(undefined); }} />}
     {(armArtifact || archimedesConnected) && <section className="media-subsection dfs-creator" aria-label="Create RISC OS application from ARM build"><h3>RISC OS application and ADFS E disk</h3><p>Wrap a current raw ARM2 image only when it satisfies FileSwitch's Absolute contract: little-endian code linked and entered at &amp;00008000. HostFS creates a typed <code>!Run</code>/<code>RunImage</code> directory; the disk path creates an independently reparsed one-file 800 KiB ADFS E image.</p><div className="media-fields"><label><span>Application</span><input aria-label="RISC OS application name" maxLength={10} value={riscOsName} onChange={(event) => { setRiscOsName(event.target.value); setRiscOsPackage(undefined); setCreatedAdfs(undefined); }} /></label><button type="button" disabled={!armArtifact} onClick={createApplication}>Create HostFS app</button><button type="button" disabled={!riscOsPackage || !archimedesConnected} onClick={stageApplication}>Stage in HostFS</button><button type="button" disabled={!riscOsPackage || !archimedesConnected} onClick={launchApplication}><Icon name="play" size={14} /> Run HostFS app</button><button type="button" disabled={!armArtifact} onClick={createAdfsApplication}>Create ADFS E</button><button type="button" disabled={!createdAdfs} onClick={() => createdAdfs && downloadBlob(new Blob([createdAdfs.image], { type: 'application/octet-stream' }), `${safeFilename(riscOsName)}.adf`)}><Icon name="download" size={14} /> Download ADF</button><button type="button" disabled={!createdAdfs || drive !== 0 || !discFile || !mounted.some((item) => item.kind === 'disc' && item.drive === 0 && item.name === discFile.name)} onClick={launchAdfsApplication}><Icon name="play" size={14} /> Run mounted ADF</button></div>{armArtifact ? <p className="media-limit">Artifact {armArtifact.bytes.length.toLocaleString()} bytes · origin {formatAddress(armArtifact.origin, 8)} · entry {formatAddress(armArtifact.entryPoint, 8)} · automatic ADFS launch is qualified on drive 0</p> : <p className="honest-note">Build a current ARM2 target to enable application packaging.</p>}{riscOsPackage && <div className="dfs-preview-status" role="status">Validated {riscOsPackage.rootDirectory} · !Run &amp;FEB · RunImage &amp;FF8 · FileSwitch launch path {riscOsPackage.launchPath}</div>}{createdAdfs && <div className="dfs-preview-status" role="status">Validated ADFS E · $.{riscOsName} &amp;FF8 · {armArtifact?.bytes.length.toLocaleString()} exact bytes · mount in drive 0 to run</div>}</section>}

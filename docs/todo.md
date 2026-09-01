@@ -7953,6 +7953,61 @@ profile definition rather than reusing another target cosmetically.
 - [ ] EXP-010 Add additional toolchain dialects, media formats, expansion devices,
   trackers/codecs, and reference packs only through their adapter and legal gates.
 
+## 12A. Authoring a game end to end, on five machines
+
+Accepted goal: the workbench must be able to take somebody from an empty project
+to a finished, distributable game for the Acorn Atom, the Electron, the BBC
+Model B, the B+ and the Master — smoothly, with a sensible workflow, and without
+crashes or errors.
+
+The journey has nine stages, and the honest state of each per machine is below.
+What matters is not that every stage exists somewhere but that a person can walk
+the whole line on one machine without leaving the workbench.
+
+| Stage | Atom | Electron | BBC B | B+ | Master |
+| --- | --- | --- | --- | --- | --- |
+| Project and firmware | yes | yes | yes | **no ROM set** | MOS 3.20 only |
+| Author 6502 source | yes | yes | yes | yes | yes |
+| Author graphics | yes | yes | yes | yes | yes |
+| Author sound | yes | **wrong chip** | yes | yes | yes |
+| Build | yes | yes | yes | yes | yes |
+| Run | yes | yes | yes | **no engine** | yes |
+| Debug | yes | yes | yes | **no engine** | yes |
+| Package to media | ATM and tape | **none** | DFS and tape | none | DFS and tape |
+| Boot the packaged media | tape, yes | **no** | yes | **no** | yes |
+
+- [x] GAME-001 Author an Acorn tape image from built files, for the BBC/Electron
+  block format and the Atom's, so a game can leave the workbench on the medium
+  these machines actually shipped with. `src/media/acornTape.ts` writes both
+  formats and the media workspace offers a cassette writer wherever the machine
+  profile enables the cassette interface. Because no reader validates a block —
+  a bad checksum makes a tape that never finishes loading rather than one that
+  fails — the encoder is held to what machines accepted: a BBC B, a BBC Master
+  and an Acorn Atom were booted on the pinned jsbeeb core, the tapes mounted and
+  the load commands typed, and their transcripts and loaded bytes are frozen in
+  `src/media/acornTapeMeasurements.ts` by `scripts/measureAcornTape.mjs`. A BBC
+  BASIC program written here was saved to tape and CHAINed on a real machine,
+  which printed it back. The Electron shares the BBC's block format but has no
+  engine that can prove it here; that is GAME-002.
+- [ ] GAME-002 Mount tape and disc media on the Elkulator Electron core, so a
+  packaged Electron game can be booted where it was built.
+- [ ] GAME-003 Give the song editor an Electron target. It has the BBC's SN76489
+  and the Atom's single speaker bit; the Electron has neither, and composing on
+  the wrong chip produces music that will not play.
+- [ ] GAME-004 Run a BBC B+. It is the one machine of the five with no engine at
+  all: jsbeeb 1.19.1 publishes no B+ model, so nothing here can execute its
+  shadow or sideways behaviour, and no ROM set is registered for it.
+- [ ] GAME-005 Register the Master MOS 3.50 and Compact 5.10 ROM sets. Both are
+  offered as firmware variants and neither can be selected, because only MOS
+  3.20 has a manifest.
+- [ ] GAME-006 Run a hardware test plan on an Electron. Both cores refuse it —
+  ElkJS for want of a per-instruction hook, Elkulator because a plan's
+  assertions, captures and teardown are not implemented against its bridge.
+- [ ] GAME-007 Walk the whole journey on each machine in one headless run, and
+  fail on any console error, policy violation or refusal that is not expected.
+  That is what "smoothly, with no crashes or errors" has to mean if it is to be
+  checked rather than asserted.
+
 ## 13. Definition of done for every backlog item
 
 An item is complete only when, as applicable. These are standing rules rather

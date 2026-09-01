@@ -22,12 +22,12 @@ is the part a machine can settle.
 
 | Measure | Count |
 | --- | --- |
-| Requirements tracked | 294 |
-| Complete | 196 |
+| Requirements tracked | 301 |
+| Complete | 197 |
 | Complete and traced | 124 |
 | Complete and described | 72 |
-| Complete and untraced | 0 |
-| Open | 98 |
+| Complete and untraced | 1 |
+| Open | 104 |
 
 ## By area
 
@@ -49,6 +49,7 @@ is the part a machine can settle.
 | RSH | 10 | 9 | 8 | 1 | 0 |
 | A11Y | 9 | 4 | 4 | 0 | 0 |
 | PRJ | 9 | 9 | 6 | 3 | 0 |
+| GAME | 7 | 1 | 0 | 0 | 1 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 3 | 3 | 0 | 0 |
 | PLAT | 7 | 6 | 5 | 1 | 0 |
@@ -65,7 +66,12 @@ is the part a machine can settle.
 
 ## Completed requirements that say nothing about verification
 
-None. Every completed requirement records how it was verified.
+Each of these is marked done and names no contract, test or run. They
+are listed rather than quietly counted.
+
+| Requirement | Title |
+| --- | --- |
+| GAME-001 | Author an Acorn tape image from built files, for the BBC/Electron block format and the… |
 
 ## Completed requirements and their evidence
 
@@ -296,5 +302,11 @@ None. Every completed requirement records how it was verified.
 | EXP-008 | Complete A4/A3010/A3020/A4000/A5000 tier. | not started |
 | EXP-009 | Complete Risc PC/A7000 tier without calling it Archimedes. | not started |
 | EXP-010 | Add additional toolchain dialects, media formats, expansion devices, trackers/codecs, and… | not started |
+| GAME-002 | Mount tape and disc media on the Elkulator Electron core, so a packaged Electron game can… | not started |
+| GAME-003 | Give the song editor an Electron target. It has the BBC's SN76489 and the Atom's single… | not started |
+| GAME-004 | Run a BBC B+. It is the one machine of the five with no engine at all: jsbeeb 1.19.1… | not started |
+| GAME-005 | Register the Master MOS 3.50 and Compact 5.10 ROM sets. Both are offered as firmware… | not started |
+| GAME-006 | Run a hardware test plan on an Electron. Both cores refuse it — ElkJS for want of a… | not started |
+| GAME-007 | Walk the whole journey on each machine in one headless run, and fail on any console… | not started |
 | DOD-001 | Behavior and boundaries match linked requirements and accepted design. | 1 of 2 parts done |
 | DOD-004 | Authorization is server-enforced and sensitive action auditing/ redaction/retention is… | 1 of 2 parts done |
