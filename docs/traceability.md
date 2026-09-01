@@ -24,9 +24,9 @@ is the part a machine can settle.
 | --- | --- |
 | Requirements tracked | 294 |
 | Complete | 172 |
-| Complete and traced | 98 |
+| Complete and traced | 106 |
 | Complete and described | 66 |
-| Complete and untraced | 8 |
+| Complete and untraced | 0 |
 | Open | 122 |
 
 ## By area
@@ -41,12 +41,12 @@ is the part a machine can settle.
 | EMU | 18 | 12 | 3 | 9 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
-| CLD | 10 | 5 | 4 | 0 | 1 |
+| CLD | 10 | 5 | 5 | 0 | 0 |
 | DOC | 10 | 9 | 7 | 2 | 0 |
 | DOD | 10 | 0 | 0 | 0 | 0 |
 | EXP | 10 | 0 | 0 | 0 | 0 |
 | MED | 10 | 9 | 6 | 3 | 0 |
-| RSH | 10 | 9 | 1 | 1 | 7 |
+| RSH | 10 | 9 | 8 | 1 | 0 |
 | A11Y | 9 | 4 | 4 | 0 | 0 |
 | PRJ | 9 | 9 | 6 | 3 | 0 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
@@ -65,19 +65,7 @@ is the part a machine can settle.
 
 ## Completed requirements that say nothing about verification
 
-Each of these is marked done and names no contract, test or run. They
-are listed rather than quietly counted.
-
-| Requirement | Title |
-| --- | --- |
-| RSH-700 | Finalize reference-source/pack/index schemas, source tiers, version/target tags,… |
-| RSH-701 | Implement approved ingestion pipeline with integrity, idempotency, extraction bounds,… |
-| RSH-702 | Implement target/profile/toolchain-aware exact/full-text search for symbols, addresses,… |
-| RSH-703 | Implement dockable research panel, filters, citations, bookmarks, history, external… |
-| RSH-704 | Cross-link diagnostics, hover, instruction/disassembly, hardware registers, machine… |
-| RSH-705 | Implement licensed code/example insertion preview with dialect compatibility, provenance… |
-| RSH-706 | Implement reference pack import/update/remove and offline behavior. |
-| CLD-807 | Implement quota dashboard and predictable cache/artifact/revision eviction/deletion with… |
+None. Every completed requirement records how it was verified.
 
 ## Completed requirements and their evidence
 
@@ -163,10 +151,18 @@ are listed rather than quietly counted.
 | AST-627 | Implement Atom-appropriate audio/SFX workflow without pretending… | 15 song-document contracts covering the Atom rebuild to one channel with bounded volume, and 11 song-workspace contracts driving the real editor. Nothing pretends the Atom has multichannel hardware: the rebuild is… |
 | AST-628 | Implement Archimedes audio/sample workflow after selected hardware… | 25 contracts covering the chord arithmetic against the datasheet's printed boundaries, both bit orders round-tripping every byte, the companding being coarser at high levels than low, clipping reported rather than… |
 | AST-629 | Add third-party format import/export only with explicit round-trip,… | 11 interchange contracts including a full export and re-import round trip of layers, indices and objects, plus 3 workspace contracts covering the import report, a refusal that leaves the current map untouched, and… |
+| RSH-700 | Finalize reference-source/pack/index schemas, source tiers,… | 14 contracts in `src/research/referencePack.test.ts` covering the pack and entry schemas, the source tiers, the version and target tags, and the refusal of a pack that carries no citation — a document that cannot say… |
+| RSH-701 | Implement approved ingestion pipeline with integrity, idempotency,… | 13 contracts in `src/research/packLibrary.test.ts` covering ingestion, its integrity check, importing the same pack twice, the extraction bounds and the dropping of an entry that will not load, with its reason, rather… |
+| RSH-702 | Implement target/profile/toolchain-aware exact/full-text search for… | 14 contracts in `src/research/referenceSearch.test.ts` covering exact and full-text matching over symbols and addresses, the ranking that puts an applicable page above a merely matching one, and the two empty answers —… |
+| RSH-703 | Implement dockable research panel, filters, citations, bookmarks,… | 12 contracts in `src/components/ReferencePanel.test.tsx` and 11 in `src/components/ReferenceLibraryPanel.test.tsx`, covering the filters, citations, bookmarks, bounded history, the external link that says so to a screen… |
+| RSH-704 | Cross-link diagnostics, hover, instruction/disassembly, hardware… | 11 contracts in `src/research/referenceLinks.test.ts` covering the mapping from an opcode, an operand address, a diagnostic and a hardware register onto a pack's anchors, and that a precise lookup finding nothing is… |
+| RSH-705 | Implement licensed code/example insertion preview with dialect… | 13 contracts in `src/research/referenceInsertion.test.ts` covering the three separate refusals — dialect, provenance and licence — the preview that applies nothing by being looked at, and the apply returning what was… |
+| RSH-706 | Implement reference pack import/update/remove and offline behavior. | the import, update and removal paths are among the 13 contracts in `src/research/packLibrary.test.ts`, together with 7 in `src/research/accuracyEvaluation.test.ts` that hold the library to invariants which can only be… |
 | RSH-707 | Add accuracy evaluation set ensuring target/version relevance and… | 72 module contracts across the six research modules and 23 panel contracts. The invariants are proved able to fail by building a library past the parser — generated text carrying a citation, a licence permitting… |
 | CLD-802 | Implement encrypted/isolated project metadata and blob storage,… | 28 backend contracts covering integrity, refusals, quota accounting, collection safety and that every refusal the store can raise has an HTTP answer and nothing is mapped that cannot be raised. Proved through the real… |
 | CLD-803 | Implement explicit local/cloud modes and migration without account… | 10 client contracts covering absence, refusal, a malformed answer and non-ASCII content round-tripping, and 8 panel contracts driving the real panel through copying up, colliding, and taking a revision back. |
 | CLD-804 | Implement sync state machine, offline queue, reconnect, text merge,… | 11 merge contracts, 15 sync-model contracts and 11 panel contracts, including that diverged appears exactly when both sides moved, that a project which vanished from the store is diverged rather than untracked, and that… |
+| CLD-807 | Implement quota dashboard and predictable cache/artifact/revision… | 19 contracts in `src/components/ProjectStorePanel.test.tsx` covering the dashboard reading the store's own accounting, the warning arriving at four fifths rather than at the limit, a limit the store did not report being… |
 | CLD-808 | Implement user/project export and deletion with tested retention,… | 6 further store contracts and the whole path exercised against the running container — an unconfirmed delete refused with the remedy, a confirmed one returning its tombstone, the tombstone listed afterwards, and the… |
 | OPS-902 | Benchmark application startup, edit latency, live diagnostics, build,… | 11 contracts in `scripts/benchmarks.test.ts`, including each of the three kinds of finding produced deliberately — a figure over its ceiling, a case that produced nothing, and a case that is absent — because a check… |
 | OPS-903 | Enforce and exercise size/concurrency/retention limits with clear… | 12 register and boundary contracts, and 5 panel contracts driving the real Settings surface — every limit shown and grouped, each row carrying its value, reason and behaviour, byte values written in the unit a person… |

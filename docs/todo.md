@@ -18,8 +18,8 @@ Companion specification: `docs/requirements-specification.md`
    verification. It found 35, each of which has since been given an Evidence
    entry whose counts were taken from running the suites rather than
    estimated. Untraced has stayed at zero as the backlog has grown: the report
-   currently shows 77 traced, 57 described and 0 untraced across 134 completed
-   requirements of 294 tracked. Those numbers are regenerated rather than
+   currently shows 106 traced, 66 described and 0 untraced across 172 completed
+   requirements of 294 tracked, and its untraced section reads "None". Those numbers are regenerated rather than
    maintained — `npm run traceability` rewrites the report, and its contract
    runs in the release gate — so a tick added without evidence appears in the
    next report rather than passing unnoticed, and the figures quoted here are
@@ -6318,6 +6318,10 @@ Current implemented increment:
     citation claims a document says this, and nothing generated can make that
     claim. An entry may carry its own tier where a pack mixes material, so a
     manual with community notes beside it is not flattened to one.
+  - [x] Evidence: 14 contracts in `src/research/referencePack.test.ts` covering
+    the pack and entry schemas, the source tiers, the version and target tags,
+    and the refusal of a pack that carries no citation — a document that cannot
+    say where it came from is not a reference this build will hold.
 - [x] RSH-701 Implement approved ingestion pipeline with integrity, idempotency,
   extraction bounds, change detection, deletion, and audit.
   - [x] Three cases that look alike from outside are distinguished rather than
@@ -6334,6 +6338,10 @@ Current implemented increment:
     the way back in rather than trusted — it is editable by hand and a partial
     write leaves a partial record — and anything that will not load is dropped
     with its reason rather than carried as documentation.
+  - [x] Evidence: 13 contracts in `src/research/packLibrary.test.ts` covering
+    ingestion, its integrity check, importing the same pack twice, the
+    extraction bounds and the dropping of an entry that will not load, with its
+    reason, rather than carrying it as documentation.
 - [x] RSH-702 Implement target/profile/toolchain-aware exact/full-text search for
   symbols, addresses, opcodes, registers, OS calls/SWIs, topics, and examples.
   - [x] Applicability is part of the ranking rather than a filter applied
@@ -6352,6 +6360,11 @@ Current implemented increment:
     answer is explained: somebody searching an empty library and somebody
     searching a full one that happens not to cover their machine see the same
     empty list and are in very different situations.
+  - [x] Evidence: 14 contracts in `src/research/referenceSearch.test.ts`
+    covering exact and full-text matching over symbols and addresses, the
+    ranking that puts an applicable page above a merely matching one, and the
+    two empty answers — an empty library and a library that does not cover this
+    machine — being explained rather than both reported as nothing found.
 - [x] RSH-703 Implement dockable research panel, filters, citations, bookmarks,
   history, external links, and keyboard/screen-reader semantics.
   - [x] Results are separated under their own headings rather than merely
@@ -6362,6 +6375,10 @@ Current implemented increment:
     page, external links open in a new tab and say so to a screen reader, and
     filters, bookmarks and a bounded history are keyboard-operable with the
     listbox semantics the rest of the workbench uses.
+  - [x] Evidence: 12 contracts in `src/components/ReferencePanel.test.tsx` and
+    11 in `src/components/ReferenceLibraryPanel.test.tsx`, covering the filters,
+    citations, bookmarks, bounded history, the external link that says so to a
+    screen reader, and the listbox semantics the rest of the workbench uses.
 - [x] RSH-704 Cross-link diagnostics, hover, instruction/disassembly, hardware
   registers, machine settings, and project symbols to relevant references.
   - [x] The workbench already knows a great deal about what is under somebody's
@@ -6377,6 +6394,10 @@ Current implemented increment:
     finds nothing is not re-asked as a word: that would turn a precise "nothing
     documents this" into a vague "here is something", and a panel that always
     finds something teaches people that finding something means nothing.
+  - [x] Evidence: 11 contracts in `src/research/referenceLinks.test.ts`
+    covering the mapping from an opcode, an operand address, a diagnostic and a
+    hardware register onto a pack's anchors, and that a precise lookup finding
+    nothing is reported as nothing rather than re-asked as a word.
 - [x] RSH-705 Implement licensed code/example insertion preview with dialect
   compatibility, provenance persistence, explicit apply, and undo.
   - [x] This is the one path that leaves a permanent mark on somebody's work and
@@ -6394,6 +6415,10 @@ Current implemented increment:
     screen. Nothing applies anything: a preview that inserted as a side effect
     of being looked at would be a preview nobody could safely open, and the
     apply returns what was there before so it can be put back exactly.
+  - [x] Evidence: 13 contracts in `src/research/referenceInsertion.test.ts`
+    covering the three separate refusals — dialect, provenance and licence — the
+    preview that applies nothing by being looked at, and the apply returning
+    what was there before so it can be put back exactly.
 - [x] RSH-706 Implement reference pack import/update/remove and offline behavior.
   - [x] Import, update and remove are in Settings alongside an account of what is
     held, what it permits and what it is made of — a library that is mostly
@@ -6404,6 +6429,13 @@ Current implemented increment:
     than implied through a cache. A quota failure on save is reported rather
     than swallowed, because a library that silently stopped saving looks exactly
     like one that saved.
+  - [x] Evidence: the import, update and removal paths are among the 13
+    contracts in `src/research/packLibrary.test.ts`, together with 7 in
+    `src/research/accuracyEvaluation.test.ts` that hold the library to
+    invariants which can only be checked once something has been imported.
+    Offline behaviour is covered by there being no fetch to cover: nothing here
+    reaches the network, so a pack answers offline because there is nowhere else
+    it could have gone.
 - [x] RSH-707 Add accuracy evaluation set ensuring target/version relevance and
   preventing generated/community text from being presented as authoritative.
   - [x] A fixed question set would only check the documentation somebody thought
@@ -6593,6 +6625,13 @@ Current implemented increment:
     and no revision is ever removed to make content collectable. A store that
     quietly evicted the oldest revision to stay under a limit would lose the
     history somebody kept it for.
+  - [x] Evidence: 19 contracts in `src/components/ProjectStorePanel.test.tsx`
+    covering the dashboard reading the store's own accounting, the warning
+    arriving at four fifths rather than at the limit, a limit the store did not
+    report being ignored rather than invented, and deletion being asked for
+    rather than inferred; 10 in `src/cloud/projectStoreClient.test.ts` for what
+    the client does with the store's answers; and 26 backend contracts in
+    `backend/tests/Storage/ProjectStoreTest.php` for the accounting itself.
 - [x] CLD-808 Implement user/project export and deletion with tested retention,
   tombstone, backup, and audit behavior.
   - [x] **Export is everything, including history.** Work somebody cannot get
