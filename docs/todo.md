@@ -3036,6 +3036,15 @@ Current implemented increment:
     `Hugo` signatures, the sequence number appearing identically at each end,
     the map's two checksums, and the map agreeing with the file about how big
     the disc is.
+  - [ ] **An F disc could not be produced to measure, and the machine said so
+    itself.** F is the 1.6 MB high-density format, and the A310 this build
+    qualifies has a double-density drive: asked to `*Format 0 F` it answers
+    `Density not supported`, with each of the floppy controllers Arculator
+    offers. An A5000 was tried as a rig and did not reach a prompt on the A310
+    ROM set. So the F catalogue stays unread, and the reason is now what the
+    machine says rather than a description of this build's arithmetic. What it
+    needs is either a machine that can write one or an F image somebody already
+    has.
   - [ ] **S and M discs are read with the structure L was measured with, and
     that is said rather than implied.** RISC OS 3.11 offers F, E, D and L and no
     others — its own `*Help Format` says so — so no S or M disc could be
