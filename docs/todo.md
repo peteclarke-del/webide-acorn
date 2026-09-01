@@ -52,13 +52,62 @@ Companion specification: `docs/requirements-specification.md`
 
 - [ ] P0-010 Inventory candidate emulators for Atom, BBC/Electron/Master, Tube,
   ARM Archimedes, and later ARM systems (DEC-003, EMU-002).
+  - [x] Four of the five families were surveyed and each choice is recorded with
+    its reasoning. Atom, BBC, Master and the Tube are jsbeeb, in ADR 0001. The
+    Archimedes is Arculator, in ADR 0006. The Electron was the one that needed a
+    real survey, and it is written up under EMU-423: `dmcoles/elkjs` was the
+    only maintained browser Electron, its memory model read to settle what it
+    could honestly provide, and `stardot/elkulator` identified as the only route
+    to the expansions — with the Allegro 5 fork that made a WebAssembly port
+    possible found by looking rather than assumed. Both were adopted, because
+    they answer different questions.
+  - [ ] **Later ARM systems were not surveyed.** No candidate has been
+    inventoried for the Risc PC or the A7000, and EXP-009 gates those machines
+    anyway. A survey that named a candidate nothing here could run would be a
+    list rather than a decision.
 - [ ] P0-011 For each candidate, record repository/upstream, maintainer health,
   licence and transitive licences, embedding/API feasibility, ROM assumptions,
   supported profiles/peripherals, accuracy evidence, deterministic state,
   debugger hooks, browser/server performance, accessibility impact, and gaps.
-- [ ] P0-012 Prototype—not productize—emulator contracts for pause, instruction
+  - [x] Most of these are recorded for every core this build runs, and in the
+    place that cannot go stale: upstream and revision are pinned in the adapter
+    support map and the ROM sets; the licence and its obligations are in the
+    provenance file each core ships beside its source; ROM assumptions are in
+    the firmware matrix; supported profiles and peripherals are the capability
+    model; debugger hooks and gaps are the capability-and-refusal tables, where
+    every unavailable capability names its reason.
+  - [x] The ones that took real investigation are written up rather than
+    tabulated. ElkJS's memory model, its unfinished sideways paging and the
+    game snapshots that may not be vendored are under EMU-423; Elkulator's five
+    faults, its licence position and its measured frame rate are in
+    `docker/elkulator/PROVENANCE.md`; Arculator's bridge and its firmware
+    boundary are in ADR 0006.
+  - [ ] **Maintainer health and accessibility impact are not tracked as facts.**
+    A last-commit date read once is a snapshot that rots, and this build records
+    none for any core; nor has any core been assessed for what it does to a
+    screen reader beyond the workbench around it offering structured
+    alternatives. Both are real gaps rather than absences with a reason.
+- [x] P0-012 Prototype—not productize—emulator contracts for pause, instruction
   step, registers, banked memory, source/address breakpoints, state snapshot,
   input injection, video/audio capture, and instruction/bus trace.
+  - [x] Every contract on that list has been proved against a running machine,
+    and on three different cores rather than one, which is what makes it a
+    contract rather than one emulator's interface written down. jsbeeb answers
+    nearly all of it; Arculator answers it through a bridge written for this
+    build; and the Elkulator bridge answers pause, step, breakpoints, registers,
+    memory and key injection against a per-instruction hook.
+  - [x] **The prototyping settled which of them are contracts and which are one
+    core's convenience.** A per-instruction hook turned out to be the thing
+    everything else rests on: without it there is no honest instruction step, no
+    exact breakpoint, no trace and no profiler, which is why the ElkJS adapter
+    refuses all four by name and the Elkulator one offers them. Discovering that
+    by building against two cores is the whole value of prototyping first.
+  - [x] Evidence: the adapter contract tests for each core hold its declared
+    capabilities to what its runtime actually implements — 10 for ElkJS, 13 for
+    Elkulator including that every offered capability names a bridge entry point
+    that exists, and `src/emulator/adapterContract.test.ts` for the shared
+    vocabulary. Each was proved by a headless run against a real machine and the
+    runs are recorded under EMU-423 and EMU-424.
 - [ ] P0-013 Inventory toolchains for BeebAsm-compatible 6502, general 6502/
   65C02, BASIC tokenization, 8-bit C, ARM assembly/linking, and RISC OS C
   (BLD-001–BLD-004, DEC-005).
@@ -102,8 +151,26 @@ Companion specification: `docs/requirements-specification.md`
     includes, diagnostics, 26-bit bounds and cleanup have real-tool contracts.
     ADR 0005 records why this is not represented as RISC OS or runnable
     Archimedes output. The parent remains open for RISC OS C and packaging.
-- [ ] P0-015 Inventory media and asset format implementations and run malicious-
+- [x] P0-015 Inventory media and asset format implementations and run malicious-
   input review before adopting a parser (MED-001–MED-009, SEC-003).
+  - [x] **No parser was adopted, which is the finding this item exists to
+    produce.** Every media format this product reads is implemented here —
+    fifteen modules covering DFS single and double sided, ADFS S, M, L, D and E
+    with both map and directory formats, Atom ATM, RISC OS application
+    directories, UEF chunks, tape and disc sets. Nothing third-party parses a
+    file somebody supplies, so there is no upstream parser's malicious-input
+    history to review and no transitive licence to carry.
+  - [x] That decision was made for a stated reason rather than by default: these
+    are small, well-understood formats, and a parser that refuses precisely is
+    worth more here than one that is merely popular. What the review becomes,
+    given that, is the discipline the parsers are written under — every one
+    validates before it allocates, bounds what it will read, and refuses by
+    naming what is wrong rather than repairing it into something plausible.
+  - [x] Evidence: 156 contracts across `src/media`, of which 27 assert a refusal
+    by name — a length that is no disc, a signature that is missing, a catalogue
+    that points off the disc, a directory that loops, a half-written directory,
+    an image whose map disagrees with its own size. A parser that started
+    accepting malformed input fails there.
 - [x] P0-016 Produce ROM/firmware matrix by profile: required/optional ROM,
   version, ownership, redistribution status, user-supplied flow, accepted hashes,
   storage/share rules, and clean CI substitute (TGT-008–TGT-009, DEC-004).
@@ -138,6 +205,24 @@ Companion specification: `docs/requirements-specification.md`
 - [ ] P0-017 Produce manuals/reference-content matrix with title, owner, version,
   applicable targets, licence, allowed indexing/snippets/cache, citation URL,
   update/removal process (RSH-001–RSH-007, DEC-008).
+  - [x] **The matrix has two halves and this build ships only one of them.** The
+    first-party half is the maintained knowledge in `src/language` — opcodes, OS
+    calls, SWIs and hardware registers — where every entry carries its own
+    citation, and that is written here rather than imported, so its owner,
+    licence and update process are this repository's.
+  - [x] The second half is not content this product holds at all. A reference
+    pack is documentation somebody imports, which this build did not write and
+    cannot vouch for, so the schema requires each pack to carry its own title,
+    source tier, version, applicable targets, licence and citation, and a pack
+    without a citation is refused rather than indexed. Removal is a pack the
+    person deletes, and there is nothing to remove anywhere else because nothing
+    is cached off their machine.
+  - [ ] **What is missing is a matrix of actual documents, and it cannot be
+    produced from here.** Which manuals a person may index, and on what terms,
+    is a question about specific publications and their rights holders — the
+    Acorn manuals, the Advanced User Guides, the PRMs. Naming them and their
+    terms is a licensing exercise and a decision, not a record of one this build
+    has already made.
 - [ ] P0-018 Complete dependency licence/security review and approve selected
   candidates. Unresolved assets block architecture selection (ARC-09, SEC-008).
   - [x] **The review found an obligation named and not met.** Three components
@@ -179,53 +264,382 @@ Companion specification: `docs/requirements-specification.md`
 
 ### 2.3 Hardware truth model
 
-- [ ] P0-020 Define and validate the machine-profile JSON schema, inheritance/
+- [x] P0-020 Define and validate the machine-profile JSON schema, inheritance/
   composition rules, stable IDs, status vocabulary, migrations, and extension
   preservation (TGT-001–TGT-007).
-- [ ] P0-021 Model Atom variants and legal ROM/storage prerequisites.
+  - [x] The schema is `src/profiles/profileManifest.ts` and it is validated on
+    every path in from outside the session rather than trusted. Identities are
+    stable strings, the status vocabulary is a closed set — supported, preview,
+    planned — and a capability whose state is not one of them is dropped by name
+    instead of guessed at.
+  - [x] **Composition is a resolution rather than an inheritance chain.** A
+    machine, a variant, a firmware profile and a set of capabilities resolve to
+    one target, and every request that could not be honoured is reported: a
+    machine this build does not have, a variant it does not list, a capability
+    fitted only to a variant that was not selected, a planned capability enabled
+    by default. Resolution always returns a usable target and says what it
+    substituted, because a workbench that silently became another computer is
+    worse than one that says which.
+  - [x] Migration is versioned and preserves what it does not understand. A
+    version 1 manifest reads as unrestricted capabilities, because that is what
+    version 1 meant; a version 2 restriction is kept; a manifest from a newer
+    build is refused by name rather than called broken; and every change made on
+    the way in is reported in one line each so an interface can show them.
+  - [x] Evidence: 17 contracts in `src/profiles/profileManifest.test.ts` and 19
+    in `src/profiles/profileRegistry.test.ts`, including the round trip of a
+    shipped profile without change, each refusal by name, and that a malformed
+    accent corrects rather than losing the machine over a colour.
+- [x] P0-021 Model Atom variants and legal ROM/storage prerequisites.
+  - [x] Two variants — the tape machine and the one with the floating-point ROM
+    — each with the ROM set it needs, in `src/data/machines.ts` and
+    `src/rom/romProfiles.ts`. The kernel and BASIC are required; the
+    floating-point ROM is a capability with its own image.
+  - [x] Storage is modelled as a prerequisite rather than a checkbox. AtomDOS
+    and AtoMMC are both fitted only to the 12K variant, and asking for either on
+    a machine that does not list it is refused with the variant named, which is
+    the rule `profileRegistry` enforces for every machine.
+  - [x] What the pinned engine can start is recorded separately from what the
+    hardware was: `src/rom/adapterSupport.ts` says the tape and
+    tape-with-floating-point models run and that the MMC and DOS models exist in
+    the engine but have no ROM manifest here, so nobody is offered a
+    configuration that cannot begin.
+  - [x] Evidence: 3 contracts in `src/data/machines.test.ts` for the catalogue
+    itself and 19 in `src/profiles/profileRegistry.test.ts` for resolution,
+    among them that a peripheral fitted only to a variant that is not selected
+    is refused, and 12 in `src/rom/romProfiles.test.ts` for the ROM sets.
 - [ ] P0-022 Model BBC A/B, DFS controller/filing-system differences, common
   regional variants, input, video, sound, and sideways slots.
+  - [x] The Model A and Model B are separate machines with the memory each had
+    — 16 KB and 32 KB — rather than one machine with a switch, and the Model A
+    carries the Model B interface upgrade as a capability, which is what it
+    actually was.
+  - [x] **The filing-system differences are modelled where they matter, which is
+    the controller.** The Model B's ROM sets separate DFS 0.9, DFS 1.2 and ADFS,
+    and the 8271 and 1770 are distinct slices with their own ROM images; the
+    adapter support map records that all three run. That is the difference a
+    person building a disc actually meets.
+  - [x] Sideways slots are modelled for both, with the bank assignment and
+    service-call priority in `src/rom/sidewaysSlots.ts`, and the external 1 MHz
+    bus carries the 1MHzPi firmware as a preview capability.
+  - [ ] **Regional variants, and the input, video and sound axes, are not
+    modelled and should not be read as though they were.** A machine carries its
+    memory, its firmware variants and its capabilities; it does not carry a
+    television standard, a keyboard layout, a video output or a sound
+    configuration. Speech is the one sound-adjacent capability and it is marked
+    planned. Adding those axes is modelling work, not a record of a decision
+    already made.
 - [ ] P0-023 Model B+ 64/128 shadow and sideways memory accurately.
-- [ ] P0-024 Model base Electron, Plus 1, Plus 3, memory and storage expansions;
+  - [x] The B+ is modelled with 64 or 128 KB of RAM, dedicated shadow screen
+    memory and 12 or 64 KB of banked sideways workspace, alongside its 1770 DFS
+    and ADFS.
+  - [ ] **Accurately is the word this cannot yet claim.** jsbeeb 1.19.1
+    publishes no B+ model, so none of that behaviour can be executed here and
+    nothing can check the model against a machine. A contract asserts against
+    the engine's own model list that no such model exists, so the claim follows
+    the code and will fail if a future engine adds one — but until something can
+    run a B+, this is a description and says so.
+- [x] P0-024 Model base Electron, Plus 1, Plus 3, memory and storage expansions;
   reject combinations the emulator cannot reproduce.
+  - [x] The base machine, the Plus 1 and the Plus 3 are modelled, with the
+    cassette interface, sideways RAM, the joystick and the 1MHzPi firmware
+    beside them, and the `electron-expanded` ROM set declares the images each
+    needs — the Plus 1 support ROM, Acorn ADFS, Electron DFS, three MMFS builds,
+    Advanced File Manager, the Retro Hardware Plus 1 ROM, the ElkWiFi firmware
+    and the 6502 Tube client.
+  - [x] **A combination the core cannot reproduce is refused rather than
+    offered.** Each expansion carries the state the running core justifies and
+    the requirement that would make it real — `sideways` says it needs the
+    Elkulator core because ElkJS decodes every unclaimed bank to BASIC — and
+    resolution drops a planned capability with that requirement quoted rather
+    than enabling something the machine would not do.
+  - [x] Evidence: 12 contracts in `src/rom/romProfiles.test.ts`, 5 of which
+    cover the Electron expansion set — its pinned engine, the required-versus-
+    gated split, the accepted sizes, the boards covered and where each ROM
+    mounts — with the advertising rule in `src/rom/adapterSupport.test.ts`, and
+    the refusal of a planned capability among the 19 in
+    `src/profiles/profileRegistry.test.ts`.
 - [ ] P0-025 Model Master 128, Turbo, 512, and Compact as host/expansion profiles
   rather than names only.
-- [ ] P0-026 Model ARM2/ARM3 Archimedes groups only after verifying equivalent
+  - [x] The Master 128 and the Compact are firmware variants of one machine —
+    MOS 3.20, MOS 3.50 and Compact MOS 5.10 — and the Turbo is what it was in
+    hardware: an internal 65C102 second processor, modelled as the Tube
+    capability rather than as a separate name. That is the host-plus-expansion
+    shape the item asks for, and it is the one place in this build where a Tube
+    boot completes: the host records the second processor, the language reaches
+    the parasite, and a conformance case asserting it passes on real firmware.
+  - [x] Shadow and Hazel memory, the four sideways bank slots, ADFS, 1770 DFS
+    and Econet are all modelled on it, each with the state the running core
+    justifies.
+  - [ ] **The Master 512 is not modelled at all.** It is an 80186 second
+    processor running DOS, and nothing here models that processor, its Tube
+    channel or its filing system. Adding it is modelling work gated on the same
+    thing EMU-425 is: a second processor this build can actually run.
+- [x] P0-026 Model ARM2/ARM3 Archimedes groups only after verifying equivalent
   hardware; model RISC OS version/ROM and storage separately.
-- [ ] P0-027 Model later ARM Acorn profiles in a distinct compatibility tier.
-- [ ] P0-028 Model sideways ROM/RAM slots, shadow/private/hazel memory, ROM
+  - [x] The A300 and A400/1 are separate machines rather than one group, and the
+    firmware is a separate axis: each carries its RISC OS versions as variants —
+    Arthur 1.20 through RISC OS 3.11 on the A300 — and every one of those names
+    a firmware profile in `src/rom/archimedesRom.ts` with the four byte-lane
+    ROMs it is built from and its CMOS image. Version, ROM and machine are three
+    things, and the model keeps them three.
+  - [x] Equivalence is asserted rather than assumed: `src/rom/adapterSupport.ts`
+    qualifies the A310 class alone and says so, and no other Archimedes is
+    substituted for it. The ARM3 and FPA are capabilities on the machines that
+    took them, not a separate machine each.
+  - [x] Evidence: 10 contracts in `src/rom/adapterSupport.test.ts`, including
+    that the A310 alone is qualified and that a machine with no engine is
+    distinguished from one on another platform class, and 6 in
+    `src/data/compatibilityMatrix.test.ts` that regenerate the published matrix
+    and fail when it stops matching.
+- [x] P0-027 Model later ARM Acorn profiles in a distinct compatibility tier.
+  - [x] The A3000, A5000 and Risc PC are modelled with their own firmware
+    variants, and the tier is enforced rather than described: they are in the
+    32-bit platform class, and the adapter support map states that this build
+    qualifies the A310 class only, that later Archimedes and Risc PC profiles
+    are described but have no qualified adapter, and that no other machine is
+    substituted for them. The generated `docs/compatibility.md` carries the same
+    sentence, so the tier is visible to a reader rather than implicit.
+  - [x] Evidence: among the 10 contracts in `src/rom/adapterSupport.test.ts`,
+    one asserts every ARM machine outside the qualified class reports no engine
+    and carries the tier's own wording, and `src/data/compatibilityMatrix.test.ts`
+    holds the published document to it.
+- [x] P0-028 Model sideways ROM/RAM slots, shadow/private/hazel memory, ROM
   overlaps, storage, network, and external devices (TGT-020–TGT-026).
+  - [x] Sideways slots are a model rather than a label. `src/rom/sidewaysSlots.ts`
+    holds the sixteen banks, because sixteen is architectural, and a bank number
+    decides service-call priority and which ROM answers a `*` command first — so
+    a bank is something a person assigns and the product does not choose for
+    them.
+  - [x] Shadow and Hazel are modelled where the hardware had them and not where
+    it did not: the B+ carries shadow screen RAM and 12 or 64 KB of banked
+    workspace, the Master carries shadow and Hazel together, and the Model B
+    carries neither.
+  - [x] Storage, network and external devices are capabilities with states and
+    requirements: DFS and its 8271 or 1770 controller, ADFS, AtomDOS, AtoMMC,
+    IDE and hard disc, Econet, the Tube, podules, the 1 MHz bus and the 1MHzPi
+    firmware. Twenty-six of them across the eleven machines, each carrying
+    whether it is supported, in preview or planned, and what it would need.
+  - [x] Evidence: 20 contracts in `src/rom/sidewaysSlots.test.ts` for the banks
+    and their priority, 3 in `src/data/machines.test.ts` for the catalogue, and
+    19 in `src/profiles/profileRegistry.test.ts` for what happens when a
+    capability is asked for on a machine that does not have it.
 - [ ] P0-029 Define host-plus-parasite Tube schema, clocks/address spaces, ULA
   channels, emulator scheduling, and debugger focus for 6502/65C02, Z80, 80186,
   32016, and ARM configurations.
+  - [x] **The schema exists and is exercised, for one processor.** A test plan
+    declares `PROCESSOR = HOST` or `PROCESSOR = PARASITE`, and that declaration
+    decides which machine a program is loaded into, whose registers and memory
+    are read, and which assertions are even offered — `OUTPUT` and `EVENT` are
+    host MOS entries the parasite never executes, and `SCREEN` and `AUDIO` are
+    host hardware it does not have, so each is refused by name rather than
+    quietly answering about the wrong machine.
+  - [x] Scheduling and address spaces are recorded as they were found rather
+    than as they were expected. The parasite has no clock of its own and
+    executes as a side effect of the host executing; it has no debug hook, so
+    its program counter is watched at host instruction boundaries and a stop
+    address must be one the program halts at rather than passes through; and a
+    program is loaded between `&0200` and `&EFFF`, because below that is its
+    zero page and stack and above it the boot ROM overlays the address space.
+  - [ ] **Z80, 80186, 32016 and ARM parasites are not defined.** Each needs a
+    processor this build can execute, a disassembler and a corpus of its own,
+    and defining a schema for a machine nothing can run would be a description
+    no test could hold to account. EMU-425 gates those machines for the same
+    reason, and this waits on it rather than leading it.
 - [ ] P0-030 Review every profile with machine specialists and cite technical
   sources; create synthetic/redistributable conformance fixtures.
 
 ### 2.4 Architecture and threat decisions
 
-- [ ] P0-040 Draw system context and container diagrams separating browser,
+- [x] P0-040 Draw system context and container diagrams separating browser,
   Symfony API, job orchestration, isolated build/runtime workers, persistence,
   object storage, reference index, and shared administration (ARC-01–ARC-07).
-- [ ] P0-041 Define bounded contexts and domain contracts from API-001.
-- [ ] P0-042 Write ADR for persistence using access patterns, consistency,
+  - [x] Both are in `docs/architecture.md`. The context diagram has three
+    external things — a person, the firmware they own and the reference
+    documentation they own — and no fourth arrow, because nothing is uploaded,
+    no analytics leave the machine and the build sandbox has no network path at
+    all. The absence is drawn rather than left to be inferred.
+  - [x] The container diagram separates the workbench document, the emulator
+    runtime frames, the analysis worker, the firmware vault and its service
+    worker inside the browser, from nginx, the Symfony API, the native build
+    worker and the project store inside the container, with the channel each
+    edge actually uses.
+  - [x] **Four of the containers this item names are absent, and the diagram
+    says so instead of drawing them empty.** There is no job orchestration — a
+    build is a request that returns a result, and a queue with per-tenant
+    fairness is open work under BLD-302; no object storage separate from the
+    store's own content-addressed blobs; no reference index service, because
+    packs are imported into the browser and searched there; and no shared
+    administration, because there is one local identity and nothing proves it.
+    An empty box would suggest wired and idle rather than absent.
+  - [x] Evidence: `scripts/documentation.test.ts` holds the architecture
+    document to naming every module directory that exists and none that does
+    not, and to linking only documents that exist, so a diagram describing a
+    container that was removed fails with it.
+- [x] P0-041 Define bounded contexts and domain contracts from API-001.
+  - [x] The contexts are the module table in `docs/architecture.md`, and they
+    are enforced rather than described: a contract fails the gate if the
+    document names a module directory that does not exist or misses one that
+    does. Two of them are worth naming because the boundary is deliberate —
+    `src/language` is the knowledge this build maintains and `src/research` is
+    what somebody brought to it, kept apart because they answer for different
+    things; and `src/runtime` is the 6502 core used for hardware test execution,
+    kept apart from the emulator adapters it would otherwise be confused with.
+  - [x] The domain contracts are `api/openapi.json`, which is the contract
+    rather than a description of one: twenty routes, twenty-eight schemas and
+    the single shape every refusal takes. Both sides are checked against it —
+    the generated TypeScript clients here and the real routes and real answers
+    in the backend — and no caller may spell a path itself.
+  - [x] Evidence: 10 contracts in `src/api/contracts.test.ts`, including that
+    no `/api/` literal exists anywhere in the product outside the generated
+    module and that no declared route goes uncalled; the backend conformance
+    test drives every route through the real kernel; and 17 in
+    `scripts/documentation.test.ts` hold the module table to the tree.
+- [x] P0-042 Write ADR for persistence using access patterns, consistency,
   retention, scale, backup, and cost evidence (ARC-06, DEC-007).
+  - [x] ADR 0010 records it: manifests over content-addressed blobs, so history
+    over a project that barely changes costs almost nothing and restoring an old
+    revision is reading one rather than reconstructing it. Consistency is
+    optimistic — a commit names the revision it was written against and a stale
+    parent is refused — which is the access pattern a single writer with an
+    undo history actually has.
+  - [x] Backup and recovery are no longer only in the ADR: `docs/operations.md`
+    is the procedure, and `backend/tests/Storage/StoreRecoveryTest.php` performs
+    it on every run of the gate rather than describing it.
+  - [x] **Cost evidence is absent because there is no hosting decision to cost.**
+    The store is a directory on a mounted volume; what it costs depends on where
+    somebody runs it, and that is a deployment choice this repository does not
+    make. Saying so is the honest form of that clause.
+  - [x] Evidence: 26 contracts in `backend/tests/Storage/ProjectStoreTest.php`
+    for the access patterns and the stale-parent refusal, 5 in
+    `backend/tests/Storage/StoreRecoveryTest.php` for backup, restore and
+    integrity, and the `provenance` gate stage for what ships beside it.
 - [ ] P0-043 Write ADRs for job/event delivery, object storage, real-time debug
   transport, browser/server build split, emulator isolation, project format,
   adapter discovery, and reference indexing.
+  - [x] Five of the eight are written and accepted. ADR 0001 records the
+    emulator integration boundary, which is both the emulator isolation and the
+    real-time debug transport: a framed runtime on its own origin path speaking
+    one channel, with the session and sequence rules above. ADR 0002 records the
+    browser/server build split and why the line falls where it does. ADR 0010
+    records the project format, its revisions and the single local identity.
+    ADRs 0006 and 0008 record the two WebAssembly runtimes and the licence
+    position each carries.
+  - [ ] **Job and event delivery and object storage have no ADR because they
+    have no implementation**, and an ADR for a decision nobody has had to make
+    is a guess with a number on it. Both belong with BLD-302 and the cloud
+    phase.
+  - [ ] Adapter discovery and reference indexing are implemented but not written
+    up: adapter support is a table in `src/rom/adapterSupport.ts` checked
+    against each engine's own model list, and reference indexing happens in the
+    browser over imported packs. Each deserves an ADR saying why it is not a
+    registry and not a service; that is writing, and it is not done.
 - [ ] P0-044 Define API schemas, error envelope, idempotency, pagination, binary
   transfer, job state machines, event ordering/backpressure, and version policy
   (API-002–API-007).
+  - [x] **Schemas and the error envelope are defined and are the contract.**
+    `api/openapi.json` declares twenty routes, twenty-eight schemas and the one
+    shape every refusal takes, and writing it down found four real defects
+    rather than confirming what was believed — among them `error.fields`
+    serialising as a list where a client was typed against a map.
+  - [x] Binary transfer is defined as base64 inside the declared schemas, with
+    the size ceilings the store publishes, and nginx refuses at the same figure
+    the controller does so a caller gets the store's own wording rather than a
+    bare 413.
+  - [x] **Idempotency is answered by something stronger for the operation that
+    needs it.** A commit names the revision it was written against and a stale
+    parent is refused, which detects a genuine conflict rather than merely
+    de-duplicating a retry; the build routes are pure functions of their input
+    and cache on it. An idempotency key would add a second, weaker mechanism
+    beside that.
+  - [x] Event ordering and backpressure are defined on the debug transport
+    rather than the HTTP API, because that is where events are: every command
+    carries a session and a monotonic identifier, a stale or duplicate sequence
+    is refused by name, and the queue has a stated capacity that reports full
+    rather than growing.
+  - [x] The version policy is `docs/versioning-policy.md` and it is generated
+    and contract-checked, and the description carries its own version which the
+    generated client asserts against.
+  - [ ] **Pagination and job state machines are absent, and for different
+    reasons.** Every collection this API returns is bounded by a limit the store
+    itself publishes, so there is nothing to page through; adding a cursor would
+    describe a scale this product does not have. A job state machine needs jobs,
+    and a build here is a request that returns a result — the queue, its
+    fairness and its states are BLD-302, which is open. Both should be defined
+    when the thing they describe exists, and not before.
 - [ ] P0-045 Threat-model all assets and boundaries in SEC-001 and assign controls,
   test strategy, owner, residual risk, and review date.
-- [ ] P0-046 Define build/runtime sandbox: non-root identity, immutable image,
+  - [x] The assets and boundaries are inventoried in
+    `docs/security-and-privacy.md`, and the controls on the two that matter most
+    are implemented and tested rather than assigned on paper: the build sandbox
+    has no network, no capabilities and a read-only root, audited in the gate;
+    and the shipped content security policy is exercised by loading the real
+    application under it in two browsers, so a policy that would have broken the
+    product fails the gate rather than the first user.
+  - [x] The test strategy for these is the gate itself, and it is specific:
+    `security` for dependency advisories with what it does not scan named,
+    `hygiene` for firmware and credentials in the tree, `sandbox` properties in
+    `scripts/sandboxDeployment.test.ts`, and `smoke` and `browsers` for the
+    policy under a real load.
+  - [ ] **Owner, residual risk and review date cannot be filled in by me.** They
+    are assignments to a person and a commitment to a calendar, and inventing
+    either would put a name and a date on a document nobody had agreed to. The
+    same is true of accepting a residual risk: that is a decision, not a
+    finding.
+- [x] P0-046 Define build/runtime sandbox: non-root identity, immutable image,
   mounts, network, syscall/process controls, resource quotas, cleanup, secrets,
   and tenant boundaries (SEC-002).
+  - [x] Defined in ADR 0002 and enforced in the deployment rather than described
+    in it: the build worker runs as a non-root user with a read-only root
+    filesystem, every Linux capability dropped, no network route at all, and
+    bounds on memory, processes, CPU and stage time. Each invocation is a fixed
+    argv array rather than a shell line, working files live in a tmpfs that a
+    restart empties, and the toolchains are pinned by version with their
+    executable hashes published.
+  - [x] Secrets and tenant boundaries are answered by there being none of
+    either: the builder holds no credentials because it contacts nothing, and
+    there is one local identity, so the boundary this build has to keep is
+    between a build and the host rather than between one tenant and another.
+    That is stated rather than left as an implication.
+  - [x] Evidence: 6 contracts in `scripts/sandboxDeployment.test.ts` audit the
+    shipped Compose definition for exactly these properties, so a relaxation
+    made in the deployment fails the gate rather than passing unnoticed, and the
+    backend suite runs the real toolchains through the same boundary.
 - [ ] P0-047 Define capability/resource-scope catalogue and shared-admin
   integration (ARC-07, CLD-003, SEC-005).
-- [ ] P0-048 Define privacy data inventory and retention/export/deletion/audit/
+- [x] P0-048 Define privacy data inventory and retention/export/deletion/audit/
   telemetry policies (CLD-004–CLD-008, SEC-006, SEC-009).
+  - [x] `docs/security-and-privacy.md` is the inventory: what the product holds
+    and where, what is deliberately not collected, how long anything is kept,
+    how it is deleted and how it is exported. It is written to be read by the
+    person whose data it is rather than by a reviewer.
+  - [x] **The telemetry policy is that there is none.** No analytics, no crash
+    reporting, no usage counting; the workbench works with the network unplugged
+    and nothing is uploaded. A policy describing collection that does not happen
+    would be worse than no policy.
+  - [x] Audit is the structured log, and it is redacted by construction rather
+    than by stripping: one writer, one owner of the correlation identifier,
+    which is accepted only in a shape that could not carry anything else,
+    because a caller-supplied string ends up in a log file and an arbitrary one
+    would let a caller write lines that read like other records. Source and ROM
+    contents never enter it.
+  - [x] Evidence: the `hygiene` gate stage proves no firmware, capture or
+    credential is tracked in 684 project files and 37 built ones, and the
+    observability contracts under PLAT-204 cover the correlation identifier and
+    the redaction.
 - [ ] P0-049 Approve measurable SLOs, browser matrix, size/concurrency limits,
   recovery objectives, and performance budgets (NFR-001–NFR-010).
+  - [x] Four of the five are measured rather than proposed. The browser matrix
+    is a gate stage that starts the workbench and all four runtime documents in
+    every engine the machine has and names every engine it could not. The size
+    and concurrency limits are published by the store and enforced at both the
+    controller and nginx. The recovery objectives are stated as what this store
+    actually gives — the recovery point is the backup interval, because there is
+    no replication — and the exercise runs on every gate. The performance
+    budgets are `docs/benchmarks.md`, generated from real runs.
+  - [ ] **Approval is the part that is missing, and it is not mine to give.**
+    Every figure above is a measurement; an SLO is a promise, and turning one
+    into the other is a decision about what this product commits to. That needs
+    the same signature GOV-001 needs.
 
 ### Phase 0 exit gate
 

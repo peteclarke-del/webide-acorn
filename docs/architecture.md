@@ -30,6 +30,67 @@ The store this service holds is the only thing in it nobody else has a copy of,
 so backing it up, verifying it and restoring it are written down as a procedure
 to be performed rather than as intentions: `docs/operations.md`.
 
+## System context
+
+Who and what this product talks to. Everything inside the box runs on one host;
+nothing outside it is contacted at all.
+
+```mermaid
+flowchart LR
+  person([Somebody building for an Acorn machine])
+  firmware([Firmware they already own])
+  packs([Reference documentation they already own])
+  subgraph host[One host, one origin]
+    workbench[Workbench in the browser]
+    service[Service container]
+  end
+  person -->|edits, builds, runs, debugs| workbench
+  firmware -->|imported into the browser-local vault| workbench
+  packs -->|imported into the browser-local library| workbench
+  workbench -->|assembles, links, stores projects| service
+```
+
+There is no fourth arrow. Nothing is uploaded, no analytics leave the machine,
+and no network path exists from the build sandbox at all — which is why the
+absence is drawn rather than left to be inferred.
+
+## Containers
+
+What actually runs, and what does not exist yet.
+
+```mermaid
+flowchart TB
+  subgraph browser[Browser]
+    ui[Workbench document]
+    frames[Emulator runtime frames<br/>jsbeeb · ElkJS · Elkulator · Arculator]
+    worker[Analysis worker]
+    vault[(Firmware vault<br/>IndexedDB, origin-private)]
+    sw[ROM service worker]
+  end
+  subgraph container[Service container]
+    nginx[nginx<br/>static files and the shipped headers]
+    api[PHP-FPM<br/>Symfony API]
+    build[Native build worker<br/>no network, read-only root, non-root]
+    store[(Project store<br/>manifests and content-addressed blobs)]
+  end
+  ui -->|postMessage on one channel per core| frames
+  ui --> worker
+  ui --> vault
+  frames -->|/user-roms| sw --> vault
+  ui -->|/api/v1| nginx --> api
+  api --> build
+  api --> store
+```
+
+Four things this diagram deliberately does not contain, because they do not
+exist: there is **no job orchestration** — a build is a request that returns a
+result, and per-tenant fairness and a queue are open work; there is **no object
+storage** separate from the store's own blobs; there is **no reference index
+service**, because reference packs are imported into the browser and searched
+there; and there is **no shared administration**, because there is one local
+identity and nothing that proves it. Drawing them as empty boxes would suggest
+they are wired and idle rather than absent.
+
 ## Modules
 
 | Directory | What lives there |
