@@ -563,6 +563,46 @@ await stage('smoke', async () => {
     await until(() => evaluate(`!document.querySelector('.start-project-dialog')`), 'the start dialog to close', 20_000);
     await delay(600);
 
+    /* The project is built before anything is scanned.
+     *
+     * Half the surfaces that carry the most information do not exist until a
+     * build has produced something to show: the disassembly, the memory and
+     * size maps, the artifact documents and the symbol list are all rendered
+     * from a build result, and scanning before one exists reports a clean page
+     * while leaving them unmeasured. That was the whole of what kept A11Y-902
+     * open — coverage, not conformance.
+     *
+     * The build is driven through the real command rather than by seeding a
+     * result, so the path a person takes is the path that is scanned. */
+    await evaluate(`(() => {
+      const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === 'Build targets');
+      if (tab) tab.click();
+      return true;
+    })()`);
+    await delay(500);
+    const built = await evaluate(`(() => {
+      const build = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Build');
+      if (!build) return 'no build control on the Build targets workspace';
+      if (build.disabled) return 'the build control is disabled';
+      build.click();
+      return true;
+    })()`);
+    if (built !== true) {
+      /* Named rather than skipped. A scan that quietly did not build would go
+       * on reporting the smaller surface count as though it were everything. */
+      throw new Error(`The scan could not start a build, so the surfaces that only exist after one would not have been measured: ${built}`);
+    }
+    /* Waited for the artifact itself rather than for words on the page. A
+     * regular expression over the body text matches the button that started
+     * the build, so it would report success the instant it was clicked. */
+    const buildFinished = await until(async () => evaluate(`(() => {
+      /* The byte inspector and the generated documents exist only once a build
+       * has produced something, so either one is proof there is an artifact. */
+      return Boolean(document.querySelector('[aria-label="Build artifact byte inspector"], [aria-label="Generated artifact documents"]'));
+    })()`), 'the sample project to build', 60_000).catch(() => false);
+    if (!buildFinished) throw new Error('The sample project produced no artifact within a minute, so the surfaces that only exist after a build were not scanned');
+    await delay(500);
+
     /* The project explorer holds the only draggable surface, so it is opened
      * before scanning. A panel that is closed while the page is measured takes
      * everything inside it out of the scan without saying so. */
@@ -642,7 +682,7 @@ await stage('smoke', async () => {
     await call('Emulation.setEmulatedMedia', { features: [] });
 
     if (errors.length) throw new Error(`The workbench reported ${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`);
-    return { detail: `${workspaces} controls under the shipped security headers, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
+    return { detail: `${workspaces} controls under the shipped security headers, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned after a real build with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
   } finally {
     /* Every handle opened here is closed here. A gate that printed its verdict
      * and then sat with an open socket would hang a pipeline until its timeout

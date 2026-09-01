@@ -6690,14 +6690,28 @@ Current implemented increment:
     same rule; and the gate refusing to pass if no drawing surface was on
     screen while the rule ran, because a check that finds nothing to check is
     not a passing check.
-  - [ ] Coverage is the limitation and is stated rather than implied. The gate
-    now opens a sample project before scanning, which raised the scan from 95
-    controls to 319, but still reaches one drawing surface: the waveform,
-    memory, trace, profiler and hardware-register views appear only once a
-    build has run or a machine is executing, and the pixel canvases only once
-    an asset document is chosen. Verifying those needs the gate to build and
-    run before scanning. Until it does, this item stays open rather than
-    claiming coverage it does not have.
+  - [x] **The scan now runs after a real build, which was the whole of what
+    kept this open.** Half the surfaces that carry the most information do not
+    exist until a build has produced something to show — the disassembly, the
+    byte inspector, the generated artifact documents, the symbol list — and
+    scanning before one existed reported a clean page while leaving them
+    unmeasured. The gate opens the sample project, switches to Build targets,
+    drives the real Build control and waits for an artifact before anything is
+    measured, so the path a person takes is the path that is scanned.
+  - [x] The wait is on the artifact rather than on words. The first attempt
+    matched a regular expression over the page text, which matched the button
+    that started the build and so reported success the instant it was clicked —
+    a check that passed before the thing it was checking for had happened. It
+    now waits for the byte inspector or the generated documents, neither of
+    which exists without an artifact.
+  - [ ] **What is left needs firmware, which is the same boundary the
+    benchmarks have.** The waveform, memory, trace, profiler and hardware
+    register views exist only while a machine is executing, and a machine
+    executes only with firmware, which may not enter this repository or its
+    image (SEC-903). Those surfaces are verified where firmware is supplied —
+    the conformance run — rather than in the gate, and this item stays open
+    until that verification is recorded rather than claiming coverage the gate
+    does not have.
 - [ ] A11Y-903 Test current/previous major Chromium, Firefox, and Safari including
   file system, audio, WebAssembly, workers, full-screen, clipboard, gamepad,
   storage quota, and fallback paths (NFR-010).
