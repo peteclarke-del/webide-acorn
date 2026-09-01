@@ -27,7 +27,14 @@ export type AdapterSupportState = 'runnable' | 'no-rom-manifest' | 'no-engine-mo
 export interface AdapterMachineSupport {
   machineId: string;
   /** Engine that would run it, or null when none in this build can. */
-  engine: { id: 'jsbeeb'; version: '1.19.1' } | { id: 'arculator'; version: 'webide-1' } | { id: 'elkjs'; version: 'ff123355' } | null;
+  engine: AdapterEngine | null;
+  /*
+   * Other engines in this build that can run one of this machine's registered
+   * ROM sets. The Electron has two cores and they are not interchangeable, so a
+   * single engine field would have to name one and be wrong about the other;
+   * which of them actually runs is decided by the ROM set selected.
+   */
+  additionalEngines: readonly AdapterEngine[];
   /** Model synonyms the engine provides for this machine. */
   engineModels: string[];
   /** ROM manifest identifiers registered for it in this build. */
@@ -37,17 +44,27 @@ export interface AdapterMachineSupport {
   limitation: string;
 }
 
+export type AdapterEngine =
+  | { id: 'jsbeeb'; version: '1.19.1' }
+  | { id: 'arculator'; version: 'webide-1' }
+  | { id: 'elkjs'; version: 'ff123355' }
+  | { id: 'elkulator'; version: 'allegro5-6785521' };
+
 const JSBEEB = { id: 'jsbeeb', version: '1.19.1' } as const;
 const ARCULATOR = { id: 'arculator', version: 'webide-1' } as const;
 const ELKJS = { id: 'elkjs', version: 'ff123355' } as const;
+const ELKULATOR = { id: 'elkulator', version: 'allegro5-6785521' } as const;
 
 /* Machines served by a core other than jsbeeb, with the models that core has. */
 /* The engines this build can start. An engine absent from here has a pinned
  * version and a manifest and no way to run yet. */
-const RUNNABLE_ENGINE_IDS = new Set<string>(['jsbeeb', 'elkjs']);
+const RUNNABLE_ENGINE_IDS = new Set<string>(['jsbeeb', 'elkjs', 'elkulator']);
 
-const ALTERNATE_ENGINES: Record<string, { engine: typeof ELKJS; models: string[] }> = {
-  electron: { engine: ELKJS, models: ['Electron'] },
+const ALTERNATE_ENGINES: Record<string, { engine: AdapterEngine; models: string[]; also?: readonly AdapterEngine[] }> = {
+  /* Two cores, and which one starts depends on the ROM set. ElkJS is the
+   * default because it needs two ROM images and nothing else; Elkulator is what
+   * the expansion set names, and is the one with a per-instruction hook. */
+  electron: { engine: ELKJS, models: ['Electron'], also: [ELKULATOR] },
 };
 
 /* Model synonyms jsbeeb 1.19.1 provides, by machine. Tube models are fitted to
@@ -70,7 +87,7 @@ const LIMITATIONS: Record<string, string> = {
   'bbc-a': 'jsbeeb models the BBC B; a Model A differs in fitted RAM and interfaces, and this build registers no separate Model A manifest, so it is described but not run.',
   'bbc-b': 'The 8271 DFS and 1770 DFS or ADFS models all run here. A second processor is not offered: the interface is fitted and answers, but this core never hands the language over on a BBC-family host — the parasite runs its own ROM and waits, and its RAM is never written. It does boot on the Master.',
   'bbc-bplus': 'jsbeeb 1.19.1 has no BBC B+ model, so the B+ shadow and sideways memory behaviour cannot be executed here. Supplying B+ firmware would not change that; the profile is listed because the product models the machine, not because this build can emulate it.',
-  electron: 'The Electron runs on the vendored ElkJS core, which models a base 32 KB machine with an operating system and BASIC only. It has no Plus 1, Plus 3, AP5 or AP6, no ADFS, no cartridge and no usable expansion ROM slot, and it offers no instruction stepping, breakpoints or hardware test execution because that core exposes no per-instruction hook. Those expansions need the Elkulator port recorded in the backlog, not more firmware.',
+  electron: 'The Electron has two cores here and the ROM set chooses between them. The Electron OS + BASIC set runs on the vendored ElkJS core, which models a base 32 KB machine with an operating system and BASIC only, and offers no instruction stepping, breakpoints or hardware test execution because it exposes no per-instruction hook. The Electron + Plus 1 expansions set runs on the Elkulator core built for WebAssembly, which has that hook, so stepping, breakpoints, register writing and key injection are available there; running a test plan is not, because the stop is real but its assertions, captures and teardown are not written yet. The expansions themselves are declared and their firmware checkable, but none of them has been exercised through that core yet, so each stays marked planned until it has been.',
   master: 'The Master 128 runs here with its combined MOS 3.20 image, selecting DFS, ADFS or ANFS. A 65C102 Turbo second processor can be fitted through the Tube capability, and is the one machine here where the Tube boot completes: the host records it, the language reaches the parasite, and a conformance case asserting it passes on real hardware. Master Turbo, 512 and Compact are separate machines with no model in this engine.',
   'archimedes-a300': 'The qualified A310 slice runs on the pinned Arculator build. Machine state save and restore stay disabled because that core exposes no complete deterministic serializer.',
 };
@@ -95,6 +112,7 @@ function supportFor(machineId: string): AdapterMachineSupport {
     return {
       machineId,
       engine: runnable ? ARCULATOR : null,
+      additionalEngines: [],
       engineModels: runnable ? ['A310'] : [],
       romSetIds,
       state: runnable ? 'runnable' : 'no-engine-model',
@@ -106,6 +124,7 @@ function supportFor(machineId: string): AdapterMachineSupport {
     return {
       machineId,
       engine: alternate.engine,
+      additionalEngines: alternate.also ?? [],
       engineModels: alternate.models,
       romSetIds,
       state: romSetIds.length ? 'runnable' : 'no-rom-manifest',
@@ -117,6 +136,7 @@ function supportFor(machineId: string): AdapterMachineSupport {
   return {
     machineId,
     engine: engineModels.length ? JSBEEB : null,
+    additionalEngines: [],
     engineModels,
     romSetIds,
     state,
@@ -130,12 +150,17 @@ export const ADAPTER_SUPPORT: readonly AdapterMachineSupport[] = Object.freeze(
 
 export function adapterSupportFor(machineId: string): AdapterMachineSupport {
   return ADAPTER_SUPPORT.find((entry) => entry.machineId === machineId)
-    ?? { machineId, engine: null, engineModels: [], romSetIds: [], state: 'no-engine-model', limitation: 'This build has no adapter for that machine and does not substitute another.' };
+    ?? { machineId, engine: null, additionalEngines: [], engineModels: [], romSetIds: [], state: 'no-engine-model', limitation: 'This build has no adapter for that machine and does not substitute another.' };
 }
 
 /** One line for the interface, chosen by state rather than by guessing. */
 export function adapterSupportSummary(support: AdapterMachineSupport): string {
-  if (support.state === 'runnable') return `Runs on ${support.engine!.id} ${support.engine!.version}.`;
+  if (support.state === 'runnable') {
+    const engines = [support.engine!, ...support.additionalEngines].map((entry) => `${entry.id} ${entry.version}`);
+    /* Naming only the first would leave a person with the expansion ROM set
+     * wondering which core they were about to start. */
+    return engines.length === 1 ? `Runs on ${engines[0]}.` : `Runs on ${engines.slice(0, -1).join(', ')} or ${engines.at(-1)}, chosen by the ROM set.`;
+  }
   if (support.state === 'no-rom-manifest') return `${support.engine!.id} ${support.engine!.version} has a model for this machine, but this build registers no ROM manifest for it yet.`;
   return 'No emulator in this build can run this machine.';
 }

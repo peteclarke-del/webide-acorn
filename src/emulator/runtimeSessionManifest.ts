@@ -3,7 +3,7 @@ import { sha256Hex } from '../build/digest';
 export interface RuntimeSessionManifestInput {
   id: string;
   createdAt: string;
-  adapter: { id: 'jsbeeb' | 'arculator-wasm' | 'elkjs'; version: string };
+  adapter: { id: 'jsbeeb' | 'arculator-wasm' | 'elkjs' | 'elkulator'; version: string };
   machine: { platformClass: string; machineId: string; label: string; variant: string; model: string; romSetId: string; enabledCapabilities: string[] };
   roms: Array<{ key: string; filename: string; size: number; sha256: string }>;
   boot: { tube: boolean; extraRoms: string[]; keyboardLayout: string; runtimeSpeed: number; fastBootMs: number };

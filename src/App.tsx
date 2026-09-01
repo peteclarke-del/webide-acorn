@@ -74,6 +74,7 @@ import { readableInk } from './theme/readableInk';
 import { loadSdkDocument, type SdkDocument } from './language/sdkDocumentClient';
 import { ROM_SETS, requiredRomRequirements, romSetFor, romStorageKey, runtimeSidewaysRomPaths } from './rom/romProfiles';
 import { ELECTRON_ADAPTER_SUMMARY, ELECTRON_CAPABILITIES, ELECTRON_UNAVAILABLE, electronCommandRefusal } from './emulator/electronAdapter';
+import { ELKULATOR_ADAPTER_SUMMARY, ELKULATOR_CAPABILITIES, ELKULATOR_UNAVAILABLE, elkulatorCommandRefusal } from './emulator/elkulatorAdapter';
 import { listRoms, type StoredRom } from './rom/romStore';
 import { archimedesCmosKey, archimedesCombinedRomKey, archimedesRuntimeConfiguration, type ArchimedesRuntimeConfiguration } from './rom/archimedesRom';
 import {
@@ -6187,23 +6188,31 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
     try {
       return createRuntimeSessionManifest({
         id: debugSessionId, createdAt: new Date().toISOString(),
-        adapter: archimedesRuntime ? { id: 'arculator-wasm', version: '579ac437b9a4ebe83b9b5f9b8e50b0c9c530509e' } : engineId === 'elkjs' ? { id: 'elkjs', version: 'ff123355' } : { id: 'jsbeeb', version: '1.19.1' },
+        adapter: archimedesRuntime ? { id: 'arculator-wasm', version: '579ac437b9a4ebe83b9b5f9b8e50b0c9c530509e' } : engineId === 'elkulator' ? { id: 'elkulator', version: 'allegro5-6785521' } : engineId === 'elkjs' ? { id: 'elkjs', version: 'ff123355' } : { id: 'jsbeeb', version: '1.19.1' },
         machine: { ...machineProfile, label: machine, variant, model: machineModel ?? archimedesRuntime!.profile.label, romSetId: romSetId ?? archimedesRuntime!.profile.id },
         roms: romRecords.map(({ key, filename, size, sha256 }) => ({ key, filename, size, sha256 })),
         boot: { tube, extraRoms, keyboardLayout, runtimeSpeed, fastBootMs: archimedesFastBootMs },
         substitutions: [],
         limitations: archimedesRuntime
           ? ['Runtime speed, deterministic save state and guest media current-byte export are unavailable for the pinned A310 adapter']
-          : engineId === 'elkjs'
-            ? [ELECTRON_ADAPTER_SUMMARY]
+          : engineId === 'elkulator'
+            ? [ELKULATOR_ADAPTER_SUMMARY]
+            : engineId === 'elkjs'
+              ? [ELECTRON_ADAPTER_SUMMARY]
             : ['Guest-modified current-byte export is qualified for SSD and DSD only; the pinned ADF loader exposes no write callback'],
       });
     } catch { return null; }
   }, [debugSessionId, profileIdentity, romReady]);
-  /* The Electron ROM set is served by the vendored ElkJS core, not by jsbeeb,
-   * so it must not fall through the 6502 path: jsbeeb has no Electron model and
-   * would refuse the machine after the session had already been declared live. */
-  const electronMachine = engineId === 'elkjs';
+  /* The Electron ROM sets are served by their own cores, not by jsbeeb, so they
+   * must not fall through the 6502 path: jsbeeb has no Electron model and would
+   * refuse the machine after the session had already been declared live.
+   *
+   * There are two of those cores and the ROM set chooses. Both speak the same
+   * envelope and report the same state, so everything below treats them
+   * together; where they differ — the page, the channel and what each can be
+   * asked to do — is decided by this one flag. */
+  const electronMachine = engineId === 'elkjs' || engineId === 'elkulator';
+  const elkulatorMachine = engineId === 'elkulator';
   const fullElectronMachine = romReady && electronMachine && !!machineModel && !!romSetId && !!sessionManifest;
   const full6502Machine = romReady && !electronMachine && !!machineModel && !!romSetId && !!sessionManifest;
   const bbcAnalogueSupported = full6502Machine && ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'].includes(machineProfile.machineId);
@@ -6232,7 +6241,15 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
     return urls;
   }, [romSetId, romRecords]);
   const runtimeIdentity = sessionManifest?.fingerprint ?? profileIdentity;
-  const frameSource = fullArchimedesMachine ? `/archimedes.html?boot=${fastArchimedesBoot ? 'fast' : 'authentic'}&session=${encodeURIComponent(debugSessionId)}` : fullElectronMachine ? `/electron.html?session=${encodeURIComponent(debugSessionId)}` : `/emulator.html?session=${encodeURIComponent(debugSessionId)}`;
+  /* What this build says the attached core offers, until the core itself says.
+   * Two cores, two declarations: showing ElkJS's list beside a running
+   * Elkulator would tell somebody stepping is unavailable while they were
+   * stepping. */
+  const declaredCapabilities: readonly string[] = elkulatorMachine ? ELKULATOR_CAPABILITIES : ELECTRON_CAPABILITIES;
+  const declaredUnavailable = elkulatorMachine ? ELKULATOR_UNAVAILABLE : ELECTRON_UNAVAILABLE;
+  const electronPage = elkulatorMachine ? '/elkulator.html' : '/electron.html';
+  const electronChannel = elkulatorMachine ? '8bit-net-elkulator' : '8bit-net-electron';
+  const frameSource = fullArchimedesMachine ? `/archimedes.html?boot=${fastArchimedesBoot ? 'fast' : 'authentic'}&session=${encodeURIComponent(debugSessionId)}` : fullElectronMachine ? `${electronPage}?session=${encodeURIComponent(debugSessionId)}` : `/emulator.html?session=${encodeURIComponent(debugSessionId)}`;
   const framebufferWidth = fullArchimedesMachine ? archimedesState?.hardware.vidc.width : fullElectronMachine ? 640 : 1024;
   const framebufferHeight = fullArchimedesMachine ? archimedesState?.hardware.vidc.height : fullElectronMachine ? 512 : 625;
   const scaledViewport = scaledFramebufferViewport(emulatorScale, framebufferWidth, framebufferHeight);
@@ -6241,11 +6258,11 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
    * the Electron slice restricts anything today, and it refuses in the
    * workbench with the core's own recorded reason rather than sending a command
    * that would be dropped and leave the interface looking live. */
-  const adapterBlock = (type: string) => fullElectronMachine ? electronCommandRefusal(type) : null;
+  const adapterBlock = (type: string) => fullElectronMachine ? (elkulatorMachine ? elkulatorCommandRefusal(type) : electronCommandRefusal(type)) : null;
   const sendMachine = (message: Record<string, unknown>) => {
     const refusal = adapterBlock(String(message.type));
     if (refusal) { onNotice(`${machine} adapter · ${refusal}`); return; }
-    const envelope = { ...(fullArchimedesMachine ? { channel: '8bit-net-archimedes' } : fullElectronMachine ? { channel: '8bit-net-electron' } : {}), ...message, sessionId: debugSessionId, commandId: ++transportCommandRef.current };
+    const envelope = { ...(fullArchimedesMachine ? { channel: '8bit-net-archimedes' } : fullElectronMachine ? { channel: electronChannel } : {}), ...message, sessionId: debugSessionId, commandId: ++transportCommandRef.current };
     if (transportPendingRef.current === null) { postTransportCommand(envelope); return; }
     if (transportQueueRef.current.length >= 64) { onNotice('Debug command queue is full · wait for the attached core to acknowledge pending work'); return; }
     transportQueueRef.current.push(envelope);
@@ -6310,7 +6327,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== frameRef.current?.contentWindow) return;
-      if (event.data?.channel !== (fullArchimedesMachine ? '8bit-net-archimedes' : fullElectronMachine ? '8bit-net-electron' : '8bit-net-machine')) return;
+      if (event.data?.channel !== (fullArchimedesMachine ? '8bit-net-archimedes' : fullElectronMachine ? electronChannel : '8bit-net-machine')) return;
       const acceptedSequence = acceptDebugEvent(event.data, debugSessionId, receivedEventRef.current);
       if (acceptedSequence === null) return;
       receivedEventRef.current = acceptedSequence;
@@ -7677,17 +7694,21 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
       {fullElectronMachine && !collapsed && (
         <details className="adapter-capability-note">
           <summary>
-            ElkJS Electron adapter ·{" "}
-            {(electronState?.capabilities ?? ELECTRON_CAPABILITIES).length} of{" "}
-            {(electronState?.capabilities ?? ELECTRON_CAPABILITIES).length +
-              Object.keys(electronState?.unavailable ?? ELECTRON_UNAVAILABLE)
+            {elkulatorMachine ? "Elkulator" : "ElkJS"} Electron adapter ·{" "}
+            {(electronState?.capabilities ?? declaredCapabilities).length} of{" "}
+            {(electronState?.capabilities ?? declaredCapabilities).length +
+              Object.keys(electronState?.unavailable ?? declaredUnavailable)
                 .length}{" "}
             capabilities offered
           </summary>
-          <p>{ELECTRON_ADAPTER_SUMMARY}</p>
+          <p>
+            {elkulatorMachine
+              ? ELKULATOR_ADAPTER_SUMMARY
+              : ELECTRON_ADAPTER_SUMMARY}
+          </p>
           <ul>
             {Object.entries(
-              electronState?.unavailable ?? ELECTRON_UNAVAILABLE,
+              electronState?.unavailable ?? declaredUnavailable,
             ).map(([capability, reason]) => (
               <li key={capability}>
                 <strong>{capability}</strong>

@@ -55,10 +55,11 @@ describe('ROM profile registry', () => {
 describe('the Electron expansion combinations', () => {
   const set = ROM_SETS.find((candidate) => candidate.id === 'electron-expanded')!;
 
-  it('names an engine this build cannot yet start, and says so by pinning it', () => {
-    /* Declared ahead of the core deliberately. The manifest lets somebody
-     * register and verify firmware they already own before anything can boot
-     * it; what it must not do is imply the machine runs. */
+  it('names the core that runs it, pinned to the revision that was built', () => {
+    /* This set was declared ahead of its core on purpose, so that firmware
+     * somebody already owned could be registered and checked before anything
+     * could boot it. The core runs now, and the pin is what ties the manifest
+     * to the exact build the artefact came from. */
     expect(set.engine).toEqual({ id: 'elkulator', version: 'allegro5-6785521' });
   });
 

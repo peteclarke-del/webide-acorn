@@ -4513,9 +4513,35 @@ Current implemented increment:
     says version 2 or later — so the work is conveyed as GPL-3.0-or-later with
     the licence text supplied by this build. The gate's licence check now counts
     four copyleft components shipping licence and source rather than three.
-  - [ ] What remains is the workbench wiring: the panel does not yet offer this
-    core as a choice beside ElkJS, and until it does every Electron expansion
-    stays planned and the capability controls still say so.
+  - [x] **The workbench offers the core, and the ROM set is what chooses it.**
+    Selecting `Electron + Plus 1 expansions` routes the emulator panel to
+    `/elkulator.html` on its own channel with its own refusal table and its own
+    capability disclosure, where `Electron OS + BASIC` still goes to ElkJS.
+    Showing one core's capability list beside the other running would tell
+    somebody stepping was unavailable while they were stepping, so the
+    disclosure follows the attached core. The support record now names both
+    engines rather than one, because a single engine field would have to name
+    one and be wrong about the other.
+  - [x] **Running a test plan is withdrawn rather than offered.** The stop is
+    real — a breakpoint on a per-instruction hook, proved — but a plan also
+    needs its assertions evaluated, its captures taken and its teardown run, and
+    none of that is written here. A result with nothing checked would show in a
+    panel built for assertion outcomes as a pass, which is worse than a
+    refusal, so the command is refused with exactly that reason.
+  - [x] **Key injection was found to be lossy by looking at the screen rather
+    than at the acknowledgement.** `PRINT 1` arrived as `PINT 1`. The two clocks
+    are not the same one: the emulator advances a field per animation frame, so
+    a busy browser makes the machine's time run slower than wall-clock and a key
+    held for 60 ms of wall-clock can be held for fewer emulated fields than the
+    operating system's keyboard scan needs. Typing is counted in the machine's
+    own completed fields now, which the bridge already published, so a slow
+    browser makes typing take longer rather than lose letters. Thirty characters
+    of `THE QUICK BROWN FOX 0123456789` then arrived complete, read back off the
+    emulated display.
+  - [ ] Not yet exercised: the routing has been proved by driving the shipped
+    page directly, and no run has yet gone through the workbench itself with the
+    expansion ROM set selected and firmware in the vault. Nor has any expansion
+    been exercised through the core, so every one of them stays marked planned.
   - [ ] What the run does not show is also recorded: the frame rate was
     measured in headless Chromium on a software renderer with nothing but the
     operating system and BASIC fitted and no program running, and no keyboard,

@@ -15,9 +15,11 @@ export interface RomRequirement {
 export type RomSetEngine =
   | { id: 'jsbeeb'; version: '1.19.1' }
   | { id: 'elkjs'; version: 'ff123355' }
-  /* The Elkulator WebAssembly port, pinned to the Allegro 5 branch it is built
-   * from. It compiles and links; it does not yet run, so no machine profile
-   * offers it and nothing here claims it does. See docker/elkulator/. */
+  /* The Elkulator WebAssembly port, pinned to the revision it is built from.
+   * It boots an Electron, draws its screen and carries a per-instruction hook,
+   * so the expansion set below is offered like any other. The expansions
+   * themselves stay planned until each has been exercised through it. See
+   * docker/elkulator/. */
   | { id: 'elkulator'; version: 'allegro5-6785521' };
 
 export interface RomSetDefinition {
@@ -99,9 +101,9 @@ export const ROM_SETS: RomSetDefinition[] = [
      * deliberately: the combinations are known, they are exercised on real
      * hardware in the 1MHzPi project, and writing them down now means the
      * firmware a person already owns can be registered and checked before the
-     * core is able to boot it. No machine profile selects this set yet, because
-     * the core it names compiles but does not run — offering it would be
-     * claiming a machine this build cannot start.
+     * core is able to boot it. That core boots now, so this set is selectable;
+     * what is still not claimed is that the expansions work, because none of
+     * them has been exercised through it yet.
      */
     id: 'electron-expanded', machineIds: ['electron'], label: 'Electron + Plus 1 expansions', adapterModel: 'Electron', engine: elkulator,
     requirements: [

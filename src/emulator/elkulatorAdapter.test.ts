@@ -7,7 +7,7 @@ import {
   ELKULATOR_UNAVAILABLE,
   elkulatorCommandRefusal,
 } from './elkulatorAdapter';
-import { ELECTRON_COMMAND_CAPABILITY } from './electronAdapter';
+import { ELECTRON_COMMAND_CAPABILITY, electronCommandRefusal } from './electronAdapter';
 
 /* The workbench refuses commands this Electron core cannot honour, using the
  * reason the core itself records. That is only honest while the two
@@ -100,9 +100,15 @@ describe('Elkulator Electron adapter declaration', () => {
   });
 
   it('offers what the ElkJS core has to refuse, and says so for the rest', () => {
-    for (const command of ['step', 'step-over', 'set-breakpoints', 'run-to', 'write-registers', 'run-test', 'inject-text', 'tap-key']) {
+    for (const command of ['step', 'step-over', 'set-breakpoints', 'run-to', 'write-registers', 'inject-text', 'tap-key']) {
       expect(elkulatorCommandRefusal(command), `${command} is offered here`).toBeNull();
+      expect(electronCommandRefusal(command), `${command} is refused by the other core`).not.toBeNull();
     }
+    /* Running a test plan is refused here for a reason that is about this
+     * slice rather than about the core: the stop is real, and everything else a
+     * plan needs is not written yet. A result with no assertions evaluated
+     * would be reported as a pass with nothing checked. */
+    expect(elkulatorCommandRefusal('run-test')).toContain('nothing checked');
     expect(elkulatorCommandRefusal('watchpoint')).toContain('no hook');
     expect(elkulatorCommandRefusal('read-tube-memory')).toContain('no Tube interface');
     expect(elkulatorCommandRefusal('set-audio')).toContain('has not been verified');

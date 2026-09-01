@@ -29,10 +29,11 @@
   const CAPABILITIES = [
     'execution', 'reset', 'instruction-step', 'execute-breakpoint',
     'register-read', 'register-write', 'memory-read', 'memory-write',
-    'program-load', 'run-test', 'keyboard-input', 'key-injection',
+    'program-load', 'keyboard-input', 'key-injection',
     'display', 'display-filter', 'screen-capture', 'input-focus',
   ];
   const UNAVAILABLE = {
+    'run-test': 'The bridge can stop the machine at an address, and that part is proved; what a test plan also needs — its assertions evaluated, its captures taken and its teardown run — is not implemented here, so a result would come back as a pass with nothing checked.',
     'conditional-breakpoint': 'The instruction hook compares the program counter and nothing else; a condition would have to be evaluated in the bridge, and it is not.',
     logpoint: 'A logpoint records registers and resumes; the bridge stops the machine or leaves it alone, and keeps no log buffer.',
     watchpoint: 'Elkulator reads and writes memory through plain functions with no hook, so a memory watch could not be honoured exactly.',
@@ -124,7 +125,6 @@
   let displayFilter = 'nearest';
   let inputCaptured = false;
   let breakpointSlots = [];
-  let pendingTest = null;
 
   function log(line) {
     if (!output) return;
@@ -302,47 +302,6 @@
     }
   }
 
-  /*
-   * A stop-address test: run until the program reaches the address it halts at,
-   * or until the time allowed runs out.
-   *
-   * This is the one thing the ElkJS Electron has to refuse outright, and it is
-   * honest here only because the stop is a real breakpoint on a real
-   * instruction hook rather than a poll that happens to catch the machine in
-   * the right place.
-   */
-  function runTest(command) {
-    requireCore();
-    if (pendingTest) throw new Error('A test is already running on this Electron');
-    const stopAddress = command.stopAddress & 0xffff;
-    const timeoutMs = Math.max(100, Math.min(60_000, command.timeoutMs | 0 || 5_000));
-    setBreakpoints([stopAddress]);
-    if (typeof command.entryPoint === 'number') call('elk_webide_set_register', REGISTER.pc, command.entryPoint & 0xffff);
-    call('elk_webide_resume');
-    const started = performance.now();
-    const finish = (outcome) => {
-      window.clearInterval(pendingTest.poll);
-      pendingTest = null;
-      call('elk_webide_pause');
-      send({
-        type: 'test-result',
-        requestId: command.requestId,
-        outcome,
-        stopAddress,
-        elapsedMs: Math.round(performance.now() - started),
-        registers: readRegisters(),
-        frames: call('elk_webide_frames'),
-      });
-      snapshot(`test ${outcome}`);
-    };
-    pendingTest = {
-      poll: window.setInterval(() => {
-        if (call('elk_webide_breakpoint_hit') >= 0) { finish('reached'); return; }
-        if (performance.now() - started > timeoutMs) finish('timed out');
-      }, 20),
-    };
-  }
-
   /* A key press the workbench asked for, rather than one somebody typed. The
    * bridge sets the Electron's own key state, so this does not depend on the
    * page having focus and cannot be swallowed by the workbench around it. */
@@ -355,27 +314,64 @@
     return null;
   }
 
-  function tapKeys(characters, holdMs) {
+  /*
+   * Type into the machine on the machine's clock, not the browser's.
+   *
+   * The first version of this held each key for a number of milliseconds and it
+   * dropped characters — `PRINT 1` arrived as `PINT 1`. The cause is that the
+   * two clocks are not the same one: the emulator advances a field per
+   * animation frame, so when the browser is busy the machine's time runs slower
+   * than wall-clock and a key held for 60 ms of wall-clock can be held for
+   * fewer emulated fields than the operating system's keyboard scan needs to
+   * see it. The schedule is therefore counted in the machine's own completed
+   * fields, which the bridge publishes, and a slow browser then makes typing
+   * take longer rather than lose letters.
+   */
+  const KEY_HOLD_FIELDS = 3;
+  let typing = null;
+
+  function tapKeys(characters, holdFields) {
     requireCore();
-    const hold = Math.max(20, Math.min(500, holdMs | 0 || 60));
-    let at = 0;
-    let tapped = 0;
+    const hold = Math.max(1, Math.min(50, holdFields | 0 || KEY_HOLD_FIELDS));
+    const keys = [];
     for (const character of characters) {
       const named = keyName(character);
       if (!named) throw new Error(`The Electron keyboard has no key for ${JSON.stringify(character)}`);
-      const code = ELK_KEY[named.key];
-      window.setTimeout(() => {
-        if (named.shift) call('elk_webide_set_key', ELK_KEY.shift, 1);
-        call('elk_webide_set_key', code, 1);
-      }, at);
-      window.setTimeout(() => {
-        call('elk_webide_set_key', code, 0);
-        if (named.shift) call('elk_webide_set_key', ELK_KEY.shift, 0);
-      }, at + hold);
-      at += hold * 2;
-      tapped += 1;
+      keys.push({ code: ELK_KEY[named.key], shift: named.shift });
     }
-    return { keys: tapped, durationMs: at };
+    if (typing) { window.clearInterval(typing.poll); releaseTyped(typing); }
+    if (!keys.length) return { keys: 0, fields: 0 };
+
+    const state = { keys, index: 0, pressed: false, until: 0, poll: 0 };
+    const field = () => call('elk_webide_frames');
+    const step = () => {
+      if (field() < state.until) return;
+      if (state.pressed) {
+        releaseTyped(state);
+        state.pressed = false;
+        state.index += 1;
+        state.until = field() + hold;
+        if (state.index >= state.keys.length) { window.clearInterval(state.poll); typing = null; send({ type: 'text-typed', characters: state.keys.length }); }
+        return;
+      }
+      const next = state.keys[state.index];
+      if (next.shift) call('elk_webide_set_key', ELK_KEY.shift, 1);
+      call('elk_webide_set_key', next.code, 1);
+      state.pressed = true;
+      state.until = field() + hold;
+    };
+    /* Polled rather than driven from an animation frame, so typing continues
+     * while the tab is in the background and the machine is still running. */
+    state.poll = window.setInterval(step, 5);
+    typing = state;
+    return { keys: keys.length, fields: keys.length * hold * 2 };
+  }
+
+  /* Whatever is held down, let go of. A key left pressed on the emulated matrix
+   * is how a machine ends up typing by itself. */
+  function releaseTyped(state) {
+    const held = state.keys[state.index];
+    if (held) { call('elk_webide_set_key', held.code, 0); if (held.shift) call('elk_webide_set_key', ELK_KEY.shift, 0); }
   }
 
   function handle(command) {
@@ -447,10 +443,12 @@
         snapshot('registers written');
         return;
       }
-      case 'run-test': return runTest(command);
       case 'inject-text': {
-        const result = tapKeys(String(command.text ?? ''), command.holdMs);
-        send({ type: 'text-injected', ...result });
+        const result = tapKeys(String(command.text ?? ''), command.holdFields);
+        /* The event name the workbench already listens for, so injected text is
+         * reported the same way whichever core is attached. `text-typed`
+         * follows when the last key has actually been released. */
+        send({ type: 'text-queued', characters: result.keys, fields: result.fields });
         return;
       }
       case 'tap-key': {

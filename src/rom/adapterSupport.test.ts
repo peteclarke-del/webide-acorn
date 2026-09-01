@@ -35,17 +35,22 @@ describe('adapter support matrix', () => {
     expect([...engineSynonyms].some((name) => /b\+|bplus/i.test(name))).toBe(false);
   });
 
-  it('runs the Electron on its own core, and says what that core does not have', () => {
+  it('runs the Electron on either of its two cores, and says what each gives', () => {
     const support = adapterSupportFor('electron');
     expect(support.state).toBe('runnable');
+    /* Two cores for one machine, and they are not interchangeable. The default
+     * is the one that needs nothing but an operating system and BASIC; the
+     * other is named separately rather than replacing it, because which one
+     * starts is decided by the ROM set the person selected. */
     expect(support.engine).toEqual({ id: 'elkjs', version: 'ff123355' });
-    expect(support.romSetIds).toEqual(['electron-os']);
-    /* jsbeeb still has no Electron model; the Electron is served by ElkJS. */
+    expect(support.additionalEngines).toEqual([{ id: 'elkulator', version: 'allegro5-6785521' }]);
+    expect(support.romSetIds).toEqual(['electron-os', 'electron-expanded']);
+    /* jsbeeb still has no Electron model; neither core is jsbeeb. */
     expect(engineSynonyms.has('Electron')).toBe(false);
-    /* The limitation must name the expansions the core does not model, so a
-     * user is not left to infer them from silence. */
-    for (const missing of ['Plus 1', 'Plus 3', 'AP5', 'ADFS', 'per-instruction hook']) {
-      expect(support.limitation, missing).toContain(missing);
+    /* The limitation must say what each core gives and what is still only
+     * declared, so a user is not left to infer any of it from silence. */
+    for (const named of ['Plus 1', 'ElkJS', 'Elkulator', 'per-instruction hook', 'running a test plan is not', 'planned']) {
+      expect(support.limitation, named).toContain(named);
     }
   });
 
@@ -76,7 +81,7 @@ describe('adapter support matrix', () => {
      * nobody can select. So each manifest falls into exactly one of two cases,
      * and both are asserted rather than one being assumed.
      */
-    const runnableEngines = new Set(['jsbeeb', 'elkjs']);
+    const runnableEngines = new Set(['jsbeeb', 'elkjs', 'elkulator']);
     let advertised = 0;
     let awaitingEngine = 0;
     for (const set of ROM_SETS) {
@@ -94,14 +99,17 @@ describe('adapter support matrix', () => {
       }
     }
     expect(advertised).toBeGreaterThan(0);
-    /* One today: the Elkulator set. Counted so that a second one added without
-     * its engine becoming runnable is a deliberate act rather than a drift. */
-    expect(awaitingEngine).toBe(1);
+    /* None today: the Elkulator core runs, so the set it names is advertised
+     * like any other. The count is kept rather than deleted, because the rule
+     * it enforces — a manifest may be registered ahead of its engine, and must
+     * not be advertised until that engine can start — is the point, and a set
+     * added ahead of its engine should show up here as a deliberate act. */
+    expect(awaitingEngine).toBe(0);
   });
 
   it('summarises each state in words that match what supplying firmware would do', () => {
     expect(adapterSupportSummary(adapterSupportFor('bbc-b'))).toBe('Runs on jsbeeb 1.19.1.');
-    expect(adapterSupportSummary(adapterSupportFor('electron'))).toBe('Runs on elkjs ff123355.');
+    expect(adapterSupportSummary(adapterSupportFor('electron'))).toBe('Runs on elkjs ff123355 or elkulator allegro5-6785521, chosen by the ROM set.');
     expect(adapterSupportSummary(adapterSupportFor('bbc-bplus'))).toBe('No emulator in this build can run this machine.');
     expect(adapterSupportSummary(adapterSupportFor('bbc-a'))).toMatch(/registers no ROM manifest for it yet/);
   });

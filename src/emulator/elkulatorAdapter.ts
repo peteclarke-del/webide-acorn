@@ -31,7 +31,6 @@ export const ELKULATOR_CAPABILITIES = [
   'memory-read',
   'memory-write',
   'program-load',
-  'run-test',
   'keyboard-input',
   'key-injection',
   'display',
@@ -44,6 +43,7 @@ export type ElkulatorCapability = (typeof ELKULATOR_CAPABILITIES)[number];
 
 /** Capability identifier to the reason this adapter cannot provide it. */
 export const ELKULATOR_UNAVAILABLE: Readonly<Record<string, string>> = Object.freeze({
+  'run-test': 'The bridge can stop the machine at an address, and that part is proved; what a test plan also needs — its assertions evaluated, its captures taken and its teardown run — is not implemented here, so a result would come back as a pass with nothing checked.',
   'conditional-breakpoint': 'The instruction hook compares the program counter and nothing else; a condition would have to be evaluated in the bridge, and it is not.',
   logpoint: 'A logpoint records registers and resumes; the bridge stops the machine or leaves it alone, and keeps no log buffer.',
   watchpoint: 'Elkulator reads and writes memory through plain functions with no hook, so a memory watch could not be honoured exactly.',
@@ -146,4 +146,4 @@ export function elkulatorCommandRefusal(type: string): string | null {
 
 /** One sentence naming what the Elkulator slice does offer, for the interface. */
 export const ELKULATOR_ADAPTER_SUMMARY =
-  'The Acorn Electron also runs on the Elkulator core built for WebAssembly, which adds what ElkJS cannot do: instruction stepping and execution breakpoints against a real per-instruction hook, register writing, key injection and stop-address test execution, alongside execution, reset, memory reading and writing, machine-code loading, the real keyboard over the live display and screen capture. Watchpoints, tracing, disassembly, profiling, replay, hardware inspection, media, sound and machine-state save are not offered: some because the core provides no hook for them, and the rest because the bridge this build exposes deliberately does not carry them.';
+  'The Acorn Electron also runs on the Elkulator core built for WebAssembly, which adds what ElkJS cannot do: instruction stepping and execution breakpoints against a real per-instruction hook, register writing and key injection, alongside execution, reset, memory reading and writing, machine-code loading, the real keyboard over the live display and screen capture. Watchpoints, tracing, disassembly, profiling, replay, hardware inspection, test-plan execution, media, sound and machine-state save are not offered: some because the core provides no hook for them, and the rest because the bridge this build exposes deliberately does not carry them.';
