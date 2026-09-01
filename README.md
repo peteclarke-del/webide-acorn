@@ -988,8 +988,11 @@ npm run build
   level 8 with the PHP formatter in check mode, a dependency vulnerability scan
   that names what it does not scan, the production build, the
   vendored GPL provenance, an executable check that no firmware or media image
-  is tracked, and a headless browser smoke that boots the built workbench and
-  fails on any console error. No test is allowed to skip: the gate fails if any test in
+  is tracked, a headless browser smoke that boots the built workbench and
+  fails on any console error, and a cross-browser stage that starts the same
+  build in every engine the machine has — Chromium and Firefox today — and names
+  every engine it could not start, including Safari, rather than substituting
+  another for it. No test is allowed to skip: the gate fails if any test in
   either suite did not run, and a stage that cannot run is reported as skipped
   with its reason and fails the gate too, so the pipeline cannot quietly check
   less than it believes it does. `npm run toolchains` obtains the pinned
