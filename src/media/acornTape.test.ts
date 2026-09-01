@@ -25,13 +25,22 @@ const atomFile = () => ({ name: ATOM_MEASURED_FILE.name, loadAddress: ATOM_MEASU
  */
 async function deliver(image: Uint8Array): Promise<number[]> {
   const received: number[] = [];
+  /* The reader narrates every chunk it reaches. That is useful when somebody is
+   * debugging a tape by hand and is noise in a test reporter, so it is quiet
+   * here and restored afterwards rather than left muted for the whole file. */
+  const narration = console.log;
+  console.log = () => {};
   const acia = { receive: (byte: number) => received.push(byte), tone: () => {}, setTapeCarrier: () => {}, receiveBit: () => {} };
   /* Only the two fields the container reader touches; no machine is booted. */
   const model = { isAtom: false, cyclesPerSecond: 2_000_000 } as unknown as Parameters<typeof loadTapeFromData>[2];
   const tape = await loadTapeFromData('measured.uef', image, model);
   if (!tape) throw new Error('The emulator did not recognise the image as a tape at all');
   /* Poll until the reader runs out of tape; it returns undefined at the end. */
-  for (let i = 0; i < 4_000_000; i += 1) if (tape.poll(acia) === undefined) break;
+  try {
+    for (let i = 0; i < 4_000_000; i += 1) if (tape.poll(acia) === undefined) break;
+  } finally {
+    console.log = narration;
+  }
   return received;
 }
 
