@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 170 |
+| Complete | 171 |
 | Complete and traced | 98 |
-| Complete and described | 64 |
+| Complete and described | 65 |
 | Complete and untraced | 8 |
-| Open | 124 |
+| Open | 123 |
 
 ## By area
 
@@ -42,7 +42,7 @@ is the part a machine can settle.
 | BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 0 | 0 | 0 | 0 |
 | CLD | 10 | 5 | 4 | 0 | 1 |
-| DOC | 10 | 8 | 7 | 1 | 0 |
+| DOC | 10 | 9 | 7 | 2 | 0 |
 | DOD | 10 | 0 | 0 | 0 | 0 |
 | EXP | 10 | 0 | 0 | 0 | 0 |
 | MED | 10 | 9 | 6 | 3 | 0 |
@@ -287,7 +287,6 @@ are listed rather than quietly counted.
 | A11Y-901 | Resolve all A/AA blockers and document any AAA enhancements. | not started |
 | A11Y-902 | Verify structured alternatives for graphics, map, waveform, memory, trace, profiler, and… | 5 of 6 parts done |
 | A11Y-903 | Test current/previous major Chromium, Firefox, and Safari including file system, audio,… | not started |
-| DOC-901 | Write user guides for first run, target selection, ROM import, projects, builds, media,… | not started |
 | DOC-905 | Demonstrate J-01–J-08 and ACC-001–ACC-007 to stakeholders and capture acceptance. | not started |
 | RELEASE-GATE | All applicable acceptance criteria in Section 23 of the specification pass; no… | not started |
 | EXP-001 | Complete remaining BBC Model A/B controller/regional profiles. | not started |

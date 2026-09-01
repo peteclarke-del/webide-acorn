@@ -106,6 +106,14 @@ await stage('types', async () => {
 
 await stage('help', async () => {
   expectSuccess(await run('node', ['scripts/verify-help.mjs']), 'Help verification');
+  /* The standalone guides are rendered from the same topics the IDE reads, so
+   * this compares rather than regenerates: generating into the working tree
+   * during a release would make the comparison pass by definition. A topic
+   * edited without regenerating fails here rather than shipping a book that
+   * describes an older product. */
+  const guides = await run('node', ['scripts/generateGuides.mjs', '--check']);
+  expectSuccess(guides, 'Standalone user guides');
+  return { detail: guides.output.trim().split('\n').pop() };
 });
 
 await stage('tests', async () => {

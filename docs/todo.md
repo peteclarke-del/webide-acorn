@@ -6751,9 +6751,41 @@ Current implemented increment:
     and the firmware statement being present. A broken link, a missing record or
     a command that no longer exists are exactly the failures that mislead
     someone who trusted the document, and none of them announces itself.
-- [ ] DOC-901 Write user guides for first run, target selection, ROM import,
+- [x] DOC-901 Write user guides for first run, target selection, ROM import,
   projects, builds, media, emulator/input, debugging/trace, tests, every asset
   editor, research, cloud/revisions/sharing, accessibility, and troubleshooting.
+  - [x] **The guides are generated from the guides that are already in the IDE
+    rather than written a second time.** DOC-901A shipped every procedure inside
+    the product, searchable and deep-linkable. Writing a standalone set by hand
+    would have been a second copy of the same facts, and two declarations of one
+    fact are a defect: they agree on the day they are written and disagree from
+    then on, with nothing to say which is right. `scripts/generateGuides.mjs`
+    renders `docs/guide/` from `src/help/helpTopics.ts` — 17 files, 77
+    procedures, about 46,500 words — and every page links back to its own topic
+    inside the IDE so a reader can move between the two.
+  - [x] The gate compares rather than regenerates. Generating into the working
+    tree during a release would make the check pass by definition, so `npm run
+    ci` renders in memory and fails when what is committed differs. A topic
+    edited without regenerating fails the gate rather than shipping a book that
+    describes an older product.
+  - [x] **Six areas of the product had no procedure at all, and the check found
+    them rather than a reading of the list.** The generator fails on any topic
+    the IDE carries that no guide publishes, and it named 25 editor topics that
+    were in the product and in no book; they are now published under writing,
+    navigation and completion. Five asset editors — fonts, screens, palettes,
+    sound and samples — and the hardware instruction trace had no topic in
+    either place, and were written from the controls that actually exist, so
+    all nine asset tabs and the trace are covered. A test asserts each of the
+    nine tab names appears in the asset guide, which is what "every asset
+    editor" has to mean to be checkable.
+  - [x] **Cloud projects, revisions and sharing are declared absent with a
+    reason, and the declaration can fail.** This build stores projects in the
+    browser and on disk and has no server-side store, no revision history and
+    no sharing, so there is no procedure to write and one written anyway would
+    be read as evidence the feature exists. The declaration names the interface
+    symbols that would exist had it shipped, and the gate fails if any of them
+    appear — so the guide becomes due the moment CLD-800 lands, rather than the
+    note outliving the thing it describes.
 - [x] DOC-901A Ship those guides inside the IDE as searchable, deep-linkable,
   keyboard and screen-reader accessible help. Cover every visible operation with
   prerequisites, steps, expected result, limitations and recovery.
