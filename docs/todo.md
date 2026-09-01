@@ -4427,12 +4427,46 @@ Current implemented increment:
     anybody; it pins the Elkulator commit rather than the branch tip, copies
     the files this directory actually holds, and fails rather than continuing
     when `configure`, `make` or the artefacts are missing.
-  - [ ] Adapter work remains before the expansions are real: a bridge in the
-    shape of `webide_bridge.c`, registers and memory exposed to the debugger,
-    and the capability and command classification the ElkJS adapter already
-    carries. Elkulator has a genuine `debugger.c`, which is more than ElkJS
-    offers, so that part starts from something. Until that is done every
-    Electron expansion stays planned and the capability controls still say so.
+  - [x] **The bridge is written and it does the two things ElkJS cannot.**
+    `docker/elkulator/webide_bridge.c` is the whole of what the IDE may ask this
+    core — run, pause, step, reset, breakpoints, registers, memory and keys —
+    so what the workbench can do to this machine is in one file and what it
+    cannot do is absent rather than half-answered. Elkulator calls its own
+    debugger before every instruction, so the hook sits there and returns a
+    verdict rather than a notification: non-zero means the instruction has not
+    run and must not, which is what makes a step a step and a breakpoint stop
+    before rather than after. The hook is armed only while a breakpoint, a step
+    or a count needs it, because the machine executes a few hundred thousand
+    instructions a second and a debugger nobody opened should cost nothing.
+  - [x] Reading memory has two meanings and both are offered by name.
+    `elk_webide_read_memory` is what the processor sees — paged ROM, the ULA and
+    the keyboard matrix answer, and a read can have a side effect — and
+    `elk_webide_read_ram` reads the 32 KB array directly, which is what an
+    inspector wants, and refuses above `&7FFF` rather than handing back the ROM
+    byte the processor would have seen.
+  - [x] Evidence: a headless Chromium run drove all twenty-three entry points
+    against a booted machine. Counting armed, it executed 135,069 instructions
+    in half a second. Pausing stopped it and it stayed stopped, same program
+    counter and same count three hundred milliseconds later. A step executed
+    exactly one instruction and moved the program counter three bytes.
+    Registers written while it stood still read back. A ten-byte program was
+    placed at `&1900` with a breakpoint on its halt loop, and on resume the
+    machine stopped at `&1907` with one recorded hit, `A` and `X` holding `&42`
+    and `7`, and `&2000` holding `&42` — the program's own result read out of
+    RAM. A register index of 99, a breakpoint slot of 99, an address past
+    `&FFFF`, key zero and a step of zero instructions were each refused. No
+    page error.
+  - [x] Two defects in the bridge were found by that run rather than reasoned
+    about. The instruction count read zero while the machine was plainly
+    running, because the counter lives in the hook and nothing armed it; a
+    caller now asks for counting and `elk_webide_counting` says whether the
+    number means anything, so nobody reports zero as though nothing had
+    executed. And a step resumed the machine and never stopped it, for the same
+    reason — it arms the hook it depends on now.
+  - [ ] The runtime page and the adapter remain: the capability and command
+    classification the ElkJS adapter already carries, and the workbench wiring
+    beside it. Until that is done every Electron expansion stays planned and the
+    capability controls still say so.
   - [ ] What the run does not show is also recorded: the frame rate was
     measured in headless Chromium on a software renderer with nothing but the
     operating system and BASIC fitted and no program running, and no keyboard,

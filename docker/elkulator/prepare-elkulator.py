@@ -476,3 +476,82 @@ new_calls = """        loadrom(os, "os");
 assert old_calls in body, 'the loadroms call list changed; the optional-ROM change needs revisiting'
 io.open(mem_c, 'w', encoding='utf-8').write(body.replace(old_calls, new_calls, 1))
 print('a missing expansion ROM is an absent expansion, not a dead machine')
+
+# The bridge, and the three places the emulator has to call into it.
+#
+# webide_bridge.c is the whole of what the IDE may ask this core, and it needs
+# exactly three hooks in the emulator to work: one before each instruction, one
+# where the processor is driven so a halted machine stops being driven, and one
+# where the ULA completes a field so frames can be counted from the machine
+# rather than from the browser.
+#
+# The instruction hook sits beside the one Elkulator already has for its own
+# debugger, and is guarded by a flag so an unarmed hook costs a load and a
+# branch per instruction.
+bridge = '/elkulator/src/6502.c'
+body = io.open(bridge, encoding='utf-8').read()
+old_hook = """                opcode=readmem(pc);
+                if (debugon) dodebugger();"""
+# Placed before the opcode fetch rather than after it. Returning here means the
+# instruction has not run and must not, and a fetch that had already happened
+# would be repeated on resume — harmless for an opcode read out of RAM or ROM,
+# but not something to rely on when the address is under the IDE's control.
+new_hook = """                /* The IDE's hook. Returning non-zero means this
+                 * instruction has not run yet and must not: the machine is left
+                 * standing on it, which is what makes a step a step and a
+                 * breakpoint stop before rather than after. */
+                if (elk_webide_hook_armed && elk_webide_before_instruction(pc)) return;
+                opcode=readmem(pc);
+                if (debugon) dodebugger();"""
+assert old_hook in body, 'the 6502 debugger hook moved; the IDE bridge needs revisiting'
+body = body.replace(old_hook, new_hook, 1)
+if 'elk_webide_before_instruction' not in body.split('void exec6502')[0]:
+    body = body.replace('#include "6502.h"',
+                        '#include "6502.h"\n\n/* See webide_bridge.c. */\nextern int elk_webide_hook_armed;\nextern int elk_webide_halted;\nint elk_webide_before_instruction(uint16_t at);', 1)
+io.open(bridge, 'w', encoding='utf-8').write(body)
+print('the IDE hook runs before each instruction')
+
+# A halted machine is not driven. runelk executes 312 instruction batches per
+# field; stopping inside exec6502 is not enough on its own, because the next 311
+# calls would step straight past the breakpoint that had just been hit.
+main_c = '/elkulator/src/main.c'
+body = io.open(main_c, encoding='utf-8').read()
+old_exec = """    for (c=0;c<312;c++) exec6502();
+    if (runelkframe) exec6502();"""
+new_exec = """    /* See webide_bridge.c: the hook halts the machine before an instruction,
+     * and this is what stops the rest of the field being executed anyway. */
+    for (c=0;c<312;c++) { if (elk_webide_halted) break; exec6502(); }
+    if (runelkframe && !elk_webide_halted) exec6502();"""
+assert old_exec in body, "runelk's processor loop changed; the IDE bridge needs revisiting"
+body = body.replace(old_exec, new_exec, 1)
+if 'extern int elk_webide_halted;' not in body:
+    body = body.replace('int drawit=0;', 'int drawit=0;\n\n/* See webide_bridge.c. */\nextern int elk_webide_halted;', 1)
+io.open(main_c, 'w', encoding='utf-8').write(body)
+print('a halted machine is no longer driven for the rest of the field')
+
+# Frames counted where the machine completes one.
+ula = '/elkulator/src/ula.c'
+body = io.open(ula, encoding='utf-8').read()
+old_field = """                                        if (ula.draw && video_blit_enabled)
+                                        {"""
+new_field = """                                        elk_webide_frame_completed();
+                                        if (ula.draw && video_blit_enabled)
+                                        {"""
+assert old_field in body, 'the ULA field boundary moved; the IDE bridge needs revisiting'
+body = body.replace(old_field, new_field, 1)
+if 'elk_webide_frame_completed' not in body.split('void yield')[0]:
+    body = body.replace('#include "ula.h"', '#include "ula.h"\n\n/* See webide_bridge.c. */\nvoid elk_webide_frame_completed(void);', 1)
+io.open(ula, 'w', encoding='utf-8').write(body)
+print('frames are counted where the machine completes one')
+
+# And the bridge is built.
+makefile = '/elkulator/Makefile.am'
+body = io.open(makefile, encoding='utf-8').read()
+old_sources = """elkulator_SOURCES = src/1770.c \\
+                    src/6502.c \\"""
+new_sources = """elkulator_SOURCES = src/1770.c \\
+                    src/6502.c \\
+                    src/webide_bridge.c \\"""
+assert old_sources in body, 'the source list changed shape; the IDE bridge needs revisiting'
+io.open(makefile, 'w', encoding='utf-8').write(body.replace(old_sources, new_sources, 1))
+print('webide_bridge.c is in the build')

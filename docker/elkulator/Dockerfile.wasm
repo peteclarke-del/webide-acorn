@@ -47,6 +47,8 @@ COPY webide_alut_shim.h /elkulator/src/host_abstraction_layer/allegro_5/webide_a
 # installs is missing too. A file chooser and a menu bar are the host operating
 # system's furniture, and a page has neither: the IDE supplies its own.
 COPY allegro_native_dialog_stub.h /emsdk/upstream/emscripten/cache/sysroot/include/allegro5/allegro_native_dialog.h
+# What the IDE is allowed to ask the Electron, and nothing else.
+COPY webide_bridge.c /elkulator/src/webide_bridge.c
 COPY prepare-elkulator.py /tmp/
 RUN python3 /tmp/prepare-elkulator.py
 
