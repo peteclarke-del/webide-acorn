@@ -6,7 +6,7 @@ cartridge interface. EMU-423 has wanted one since the Electron slice shipped.
 
 ## What is proved
 
-`Dockerfile.wasm` builds `elkulator.wasm` — 1,305,019 bytes — and its JavaScript
+`Dockerfile.wasm` builds `elkulator.wasm` — 1,305,170 bytes — and its JavaScript
 glue, from `demrepofdave/elkulator` at commit
 `6785521aba2c237861f29d9dee9cfc6725989b1e` on branch
 `demrepofdave/allegro5_integration`, against Allegro 5.2.9.1 with Allegro's own
@@ -322,3 +322,32 @@ core's enumeration has no minus key: what it calls EQUALS is the Electron's
 `- =` key, and unshifted it produces a minus. So the workbench could not type a
 minus at all — which is every negative amplitude in a SOUND statement — and an
 equals sign came out as one.
+
+
+## It counts cycles, which is what makes a test plan mean anything
+
+A test plan is written in cycles, because cycles are what an Acorn program has
+to fit inside: a frame is about forty thousand of them and a raster line a
+hundred and twenty-eight. Answering with an instruction count would be a
+different number wearing the same name.
+
+Elkulator's own counter is not a total. It runs up to 128 and the caller then
+takes 128 back, once, which is how the emulator paces its scheduler. The bridge
+accumulates a real total from the differences with that single subtraction added
+back, and resets it whenever counting is turned on, so the first reading after
+the hook was off cannot charge the gap to whatever ran next.
+
+What comes out is the Electron's own contended cycles rather than a datasheet's.
+The four-instruction program the test-plan measurements use is eleven cycles on
+paper; the machine reported eleven on one run and twelve on the next, because
+the ULA stretches the processor when it touches shared RAM and whether an access
+lands in a stretched slot depends on where the display has got to. A cycle
+assertion on this machine should therefore be written as a bound, and the
+adapter says so.
+
+One limit is worth stating rather than discovering. A stop address is exact —
+the instruction hook halts the machine on it. A budget is not: this core runs a
+whole field per animation frame and cannot be interrupted inside one, so a test
+that never reaches its stop overruns its budget by up to a field before the
+overrun is noticed. The result reports the cycles that actually elapsed rather
+than the budget, so nothing has to be inferred from the word "timeout".

@@ -162,7 +162,7 @@ describe('the two Electron cores', () => {
     const electron = machineProfiles.find((machine) => machine.id === 'electron')!;
     const engines = electron.roms
       .map((entry) => romSetFor('electron', entry.id)?.engine.id)
-      .filter((id): id is string => !!id);
+      .filter((id) => !!id);
     expect(new Set(engines)).toEqual(new Set(['elkjs', 'elkulator']));
   });
 

@@ -27,14 +27,13 @@
    * the workbench refuses what this build cannot do with the same reason this
    * page would give. */
   const CAPABILITIES = [
-    'execution', 'reset', 'instruction-step', 'execute-breakpoint',
+    'execution', 'reset', 'instruction-step', 'execute-breakpoint', 'run-test',
     'register-read', 'register-write', 'memory-read', 'memory-write',
     'program-load', 'keyboard-input', 'key-injection',
     'display', 'display-filter', 'screen-capture', 'input-focus',
     'media',
   ];
   const UNAVAILABLE = {
-    'run-test': 'The bridge can stop the machine at an address, and that part is proved; what a test plan also needs — its assertions evaluated, its captures taken and its teardown run — is not implemented here, so a result would come back as a pass with nothing checked.',
     'conditional-breakpoint': 'The instruction hook compares the program counter and nothing else; a condition would have to be evaluated in the bridge, and it is not.',
     logpoint: 'A logpoint records registers and resumes; the bridge stops the machine or leaves it alone, and keeps no log buffer.',
     watchpoint: 'Elkulator reads and writes memory through plain functions with no hook, so a memory watch could not be honoured exactly.',
@@ -227,6 +226,10 @@
       breakpoints: breakpointSlots.map((address, slot) => ({ slot, address, hits: call('elk_webide_breakpoint_hits', slot) })),
       breakpointHit: hit < 0 ? null : { slot: hit, address: breakpointSlots[hit] ?? null },
       frames: call('elk_webide_frames'),
+      /* Cycles, when somebody asked for them. Like the instruction count this
+       * is null rather than zero when nothing is counting, because zero would
+       * read as "nothing has executed". */
+      cycles: call('elk_webide_counting') ? call('elk_webide_cycles') : null,
       /* Zero would read as "nothing has executed", which is a different claim
        * from "nobody asked for a count". */
       instructions: call('elk_webide_counting') ? call('elk_webide_instructions') : null,
@@ -383,6 +386,212 @@
     if (payload.autorun !== false) call('elk_webide_resume');
     send({ type: 'program-loaded', format: '6502 machine code', size: bytes.length, address: origin, entryPoint: entry, programManifest });
     snapshot('program loaded');
+  }
+
+  /* ---- test plans --------------------------------------------------------
+   *
+   * Running a plan on this core is not the same as running it on jsbeeb, and
+   * pretending otherwise would be the worst thing this file could do: a result
+   * that says "passed" while nothing was checked is worse than a refusal.
+   *
+   * What the bridge can honestly answer is a program placed in RAM, run to an
+   * address inside a cycle budget, and then asked about its registers, its
+   * memory and how long it took. Everything else a plan can assert needs a hook
+   * this core does not have, and each of those is refused by name below rather
+   * than quietly skipped — an assertion nobody evaluated must not be counted as
+   * one that passed.
+   *
+   * Cycles are counted, not instructions. A plan's budget is written in cycles
+   * because that is what an Acorn program has to fit inside, and answering an
+   * instruction count would be a different number wearing the same name. They
+   * are the Electron's real, contended cycles: the ULA stretches the processor
+   * when it touches shared RAM, so a four-instruction program that a datasheet
+   * would call eight cycles is measured at twelve, and that is the number a
+   * program actually has to live within.
+   *
+   * A stop address is exact — the instruction hook halts the machine on it. A
+   * budget is not: this core runs a whole field per animation frame and cannot
+   * be interrupted inside one, so a test that never reaches its stop overruns
+   * its budget by up to a field before the overrun is noticed. The result says
+   * how many cycles actually elapsed rather than the budget, so nothing has to
+   * be inferred from the timeout.
+   */
+  const TEST_ASSERTION_REFUSALS = {
+    output: 'OUTPUT captures characters at the BBC MOS write vector. The Electron\u2019s operating system is not that one, and this bridge installs no character hook, so the capture would be of nothing.',
+    audio: 'AUDIO[WRITES] counts writes to a sound chip. The Electron has one tone generator in its ULA and no chip to write to, and the bridge counts no writes.',
+    'audio-speaker': 'AUDIO[SPEAKER] counts transitions of a one-bit speaker, which this machine does not have.',
+    screen: 'SCREEN hashes a region of the framebuffer. The core renders into its own canvas through Allegro and this bridge publishes no framebuffer to read back.',
+    'screen-golden': 'SCREEN_IMAGE compares a region of the framebuffer against a golden image, and this bridge publishes no framebuffer to compare.',
+    event: 'EVENT[MOS_CALL] counts entries to the BBC MOS at addresses the Electron does not use for that, so the count would be of whatever happens to sit there.',
+    'event-address': 'EVENT[address] counts how often a program counter value is reached. The instruction hook stops the machine at an address rather than counting it, and the bridge keeps no per-address tally.',
+  };
+  const TEST_INPUT_REFUSALS = {
+    gamepad: 'A gamepad reaches the machine through the Plus 1 analogue port, and no expansion is fitted here.',
+    'bbc-analogue': 'The analogue port assertion is a BBC one; this machine reaches its joystick through the Plus 1, which is not fitted.',
+    'bbc-mouse': 'A BBC mouse is not an Electron peripheral.',
+    'atom-atommc': 'An AtoMMC joystick is an Atom peripheral.',
+    'emulator-event': 'Waiting for the next video frame needs a frame callback the bridge does not publish.',
+  };
+
+  let activeTest = null;
+
+  function testRegisters() {
+    return Object.fromEntries(Object.entries(REGISTER).map(([name, index]) => [name, call('elk_webide_get_register', index)]));
+  }
+
+  function testResult(payload) {
+    send({ type: 'test-result', ...payload });
+  }
+
+  function startTest(command) {
+    requireCore();
+    if (activeTest) throw new Error('A test is already running on this Electron');
+    if (typeof command.name !== 'string' || !command.name.trim() || command.name.length > 80) throw new Error('Test name must contain 1 to 80 characters');
+    if (command.processor === 'parasite') throw new Error('The Acorn Electron has no Tube, so there is no parasite to run a test on');
+    if (!Number.isInteger(command.cycleBudget) || command.cycleBudget < 100 || command.cycleBudget > 10_000_000) throw new Error('Test cycle budget must be between 100 and 10,000,000');
+    if (!Number.isInteger(command.stopAddress) || command.stopAddress < 0 || command.stopAddress > 0xffff) throw new Error('Test stop address must be a 16-bit address');
+    const assertions = Array.isArray(command.assertions) ? command.assertions : [];
+    if (assertions.length < 1 || assertions.length > 64) throw new Error('Tests require 1 to 64 assertions');
+    for (const assertion of assertions) {
+      const refusal = TEST_ASSERTION_REFUSALS[assertion?.kind];
+      if (refusal) throw new Error(refusal);
+      if (assertion?.kind === 'register') {
+        const limit = assertion.register === 'pc' ? 0xffff : 0xff;
+        if (REGISTER[assertion.register] === undefined || !Number.isInteger(assertion.expected) || assertion.expected < 0 || assertion.expected > limit) throw new Error('Test contains an invalid register assertion');
+      } else if (assertion?.kind === 'memory') {
+        if (!Number.isInteger(assertion.address) || assertion.address < 0 || !Array.isArray(assertion.expected) || !assertion.expected.length
+          || assertion.address + assertion.expected.length > 0x10000
+          || assertion.expected.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) throw new Error('Test contains an invalid memory assertion');
+      } else if (assertion?.kind === 'cycles') {
+        if (!['eq', 'lte', 'gte', 'range'].includes(assertion.operator) || !Number.isSafeInteger(assertion.expected) || assertion.expected < 0) throw new Error('Test contains an invalid cycle assertion');
+        if (assertion.operator === 'range' && (!Number.isSafeInteger(assertion.expectedMaximum) || assertion.expectedMaximum < assertion.expected)) throw new Error('Test contains an invalid cycle range assertion');
+      } else throw new Error(`This Electron adapter cannot evaluate a ${String(assertion?.kind)} assertion, so it will not report a result for one`);
+    }
+    const captures = Array.isArray(command.captures) ? command.captures : [];
+    if (captures.length > 16) throw new Error('Tests are limited to 16 artifact captures');
+    for (const capture of captures) {
+      if (!capture || typeof capture.id !== 'string' || !capture.id || capture.id.length > 80) throw new Error('Test capture identity is invalid');
+      if (capture.kind === 'registers') continue;
+      if (capture.kind !== 'memory' || !Number.isInteger(capture.address) || !Number.isInteger(capture.length)
+        || capture.address < 0 || capture.length < 1 || capture.length > 4096 || capture.address + capture.length > 0x10000) throw new Error('Test memory capture is outside the 16-bit address space');
+    }
+    const inputs = Array.isArray(command.inputs) ? command.inputs : [];
+    if (inputs.length > 256) throw new Error('Tests are limited to 256 input actions');
+    for (const input of inputs) {
+      const refusal = TEST_INPUT_REFUSALS[input?.kind];
+      if (refusal) throw new Error(refusal);
+      if (input?.kind === 'delay') {
+        if (!Number.isInteger(input.cycles) || input.cycles < 1 || input.cycles > 10_000_000) throw new Error('Test delay must be between 1 and 10,000,000 cycles');
+      } else if (input?.kind === 'key') {
+        if (ELK_KEY[String(input.code ?? '').toLowerCase()] === undefined) throw new Error(`The Electron keyboard has no key named ${JSON.stringify(input.code)}`);
+        if (typeof input.pressed !== 'boolean') throw new Error('A test key action has to say whether the key goes down or up');
+      } else if (input?.kind === 'media') {
+        if (input.action !== 'eject-tape') throw new Error(`This Electron adapter cannot apply the ${String(input.action)} media action during a test`);
+      } else if (input?.kind === 'reset') {
+        if (input.reset !== 'hard' && input.reset !== 'soft') throw new Error('A test reset must be hard or soft');
+      } else throw new Error(`This Electron adapter cannot apply a ${String(input?.kind)} input during a test`);
+    }
+    if (command.teardown !== undefined && command.teardown !== 'pause' && command.teardown !== 'reset') throw new Error('Unsupported test teardown action');
+    if (command.setup?.reset !== undefined && !['hard', 'soft', 'none'].includes(command.setup.reset)) throw new Error('Unsupported test setup reset');
+    if (command.setup?.media !== undefined && command.setup.media !== 'retain' && command.setup.media !== 'eject') throw new Error('Unsupported test setup media policy');
+
+    if (command.setup?.media === 'eject') {
+      call('elk_webide_eject_tape'); mountedTape = null;
+      for (const drive of [...mountedDiscs.keys()]) { call('elk_webide_eject_disc', drive); mountedDiscs.delete(drive); }
+    }
+    if (command.setup?.reset === 'hard' || command.setup?.reset === 'soft') call('elk_webide_reset');
+
+    loadProgram({ ...command, autorun: false });
+    /* Counting arms the instruction hook and starts the cycle total from zero,
+     * which is what makes the budget and the cycle assertions mean anything. */
+    call('elk_webide_set_counting', 1);
+    setBreakpoints([command.stopAddress]);
+    activeTest = {
+      command, assertions, captures, inputs,
+      teardown: command.teardown ?? 'pause',
+      appliedInputs: 0,
+      inputIndex: 0,
+      /* The next input is applied once this many cycles have elapsed. */
+      dueAt: 0,
+      poll: 0,
+    };
+    call('elk_webide_resume');
+    activeTest.poll = window.setInterval(() => stepTest(), 5);
+  }
+
+  function stepTest() {
+    if (!activeTest) return;
+    const elapsed = call('elk_webide_cycles');
+    while (activeTest.inputIndex < activeTest.inputs.length && elapsed >= activeTest.dueAt) {
+      const input = activeTest.inputs[activeTest.inputIndex];
+      if (input.kind === 'delay') { activeTest.dueAt = elapsed + input.cycles; activeTest.inputIndex += 1; activeTest.appliedInputs += 1; break; }
+      if (input.kind === 'key') call('elk_webide_set_key', ELK_KEY[String(input.code).toLowerCase()], input.pressed ? 1 : 0);
+      else if (input.kind === 'media') { call('elk_webide_eject_tape'); mountedTape = null; }
+      else if (input.kind === 'reset') call('elk_webide_reset');
+      activeTest.inputIndex += 1;
+      activeTest.appliedInputs += 1;
+    }
+    if (call('elk_webide_breakpoint_hit') >= 0) { finishTest('stop address reached'); return; }
+    if (elapsed >= activeTest.command.cycleBudget) { finishTest('timeout'); return; }
+  }
+
+  function finishTest(reason) {
+    const test = activeTest;
+    if (!test) return;
+    activeTest = null;
+    window.clearInterval(test.poll);
+    call('elk_webide_pause');
+    call('elk_webide_clear_keys');
+    const cycles = call('elk_webide_cycles');
+    const registers = testRegisters();
+    const peek = (address) => call('elk_webide_read_ram', address);
+    const results = test.assertions.map((assertion) => {
+      if (assertion.kind === 'register') {
+        const actual = registers[assertion.register];
+        return { ...assertion, actual, passed: actual === assertion.expected };
+      }
+      if (assertion.kind === 'memory') {
+        const actual = assertion.expected.map((_, offset) => peek((assertion.address + offset) & 0xffff));
+        return { ...assertion, actual, passed: actual.every((byte, index) => byte === assertion.expected[index]) };
+      }
+      if (assertion.kind === 'cycles') {
+        const passed = assertion.operator === 'eq' ? cycles === assertion.expected
+          : assertion.operator === 'lte' ? cycles <= assertion.expected
+            : assertion.operator === 'gte' ? cycles >= assertion.expected
+              : cycles >= assertion.expected && cycles <= assertion.expectedMaximum;
+        return { ...assertion, actual: cycles, passed };
+      }
+      /* Unreachable: startTest refuses anything else before the run begins.
+       * Falling through to a cycle comparison would have quietly answered a
+       * question nobody asked, which is the one outcome worse than refusing. */
+      return { ...assertion, actual: null, passed: false };
+    });
+    const timedOut = reason === 'timeout';
+    const passed = !timedOut && results.every((result) => result.passed);
+    const status = passed ? 'passed' : timedOut ? 'timeout' : 'failed';
+    const captures = test.captures.map((capture) => capture.kind === 'registers'
+      ? { id: capture.id, kind: 'registers', registers: { ...registers } }
+      : { id: capture.id, kind: 'memory', address: capture.address, bytes: Array.from({ length: capture.length }, (_, offset) => peek((capture.address + offset) & 0xffff)) });
+    setStatus(`${test.command.name} ${status}`, passed ? 'ready' : 'error');
+    testResult({
+      name: test.command.name,
+      processor: 'host',
+      requestId: test.command.requestId,
+      planId: test.command.planId,
+      suite: test.command.suite,
+      buildFingerprint: test.command.buildFingerprint,
+      status,
+      reason: `${reason} · ${test.appliedInputs} input action${test.appliedInputs === 1 ? '' : 's'} applied`,
+      cycles,
+      stopAddress: test.command.stopAddress,
+      registers,
+      assertions: results,
+      captures,
+      appliedInputs: test.appliedInputs,
+      teardown: test.teardown,
+    });
+    if (test.teardown === 'reset') call('elk_webide_reset');
+    snapshot(`test ${status} · ${test.teardown} teardown`);
   }
 
   function setBreakpoints(addresses) {
@@ -578,6 +787,14 @@
          * matrix, which is how a machine ends up typing by itself. */
         if (!inputCaptured && core) call('elk_webide_clear_keys');
         send({ type: 'input-focus', captured: inputCaptured });
+        return;
+      }
+      case 'run-test': {
+        try { startTest(command); } catch (error) {
+          /* A refused test is a refusal, not a failure: it comes back as an
+           * error with the reason, so nothing counts it as a run that passed. */
+          send({ type: 'test-result', name: command.name, requestId: command.requestId, planId: command.planId, suite: command.suite, buildFingerprint: command.buildFingerprint, status: 'error', reason: error.message, cycles: 0, assertions: [] });
+        }
         return;
       }
       case 'load-tape': return mountTape(command);

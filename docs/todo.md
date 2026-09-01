@@ -8044,9 +8044,28 @@ the whole line on one machine without leaving the workbench.
   than excused: the engine model is the same and only the language socket's
   image differs, and BASIC I is a language a program can tell apart from
   BASIC II.
-- [ ] GAME-006 Run a hardware test plan on an Electron. Both cores refuse it —
-  ElkJS for want of a per-instruction hook, Elkulator because a plan's
-  assertions, captures and teardown are not implemented against its bridge.
+- [x] GAME-006 Run a hardware test plan on an Electron. The Elkulator core now
+  runs one over what its bridge can honestly answer: a program placed in RAM,
+  run to a stop address inside a cycle budget, then asked about its registers,
+  its memory and how long it took. Everything else a plan can assert — output,
+  audio, screen, MOS events — is refused by name at the point the plan is
+  submitted, because an assertion nobody evaluated must never be counted as one
+  that passed. ElkJS still refuses the lot, for want of a per-instruction hook.
+
+  The bridge gained a real cycle counter to make this mean anything. Elkulator's
+  own counter is a 128-cycle scheduling window rather than a total, so the
+  bridge accumulates it from differences with the scheduler's subtraction added
+  back. The cycles that come out are the Electron's own contended ones: four
+  instructions a datasheet calls eleven cycles measured eleven on one run and
+  twelve on the next, because the ULA stretches the processor on shared RAM and
+  whether an access lands in a stretched slot depends on the display phase.
+  That is why a cycle assertion on this machine should be a bound rather than
+  an equality, and the adapter says so.
+
+  Proved by running five plans on the machine — one that passes, one that fails,
+  one that times out, and two that are refused —
+  `scripts/measureElectronTestPlan.mjs` reproduces them and will not exit zero
+  unless each still does what a working runner would.
 - [ ] GAME-007 Walk the whole journey on each machine in one headless run, and
   fail on any console error, policy violation or refusal that is not expected.
   That is what "smoothly, with no crashes or errors" has to mean if it is to be

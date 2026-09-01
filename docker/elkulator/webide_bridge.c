@@ -35,6 +35,9 @@
 
 /* The machine's own state, reached rather than copied. */
 extern uint8_t ram[SIZE_32K];
+/* Elkulator's own cycle counter, which is a scheduling window rather than a
+ * total; see the cycle block below for what is done with it. */
+extern int cycles;
 extern bool elk_key_state[ELK_KEY_MAX];
 extern int resetit;
 
@@ -79,6 +82,53 @@ static void initialize(void)
  * the machine is left standing exactly on this instruction, which is what makes
  * a step a step and a breakpoint stop before rather than after.
  */
+/* ---- Cycles ---------------------------------------------------------------
+ *
+ * A test plan is written in cycles, because cycles are what an Acorn program
+ * has to fit inside: a frame is 40,000 of them and a raster line is 128. An
+ * instruction count would answer a different question and look like the same
+ * one, so the bridge counts cycles or says it cannot.
+ *
+ * Elkulator's own counter is not a total. It runs up to 128 and is then reduced
+ * by 128 by the caller, once, before the next instruction — that is how the
+ * emulator paces its scheduler. So the running total here is accumulated from
+ * the differences, with that single reduction added back. Between two calls of
+ * this hook the counter either rose or fell by exactly 128 less than it rose,
+ * and both cases are the same arithmetic.
+ *
+ * The count lags by one instruction, because Elkulator charges an instruction's
+ * cycles after the hook has run. A test that stops at an address therefore has
+ * the cycles up to the start of the instruction at that address, which is the
+ * number a plan means when it says the program reached there.
+ */
+static uint32_t webide_cycles;
+static int webide_last_cycle_reading;
+static int webide_cycle_reading_valid;
+
+static void webide_count_cycles(void)
+{
+    int now = cycles;
+    if (webide_cycle_reading_valid) {
+        int delta = now - webide_last_cycle_reading;
+        /* The scheduler took its 128 back between the two readings. */
+        if (delta < 0) delta += 128;
+        if (delta > 0) webide_cycles += (uint32_t)delta;
+    }
+    webide_last_cycle_reading = now;
+    webide_cycle_reading_valid = 1;
+}
+
+uint32_t EMSCRIPTEN_KEEPALIVE elk_webide_cycles(void)
+{
+    return webide_cycles;
+}
+
+void EMSCRIPTEN_KEEPALIVE elk_webide_reset_cycles(void)
+{
+    webide_cycles = 0;
+    webide_cycle_reading_valid = 0;
+}
+
 int elk_webide_before_instruction(uint16_t at)
 {
     int index;
@@ -104,6 +154,7 @@ int elk_webide_before_instruction(uint16_t at)
     }
     if (webide_step_remaining > 0) webide_step_remaining--;
     webide_instructions++;
+    webide_count_cycles();
     return 0;
 }
 
@@ -156,6 +207,11 @@ int EMSCRIPTEN_KEEPALIVE elk_webide_set_counting(int on)
 {
     webide_counting = on ? 1 : 0;
     if (!webide_counting) webide_instructions = 0;
+    /* The cycle total is accumulated from differences, so the first reading
+     * after the hook was off would otherwise charge the gap to whatever ran
+     * next. Turning counting on discards it and starts again. */
+    webide_cycles = 0;
+    webide_cycle_reading_valid = 0;
     update_hook();
     return webide_counting;
 }

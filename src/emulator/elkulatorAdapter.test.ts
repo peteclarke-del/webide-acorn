@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  ELKULATOR_ADAPTER_SUMMARY,
   ELKULATOR_CAPABILITIES,
   ELKULATOR_COMMAND_CAPABILITY,
   ELKULATOR_UNAVAILABLE,
@@ -108,7 +109,10 @@ describe('Elkulator Electron adapter declaration', () => {
      * slice rather than about the core: the stop is real, and everything else a
      * plan needs is not written yet. A result with no assertions evaluated
      * would be reported as a pass with nothing checked. */
-    expect(elkulatorCommandRefusal('run-test')).toContain('nothing checked');
+    /* A plan now runs here, over what the bridge can honestly answer: registers,
+     * memory and cycles. What it cannot evaluate it refuses by name at the point
+     * the plan is submitted, rather than reporting a pass with nothing checked. */
+    expect(elkulatorCommandRefusal('run-test')).toBeNull();
     expect(elkulatorCommandRefusal('watchpoint')).toContain('no hook');
     expect(elkulatorCommandRefusal('read-tube-memory')).toContain('no Tube interface');
     expect(elkulatorCommandRefusal('set-audio')).toContain('has not been verified');
@@ -175,3 +179,59 @@ describe('Elkulator Electron adapter declaration', () => {
     expect([...ELKULATOR_CAPABILITIES].filter((capability) => !behind[capability]).sort()).toEqual(browserProvided.slice().sort());
   });
 });
+
+describe('what a test plan can ask this Electron', () => {
+  /*
+   * A plan runs here over what the bridge can honestly answer. What matters is
+   * not the size of that list but that everything outside it is refused by
+   * name: an assertion nobody evaluated must never be reported as one that
+   * passed, which is the failure mode this adapter was written to avoid.
+   */
+  const runtime = readFileSync('public/elkulator-runtime.js', 'utf8');
+
+  it('evaluates registers, memory and cycles, and nothing it cannot observe', () => {
+    for (const kind of ['register', 'memory']) {
+      expect(runtime, `${kind} assertions are evaluated`).toContain(`assertion.kind === '${kind}'`);
+    }
+    /* Cycles are the remaining kind, compared against the elapsed count with
+     * the four operators a plan can write. */
+    expect(runtime).toContain("assertion.kind === 'cycles'");
+    for (const operator of ['eq', 'lte', 'gte']) expect(runtime).toContain(`assertion.operator === '${operator}'`);
+    for (const kind of ['output', 'audio', 'audio-speaker', 'screen', 'screen-golden', 'event', 'event-address']) {
+      expect(Object.keys(elkulatorTestAssertionRefusals(runtime)), `${kind} is refused by name`).toContain(kind);
+    }
+  });
+
+  it('gives each refusal a reason about this machine rather than a shrug', () => {
+    const refusals = elkulatorTestAssertionRefusals(runtime);
+    for (const [kind, reason] of Object.entries(refusals)) {
+      expect(reason.length, `${kind} has a reason worth reading`).toBeGreaterThan(60);
+      expect(reason, `${kind} says what is absent`).toMatch(/bridge|Electron|core|machine|hook/);
+    }
+  });
+
+  it('says that a stop address is exact and a cycle budget is not', () => {
+    expect(ELKULATOR_ADAPTER_SUMMARY).toContain('stop address is exact');
+    expect(ELKULATOR_ADAPTER_SUMMARY).toContain('whole field per animation frame');
+    /* And that the cycles are the machine's, not a datasheet's. */
+    expect(ELKULATOR_ADAPTER_SUMMARY).toContain('contended');
+  });
+
+  it('refuses a parasite test, because the Electron has no Tube', () => {
+    expect(runtime).toContain('has no Tube, so there is no parasite');
+  });
+});
+
+/** Reads the refusal table out of the runtime, so the two cannot drift apart. */
+function elkulatorTestAssertionRefusals(runtime: string): Record<string, string> {
+  const start = runtime.indexOf('const TEST_ASSERTION_REFUSALS = {');
+  expect(start, 'the runtime declares a table of test assertion refusals').toBeGreaterThan(-1);
+  const end = runtime.indexOf('\n  };', start);
+  const body = runtime.slice(start, end);
+  const found: Record<string, string> = {};
+  for (const match of body.matchAll(/^\s*'?([a-z-]+)'?:\s*'((?:[^'\\]|\\.)*)'/gm)) {
+    if (match[1] === 'const TEST_ASSERTION_REFUSALS') continue;
+    found[match[1]!] = match[2]!;
+  }
+  return found;
+}
