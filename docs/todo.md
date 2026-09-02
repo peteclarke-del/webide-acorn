@@ -7992,6 +7992,12 @@ the whole line on one machine without leaving the workbench.
   BASIC program written here was saved to tape and CHAINed on a real machine,
   which printed it back. The Electron shares the BBC's block format but has no
   engine that can prove it here; that is GAME-002.
+  - [x] Evidence: 24 contracts in `src/media/acornTape.test.ts`, none needing
+    firmware. They hold the encoder to the exact block bytes and whole images a
+    BBC B, a BBC Master and an Acorn Atom accepted, frozen in
+    `src/media/acornTapeMeasurements.ts` by `scripts/measureAcornTape.mjs`, and
+    read each image back through the emulator's own UEF reader to prove the
+    container is one the reader this build ships will be given.
 - [x] GAME-002 Mount tape media on the Elkulator Electron core, so a packaged
   Electron game can be booted where it was built. The bridge writes the image
   into the emulator's own filesystem and hands Elkulator the path, so its own
@@ -8018,6 +8024,12 @@ the whole line on one machine without leaving the workbench.
   machine's own scale of forty-eight pitch units to the octave — measured, at
   `src/assets/electronSoundMeasurements.ts` — and generates a player that uses
   channel 1 with no channel loop, because there is nothing to loop over.
+  - [x] Evidence: 12 contracts in `src/assets/electronSoundMeasurements.test.ts`
+    holding the target to what the machine did — the measured pitch-to-divider
+    table and its octave, that every amplitude produced the same divider, that a
+    note on another channel replaced the one playing, and that the generated
+    player calls OSWORD 7 on channel 1 with no channel loop.
+    `scripts/measureElectronSound.mjs` retakes the readings against firmware.
 - [x] GAME-004 Run a BBC B+. jsbeeb publishes no B+ — not in the pinned 1.19.1
   and not in the current 1.22.4 — so this build adds one, in
   `src/emulator/bbcBPlus.ts`: the engine's Model B with the two things that make
@@ -8129,6 +8141,12 @@ the whole line on one machine without leaving the workbench.
   of its own artwork and music — so the assets were in the binary the machine
   loaded, not merely in the project it was built from. Nothing placed a byte in
   either machine's memory.
+  - [x] Evidence: 6 contracts in `src/media/gameEndToEndMeasurements.test.ts`
+    over the frozen transcripts: that every machine printed the title, that each
+    loaded it through its own `Searching`/`Loading` two-block sequence after
+    `*RUN`, that both asset bytes appeared and differ, that BASIC answered
+    afterwards, and that the one machine with something extra to say has it
+    explained rather than hidden.
 
 
 ## 13. Definition of done for every backlog item

@@ -24,9 +24,9 @@ is the part a machine can settle.
 | --- | --- |
 | Requirements tracked | 302 |
 | Complete | 204 |
-| Complete and traced | 124 |
+| Complete and traced | 127 |
 | Complete and described | 77 |
-| Complete and untraced | 3 |
+| Complete and untraced | 0 |
 | Open | 98 |
 
 ## By area
@@ -49,7 +49,7 @@ is the part a machine can settle.
 | RSH | 10 | 9 | 8 | 1 | 0 |
 | A11Y | 9 | 4 | 4 | 0 | 0 |
 | PRJ | 9 | 9 | 6 | 3 | 0 |
-| GAME | 8 | 8 | 0 | 5 | 3 |
+| GAME | 8 | 8 | 3 | 5 | 0 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 3 | 3 | 0 | 0 |
 | PLAT | 7 | 6 | 5 | 1 | 0 |
@@ -66,14 +66,7 @@ is the part a machine can settle.
 
 ## Completed requirements that say nothing about verification
 
-Each of these is marked done and names no contract, test or run. They
-are listed rather than quietly counted.
-
-| Requirement | Title |
-| --- | --- |
-| GAME-001 | Author an Acorn tape image from built files, for the BBC/Electron block format and the… |
-| GAME-003 | Give the song editor an Electron target. What that machine's sound hardware actually does… |
-| GAME-008 | Prove the chain rather than the links: build a game with artwork and music in it, write… |
+None. Every completed requirement records how it was verified.
 
 ## Completed requirements and their evidence
 
@@ -201,6 +194,9 @@ are listed rather than quietly counted.
 | DOC-903 | Verify fresh-clone Docker Compose startup, migrations, seed-free… | a full lifecycle run against the built containers. Both services reached healthy from a clean start with no seed data and no migration step, `GET /healthz` returned 200 with `ok`, the workbench and the emulator frame… |
 | DOC-904 | Generate traceability report mapping all in-scope requirements to… | 12 contracts covering the requirement count against the backlog's own text, wrapped titles, an Evidence sub-item told apart from prose, part-counting on an open requirement, all four states including the refusal to… |
 | DOC-906 | Establish release/version/deprecation policy for APIs, schemas,… | 6 contracts covering the checked-in document matching the generator, every stated version being read from its defining module rather than transcribed, no surface left without a promise, the newer-document wording, the… |
+| GAME-001 | Author an Acorn tape image from built files, for the BBC/Electron… | 24 contracts in `src/media/acornTape.test.ts`, none needing firmware. They hold the encoder to the exact block bytes and whole images a BBC B, a BBC Master and an Acorn Atom accepted, frozen in… |
+| GAME-003 | Give the song editor an Electron target. What that machine's sound… | 12 contracts in `src/assets/electronSoundMeasurements.test.ts` holding the target to what the machine did — the measured pitch-to-divider table and its octave, that every amplitude produced the same divider, that a note… |
+| GAME-008 | Prove the chain rather than the links: build a game with artwork and… | 6 contracts in `src/media/gameEndToEndMeasurements.test.ts` over the frozen transcripts: that every machine printed the title, that each loaded it through its own `Searching`/`Loading` two-block sequence after `*RUN`,… |
 | DOD-002 | Unit, contract, integration, E2E, accessibility, security, and… | the gate report at `ci/gate-report.json`, written on every run with each stage's status and detail. |
 | DOD-010 | No unrelated user work is overwritten and no secret/private or… | 26 contracts in `backend/tests/Storage/ProjectStoreTest.php`, among them the stale-parent refusal, and 25 in `scripts/hygiene.test.ts` for what counts as firmware, a capture or a credential and why each allowlist entry… |
 
