@@ -338,10 +338,13 @@ export function codebaseImportDocument(
   selection: CodebaseImportSelection = {},
 ) {
   const chosen = new Set(selection.derivedAssetIds ?? []);
-  const files: ProjectFile[] = plan.files.map((planned) => savedFile(planned.name, contents.get(planned.name) ?? '', planned.language));
+  const identifiers = new Set<string>();
+  const idFor = new Map<string, string>();
+  const identify = (name: string) => { const id = fileIdentifier(name, identifiers); idFor.set(name, id); return id; };
+  const files: ProjectFile[] = plan.files.map((planned) => savedFile(identify(planned.name), planned.name, contents.get(planned.name) ?? '', planned.language));
   const used = new Set(files.map((file) => file.name.toLowerCase()));
   for (const asset of plan.derivedAssets.filter((candidate) => chosen.has(candidate.id))) {
-    files.push(savedFile(asset.fileName, asset.document, 'text'));
+    files.push(savedFile(identify(asset.fileName), asset.fileName, asset.document, 'text'));
     used.add(asset.fileName.toLowerCase());
   }
   /* A promoted map keeps the exact layout that was found and declares every
@@ -355,14 +358,14 @@ export function codebaseImportDocument(
     let counter = 2;
     while (used.has(fileName.toLowerCase())) { fileName = `${document.name}-${counter}.map.json`; counter += 1; }
     used.add(fileName.toLowerCase());
-    files.push(savedFile(fileName, serializeTileMapDocument(document), 'text'));
+    files.push(savedFile(identify(fileName), fileName, serializeTileMapDocument(document), 'text'));
   }
   const buildTargets = plan.targets.map((target) => ({
     schemaVersion: BUILD_TARGET_SCHEMA,
     id: target.id,
     name: target.name,
-    entryFileId: target.entryName,
-    sourceFileIds: [target.entryName],
+    entryFileId: idFor.get(target.entryName) ?? target.entryName,
+    sourceFileIds: [idFor.get(target.entryName) ?? target.entryName],
     toolchainId: target.toolchainId,
     outputName: target.outputName,
   }));
@@ -400,9 +403,29 @@ export function projectFromCodebaseImport(
   return parseProject(JSON.stringify(codebaseImportDocument(plan, contents, selection)));
 }
 
-function savedFile(name: string, content: string, language: SourceLanguage): ProjectFile {
+/**
+ * A file's identity, which is not its path.
+ *
+ * An imported file used to be identified by its name, which was harmless while
+ * names were flat and stopped being so when they kept their folders: the native
+ * build service takes a file id as a bounded identifier and refuses a slash, so
+ * a project imported with its directories intact could not be built at all. The
+ * id is derived from the name so it stays readable and stable, with anything a
+ * path may contain and an identifier may not replaced, and a counter where two
+ * names would otherwise derive the same one.
+ */
+export function fileIdentifier(name: string, used: Set<string>): string {
+  const base = name.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'file';
+  let id = base.slice(0, 80);
+  let counter = 2;
+  while (used.has(id.toLowerCase())) { id = `${base.slice(0, 74)}-${counter}`; counter += 1; }
+  used.add(id.toLowerCase());
+  return id;
+}
+
+function savedFile(id: string, name: string, content: string, language: SourceLanguage): ProjectFile {
   return {
-    id: name, name, content, language,
+    id, name, content, language,
     encoding: 'utf-8', lineEnding: 'lf', modified: false, saved: true,
     savedName: name, savedContent: content, savedEncoding: 'utf-8', savedLineEnding: 'lf',
     kind: 'authored', access: 'editable',

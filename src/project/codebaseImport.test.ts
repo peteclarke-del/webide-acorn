@@ -47,7 +47,10 @@ describe('planning a codebase import', () => {
     expect(project.name).toBe('My Game');
     expect(project.files).toHaveLength(4);
     expect(project.buildTargets).toHaveLength(1);
-    expect(project.buildTargets[0]!.entryFileId).toBe('src/main.asm');
+    /* An identifier, not a path: a file id with a slash in it is refused by
+     * the native build service, so an imported project could not be built. */
+    expect(project.buildTargets[0]!.entryFileId).toBe('src-main.asm');
+    expect(project.files.find((file) => file.id === 'src-main.asm')?.name).toBe('src/main.asm');
     expect(project.activeBuildTargetId).toBe(project.buildTargets[0]!.id);
     // Fields the importer does not write must be filled in by the migration.
     expect(project.buildTargets[0]).toMatchObject({ buildPolicy: 'manual', machineProfile: 'project', language: '6502' });
@@ -181,7 +184,7 @@ describe('a checkout opened through the folder picker, end to end', () => {
     expect(plan.exclusions).toEqual([]);
 
     const project = projectFromCodebaseImport(plan, contentsOf(checkout, plan));
-    const artifact = assembleProject6502('src/main.asm', project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
+    const artifact = assembleProject6502(project.buildTargets[0]!.entryFileId, project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
     expect(artifact.diagnostics).toEqual([]);
     /* Four bytes of artwork, ASL, and two RTS. */
     expect(artifact.bytes.length).toBe(7);
@@ -287,7 +290,7 @@ describe('importing a real multi-file codebase', () => {
     expect(plan.targets.map((target) => target.entryName)).toContain('src/main.asm');
 
     const project = projectFromCodebaseImport(plan, contentsOf(inputs, plan));
-    const artifact = assembleProject6502('src/main.asm', project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
+    const artifact = assembleProject6502(project.buildTargets[0]!.entryFileId, project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
     expect(artifact.diagnostics).toEqual([]);
     expect(artifact.bytes.length).toBeGreaterThan(0);
   });
