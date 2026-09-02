@@ -77,8 +77,35 @@ describe('keeping the folders a codebase arrived in', () => {
     const checkout = planCodebaseImport([
       { path: 'MyGame/main.asm', content: 'ORG &1900\n.start\nRTS\n' },
       { path: 'MyGame/src/util.asm', content: '.one\nRTS\n' },
-    ], 'MyGame');
+    ], 'MyGame', { pathsIncludeChosenFolder: true });
     expect(checkout.files.map((file) => file.name).sort()).toEqual(['main.asm', 'src/util.asm']);
+  });
+
+  it('keeps a directory that only looks like the folder that was opened', () => {
+    /* The two folder routes disagree about whether the chosen folder is in the
+     * paths: a directory input reports MyGame/src/main.asm, while the File
+     * System Access API walks from the handle and reports src/main.asm for the
+     * same folder. Guessing from the paths alone flattened a project whose
+     * sources all lived under src, and its build stopped finding them. */
+    const walked = planCodebaseImport([
+      { path: 'src/main.asm', content: 'ORG &1900\n.start\nINCLUDE "src/util.asm"\nRTS\n' },
+      { path: 'src/util.asm', content: '.one\nRTS\n' },
+    ], 'MyGame', { pathsIncludeChosenFolder: false });
+    expect(walked.files.map((file) => file.name).sort()).toEqual(['src/main.asm', 'src/util.asm']);
+  });
+
+  it('reads an archive by the evidence in it, because a zip may hold either', () => {
+    const wrapped = planCodebaseImport([
+      { path: 'MyGame/main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'MyGame/src/util.asm', content: '.one\nRTS\n' },
+    ], 'MyGame');
+    expect(wrapped.files.map((file) => file.name).sort()).toEqual(['main.asm', 'src/util.asm']);
+
+    const bare = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'src/util.asm', content: '.one\nRTS\n' },
+    ], 'MyGame');
+    expect(bare.files.map((file) => file.name).sort()).toEqual(['main.asm', 'src/util.asm']);
   });
 
   it('repairs a path segment a filesystem would refuse, and says what it changed', () => {
@@ -133,6 +160,45 @@ describe('the files a codebase is built with', () => {
     expect(plan.files).toEqual([]);
     expect(plan.exclusions[0]).toMatchObject({ path: 'mystery', reason: 'unsupported-file-type' });
     expect(plan.exclusions[0]!.detail).toMatch(/no extension and is not a name this product recognises/);
+  });
+});
+
+describe('a checkout opened through the folder picker, end to end', () => {
+  /* The shape the File System Access API produces: paths relative to the folder
+   * that was chosen, so its name is not among them. A project whose sources all
+   * live under src used to have src taken off it, and what built on disk did
+   * not build here. */
+  const checkout: CodebaseFileInput[] = [
+    { path: 'Makefile', content: 'all:\n\tbeebasm -i src/main.asm -o game\n' },
+    { path: 'src/main.asm', content: 'ORG &1900\n.start\nINCLUDE "sprites.asm"\nINCLUDE "../lib/maths.asm"\nRTS\n' },
+    { path: 'src/sprites.asm', content: '.hero\nEQUB 1, 2, 3, 4\n' },
+    { path: 'lib/maths.asm', content: '.double\nASL A\nRTS\n' },
+  ];
+
+  it('keeps every folder and assembles what the Makefile says it builds', () => {
+    const plan = planCodebaseImport(checkout, 'MyGame', { pathsIncludeChosenFolder: false });
+    expect(plan.files.map((file) => file.name).sort()).toEqual(['Makefile', 'lib/maths.asm', 'src/main.asm', 'src/sprites.asm']);
+    expect(plan.exclusions).toEqual([]);
+
+    const project = projectFromCodebaseImport(plan, contentsOf(checkout, plan));
+    const artifact = assembleProject6502('src/main.asm', project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
+    expect(artifact.diagnostics).toEqual([]);
+    /* Four bytes of artwork, ASL, and two RTS. */
+    expect(artifact.bytes.length).toBe(7);
+  });
+
+  it('would have lost the folders, and the build with them, without being told', () => {
+    /* The same checkout planned as though the chosen folder were in the paths.
+     * Nothing shares a first segment here, so nothing is stripped either way;
+     * the case that broke is the one below, where everything is under src. */
+    const allUnderOne: CodebaseFileInput[] = [
+      { path: 'src/main.asm', content: 'ORG &1900\n.start\nINCLUDE "src/util.asm"\nRTS\n' },
+      { path: 'src/util.asm', content: '.one\nRTS\n' },
+    ];
+    expect(planCodebaseImport(allUnderOne, 'MyGame', { pathsIncludeChosenFolder: false }).files.map((file) => file.name).sort())
+      .toEqual(['src/main.asm', 'src/util.asm']);
+    expect(planCodebaseImport(allUnderOne, 'MyGame', { pathsIncludeChosenFolder: true }).files.map((file) => file.name).sort())
+      .toEqual(['main.asm', 'util.asm']);
   });
 });
 

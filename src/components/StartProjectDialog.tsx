@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import { loadSampleProjects, sampleLocalProject, type SampleProject } from '../samples/sampleProjects';
-import { overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput, type CodebaseImportPlan } from '../project/codebaseImport';
+import { overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput, type CodebaseImportOptions, type CodebaseImportPlan } from '../project/codebaseImport';
 import { directorySupport, pickDirectory, readDirectory, type FileSystemDirectoryHandleLike } from '../project/directoryAccess';
 import { archiveRefusalSummary, readZipArchive } from '../project/archiveImport';
 import { projectFromTemplate, templatesForMachine } from '../project/templateCatalogue';
@@ -89,7 +89,9 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
       applyPlan(contents.entries.map((entry) => ({ path: entry.path, content: entry.content })), handle.name, [
         ...contents.skipped.map((entry) => `${entry.path}: ${entry.reason}`),
         ...(contents.truncated ? ['The folder was larger than this workbench reads in one go, so it was cut short.'] : []),
-      ]);
+      /* This route walks from the handle, so its paths are already relative to
+       * the folder that was chosen and its name is not among them. */
+      ], { pathsIncludeChosenFolder: false });
     } catch (error) {
       onNotice(error instanceof Error ? error.message : String(error));
     } finally {
@@ -99,8 +101,8 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
 
   /* Both folder routes end here, so a project imported through the picker and
    * one imported through the directory input are planned identically. */
-  const applyPlan = (inputs: CodebaseFileInput[], root: string, notes: string[]) => {
-    const nextPlan = planCodebaseImport(inputs, root);
+  const applyPlan = (inputs: CodebaseFileInput[], root: string, notes: string[], options: CodebaseImportOptions = {}) => {
+    const nextPlan = planCodebaseImport(inputs, root, options);
     const byPath = new Map(inputs.map((input) => [input.path, input.content]));
     setPlan(nextPlan);
     setContents(new Map(nextPlan.files.map((file) => [file.name, byPath.get(file.path) ?? ''])));
@@ -158,7 +160,8 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
         /* Text is read for every candidate; the planner decides what survives. */
         inputs.push({ path, content: await file.text() });
       }
-      applyPlan(inputs, inputs[0]?.path.split('/')[0] ?? 'Imported project', []);
+      /* webkitRelativePath begins with the folder that was chosen, always. */
+      applyPlan(inputs, inputs[0]?.path.split('/')[0] ?? 'Imported project', [], { pathsIncludeChosenFolder: true });
     } catch (error) {
       onNotice(`That folder could not be read: ${error instanceof Error ? error.message : String(error)}`);
     } finally {

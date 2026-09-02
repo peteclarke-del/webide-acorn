@@ -194,7 +194,26 @@ function proposeTargets(files: PlannedImportFile[], contents: Map<string, string
   return { targets, warnings };
 }
 
-export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderName = 'Imported project'): CodebaseImportPlan {
+export interface CodebaseImportOptions {
+  /**
+   * Whether the paths carry the name of the folder that was chosen as their
+   * first segment.
+   *
+   * The two folder routes disagree about this, which is why it is stated rather
+   * than guessed. A directory input reports `MyGame/src/main.asm`; the File
+   * System Access API reports `src/main.asm` for the same folder, because it
+   * walks from the handle. Working it out from the paths alone cannot tell a
+   * chosen folder from a project whose files all happen to live under one
+   * directory — and getting that wrong throws away a real directory, which is
+   * exactly what it did to a project whose sources were all under `src`.
+   *
+   * Left undefined for an archive, where it genuinely varies: a zip may hold a
+   * top-level folder or may not, and the only evidence is the paths.
+   */
+  pathsIncludeChosenFolder?: boolean;
+}
+
+export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderName = 'Imported project', options: CodebaseImportOptions = {}): CodebaseImportPlan {
   const exclusions: ImportExclusion[] = [];
   const files: PlannedImportFile[] = [];
   const contents = new Map<string, string>();
@@ -204,15 +223,15 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
   let totalBytes = 0;
 
   const ordered = [...inputs].sort((left, right) => left.path.localeCompare(right.path));
-  /* A directory picker reports every path under the folder that was chosen, so
-   * the folder's own name is the first segment of all of them. Dropping it
-   * keeps the project's top level looking like the folder somebody opened,
-   * rather than a single directory holding everything. */
+  /* Where the paths carry the chosen folder's own name, dropping it keeps the
+   * project's top level looking like the folder somebody opened rather than a
+   * single directory holding everything. Whether they do is the caller's to
+   * say; only an archive is left to the evidence in the paths. */
   const normalizedPaths = ordered.map((input) => input.path.replace(/\\/g, '/').replace(/^\.\//, ''));
   const firstSegments = new Set(normalizedPaths.filter((path) => path.includes('/')).map((path) => path.split('/')[0]!));
-  const sharedRoot = firstSegments.size === 1 && normalizedPaths.every((path) => path.includes('/'))
-    ? `${[...firstSegments][0]!}/`
-    : '';
+  const sharesOneFirstSegment = firstSegments.size === 1 && normalizedPaths.every((path) => path.includes('/'));
+  const stripFirstSegment = options.pathsIncludeChosenFolder ?? sharesOneFirstSegment;
+  const sharedRoot = stripFirstSegment && sharesOneFirstSegment ? `${[...firstSegments][0]!}/` : '';
   for (const input of ordered) {
     const path = input.path.replace(/\\/g, '/').replace(/^\.\//, '');
     const segments = path.split('/').filter((segment) => segment && segment !== '.' && segment !== '..');
