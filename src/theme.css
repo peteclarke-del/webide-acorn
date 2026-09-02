@@ -8,6 +8,45 @@
 
 @layer theme {
   :root {
+  /*
+   * The type scale.
+   *
+   * Every font size in the workbench is one of these, so the whole scale can be
+   * read, reasoned about and changed in one place rather than in a hundred and
+   * thirty-three rules.
+   *
+   * It exists because the scale it replaced bottomed out at five pixels. That
+   * is not small text, it is text that a good many people simply cannot read,
+   * and about fifty rules used sizes at or below seven. Two numbers govern the
+   * whole thing now: everything is multiplied by --ui-scale, and nothing is
+   * allowed below --fs-floor however small it was before. The floor is what
+   * fixes the bottom of the scale; the multiplier is what a person can raise
+   * when they want the whole workbench larger.
+   */
+  --ui-scale: 1.45;
+  --fs-floor: 12px;
+  --fs-4-5: max(var(--fs-floor), calc(4.5px * var(--ui-scale)));
+  --fs-5: max(var(--fs-floor), calc(5px * var(--ui-scale)));
+  --fs-5-5: max(var(--fs-floor), calc(5.5px * var(--ui-scale)));
+  --fs-6: max(var(--fs-floor), calc(6px * var(--ui-scale)));
+  --fs-6-2: max(var(--fs-floor), calc(6.2px * var(--ui-scale)));
+  --fs-6-4: max(var(--fs-floor), calc(6.4px * var(--ui-scale)));
+  --fs-6-5: max(var(--fs-floor), calc(6.5px * var(--ui-scale)));
+  --fs-6-8: max(var(--fs-floor), calc(6.8px * var(--ui-scale)));
+  --fs-6-9: max(var(--fs-floor), calc(6.9px * var(--ui-scale)));
+  --fs-7: max(var(--fs-floor), calc(7px * var(--ui-scale)));
+  --fs-7-5: max(var(--fs-floor), calc(7.5px * var(--ui-scale)));
+  --fs-8: max(var(--fs-floor), calc(8px * var(--ui-scale)));
+  --fs-8-5: max(var(--fs-floor), calc(8.5px * var(--ui-scale)));
+  --fs-9: max(var(--fs-floor), calc(9px * var(--ui-scale)));
+  --fs-10: max(var(--fs-floor), calc(10px * var(--ui-scale)));
+  --fs-11: max(var(--fs-floor), calc(11px * var(--ui-scale)));
+  --fs-12: max(var(--fs-floor), calc(12px * var(--ui-scale)));
+  --fs-13: max(var(--fs-floor), calc(13px * var(--ui-scale)));
+  --fs-14: max(var(--fs-floor), calc(14px * var(--ui-scale)));
+  --fs-15: max(var(--fs-floor), calc(15px * var(--ui-scale)));
+  --fs-16: max(var(--fs-floor), calc(16px * var(--ui-scale)));
+
     color-scheme: dark;
 
     /* 8bit-net Acorn house palette: File Forge warmth + bit-chat canopy. */
