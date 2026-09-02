@@ -41,7 +41,7 @@ Request candidates that are valid for the current language position, connected p
 - Hardware catalogues deliberately contain only addresses checked against maintained machine documentation. Controller-specific registers remain absent until target capability and access semantics are authoritative.
 - RISC OS completion currently covers the kernel and FileSwitch SWIs from OS_WriteC through OS_Exit. Module SWIs and X-bit variants remain open.
 - Generated addresses are exposed only from an exact current successful machine-code build. Debug types, storage classes and symbols without retained toolchain output are not guessed.
-- An INCLUDE is resolved beside the file that wrote it, then from the top of the project, then by filename anywhere in it — and the last only when exactly one file carries that name, because guessing between two would build a different program without saying so.
+- An INCLUDE is resolved beside the file that wrote it, then from the top of the project, then by filename anywhere in it. The last of those answers only when exactly one file carries that name, because guessing between two would build a different program without saying so.
 
 **If it goes wrong**
 
