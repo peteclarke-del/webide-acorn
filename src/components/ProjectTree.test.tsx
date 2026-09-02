@@ -3,7 +3,6 @@ import { cleanup, createEvent, fireEvent, render, screen, within } from '@testin
 import '@testing-library/jest-dom/vitest';
 import { ProjectTree, foldersAndFiles, nextTreeIndex, sourceGroupOf } from './ProjectTree';
 import type { ProjectFile } from '../project/project';
-import type { ProjectFile } from '../project/project';
 import type { TrashedFile } from '../project/projectTrash';
 
 function file(id: string, name: string, kind: ProjectFile['kind'] = 'authored'): ProjectFile {

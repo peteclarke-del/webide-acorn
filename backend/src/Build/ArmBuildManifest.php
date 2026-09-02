@@ -51,7 +51,7 @@ final class ArmBuildManifest
     public function path(string $tool): string
     {
         $key = 'ARM_'.strtoupper($tool).'_PATH';
-        return (string) ($_SERVER[$key] ?? $_ENV[$key] ?? '/usr/bin/arm-none-eabi-'.$tool);
+        return ToolLocator::locate($key, 'arm-none-eabi-'.$tool, '/usr/bin/arm-none-eabi-'.$tool);
     }
 
     private function version(string $path): ?string

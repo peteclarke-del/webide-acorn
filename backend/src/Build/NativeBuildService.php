@@ -81,7 +81,7 @@ final class NativeBuildService
                 $listing = ".build/unit-$index.lst";
                 $dependency = ".build/unit-$index.d";
                 $argv = [
-                    (string) ($_SERVER['CA65_PATH'] ?? $_ENV['CA65_PATH'] ?? '/usr/bin/ca65'),
+                    ToolLocator::locate('CA65_PATH', 'ca65', '/usr/bin/ca65'),
                     '--cpu', $request->processor,
                     '--debug-info',
                     '--include-dir', $job,
@@ -112,7 +112,7 @@ final class NativeBuildService
             $outputPath = '.build/output.bin';
             if ($stageTerminal === null) {
                 $argv = [
-                    (string) ($_SERVER['LD65_PATH'] ?? $_ENV['LD65_PATH'] ?? '/usr/bin/ld65'),
+                    ToolLocator::locate('LD65_PATH', 'ld65', '/usr/bin/ld65'),
                     '--config', '.build/linker.cfg',
                     '--mapfile', '.build/output.map',
                     '--dbgfile', '.build/output.dbg',

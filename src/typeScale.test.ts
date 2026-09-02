@@ -51,14 +51,14 @@ const read = (path: string) => readFileSync(resolve(__PROJECT_ROOT, path), 'utf8
 
 const declaredSizes = (css: string) => {
   const sizes: string[] = [];
-  for (const [, value] of css.matchAll(/font-size:\s*([^;}]+)/g)) sizes.push(value.trim());
+  for (const [, value] of css.matchAll(/font-size:\s*([^;}]+)/g)) sizes.push((value ?? '').trim());
   /* The `font` shorthand carries a size between the weight and the line
    * height: `font: 800 var(--fs-18)/1 var(--font-mono)`. A bare number there
    * is the weight, so only a token or a length counts as the size. */
   for (const [, value] of css.matchAll(/(?<![-\w])font:\s*([^;}]+)/g)) {
-    const size = packParentheses(value.trim())
+    const size = packParentheses((value ?? '').trim())
       .split(/\s+/)
-      .map((part) => part.split('/')[0])
+      .map((part) => part.split('/')[0] ?? '')
       .find((part) => /^(var\(--fs-|max\(|[\d.]+(px|em|rem|pt|%))/.test(part));
     if (size) sizes.push(size);
   }

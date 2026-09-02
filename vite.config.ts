@@ -14,6 +14,24 @@ const benchmark = process.env.BENCHMARK_OUTPUT_DIR;
 
 export default defineConfig({
   plugins: [react()],
+  /*
+   * In production nginx puts the PHP build service behind /api/v1. The
+   * development server did not, so every toolchain manifest request was
+   * answered with the workbench's own index.html: the native toolchains
+   * reported as unavailable while the assembler sat installed on the machine.
+   *
+   * BACKEND_ORIGIN names the backend when it is not on the usual port. Nothing
+   * here reaches the network when the backend is not running; the request fails
+   * and the workbench says the build service did not answer.
+   */
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.BACKEND_ORIGIN ?? 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     ...(benchmark ? { outDir: benchmark, emptyOutDir: true } : {}),
     rollupOptions: {

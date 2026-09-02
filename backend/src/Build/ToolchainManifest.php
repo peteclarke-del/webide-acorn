@@ -14,8 +14,8 @@ final class ToolchainManifest
     /** @return array<string, mixed> */
     public function detect(): array
     {
-        $ca65 = $_SERVER['CA65_PATH'] ?? $_ENV['CA65_PATH'] ?? '/usr/bin/ca65';
-        $ld65 = $_SERVER['LD65_PATH'] ?? $_ENV['LD65_PATH'] ?? '/usr/bin/ld65';
+        $ca65 = ToolLocator::locate('CA65_PATH', 'ca65', '/usr/bin/ca65');
+        $ld65 = ToolLocator::locate('LD65_PATH', 'ld65', '/usr/bin/ld65');
         $caVersion = $this->version($ca65);
         $ldVersion = $this->version($ld65);
         $readiness = (new Readiness())

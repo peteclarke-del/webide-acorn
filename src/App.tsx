@@ -47,7 +47,7 @@ import { BUILD_PROFILES, buildEntryUpdate, buildProfileDefines, buildProfileKeep
 import { analysisCandidates, candidateReference, projectFileBytes, type AnalysisCandidate } from './analysis/projectAnalysisCandidates';
 import { BuildExecutionError, buildExecutionError, executeBuild, type BuildArtifact, type BuildRequest, type BuildResponse, type BuildResultMetadata } from './build/buildService';
 import { sha256Hex } from './build/digest';
-import { detectNativeToolchains, invokeNativeToolchain, type NativeToolchainStatus } from './build/nativeToolchainAdapter';
+import { detectNativeToolchains, invokeNativeToolchain, type NativeToolchainProbe, type NativeToolchainStatus } from './build/nativeToolchainAdapter';
 import type { BuildWorkerMessage } from './build/build.worker';
 import { BrandMark } from './components/BrandMark';
 import { Icon, type IconName } from './components/Icon';
@@ -412,8 +412,16 @@ function App() {
   const [artifactDocumentId, setArtifactDocumentId] = useState<string>();
   const [artifactSymbolSelection, setArtifactSymbolSelection] = useState<string>();
   const [buildAllRecords, setBuildAllRecords] = useState<BuildAllRecord[]>([]);
-  const [nativeToolchains, setNativeToolchains] = useState<NativeToolchainStatus[]>([]);
+  /* Both halves of the probe are kept: which native toolchains can be used,
+   * and why each of the others cannot, so a build target can say what is wrong
+   * rather than only that something is. */
+  const [nativeProbe, setNativeProbe] = useState<NativeToolchainProbe>({ ready: [], unavailable: [] });
+  const nativeToolchains = nativeProbe.ready;
   const nativeToolchainIds = useMemo<Set<string>>(() => new Set(nativeToolchains.map((toolchain) => toolchain.id)), [nativeToolchains]);
+  const nativeUnavailableReasons = useMemo<Map<string, string>>(
+    () => new Map(nativeProbe.unavailable.map((entry) => [entry.id, entry.reason])),
+    [nativeProbe],
+  );
   const [runtimeState, setRuntimeState] = useState<CpuSnapshot | null>(null);
   const [romReady, setRomReady] = useState(false);
   const [resolvedRomRecords, setResolvedRomRecords] = useState<StoredRom[]>([]);
@@ -496,7 +504,7 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void detectNativeToolchains(controller.signal).then(setNativeToolchains).catch(() => undefined);
+    void detectNativeToolchains(controller.signal).then(setNativeProbe).catch(() => undefined);
     return () => controller.abort();
   }, []);
 
@@ -1350,7 +1358,7 @@ function App() {
     if (buildTimerRef.current?.requestId === requestId) buildTimerRef.current = undefined;
     const target = project.buildTargets.find((candidate) => candidate.id === project.activeBuildTargetId) ?? project.buildTargets[0]!;
     const file = project.files.find((candidate) => candidate.id === target.entryFileId);
-    const targetErrors = validateBuildTarget(target, project.files, machine, project.buildTargets, nativeToolchainIds.has(target.toolchainId));
+    const targetErrors = validateBuildTarget(target, project.files, machine, project.buildTargets, nativeToolchainIds.has(target.toolchainId), nativeUnavailableReasons.get(target.toolchainId));
     if (!file || targetErrors.length) {
       const finishedAt = Date.now(); const message = targetErrors[0] ?? 'The selected build target has no entry file';
       const activity: BuildActivity = { requestId, status: 'failed', trigger, targetName: target.name, message, startedAt: finishedAt, finishedAt };
@@ -1411,7 +1419,7 @@ function App() {
     cancelBackgroundBuild('Automatic build superseded by explicit command');
     const target = project.buildTargets.find((candidate) => candidate.id === project.activeBuildTargetId) ?? project.buildTargets[0]!;
     const file = project.files.find((candidate) => candidate.id === target.entryFileId);
-    const targetErrors = validateBuildTarget(target, project.files, machine, project.buildTargets, nativeToolchainIds.has(target.toolchainId));
+    const targetErrors = validateBuildTarget(target, project.files, machine, project.buildTargets, nativeToolchainIds.has(target.toolchainId), nativeUnavailableReasons.get(target.toolchainId));
     const requestId = ++buildRequestSequenceRef.current;
     const trigger: BuildTrigger = destination === 'run' ? 'run' : destination === 'Debugger' ? 'debug' : destination === 'Tests' ? 'test' : 'manual';
     if (!file || targetErrors.length) {
@@ -1666,7 +1674,7 @@ function App() {
   const openSourceFiles = documents.openIds.flatMap((id) => { const file = project.files.find((candidate) => candidate.id === id); return file ? [file] : []; });
   const canReopenClosed = documents.recentlyClosed.some((id) => project.files.some((file) => file.id === id));
   const buildEntry = project.files.find((file) => file.id === activeBuildTarget.entryFileId);
-  const buildTargetErrors = validateBuildTarget(activeBuildTarget, project.files, machine, project.buildTargets, nativeToolchainIds.has(activeBuildTarget.toolchainId));
+  const buildTargetErrors = validateBuildTarget(activeBuildTarget, project.files, machine, project.buildTargets, nativeToolchainIds.has(activeBuildTarget.toolchainId), nativeUnavailableReasons.get(activeBuildTarget.toolchainId));
   const canBuild = buildTargetErrors.length === 0;
   const selectedProjectTarget = { platformClass, machineId: machine.id, variant: resolved.variant, romId: resolved.rom.id, enabledCapabilities };
   const buildArtifactIsCurrent = !!buildArtifact?.provenance && provenanceMatches(buildArtifact.provenance, activeBuildTarget, selectedProjectTarget, project.files);

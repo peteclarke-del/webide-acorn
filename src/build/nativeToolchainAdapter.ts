@@ -21,7 +21,24 @@ export interface NativeToolchainStatus {
   runtime?: { id: string; version: string; files: Record<string, string> };
   tools?: Record<string, { version: string; sha256: string }>;
   output?: { format: string; elfMetadataRetained: boolean; riscOsApplication: boolean; filetype: null };
+  /* What the builder examined and what failed, so the workbench can say why a
+   * toolchain is not ready instead of only that it is not. */
+  readiness?: Array<{ check: string; ok: boolean; detail: string }>;
 }
+
+/** Why one native toolchain cannot be used, in a sentence somebody can act on. */
+export interface NativeToolchainUnavailable {
+  id: NativeToolchainStatus['id'];
+  reason: string;
+}
+
+export interface NativeToolchainProbe {
+  ready: NativeToolchainStatus[];
+  unavailable: NativeToolchainUnavailable[];
+}
+
+/** The adapter version this build of the workbench speaks. */
+const ADAPTER_VERSION = '2026.08.1';
 
 interface Native6502Artifact {
   kind: '6502-binary'; bytesBase64: string; origin: number; entryPoint: number; processor: '6502' | '65c02';
@@ -60,21 +77,59 @@ const BUILD_OPERATIONS: Record<string, ApiOperationId> = {
   'cc65.ca65-ld65': 'buildCa65',
 };
 
-export async function detectNativeToolchain(id: NativeToolchainStatus['id'] = 'cc65.ca65-ld65', signal?: AbortSignal): Promise<NativeToolchainStatus | null> {
+/*
+ * Whether one native toolchain can be used, and when it cannot, why.
+ *
+ * This used to answer null for every kind of failure, so an assembler that was
+ * installed and working but unreachable — no proxy in front of the build
+ * service, most often — looked exactly like one that was not installed at all,
+ * and the workbench said the toolchain was unavailable to somebody looking at
+ * the binary on their own disk. The builder already reports what it examined
+ * and what failed; the only thing missing was carrying it this far.
+ */
+export async function probeNativeToolchain(id: NativeToolchainStatus['id'] = 'cc65.ca65-ld65', signal?: AbortSignal): Promise<NativeToolchainStatus | NativeToolchainUnavailable> {
+  const path = apiPath(MANIFEST_OPERATIONS[id] ?? 'toolchainCa65');
+  let response: Response;
   try {
-    const response = await fetch(apiPath(MANIFEST_OPERATIONS[id] ?? 'toolchainCa65'), { signal, headers: { Accept: 'application/json' }, cache: 'no-store' });
-    if (!response.ok) return null;
-    const value = await response.json() as NativeToolchainStatus;
-    return value.ready && value.id === id && value.adapterVersion === '2026.08.1' ? value : null;
+    response = await fetch(path, { signal, headers: { Accept: 'application/json' }, cache: 'no-store' });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    return null;
+    return { id, reason: `the build service did not answer at ${path}` };
   }
+  if (!response.ok) return { id, reason: `the build service answered ${response.status} at ${path}` };
+
+  let value: NativeToolchainStatus;
+  try {
+    value = await response.json() as NativeToolchainStatus;
+  } catch {
+    /* A development server that serves the workbench for every path answers a
+     * page here, which is not a failure of the toolchain at all. */
+    return { id, reason: `${path} answered with a page rather than a toolchain manifest, so nothing is routing it to the build service` };
+  }
+
+  if (value.id !== id) return { id, reason: `${path} answered for ${value.id ?? 'an unnamed toolchain'} rather than ${id}` };
+  if (value.adapterVersion !== ADAPTER_VERSION) return { id, reason: `the build service runs adapter ${value.adapterVersion ?? '(none)'} and this workbench speaks ${ADAPTER_VERSION}` };
+  if (!value.ready) {
+    const failing = (value.readiness ?? []).filter((check) => !check.ok);
+    return { id, reason: failing.length ? failing.map((check) => check.detail).join(' ') : `the build service reports ${value.label ?? id} as not ready` };
+  }
+  return value;
 }
 
-export async function detectNativeToolchains(signal?: AbortSignal): Promise<NativeToolchainStatus[]> {
-  const statuses = await Promise.all([detectNativeToolchain('cc65.ca65-ld65', signal), detectNativeToolchain('stardot.beebasm', signal), detectNativeToolchain('cc65.c-bbc', signal), detectNativeToolchain('gnu.arm-none-eabi-binutils', signal)]);
-  return statuses.filter((status): status is NativeToolchainStatus => status !== null);
+/** Kept for callers that only need to know whether a toolchain can be used. */
+export async function detectNativeToolchain(id: NativeToolchainStatus['id'] = 'cc65.ca65-ld65', signal?: AbortSignal): Promise<NativeToolchainStatus | null> {
+  const probed = await probeNativeToolchain(id, signal);
+  return 'ready' in probed ? probed : null;
+}
+
+export async function detectNativeToolchains(signal?: AbortSignal): Promise<NativeToolchainProbe> {
+  const probed = await Promise.all(([
+    'cc65.ca65-ld65', 'stardot.beebasm', 'cc65.c-bbc', 'gnu.arm-none-eabi-binutils',
+  ] as const).map((id) => probeNativeToolchain(id, signal)));
+  return {
+    ready: probed.filter((status): status is NativeToolchainStatus => 'ready' in status),
+    unavailable: probed.filter((status): status is NativeToolchainUnavailable => !('ready' in status)),
+  };
 }
 
 export async function invokeNativeToolchain(request: BuildRequest, signal?: AbortSignal): Promise<BuildResponse> {

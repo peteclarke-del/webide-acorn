@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFile, ProjectTarget } from '../project/project';
 import { createBuildTarget } from './buildTarget';
 import { BuildExecutionError, type BuildRequest, type BuildResultMetadata } from './buildService';
-import { detectNativeToolchain, invokeNativeToolchain } from './nativeToolchainAdapter';
+import { detectNativeToolchain, detectNativeToolchains, invokeNativeToolchain, probeNativeToolchain } from './nativeToolchainAdapter';
 
 const file: ProjectFile = { id: 'main', name: 'main.s', language: '6502', content: '.segment "CODE"\n_start: lda #$41\n rts\n', modified: false };
 const machineTarget: ProjectTarget = { platformClass: '8-16-bit', machineId: 'bbc-b', variant: 'bbc-b', romId: 'os-1.20-basic2', enabledCapabilities: [] };
@@ -93,5 +93,58 @@ describe('what the server cache is told', () => {
     expect((sent[0] as { cache: unknown }).cache).toEqual({ bypass: false });
     expect((sent[1] as { cache: unknown }).cache).toEqual({ bypass: true });
     vi.unstubAllGlobals();
+  });
+});
+
+describe('why a native toolchain cannot be used', () => {
+  const manifest = (over: Record<string, unknown> = {}) => JSON.stringify({
+    id: 'stardot.beebasm', ready: true, label: 'BeebAsm 1.11', adapterVersion: '2026.08.1',
+    packageVersion: 'host-development', digest: 'd', ...over,
+  });
+
+  it('says the assembler is ready when the build service says so', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(manifest(), { status: 200 })));
+    const probe = await detectNativeToolchains();
+    expect(probe.ready.map((toolchain) => toolchain.id)).toContain('stardot.beebasm');
+    expect(probe.unavailable.map((entry) => entry.id)).not.toContain('stardot.beebasm');
+  });
+
+  it('distinguishes a build service that is not there from a toolchain that is not installed', async () => {
+    /* The case that sent somebody looking for an assembler they already had:
+     * nothing was routing /api to the build service, and the workbench said
+     * the toolchain was unavailable without saying why. */
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    const probe = await probeNativeToolchain('stardot.beebasm');
+    expect(probe).toEqual({ id: 'stardot.beebasm', reason: 'the build service did not answer at /api/v1/toolchains/beebasm' });
+  });
+
+  it('recognises a development server answering with the workbench page', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<!doctype html><title>workbench</title>', { status: 200 })));
+    const probe = await probeNativeToolchain('stardot.beebasm') as { reason: string };
+    expect(probe.reason).toMatch(/answered with a page rather than a toolchain manifest/);
+  });
+
+  it('repeats what the build service found wrong, rather than only that something was', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(manifest({
+      ready: false,
+      readiness: [
+        { check: 'beebasm', ok: false, detail: 'beebasm was not found as an executable at /usr/local/bin/beebasm. Run `npm run toolchains`.' },
+        { check: 'BeebAsm licence', ok: true, detail: '' },
+      ],
+    }), { status: 200 })));
+    const probe = await probeNativeToolchain('stardot.beebasm') as { reason: string };
+    expect(probe.reason).toBe('beebasm was not found as an executable at /usr/local/bin/beebasm. Run `npm run toolchains`.');
+  });
+
+  it('names both adapter versions when the build service speaks a different one', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(manifest({ adapterVersion: '2025.01.1' }), { status: 200 })));
+    const probe = await probeNativeToolchain('stardot.beebasm') as { reason: string };
+    expect(probe.reason).toBe('the build service runs adapter 2025.01.1 and this workbench speaks 2026.08.1');
+  });
+
+  it('reports the status when the build service refuses the request', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 503 })));
+    const probe = await probeNativeToolchain('stardot.beebasm') as { reason: string };
+    expect(probe.reason).toBe('the build service answered 503 at /api/v1/toolchains/beebasm');
   });
 });

@@ -227,6 +227,28 @@ The container path is in the README. Running the native toolchains locally needs
 locates cc65 and the ARM binutils; the backend tests fail rather than skip when
 it has not been run.
 
+### Reaching the build service from the development server
+
+In production nginx puts the PHP build service behind `/api/v1`. The Vite
+development server proxies the same prefix to `http://127.0.0.1:8000`, or to
+`BACKEND_ORIGIN` when it is set. Without that proxy every toolchain manifest
+request is answered with the workbench's own `index.html`, and the workbench
+reports the native toolchains as unavailable while the assembler sits installed
+on the machine — which is exactly what happened before the proxy existed.
+
+A toolchain that cannot be used now says why: the build service did not answer,
+answered a page rather than a manifest, runs a different adapter version, or
+reported a specific readiness check as failed. The readiness detail comes
+straight from the manifest, so a missing binary names the path it was looked
+for at.
+
+The backend finds each executable rather than assuming one absolute path.
+`BEEBASM_PATH`, `CA65_PATH`, `LD65_PATH`, `CC65_PATH` and `ARM_*_PATH` are used
+exactly as given when they are set; otherwise `PATH` is searched, then
+`/usr/local/bin`, `/usr/bin`, `/bin`, `/snap/bin`, `/opt/homebrew/bin` and
+`/opt/local/bin`. That covers a distribution package, a snap and Homebrew,
+which is how these tools arrive outside the container.
+
 ## Adding things
 
 **A machine profile** — add it to `src/data/machines.ts` with its variants, ROM

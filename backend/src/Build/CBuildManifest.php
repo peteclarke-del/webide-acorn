@@ -60,7 +60,7 @@ final class CBuildManifest
 
     private function environment(string $name, string $fallback): string
     {
-        return (string) ($_SERVER[$name] ?? $_ENV[$name] ?? $fallback);
+        return ToolLocator::locate($name, basename($fallback), $fallback);
     }
 
     private function digest(string $path): ?string

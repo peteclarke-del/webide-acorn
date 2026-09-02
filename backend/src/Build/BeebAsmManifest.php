@@ -15,7 +15,7 @@ final class BeebAsmManifest
 
     public function executablePath(): string
     {
-        return $_SERVER['BEEBASM_PATH'] ?? $_ENV['BEEBASM_PATH'] ?? '/usr/local/bin/beebasm';
+        return ToolLocator::locate('BEEBASM_PATH', 'beebasm', '/usr/local/bin/beebasm');
     }
 
     /** @return array<string, mixed> */
