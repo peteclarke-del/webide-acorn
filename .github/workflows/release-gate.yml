@@ -105,7 +105,7 @@ jobs:
           #   WebGL creation failed: * tryNativeGL ()
           #   * Exhausted GL driver options. (FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS)
           # The previous attempt installed the loaders and not the driver.
-          sudo apt-get install --no-install-recommends -y libgl1 libglx-mesa0 libegl1 libegl-mesa0 libgl1-mesa-dri mesa-libgallium mesa-utils
+          sudo apt-get install --no-install-recommends -y libgl1 libglx-mesa0 libegl1 libegl-mesa0 libgl1-mesa-dri libgbm1 mesa-libgallium mesa-utils xvfb
           sudo install -d -m 0755 /etc/apt/keyrings
           wget -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
           echo 'deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main' | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
@@ -128,7 +128,11 @@ jobs:
           GECKODRIVER_PATH: /usr/local/bin/geckodriver
           LIBGL_ALWAYS_SOFTWARE: '1'
           GALLIUM_DRIVER: llvmpipe
-        run: npm run ci
+        # Under a virtual display, so Firefox takes its ordinary graphics path
+        # and software Mesa can answer it. Headless on a machine with no GPU it
+        # tried native GL, found none, and stopped — which it said in as many
+        # words once the run was made to ask.
+        run: xvfb-run -a --server-args="-screen 0 1600x1200x24" npm run ci
 
       - name: Publish the gate report
         if: always()

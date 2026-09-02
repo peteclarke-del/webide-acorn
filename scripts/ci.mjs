@@ -876,7 +876,12 @@ async function measureFirefox(geckodriver, base, probe, runtimePages, runtimePro
            * build cannot see a graphics library installed on the host, so a
            * deployment that has installed one names the binary that can. */
           ...(env.FIREFOX_BINARY ? { binary: env.FIREFOX_BINARY } : {}),
-          args: ['-headless'],
+          /* Headless when there is no display, and on the display when there is
+           * one. Headless Firefox on a machine with no GPU tries native GL,
+           * finds none and stops — it reported exactly that on a runner even
+           * after Mesa was installed for it. Given a display it takes the
+           * ordinary path and software Mesa answers. */
+          args: env.DISPLAY ? [] : ['-headless'],
           prefs: {
             'webgl.force-enabled': true,
             'webgl.disabled': false,
