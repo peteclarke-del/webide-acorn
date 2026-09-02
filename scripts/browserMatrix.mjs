@@ -32,6 +32,20 @@ export const PAGE_PROBE = `(() => {
     /* The folder importer offers a writable handle only where this exists. */
     fileSystemAccess: typeof window.showDirectoryPicker === 'function',
     webgl: (() => { try { return Boolean(document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl')); } catch { return false; } })(),
+    /* Why, when there is none. A browser that refuses a GL context says so on
+     * the canvas as a webglcontextcreationerror, and that sentence is the only
+     * thing that distinguishes a blocklisted driver from an absent library
+     * from a preference somebody turned off. Guessing between those cost three
+     * runs of the gate. */
+    webglRefusal: (() => {
+      try {
+        const canvas = document.createElement('canvas');
+        let reason = '';
+        canvas.addEventListener('webglcontextcreationerror', (event) => { reason = String(event.statusMessage || '').slice(0, 200); });
+        if (canvas.getContext('webgl2') || canvas.getContext('webgl')) return '';
+        return reason || 'no context and no reason given';
+      } catch (error) { return String(error && error.message ? error.message : error).slice(0, 200); }
+    })(),
     webgpu: 'gpu' in navigator,
     audioContext: typeof window.AudioContext === 'function',
     workers: typeof window.Worker === 'function',
@@ -106,7 +120,10 @@ export function matrixFindings(results) {
      * record. Without these the workbench cannot do its job at all, so a
      * browser missing one is not a browser this product supports. */
     for (const required of ['webAssembly', 'workers', 'indexedDB', 'webgl', 'structuredClone']) {
-      if (!page.capability?.[required]) findings.push(`${browser} does not provide ${required}, which this product cannot work without.`);
+      if (!page.capability?.[required]) {
+        const why = required === 'webgl' && page.capability?.webglRefusal ? ` It said: ${page.capability.webglRefusal}` : '';
+        findings.push(`${browser} does not provide ${required}, which this product cannot work without.${why}`);
+      }
     }
   }
   return findings;

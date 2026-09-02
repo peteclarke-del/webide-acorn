@@ -754,6 +754,14 @@ await stage('browsers', async () => {
   const { COLLECTOR_SOURCE, PAGE_PROBE, RUNTIME_PAGES, RUNTIME_HOST_HTML, RUNTIME_HOST_SOURCE, matrixFindings, matrixSummary, runtimeFindings, runtimeProbe, runtimeSummary } = await import('./browserMatrix.mjs');
   const chromium = await firstExisting(CHROMIUM_CANDIDATES);
   const geckodriver = await firstExisting(env.GECKODRIVER_PATH ? [env.GECKODRIVER_PATH] : ['/usr/bin/geckodriver', '/snap/bin/geckodriver', '/usr/local/bin/geckodriver']);
+  /* Which binary was driven, named in the stage detail. A Firefox installed as
+   * a snap is confined and cannot see a graphics library installed on the host,
+   * which is one of the things that would explain a browser reporting no WebGL
+   * on a machine that has just been given some. Guessing at that from here cost
+   * three runs of the gate; the run says it now. */
+  const firefoxSource = geckodriver
+    ? `${env.FIREFOX_BINARY ?? geckodriver}${(env.FIREFOX_BINARY ?? geckodriver).startsWith('/snap/') ? ' (snap-confined)' : ''}`
+    : '';
   if (!chromium && !geckodriver) return { skipped: true, reason: 'no browser could be started; set CHROMIUM_PATH or GECKODRIVER_PATH' };
 
   const port = Number(env.CI_MATRIX_PORT ?? 8139);
@@ -831,7 +839,7 @@ await stage('browsers', async () => {
       'Safari (no engine for it on this platform, and none is substituted)',
     ];
     const runtimes = results[0]?.runtimes?.length ?? 0;
-    return { detail: `${results.length} engine${results.length === 1 ? '' : 's'} started the workbench and its ${runtimes} runtime documents · ${matrixSummary(results).join(' · ')} · ${runtimeSummary(results)} · not measured: ${absent.join(', ')}` };
+    return { detail: `${results.length} engine${results.length === 1 ? '' : 's'} started the workbench and its ${runtimes} runtime documents · ${matrixSummary(results).join(' · ')} · ${runtimeSummary(results)} · not measured: ${absent.join(', ')}${firefoxSource ? ` · Firefox driven through ${firefoxSource}` : ''}` };
   } finally {
     for (const stop of started.reverse()) await stop().catch(() => undefined);
     await new Promise((closed) => server.close(closed));
@@ -864,6 +872,10 @@ async function measureFirefox(geckodriver, base, probe, runtimePages, runtimePro
       alwaysMatch: {
         browserName: 'firefox',
         'moz:firefoxOptions': {
+          /* Which Firefox, when the machine has more than one. A snap-confined
+           * build cannot see a graphics library installed on the host, so a
+           * deployment that has installed one names the binary that can. */
+          ...(env.FIREFOX_BINARY ? { binary: env.FIREFOX_BINARY } : {}),
           args: ['-headless'],
           prefs: {
             'webgl.force-enabled': true,

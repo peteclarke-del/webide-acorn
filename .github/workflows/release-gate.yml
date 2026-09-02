@@ -83,20 +83,45 @@ jobs:
       # host. The limit is raised for this runner only — a developer's machine
       # and the shipped default stay at five seconds — and the value in force is
       # published in the build manifest, so this is never a hidden change.
-      # Firefox on this runner stopped providing WebGL, which the emulator cores
+      # Firefox on this runner reports no WebGL, which the emulator cores
       # genuinely need: Elkulator and Arculator are Emscripten SDL builds that
-      # draw through GL. Nothing in this repository can affect whether a
-      # headless browser on a machine with no GPU offers it, so the machine is
-      # given a software GL to offer rather than the check being softened.
-      - name: Install a software OpenGL for the headless browsers
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libgl1 libglx-mesa0 libegl1 mesa-utils
+      # draw through GL, so a browser without it cannot run two of the five
+      # machines this product supports. Whether a headless browser on a machine
+      # with no GPU offers WebGL is a property of that machine and nothing in
+      # this repository can affect it, so the machine is given what it needs
+      # rather than the check being softened.
+      #
+      # The runner's Firefox is a snap, which is confined: a graphics library
+      # installed on the host is not visible inside it. So Firefox comes from
+      # Mozilla's own apt repository instead, with a pinned geckodriver to drive
+      # it, and software Mesa on the host for it to use.
+      - name: Install Firefox and geckodriver outside the snap
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libgl1 libglx-mesa0 libegl1 mesa-utils
+          sudo install -d -m 0755 /etc/apt/keyrings
+          wget -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+          echo 'deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main' | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
+          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y firefox
+          curl -fsSL "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz" -o /tmp/geckodriver.tar.gz
+          echo "${GECKODRIVER_SHA256}  /tmp/geckodriver.tar.gz" | sha256sum --check --strict
+          sudo tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin geckodriver
+          /usr/bin/firefox --version
+          /usr/local/bin/geckodriver --version | head -1
+        env:
+          GECKODRIVER_VERSION: '0.36.0'
+          GECKODRIVER_SHA256: '0bde38707eb0a686a20c6bd50f4adcc7d60d4f73c60eb83ee9e0db8f65823e04'
 
       - name: Run the gate
         env:
           NATIVE_STAGE_SECONDS: '30'
+          FIREFOX_BINARY: /usr/bin/firefox
+          GECKODRIVER_PATH: /usr/local/bin/geckodriver
           LIBGL_ALWAYS_SOFTWARE: '1'
           GALLIUM_DRIVER: llvmpipe
-          MOZ_ENABLE_WAYLAND: '0'
         run: npm run ci
 
       - name: Publish the gate report
