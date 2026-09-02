@@ -99,7 +99,13 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y libgl1 libglx-mesa0 libegl1 mesa-utils
+          # libgl1-mesa-dri and mesa-libgallium are the software rasteriser
+          # itself. Without them Firefox tries native GL, finds nothing to fall
+          # back to, and reports exactly that:
+          #   WebGL creation failed: * tryNativeGL ()
+          #   * Exhausted GL driver options. (FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS)
+          # The previous attempt installed the loaders and not the driver.
+          sudo apt-get install --no-install-recommends -y libgl1 libglx-mesa0 libegl1 libegl-mesa0 libgl1-mesa-dri mesa-libgallium mesa-utils
           sudo install -d -m 0755 /etc/apt/keyrings
           wget -qO- https://packages.mozilla.org/apt/repo-signing-key.gpg | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
           echo 'deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main' | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
