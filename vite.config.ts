@@ -28,7 +28,12 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: process.env.BACKEND_ORIGIN ?? 'http://127.0.0.1:8000',
-        changeOrigin: true,
+        /* The Host header is left alone deliberately. The build service refuses
+         * a request whose Origin is not its own host, which is right behind the
+         * production reverse proxy where both are the same. Rewriting Host to
+         * the backend's address here would make every native build from the
+         * development server look cross-origin, and it did. */
+        changeOrigin: false,
       },
     },
   },
