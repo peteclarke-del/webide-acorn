@@ -5088,6 +5088,20 @@ function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareSta
       {hardwareState && <DebugVariablesPanel artifact={artifact} state={hardwareState} memory={hardwareMemory} onMachineCommand={onMachineCommand} />}
       {hardwareState && <ReplayHistoryPanel state={hardwareState} onMachineCommand={onMachineCommand} />}
       {hardwareState && <RuntimePerformancePanel state={hardwareState.performance} />}
+      {/*
+        * A machine can be running perfectly and holding somebody else's
+        * program — the operating system, or a build from before. Breakpoints
+        * set against this build are then armed against nothing, and the only
+        * clue was that pressing the machine's own Run resumed the ROM. Saying
+        * which control puts this build on the machine is the difference
+        * between a debugger and a puzzle.
+        */}
+      {hardwareState && artifact && !hardwareArtifactLoaded && <p className="honest-note" role="status">
+        The machine is running, and it is not holding this build. Breakpoints set here are kept and
+        armed as soon as it is. Use <strong>Build and debug</strong> in the toolbar to put
+        {' '}{artifact.provenance?.target.name ?? 'this build'} on the machine and stop at its
+        entry point.
+      </p>}
       {!hardwareState ? <div className="honest-empty runtime-empty">The ROM-aware hardware emulator is booting. Register, breakpoint and instruction state will attach as soon as the bridge reports its first snapshot.</div> : <div className="debug-grid">
         <section><h3>Hardware registers</h3><div className="register-grid">{Object.entries(hardwareState.registers).map(([name, value]) => <div key={name}><span>{name.toUpperCase()}</span><strong>{name === 'pc' ? formatAddress(value) : formatByte(value)}</strong></div>)}</div><h3>Processor flags</h3><div className="flag-row">{['N','V','U','B','D','I','Z','C'].map((flag, index) => <span className={hardwareState.registers.p & (0x80 >> index) ? 'set' : ''} key={flag}>{flag}</span>)}</div><h3>Current instruction</h3><div className="current-instruction"><code>{formatAddress(hardwareState.currentInstruction.address)}</code><span>{hardwareState.currentInstruction.bytes.map(formatByte).join(' ')}</span><strong>{hardwareState.currentInstruction.instruction}</strong><small>{artifact?.sourceMap[hardwareState.currentInstruction.address] ? `source line ${artifact.sourceMap[hardwareState.currentInstruction.address]}` : 'live machine memory'}</small></div><InstructionEffects state={hardwareState} /><h3>Execute breakpoints / run to</h3><div className="breakpoint-editor"><div className="breakpoint-entry"><input aria-label="Hardware breakpoint address" value={breakpointAddress} onChange={(event) => setBreakpointAddress(event.target.value)} placeholder="&E581" /><button type="button" onClick={addHardwareBreakpoint}>Add</button><button type="button" disabled={hardwareState.running} onClick={runToAddress}>Run to</button></div><div className="breakpoint-options"><label><span>Condition</span><select aria-label="Breakpoint condition register" value={breakpointRegister} onChange={(event) => setBreakpointRegister(event.target.value)}><option value="">Always</option>{['a','x','y','s','p','pc'].map((register) => <option value={register} key={register}>{register.toUpperCase()}</option>)}</select></label><label><span>Compare</span><select aria-label="Breakpoint condition operator" value={breakpointOperator} disabled={!breakpointRegister} onChange={(event) => setBreakpointOperator(event.target.value)}><option value="eq">equals</option><option value="ne">not equal</option><option value="lt">less than</option><option value="lte">at most</option><option value="gt">greater than</option><option value="gte">at least</option></select></label><label><span>Value</span><input aria-label="Breakpoint condition value" disabled={!breakpointRegister} value={breakpointValue} onChange={(event) => setBreakpointValue(event.target.value)} placeholder="&03" /></label><label><span>Hit ≥</span><input aria-label="Breakpoint hit target" inputMode="numeric" value={breakpointHitTarget} onChange={(event) => setBreakpointHitTarget(event.target.value)} placeholder="1" /></label><label><span>Action</span><select aria-label="Breakpoint action" value={breakpointMode} onChange={(event) => setBreakpointMode(event.target.value as 'break' | 'log')}><option value="break">Pause</option><option value="log">Log only</option></select></label><label className="breakpoint-log-input"><span>Log message · placeholders: {'{pc} {a} {x} {y} {s} {p} {hits}'}</span><input aria-label="Breakpoint log message" value={breakpointLogMessage} onChange={(event) => setBreakpointLogMessage(event.target.value)} placeholder={breakpointMode === 'log' ? 'X={x} hit {hits}' : 'Optional'} /></label></div></div><div className="breakpoint-list hardware-breakpoint-list" aria-label="Hardware breakpoints">{hardwareState.breakpoints.map((breakpoint) => <button type="button" aria-label={`Remove breakpoint ${formatAddress(breakpoint.address)}`} key={breakpoint.address} onClick={() => onMachineCommand({ type: 'breakpoint', address: breakpoint.address, enabled: false, stop: true })}><strong>{formatAddress(breakpoint.address)}</strong><span>{breakpoint.stop ? 'pause' : 'log'} · {breakpoint.hits} hit{breakpoint.hits === 1 ? '' : 's'}{breakpoint.condition ? ` · ${breakpoint.condition.register.toUpperCase()} ${breakpoint.condition.operator} &${breakpoint.condition.value.toString(16).toUpperCase()}` : ''}{breakpoint.hitTarget ? ` · ≥${breakpoint.hitTarget}` : ''}</span><small>Remove ×</small></button>)}</div><h3>Raw hardware stack</h3><div className="raw-stack">{hardwareState.stack.length ? hardwareState.stack.map((item) => <code key={item.address}>{formatAddress(item.address)}:{formatByte(item.value)}</code>) : <span>No bytes above SP</span>}</div></section>
         <section><h3>Machine state</h3><div className="machine-debug-facts"><div><span>Execution</span><strong>{hardwareState.running ? 'running' : 'paused'}</strong></div><div><span>CPU core</span><strong>{hardwareState.cpuCore}</strong></div><div><span>Reason</span><strong>{hardwareState.reason}</strong></div><div><span>Emulated cycles</span><strong>{hardwareState.cycles.toLocaleString()}</strong></div></div><h3>Interrupt state</h3><div className="interrupt-grid" aria-label="Live CPU interrupt state"><div><span>IRQ line</span><strong className={hardwareState.interrupts.irqLine ? 'asserted' : ''}>{hardwareState.interrupts.irqLine ? 'asserted' : 'clear'}</strong></div><div><span>IRQ accepted</span><strong>{hardwareState.interrupts.irqAccepted ? 'pending' : 'no'}</strong></div><div><span>I mask</span><strong>{hardwareState.interrupts.interruptDisable ? 'set' : 'clear'}</strong></div><div><span>IRQ source mask</span><strong>&amp;{hardwareState.interrupts.irqSourceMask.toString(16).toUpperCase().padStart(8, '0')}</strong></div><div><span>NMI line / edge</span><strong>{hardwareState.interrupts.nmiLevel ? 'high' : 'low'} / {hardwareState.interrupts.nmiEdge ? 'latched' : 'clear'}</strong></div></div><p className="honest-note">IRQ source mask, acceptance and NMI state are read directly from the selected jsbeeb CPU core; named sources below come only from peripheral IFR/IER or status/control snapshots.</p><InterruptHistoryPanel state={hardwareState} onMachineCommand={onMachineCommand} /><HardwareMemoryInspector artifact={artifact} state={hardwareState} memory={hardwareMemory} onMachineCommand={onMachineCommand} onAnalyse={onAnalyse} /></section>
@@ -6860,11 +6874,15 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           <button
             className="icon-button"
             type="button"
-            aria-label="Run program"
+            /* The name follows what the control does. It did not, and that is
+             * how somebody presses "Run program" expecting their build to
+             * reach the machine and gets the operating system resumed instead.
+             * A tooltip said which; a tooltip is not an accessible name. */
+            aria-label={fullMachine ? "Resume machine" : "Run program"}
             title={
               fullMachine
                 ? machinePowered
-                  ? "Run the hardware emulator"
+                  ? "Resume the emulated machine. To put this build on it, use Build and debug."
                   : "Power on the machine first"
                 : artifact
                   ? "Continue the loaded program"
@@ -6880,20 +6898,24 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           <button
             className="icon-button"
             type="button"
-            aria-label={fullMachine ? "Pause machine" : "Step instruction"}
+            /* Always Pause, because it always shows a pause icon. It used to
+             * be called "Step instruction" when no machine was attached — a
+             * pause icon that stepped, sharing its name with the step control
+             * beside it, so two adjacent buttons announced themselves
+             * identically and did the same thing. Stepping has its own control;
+             * this one has nothing to pause when the ROM-less runtime is what
+             * is loaded, because that runtime executes to completion rather
+             * than running. */
+            aria-label="Pause machine"
             title={
               fullMachine
                 ? machinePowered
-                  ? "Pause the hardware emulator"
+                  ? "Pause the emulated machine"
                   : "Power on the machine first"
-                : artifact
-                  ? "Execute one 6502 instruction"
-                  : "Build an assembly source first"
+                : "Nothing is running to pause: without a machine, a program runs to completion. Use Step to advance one instruction."
             }
-            disabled={fullMachine ? !poweredMachine : !artifact}
-            onClick={() =>
-              poweredMachine ? sendMachine({ type: "pause" }) : onStep()
-            }
+            disabled={!poweredMachine}
+            onClick={() => sendMachine({ type: "pause" })}
           >
             <Icon name="pause" />
           </button>
