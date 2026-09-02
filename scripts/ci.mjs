@@ -622,6 +622,15 @@ await stage('smoke', async () => {
     if (!buildFinished) throw new Error('The sample project produced no artifact within a minute, so the surfaces that only exist after a build were not scanned');
     await delay(500);
 
+    /* Headless Chromium opens at 800 by 600, which is narrow enough that the
+     * workbench lays its panels over the editor and hides the inspector
+     * altogether. Scanning only that left the desktop layout — the one almost
+     * everybody uses — unscanned, and a contrast failure in the inspector's
+     * problem badge sat there unreported. The scan runs at a desktop size for
+     * the same reason the explorer is opened below. */
+    await call('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 0, mobile: false });
+    await delay(500);
+
     /* The project explorer holds the only draggable surface, so it is opened
      * before scanning. A panel that is closed while the page is measured takes
      * everything inside it out of the scan without saying so. */
@@ -665,6 +674,8 @@ await stage('smoke', async () => {
       await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
     }
 
+    await call('Emulation.clearDeviceMetricsOverride');
+
     if (!draggableSeen) throw new Error('No draggable element was on screen during the scan, so the keyboard-alternative rule checked nothing');
     if (!drawingSeen) throw new Error('No canvas or image role was on screen during the scan, so the visual-alternative rule checked nothing');
     if (visited.length < offered.length) throw new Error(`Only ${visited.length} of ${offered.length} workspaces could be opened for the accessibility scan`);
@@ -701,7 +712,7 @@ await stage('smoke', async () => {
     await call('Emulation.setEmulatedMedia', { features: [] });
 
     if (errors.length) throw new Error(`The workbench reported ${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`);
-    return { detail: `${workspaces} controls under the shipped security headers, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned after a real build with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
+    return { detail: `${workspaces} controls under the shipped security headers, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
   } finally {
     /* Every handle opened here is closed here. A gate that printed its verdict
      * and then sat with an open socket would hang a pipeline until its timeout

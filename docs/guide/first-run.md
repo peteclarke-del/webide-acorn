@@ -19,22 +19,27 @@ Start the container, open the IDE, identify the project, workbench, emulator and
 3. Use the top target bar to confirm platform, system, model and ROM.
 4. Use the left activity bar to open Code, Build targets, Media, Debugger or Help.
 5. Read the bottom status line before running or debugging. It reports build and runtime readiness.
+6. Put a panel away with its close button or its activity-bar button, and bring it back the same way. The machine runtime beneath the editor is a panel too.
+7. Drag the bar between two panels to resize them, or focus it and use the arrow keys. Home and End go to the narrowest and widest; Enter, Space or a double-click returns the panel to its usual size.
 
 **What should happen**
 
 - The webide-acorn and native-builder containers report healthy.
 - The IDE opens with a recoverable local project and no bundled proprietary ROM.
 - Controls that need firmware remain disabled or state that firmware is required.
+- The panel arrangement is remembered in this browser, so the workbench opens the way it was left.
 
 **Limits**
 
 - Imported ROMs are stored in browser IndexedDB and are not included in project exports.
 - A310 startup can take a long time. Fast boot advances the genuine core; it does not substitute a fake boot state.
+- On a narrow window the panels are laid over the editor rather than beside it, so there is no edge between them to drag. The inspector is not shown at all below about 1180 pixels.
 
 **If it goes wrong**
 
 - If the page does not load, run docker-compose ps and confirm the 8090 to 8080 port mapping.
 - If a capability is unavailable, check the selected machine profile and Settings ROM inventory.
+- If the panels end up an awkward size, run Reset panel sizes from the command palette.
 
 ![Acorn IDE workbench with target selector, project tree, source editor, emulator and inspector](../../public/help/workbench-overview.png)
 

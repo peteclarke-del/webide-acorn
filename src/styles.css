@@ -94,14 +94,10 @@
   .panel-menu-button { width: 38px; margin-left: auto; border: 0; border-left: 1px solid var(--theme-line); background: transparent; color: var(--theme-muted); }
   .panel-menu-button:hover { color: var(--theme-ink); }
 
-  .workbench { position: relative; display: grid; grid-template-columns: 43px minmax(250px, 286px) minmax(175px, 215px) minmax(440px, 1fr) minmax(250px, 286px); min-width: 0; min-height: 0; overflow: hidden; }
-  .workbench.config-closed.explorer-open.inspector-open { grid-template-columns: 43px minmax(175px, 215px) minmax(440px, 1fr) minmax(250px, 286px); }
-  .workbench.config-open.explorer-closed.inspector-open { grid-template-columns: 43px minmax(250px, 286px) minmax(440px, 1fr) minmax(250px, 286px); }
-  .workbench.config-open.explorer-open.inspector-closed { grid-template-columns: 43px minmax(250px, 286px) minmax(175px, 215px) minmax(440px, 1fr); }
-  .workbench.config-closed.explorer-closed.inspector-open { grid-template-columns: 43px minmax(440px, 1fr) minmax(250px, 286px); }
-  .workbench.config-closed.explorer-open.inspector-closed { grid-template-columns: 43px minmax(175px, 215px) minmax(440px, 1fr); }
-  .workbench.config-open.explorer-closed.inspector-closed { grid-template-columns: 43px minmax(250px, 286px) minmax(440px, 1fr); }
-  .workbench.config-closed.explorer-closed.inspector-closed { grid-template-columns: 43px minmax(0, 1fr); }
+  /* The columns are set from the panel sizes in `src/layout/panelLayout.ts`,
+   * because they are resizable now; what used to be here was eight fixed
+   * permutations of which panels were open. */
+  .workbench { position: relative; display: grid; grid-template-columns: var(--workbench-columns, 43px minmax(320px, 1fr)); min-width: 0; min-height: 0; overflow: hidden; }
   .panel-surface { min-width: 0; min-height: 0; border-right: 1px solid var(--theme-line); background: color-mix(in srgb, var(--theme-surface-1) 97%, transparent); }
   .activity-rail { z-index: 11; display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 7px 4px 5px; border-right: 1px solid var(--theme-line); background: var(--theme-surface-0); }
   .rail-button { position: relative; display: grid; width: 34px; height: 34px; margin-bottom: 3px; padding: 0; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--theme-faint); }
@@ -181,7 +177,25 @@
   .tree-empty { margin: 3px 8px 0 22px; padding: 8px; border: 1px dashed var(--theme-line); border-radius: 4px; color: var(--theme-faint); }
   .tree-empty span, .tree-empty small { display: block; }.tree-empty span { font-size: var(--fs-8); }.tree-empty small { margin-top: 3px; font-size: var(--fs-7); line-height: 1.35; }
 
-  .main-workspace { display: grid; min-width: 0; min-height: 0; grid-template-rows: minmax(280px, 1fr) minmax(185px, 34%); overflow: hidden; background: var(--theme-editor); }
+  .main-workspace { display: grid; min-width: 0; min-height: 0; grid-template-rows: var(--workspace-rows, minmax(200px, 1fr) 5px 300px); overflow: hidden; background: var(--theme-editor); }
+  .main-workspace.runtime-closed { grid-template-rows: minmax(0, 1fr); }
+  .main-workspace.runtime-closed .editor-stack { border-bottom: 0; }
+
+  /* The grab area between two panels. It is a column of the grid rather than
+   * something laid over the panels, so a panel that scrolls cannot clip it and
+   * it cannot cover a control at the panel's edge. It takes focus because a
+   * workbench that can only be rearranged with a mouse cannot be rearranged by
+   * everyone who uses it. */
+  .panel-separator { position: relative; z-index: 12; background: var(--theme-line); }
+  .panel-separator.vertical { cursor: col-resize; }
+  .panel-separator.horizontal { cursor: row-resize; }
+  .panel-separator:hover, .panel-separator:focus-visible { background: var(--theme-primary); outline: none; }
+  .panel-separator:focus-visible { box-shadow: 0 0 0 2px var(--theme-primary-light); }
+  /* A five pixel column is easy to see and hard to hit, so the area that
+   * answers a pointer reaches past it without taking any layout room. */
+  .panel-separator::after { position: absolute; content: ''; }
+  .panel-separator.vertical::after { top: 0; right: -3px; bottom: 0; left: -3px; }
+  .panel-separator.horizontal::after { top: -3px; right: 0; bottom: -3px; left: 0; }
   .editor-stack { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--theme-line); }
   .editor-tabs { display: flex; flex: 0 0 34px; min-width: 0; overflow-x: auto; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
   .editor-tabs > button, .editor-tab { display: flex; flex: 0 0 auto; align-items: stretch; border: 0; border-right: 1px solid var(--theme-line); background: transparent; color: var(--theme-faint); font-size: var(--fs-9); }
@@ -854,7 +868,7 @@
   .inspector-tabs { display: flex; flex: 0 0 35px; align-items: stretch; border-bottom: 1px solid var(--theme-line); }
   .inspector-tabs > button:not(.inspector-close) { padding: 0 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--theme-faint); font-size: var(--fs-8); }
   .inspector-tabs > button.active { border-bottom-color: var(--theme-primary); color: var(--theme-ink); }
-  .inspector-tabs button span { display: inline-grid; min-width: 13px; height: 13px; margin-left: 3px; place-items: center; border-radius: 99px; background: var(--theme-danger); color: var(--theme-ink-strong); font: var(--fs-6)/1 var(--font-mono); }
+  .inspector-tabs button span { display: inline-grid; min-width: 13px; height: 13px; margin-left: 3px; place-items: center; border-radius: 99px; background: var(--theme-danger); color: var(--theme-danger-ink); font: 700 var(--fs-6)/1 var(--font-mono); }
   .inspector-close { margin: 3px 3px 3px auto; }
   .inspector-scroll { min-height: 0; overflow: auto; }
   .context-card { margin: 10px; padding: 10px; border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, var(--theme-line)); border-radius: var(--radius-md); background: linear-gradient(145deg, color-mix(in srgb, var(--theme-accent) 5%, var(--theme-surface-2)), var(--theme-surface-1)); }
@@ -1199,12 +1213,14 @@
   @keyframes screen-blink { 0%, 65% { opacity: 1; } 66%, 100% { opacity: .25; } }
 
   @media (max-width: 1500px) {
-    .workbench { grid-template-columns: 43px minmax(235px, 255px) minmax(165px, 190px) minmax(420px, 1fr) minmax(235px, 255px); }
     .prototype-badge { display: none; }
   }
 
   @media (max-width: 1180px) {
-    .workbench { grid-template-columns: 43px minmax(235px, 260px) minmax(180px, 210px) minmax(380px, 1fr); }
+    /* The inspector has nowhere to go at this width: it is not laid over the
+     * editor the way the other two are, and a grid item with no column of its
+     * own would widen the grid. `inspectorFitsBeside` in App.tsx keeps the
+     * columns in step with this. */
     .inspector-panel { display: none; }
     .project-crumb { justify-self: start; }
     .test-layout { grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); overflow: auto; }.test-build-facts { grid-column: 1 / -1; min-height: 150px; }
@@ -1215,6 +1231,9 @@
     .topbar { grid-template-columns: minmax(190px, 1fr) auto; }
     .project-crumb { display: none; }
     .workbench { grid-template-columns: 43px minmax(0, 1fr); }
+    /* The panels are laid over the editor at this width rather than beside it,
+     * so there is no edge between them to drag. */
+    .panel-separator.vertical { display: none; }
     .config-panel, .explorer-panel { position: absolute; z-index: 15; top: 0; bottom: 0; left: 43px; width: min(300px, calc(100vw - 43px)); box-shadow: var(--theme-shadow-md); }
     .explorer-panel { left: min(343px, calc(100vw - 210px)); width: min(210px, calc(100vw - 43px)); }
     .config-panel + .explorer-panel { display: none; }

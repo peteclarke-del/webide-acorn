@@ -98,6 +98,44 @@ describe('keeping the folders a codebase arrived in', () => {
   });
 });
 
+describe('the files a codebase is built with', () => {
+  /* A project that loses its build script loses the record of how its author
+   * built it, which is the one thing nobody can reconstruct from the source. */
+  const built: CodebaseFileInput[] = [
+    { path: 'main.asm', content: 'ORG &1900\n.start\nRTS\n' },
+    { path: 'Makefile', content: 'all:\n\tbeebasm -i main.asm -o game\n' },
+    { path: 'make/rules.mk', content: 'ASM := beebasm\n' },
+    /* Still ignored, because a build directory holds output rather than source. */
+    { path: 'build/generated.mk', content: 'GENERATED := 1\n' },
+    { path: 'scripts/package.sh', content: '#!/bin/sh\nexit 0\n' },
+    { path: 'LICENSE', content: 'GPL-3.0\n' },
+    { path: 'link.ld', content: 'SECTIONS { }\n' },
+  ];
+
+  it('keeps a makefile, which has no extension at all', () => {
+    const plan = planCodebaseImport(built, 'Built');
+    expect(plan.files.map((file) => file.name).sort()).toEqual([
+      'LICENSE', 'Makefile', 'link.ld', 'main.asm', 'make/rules.mk', 'scripts/package.sh',
+    ]);
+    expect(plan.exclusions.map((exclusion) => exclusion.path)).toEqual(['build/generated.mk']);
+  });
+
+  it('treats them as text rather than as something to compile', () => {
+    const plan = planCodebaseImport(built, 'Built');
+    const makefile = plan.files.find((file) => file.name === 'Makefile')!;
+    expect(makefile).toMatchObject({ language: 'text', role: 'text' });
+    /* And so none of them can be proposed as the program's entry file. */
+    expect(plan.targets.map((target) => target.entryName)).toEqual(['main.asm']);
+  });
+
+  it('still says no to a name it does not recognise, and says why', () => {
+    const plan = planCodebaseImport([{ path: 'mystery', content: 'who knows\n' }], 'Odd');
+    expect(plan.files).toEqual([]);
+    expect(plan.exclusions[0]).toMatchObject({ path: 'mystery', reason: 'unsupported-file-type' });
+    expect(plan.exclusions[0]!.detail).toMatch(/no extension and is not a name this product recognises/);
+  });
+});
+
 describe('import limits and refusals', () => {
   it('excludes files that are not an editable source type', () => {
     const plan = planCodebaseImport([{ path: 'disk.ssd', content: 'x' }, { path: 'sprite.png', content: 'x' }]);

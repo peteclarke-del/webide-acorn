@@ -21,7 +21,27 @@ const IGNORED_SEGMENTS = new Set(['.git', '.hg', '.svn', 'node_modules', 'dist',
 
 /* Only text this workbench can genuinely edit is imported. Everything else is
  * reported rather than dropped in silence. */
-const TEXT_EXTENSIONS = new Set(['asm', 's', 'a65', '6502', 'inc', 'arm', 'sarm', 'c', 'h', 'bas', 'basic', 'txt', 'md', 'json', 'inf', 'cfg', 'lst', 'def']);
+const TEXT_EXTENSIONS = new Set([
+  /* Source the workbench can compile or assemble. */
+  'asm', 's', 'a65', '6502', 'inc', 'arm', 'sarm', 'c', 'h', 'bas', 'basic',
+  /* Things a project carries alongside its source: metadata, notes, output the
+   * toolchain wrote, and the linker and configuration files a build needs. */
+  'txt', 'md', 'json', 'inf', 'cfg', 'lst', 'def', 'ld', 'cmd', 'map', 'sym',
+  /* How the codebase was built before it arrived here. A project that loses its
+   * build script loses the record of how its author built it, which is the one
+   * thing nobody can reconstruct from the source. */
+  'mk', 'mak', 'make', 'am', 'ac', 'sh', 'bat', 'ps1', 'py', 'pl', 'awk',
+  'yml', 'yaml', 'toml', 'ini', 'conf', 'cmake',
+]);
+
+/* Files whose whole name is their type. A makefile is the obvious one, and the
+ * reason this set exists: an imported codebase arrived without its Makefile
+ * because the importer asked for an extension and a makefile has none. */
+const EXTENSIONLESS_NAMES = new Set([
+  'makefile', 'gnumakefile', 'rakefile', 'justfile', 'dockerfile', 'containerfile',
+  'readme', 'license', 'licence', 'copying', 'copyright', 'notice', 'authors',
+  'contributors', 'changelog', 'changes', 'news', 'install', 'todo', 'version',
+]);
 
 /* A NUL or C0 control run means the file did not decode as text, whatever its
  * extension claims. Tab, newline and carriage return are of course allowed. */
@@ -202,7 +222,7 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
     if (ignored) { exclusions.push({ path, reason: 'ignored-directory', detail: `Inside ${ignored}.` }); continue; }
     if (base.startsWith('.')) { exclusions.push({ path, reason: 'unsupported-file-type', detail: 'Dot files are not imported.' }); continue; }
     const extension = extensionOf(base);
-    if (!TEXT_EXTENSIONS.has(extension)) { exclusions.push({ path, reason: 'unsupported-file-type', detail: extension ? `.${extension} is not an editable source type.` : 'The file has no extension.' }); continue; }
+    if (!TEXT_EXTENSIONS.has(extension) && !EXTENSIONLESS_NAMES.has(base.toLowerCase())) { exclusions.push({ path, reason: 'unsupported-file-type', detail: extension ? `.${extension} is not an editable source type.` : 'The file has no extension and is not a name this product recognises, such as Makefile.' }); continue; }
     if (!isProbablyText(input.content)) { exclusions.push({ path, reason: 'not-text', detail: 'The contents did not decode as text.' }); continue; }
     const content = input.content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
     const bytes = sourceUtf8ByteLength(content);

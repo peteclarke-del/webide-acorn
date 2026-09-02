@@ -228,6 +228,30 @@ describe('operating the product without a pointer', () => {
     expect(run(KEYBOARD_REACHABILITY)).toEqual([]);
   });
 
+  it('accepts a group inside a widget the arrow keys already move through', () => {
+    /* The project tree groups its files by origin. Only the group holding the
+     * current item would ever hold the roving stop, so requiring one per group
+     * would report the prescribed pattern as broken. */
+    document.body.innerHTML = `
+      <div role="tree" aria-label="Project">
+        <div role="group" aria-label="SOURCE FILES"><button tabindex="0">main.asm</button></div>
+        <div role="group" aria-label="BUILD"><button tabindex="-1">main build</button><button tabindex="-1">tape build</button></div>
+      </div>`;
+    expect(run(KEYBOARD_REACHABILITY)).toEqual([]);
+  });
+
+  it('still reports a group that no widget of its own can be entered by', () => {
+    /* The exemption is for a subdivision of a composite widget, not for any
+     * group that happens to sit inside another element. */
+    document.body.innerHTML = `
+      <button>Elsewhere</button>
+      <div role="region" aria-label="Panel">
+        <div role="group" aria-label="Stranded"><button tabindex="-1">One</button><button tabindex="-1">Two</button></div>
+      </div>`;
+    const findings = run(KEYBOARD_REACHABILITY);
+    expect(findings.map((finding) => finding.detail).join(' ')).toContain('2 controls and no keyboard tab stop');
+  });
+
   it('says so when a page offers no tab stop at all', () => {
     document.body.innerHTML = '<p>Nothing to operate</p>';
     expect(run(KEYBOARD_REACHABILITY)[0]!.detail).toContain('no keyboard tab stop at all');

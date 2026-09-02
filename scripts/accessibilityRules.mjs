@@ -489,13 +489,25 @@ export const KEYBOARD_REACHABILITY = `(() => {
   const stops = [...document.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')].filter(focusable);
   if (!stops.length) return [{ element: 'document', detail: 'offers no keyboard tab stop at all' }];
 
+  /* A composite widget — a tree, a grid, a tab strip — is entered once and
+   * moved through with the arrow keys, so its one tab stop serves every part of
+   * it. A group inside such a widget is a subdivision of it rather than a
+   * separate destination, and requiring each subdivision to hold its own stop
+   * reports the prescribed pattern as broken: the project tree groups its files
+   * by origin, and only the group holding the current item would have passed. */
+  const COMPOSITE = '[role="tree"], [role="grid"], [role="tablist"], [role="listbox"], [role="radiogroup"], [role="menu"], [role="menubar"], [role="toolbar"]';
+  const reachedByItsWidget = (region) => {
+    const widget = region.parentElement && region.parentElement.closest(COMPOSITE);
+    return !!widget && [...widget.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')].some(focusable);
+  };
+
   /* Every region that holds something focusable must itself contain a tab
    * stop, or nothing in it can be reached. */
   for (const region of document.querySelectorAll('[role="group"], [role="tablist"], [role="listbox"], [role="tree"], [role="grid"], [role="radiogroup"], [role="region"], aside[aria-label], section[aria-label]')) {
     if (!shown(region)) continue;
     const inside = [...region.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')];
     if (!inside.length) continue;
-    if (!inside.some(focusable)) {
+    if (!inside.some(focusable) && !reachedByItsWidget(region)) {
       problems.push({ element: identity(region), detail: 'holds ' + inside.length + ' controls and no keyboard tab stop, so none of them can be reached' });
     }
   }

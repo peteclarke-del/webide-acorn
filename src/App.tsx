@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
 import { createAnalysisDocument } from './analysis/analysisExport';
 import { createVerified6502AssemblySource } from './analysis/disassemblyAssemblyExport';
 import { createArmAssemblySource, verifyArmAssemblySource, type ArmAssemblyVerification } from './analysis/disassemblyArmAssemblyExport';
@@ -45,6 +45,9 @@ import { executeBuildAll, type BuildAllRecord } from './build/buildAll';
 import { analyseBuildGraph, impactedBuildTargets, sourceInputsForTarget } from './build/buildGraph';
 import { BUILD_PROFILES, buildEntryUpdate, buildProfileDefines, buildProfileKeepsDebugMetadata, buildProfileManifest, buildToolchainUpdate, compatibleToolchains, createBuildTarget, provenanceMatches, shouldScheduleBackgroundBuild, toolchainFor, validateBuildTarget, type BuildTarget } from './build/buildTarget';
 import { analysisCandidates, candidateReference, projectFileBytes, type AnalysisCandidate } from './analysis/projectAnalysisCandidates';
+import { PanelSeparator } from './components/PanelSeparator';
+import { useMediaQuery } from './layout/useMediaQuery';
+import { DEFAULT_PANEL_SIZES, readPanelSizes, resizePanel, workbenchColumns, workspaceRows, writePanelSizes, type PanelId, type PanelOpenState, type PanelSizes } from './layout/panelLayout';
 import { BuildExecutionError, buildExecutionError, executeBuild, type BuildArtifact, type BuildRequest, type BuildResponse, type BuildResultMetadata } from './build/buildService';
 import { sha256Hex } from './build/digest';
 import { detectNativeToolchains, invokeNativeToolchain, type NativeToolchainProbe, type NativeToolchainStatus } from './build/nativeToolchainAdapter';
@@ -372,6 +375,16 @@ function App() {
   const [configOpen, setConfigOpen] = useState(true);
   const [explorerOpen, setExplorerOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  /* The machine runtime shares the workspace with the editor. It can be put
+   * away like any other panel, because somebody writing code who is not running
+   * anything should not have to give it a third of the window. */
+  const [runtimeOpen, setRuntimeOpen] = useState(true);
+  /* How wide, or for the runtime how tall, each panel is. Held here and written
+   * to browser storage, so the arrangement somebody chose survives a reload. */
+  const [panelSizes, setPanelSizes] = useState<PanelSizes>(() => {
+    try { return readPanelSizes(window.localStorage); } catch { return { ...DEFAULT_PANEL_SIZES }; }
+  });
+  const workbenchRef = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState('Local project ready · edits recover in this browser');
   const [analysisFile, setAnalysisFile] = useState<LoadedFile | null>(null);
   /* One annotation history per analysed binary, keyed by the digest of its
@@ -1644,6 +1657,32 @@ function App() {
     setNotice(`Source breakpoint toggled at line ${line} · rebuild to resolve its address`);
   };
 
+  /* Below these widths the panels are laid over the editor rather than beside
+   * it, so they take no grid column and have no edge to drag. The person's own
+   * choice about each panel is untouched: it applies again as soon as there is
+   * room for the panel to sit beside the editor. */
+  const panelsOverlayEditor = useMediaQuery('(max-width: 900px)');
+  const inspectorFitsBeside = !useMediaQuery('(max-width: 1180px)');
+  const panelOpenState: PanelOpenState = {
+    config: configOpen && !panelsOverlayEditor,
+    explorer: explorerOpen && !panelsOverlayEditor,
+    inspector: inspectorOpen && inspectorFitsBeside && !panelsOverlayEditor,
+    runtime: runtimeOpen,
+  };
+
+  /* Resizing is measured against the workbench as it actually is, so the rules
+   * about leaving the editor room are applied to the window somebody has rather
+   * than to one assumed here. */
+  const resizePanelTo = (panel: PanelId, value: number) => {
+    const box = workbenchRef.current?.getBoundingClientRect();
+    const available = { width: box?.width ?? window.innerWidth, height: box?.height ?? window.innerHeight };
+    setPanelSizes((current) => {
+      const next = resizePanel(current, panelOpenState, panel, value, available);
+      try { writePanelSizes(next, window.localStorage); } catch { /* a refused write loses the arrangement, not the session */ }
+      return next;
+    });
+  };
+
   const toggleConfigPanel = () => {
     const compact = window.matchMedia('(max-width: 900px)').matches;
     if (compact && !configOpen) {
@@ -1776,6 +1815,8 @@ function App() {
     { id: 'view-target', label: `${configOpen ? 'Hide' : 'Show'} target configuration`, category: 'View', keywords: ['machine', 'profile'], enabled: true, run: toggleConfigPanel },
     { id: 'view-explorer', label: `${explorerOpen ? 'Hide' : 'Show'} project explorer`, category: 'View', keywords: ['files', 'tree'], enabled: true, run: toggleExplorerPanel },
     { id: 'view-inspector', label: `${inspectorOpen ? 'Hide' : 'Show'} inspector`, category: 'View', keywords: ['problems', 'registers'], enabled: true, run: () => setInspectorOpen((current) => !current) },
+    { id: 'view-runtime', label: `${runtimeOpen ? 'Hide' : 'Show'} machine runtime`, category: 'View', keywords: ['emulator', 'screen', 'panel'], enabled: true, run: () => setRuntimeOpen((current) => !current) },
+    { id: 'view-reset-panels', label: 'Reset panel sizes', category: 'View', keywords: ['layout', 'width', 'resize', 'default'], enabled: true, run: () => { setPanelSizes({ ...DEFAULT_PANEL_SIZES }); try { writePanelSizes(DEFAULT_PANEL_SIZES, window.localStorage); } catch { /* the arrangement is lost, the session is not */ } setNotice('Panel sizes reset'); } },
     ...workspaceCommands,
   ];
   /* The dispatched binding table is the only source of advertised chords. */
@@ -1958,7 +1999,11 @@ function App() {
         </button>
       </nav>
 
-      <div className={`workbench ${configOpen ? 'config-open' : 'config-closed'} ${explorerOpen ? 'explorer-open' : 'explorer-closed'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}>
+      <div
+        ref={workbenchRef}
+        className={`workbench ${configOpen ? 'config-open' : 'config-closed'} ${explorerOpen ? 'explorer-open' : 'explorer-closed'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}
+        style={{ '--workbench-columns': workbenchColumns(panelOpenState, panelSizes) } as CSSProperties}
+      >
         <aside className="activity-rail" aria-label="Workbench panels">
           <button className={configOpen ? 'rail-button active' : 'rail-button'} type="button" aria-label="Target configuration" onClick={toggleConfigPanel}>
             <Icon name="chip" />
@@ -1969,6 +2014,7 @@ function App() {
           <button className={workspaceTab === 'Search' ? 'rail-button active' : 'rail-button'} type="button" aria-label="Search project" onClick={openProjectSearch}><Icon name="search" /></button>
           <button className={assetTabs.includes(workspaceTab) ? 'rail-button active' : 'rail-button'} type="button" aria-label="Assets" onClick={() => setWorkspaceTab('Sprites')}><Icon name="image" /></button>
           <button className={workspaceTab === 'Research' ? 'rail-button active' : 'rail-button'} type="button" aria-label="Research" onClick={() => setWorkspaceTab('Research')}><Icon name="book" /></button>
+          <button className={runtimeOpen ? 'rail-button active' : 'rail-button'} type="button" aria-label={runtimeOpen ? 'Hide machine runtime' : 'Show machine runtime'} aria-pressed={runtimeOpen} onClick={() => setRuntimeOpen((open) => !open)}><Icon name="play" /></button>
           <div className="rail-spacer" />
           <button className={workspaceTab === 'Settings' ? 'rail-button active' : 'rail-button'} type="button" aria-label="Settings" onClick={() => setWorkspaceTab('Settings')}><Icon name="settings" /></button>
         </aside>
@@ -2084,12 +2130,14 @@ function App() {
             </button>
           </aside>
         )}
+        {panelOpenState.config && <PanelSeparator panel="config" orientation="vertical" before label="Resize the target configuration panel" size={panelSizes.config} onResize={resizePanelTo} />}
 
         {explorerOpen && (
           <aside className="explorer-panel panel-surface" aria-label="Project explorer">
             <div className="panel-heading compact">
               <div><span className="eyebrow">LOCAL PROJECT</span><h2>{project.name}</h2></div>
               <button className="plain-icon" type="button" aria-label="Export portable project" onClick={() => setProjectExportOpen(true)}><Icon name="download" size={17} /></button>
+              <button className="plain-icon" type="button" aria-label="Close project explorer" onClick={() => setExplorerOpen(false)}><Icon name="close" size={16} /></button>
             </div>
             <div className="explorer-actions">
               <button type="button" onClick={() => addSourceFile()}><Icon name="new" size={14} /> New</button>
@@ -2118,8 +2166,14 @@ function App() {
             />
           </aside>
         )}
+        {panelOpenState.explorer && <PanelSeparator panel="explorer" orientation="vertical" before label="Resize the project explorer" size={panelSizes.explorer} onResize={resizePanelTo} />}
 
-        <main className="main-workspace" id="main-workspace" aria-label="Acorn development workbench">
+        <main
+          className={`main-workspace ${runtimeOpen ? 'runtime-open' : 'runtime-closed'}`}
+          id="main-workspace"
+          aria-label="Acorn development workbench"
+          style={{ '--workspace-rows': workspaceRows(panelOpenState, panelSizes) } as CSSProperties}
+        >
           <section className="editor-stack" aria-label={`${workspaceTab} workspace`}>
             {workspaceTab === 'Code' && openSourceFiles.length ? (
               <><div className={`source-editor-split${sourceSplitFileId ? ' open' : ''}`}>
@@ -2323,9 +2377,11 @@ function App() {
               <WorkspacePlaceholder tab={workspaceTab} machine={machine.label} />
             )}
           </section>
-          <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} command={machineCommand} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />
+          {runtimeOpen && <PanelSeparator panel="runtime" orientation="horizontal" before={false} label="Resize the machine runtime" size={panelSizes.runtime} onResize={resizePanelTo} />}
+          {runtimeOpen && <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} command={machineCommand} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />}
         </main>
 
+        {panelOpenState.inspector && <PanelSeparator panel="inspector" orientation="vertical" before={false} label="Resize the inspector" size={panelSizes.inspector} onResize={resizePanelTo} />}
         {inspectorOpen && (
           <aside className="inspector-panel panel-surface" aria-label="Inspector">
             <div className="inspector-tabs" role="tablist" aria-label="Inspector views">

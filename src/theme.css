@@ -75,6 +75,11 @@
     --theme-accent: #f2c14e;
     --theme-accent-rgb: 242, 193, 78;
     --theme-danger: #db6951;
+    /* Text drawn on the danger colour. The interface ink gives 3.29:1 against
+     * it, which is below the 4.5:1 that ordinary-sized text needs; this is dark
+     * enough to read at 5.6:1 and is the same in every theme because the danger
+     * colour is. */
+    --theme-danger-ink: #1a0d08;
     --theme-danger-rgb: 219, 105, 81;
 
     --theme-background: #08100b;
