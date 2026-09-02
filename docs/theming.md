@@ -13,7 +13,13 @@ separation used by Acorn File Forge.
 - `public/theme-overrides.css` is an intentionally empty runtime override loaded
   after the application bundle.
 
-The CSS cascade order is declared as `theme`, `layout`, then `overrides`.
+The CSS cascade order is declared as `theme`, `layout`, then `overrides`, and
+every rule the product ships is inside one of those layers. That matters more
+than it sounds: a rule written outside a layer beats every layered rule whatever
+its specificity, and beats the overrides layer too, so a single stray rule can
+make a downstream override silently do nothing. Four hundred lines had drifted
+outside the layout layer this way. `src/styleLayers.test.ts` fails if anything
+does again.
 
 ## The type scale
 

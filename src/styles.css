@@ -1308,7 +1308,12 @@
      * a border keeps the control's extent visible either way. */
     input[type="range"], input[type="color"], input[type="file"] { border: 1px solid ButtonText; }
   }
-}
+/* Everything below was appended after the layer's closing brace and so sat
+ * outside it, which made it beat every layered rule whatever the specificity
+ * and beat `@layer overrides` as well. That is not what `docs/theming.md`
+ * declares, and it hid two bugs in one day: a heading that ignored the type
+ * scale, and a narrow-viewport rule that silently did nothing. It is inside the
+ * layer now; the closing brace is at the end of the file. */
 
 /* The debugger shares horizontal space with the project and inspector rails. */
 .profiler-body { grid-template-columns: 155px 175px minmax(350px, 1fr) 185px; }
@@ -1474,10 +1479,10 @@
  * minimum widths adding up to about 530 pixels, so on a narrow viewport it ran
  * three hundred pixels past the edge and most of it could not be reached. That
  * is the panel somebody opens in order to make the code larger, which is
- * exactly what a person at 400% zoom is doing. This rule sits here rather than
- * with the other narrow-viewport rules because the panel's own declarations
- * are outside `@layer layout`, and an unlayered declaration wins over a
- * layered one whatever its specificity. */
+ * exactly what a person at 400% zoom is doing. This rule sits beside the
+ * panel's own declarations rather than with the other narrow-viewport rules,
+ * so that source order settles it: both are in the same layer and have the
+ * same specificity, and the later one is meant to win. */
 @media (max-width: 700px) {
   .editor-preferences > div { position: fixed; top: auto; right: 8px; left: 8px; width: auto; min-width: 0; max-width: none; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
 }.number-converter { flex: 0 0 auto; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); font: var(--fs-6)/1.25 var(--font-mono); }.number-converter summary { padding: 6px; color: var(--theme-secondary); cursor: pointer; }.number-converter > div { display: grid; grid-template-columns: minmax(0,1fr) 58px; gap: 4px; padding: 0 6px 5px; }.number-converter label { display: grid; gap: 2px; color: var(--theme-muted); }.number-converter input,.number-converter select { width: 100%; min-width: 0; height: 24px; border: 1px solid var(--theme-line); background: var(--theme-input); color: var(--theme-ink); font: inherit; }.number-converter dl { display: grid; gap: 1px; margin: 0; padding: 0 6px 5px; }.number-converter dl > div { display: grid; grid-template-columns: 66px minmax(0,1fr); gap: 4px; padding: 3px; background: var(--theme-surface-2); }.number-converter dt { color: var(--theme-faint); }.number-converter dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--theme-muted); }.number-converter code { color: var(--syntax-address); font: inherit; white-space: normal; }.number-converter .valid dd { color: var(--theme-primary-light); }.number-converter .invalid dd,.number-converter > p { color: var(--theme-danger); }.number-converter > p,.number-converter > small { display: block; margin: 0; padding: 0 6px 6px; font-size: var(--fs-5-5); }.number-converter > small { color: var(--theme-faint); }
@@ -1697,4 +1702,6 @@
 @media (forced-colors: active) {
   .tree-item.drop-before { box-shadow: inset 0 2px 0 Highlight; }
   .tree-item.drop-after { box-shadow: inset 0 -2px 0 Highlight; }
+}
+
 }
