@@ -173,7 +173,13 @@ export const DEFAULT_TARGET: ProjectTarget = { platformClass: '8-16-bit', machin
 
 export function languageForFilename(name: string): SourceLanguage {
   if (/\.(?:bas|basic)$/i.test(name)) return 'bbc-basic';
-  if (/\.(?:6502|s|asm|a65)$/i.test(name)) return '6502';
+  /* .inc is the conventional extension for an assembler include, and in an
+   * Acorn project that is what it always is. Treating it as plain text left
+   * every generated sprite table unreadable to the language service and
+   * invisible to the asset recovery, which found four lookup tables in the
+   * hand-written sources and none of the artwork sitting in the .inc files
+   * beside them. */
+  if (/\.(?:6502|s|asm|a65|inc)$/i.test(name)) return '6502';
   if (/\.(?:arm|sarm)$/i.test(name)) return 'arm';
   if (/\.(?:c|h)$/i.test(name)) return 'c';
   return 'text';

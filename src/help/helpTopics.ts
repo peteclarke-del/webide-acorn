@@ -160,6 +160,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Binaries, disk images and anything that does not decode as text are reported rather than imported.",
       "Data that looks like a tile map is reported with its possible grid shapes only. This build has no map document, so nothing is created for it and no grid shape is chosen for you.",
       "A recovered asset's packing is a reading of the data, not a fact about it. Both packings reproduce the bytes exactly, so check the reading before relying on the picture.",
+      "Assets are recovered from assembler source, which now includes .inc files: a generated sprite table in one used to be read as plain text and its artwork was not offered at all.",
       "Creating the project replaces the current browser-local project.",
     ],
     recovery: [

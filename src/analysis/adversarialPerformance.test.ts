@@ -44,7 +44,7 @@ import { parseDfsCatalogue } from '../media/dfsCatalogue';
  * slow reader fails on the budget with a number in the message rather than on a
  * timeout with none.
  */
-const CALIBRATION_MS = (() => {
+function calibrationMs(): number {
   let fastest = Number.POSITIVE_INFINITY;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const started = performance.now();
@@ -54,14 +54,21 @@ const CALIBRATION_MS = (() => {
     fastest = Math.min(fastest, performance.now() - started);
   }
   return Math.max(fastest, 0.5);
-})();
+}
 
-/* Four hundred, because the slowest of these readers legitimately costs about
- * two hundred times the calibration on an idle machine and the budget has to
- * leave room above that rather than sit on it. Twenty seconds is the cap, well
- * inside the timeout below, and four seconds the floor, which is what the fixed
- * ceiling used to be. */
-const CEILING_MS = Math.min(20_000, Math.max(4_000, CALIBRATION_MS * 400));
+/*
+ * Measured beside the work rather than once when the file loads. A calibration
+ * taken while the machine was quiet and compared against work done while it was
+ * busy is the same fixed ceiling in a different shape, and it failed the same
+ * way. Four hundred, because the slowest of these readers legitimately costs
+ * about two hundred times the calibration and the budget has to leave room
+ * above that rather than sit on it; twenty seconds is the cap, well inside the
+ * timeout below, and four seconds the floor, which is what the fixed ceiling
+ * used to be.
+ */
+function ceilingMs(): number {
+  return Math.min(20_000, Math.max(4_000, calibrationMs() * 400));
+}
 
 /* Room for the budget to be what fails, rather than the timeout around it. */
 vi.setConfig({ testTimeout: 30_000 });
@@ -81,7 +88,7 @@ describe('the 6502 reader against its worst inputs', () => {
      * reader can be asked to produce for a 6502 machine. */
     const { value, durationMs } = timed(() => disassemble6502(new Uint8Array(BANK).fill(0xea), 0, 0, '6502'));
     expect(value.rows.length).toBeGreaterThan(60000);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles a bank of nothing but calls, which is the worst case for its label map', () => {
@@ -95,7 +102,7 @@ describe('the 6502 reader against its worst inputs', () => {
     }
     const { value, durationMs } = timed(() => disassemble6502(bytes, 0, 0, '6502'));
     expect(value.rows.length).toBeGreaterThan(20000);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles a bank of undefined opcodes, where nothing decodes and everything is a warning', () => {
@@ -103,7 +110,7 @@ describe('the 6502 reader against its worst inputs', () => {
      * every single byte rather than its decode path. */
     const { value, durationMs } = timed(() => disassemble6502(new Uint8Array(BANK).fill(0xff), 0, 0, '6502'));
     expect(value.rows.length).toBeGreaterThan(0);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles a bank of branches that all land on the same byte', () => {
@@ -113,7 +120,7 @@ describe('the 6502 reader against its worst inputs', () => {
     for (let offset = 0; offset < bytes.length; offset += 2) { bytes[offset] = 0xf0; bytes[offset + 1] = 0xfe; }
     const { value, durationMs } = timed(() => disassemble6502(bytes, 0x1900, 0x1900, '6502'));
     expect(value.rows.length).toBeGreaterThan(20000);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 });
 
@@ -149,7 +156,7 @@ describe('the ARM reader against its worst inputs', () => {
       armBranch(14, ORIGIN + index * 4, ORIGIN + Math.min(index + 2, words - 1) * 4)));
     const { value, durationMs } = timed(() => disassembleArm(bytes, ORIGIN, ORIGIN, 'arm2'));
     expect(value.rows.filter((row) => row.kind === 'instruction').length).toBeGreaterThan(words / 4);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles a run of conditional branches that all name the same word', () => {
@@ -161,14 +168,14 @@ describe('the ARM reader against its worst inputs', () => {
     const { value, durationMs } = timed(() => disassembleArm(bytes, ORIGIN, ORIGIN, 'arm2'));
     expect(value.rows.filter((row) => row.kind === 'instruction').length).toBe(words);
     expect(value.rows[0]!.references.length).toBe(words);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles words that decode to nothing this reader knows', () => {
     const bytes = new Uint8Array(64 * 1024 * 4).fill(0xf7);
     const { value, durationMs } = timed(() => disassembleArm(bytes, 0x8000, 0x8000, 'arm2'));
     expect(value.rows.length).toBeGreaterThan(0);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 });
 
@@ -180,7 +187,7 @@ describe('the byte inspector against its worst inputs', () => {
     expect(value.total).toBe(BANK);
     expect(value.offsets.length).toBeLessThanOrEqual(10_000);
     expect(value.truncated).toBe(true);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles the near-miss pattern that is the classic worst case for a plain scan', () => {
@@ -191,7 +198,7 @@ describe('the byte inspector against its worst inputs', () => {
     const needle = `${'61'.repeat(255)}62`;
     const { value, durationMs } = timed(() => searchArtifact(haystack, needle, 'hex'));
     expect(value.total).toBe(0);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles two images that differ at every byte', () => {
@@ -201,13 +208,13 @@ describe('the byte inspector against its worst inputs', () => {
     expect(value.changed).toBe(BANK);
     expect(value.differences.length).toBeLessThanOrEqual(512);
     expect(value.truncated).toBe(true);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles a comparison where one image is entirely additional', () => {
     const { value, durationMs } = timed(() => compareArtifacts(new Uint8Array(), new Uint8Array(BANK).fill(0x41)));
     expect(value.added).toBe(BANK);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 });
 
@@ -224,7 +231,7 @@ describe('the BASIC readers against their worst inputs', () => {
     parts.push(0x0d, 0xff);
     const { value, durationMs } = timed(() => decodeTokenizedBasic(Uint8Array.from(parts)));
     expect(value?.lines.length).toBe(20000);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('refuses a line claiming a length the file does not have, without scanning for it', () => {
@@ -233,14 +240,14 @@ describe('the BASIC readers against their worst inputs', () => {
     const bytes = new Uint8Array(BANK);
     bytes[0] = 0x0d; bytes[1] = 0x00; bytes[2] = 0x0a; bytes[3] = 0xff;
     const { durationMs } = timed(() => decodeTokenizedBasic(bytes));
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('handles a large plain-text file', () => {
     const text = new TextEncoder().encode('10 PRINT "HELLO"\n'.repeat(20000));
     const { value, durationMs } = timed(() => { isProbablyText(text); return decodePlainText(text); });
     expect(value.length).toBeGreaterThan(300000);
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 });
 
@@ -250,12 +257,12 @@ describe('the media readers against their worst inputs', () => {
      * for as long as the reader will let them. */
     const image = new Uint8Array(800 * 1024).fill(0x0d);
     const { durationMs } = timed(() => { try { parseAdfsCatalogue(image); } catch { /* refusing is the expected outcome */ } });
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 
   it('refuses a DFS catalogue of maximum declared size without walking the whole disc', () => {
     const image = new Uint8Array(200 * 1024).fill(0xff);
     const { durationMs } = timed(() => { try { parseDfsCatalogue(image); } catch { /* refusing is the expected outcome */ } });
-    expect(durationMs).toBeLessThan(CEILING_MS);
+    expect(durationMs).toBeLessThan(ceilingMs());
   });
 });
