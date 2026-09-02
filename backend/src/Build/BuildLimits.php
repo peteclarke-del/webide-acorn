@@ -29,6 +29,9 @@ final class BuildLimits
      * refused, because a limit short enough to cut off honest work would turn
      * every slow build into a fabricated timeout.
      */
+    /** Most files one build may name in SAVE directives. */
+    public const SAVE_DIRECTIVES = 64;
+
     public const STAGE_SECONDS = 5.0;
     public const STAGE_SECONDS_MINIMUM = 1.0;
     public const STAGE_SECONDS_MAXIMUM = 60.0;

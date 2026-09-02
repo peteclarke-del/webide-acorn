@@ -19,6 +19,30 @@ final class BeebAsmSourcePolicyTest extends TestCase
         (new BeebAsmSourcePolicy())->validate(NativeBuildRequest::fromArray($payload)); self::addToAssertionCount(1);
     }
 
+    public function testAllowsTheSeveralNamedSavesARealProjectWrites(): void
+    {
+        /* A project that emits a loader, a resident part and a game writes a
+         * named SAVE for each. Refusing them all meant no project written for
+         * BeebAsm could be built here, which is what Graveyard Shift ran into:
+         * every one of its twenty-one sources saves by name. */
+        $payload = $this->payload("ORG &1900\n.start\nINCLUDE \"lib.asm\"\nSAVE \"build/game\", start, P%, start\nSAVE \"build/rules\", start, P%\n");
+        $payload['files'][] = ['id' => 'lib', 'name' => 'lib.asm', 'content' => "LDA #&41\nRTS\n"];
+        (new BeebAsmSourcePolicy())->validate(NativeBuildRequest::fromArray($payload)); self::addToAssertionCount(1);
+    }
+
+    public function testResolvesAnIncludeTheWayBeebAsmDoes(): void
+    {
+        /* BeebAsm resolves an INCLUDE against the directory it was run from,
+         * so a project assembled from its own root writes the path from there
+         * even inside a file that is itself in a subdirectory. Resolving only
+         * beside the including file reported every such project as missing its
+         * own sources. */
+        $payload = $this->payload("ORG &1900\n.start\nINCLUDE \"src/lib.asm\"\nSAVE start,P%,start\n");
+        $payload['files'][0]['name'] = 'src/main.asm';
+        $payload['files'][] = ['id' => 'lib', 'name' => 'src/lib.asm', 'content' => "LDA #&41\nRTS\n"];
+        (new BeebAsmSourcePolicy())->validate(NativeBuildRequest::fromArray($payload)); self::addToAssertionCount(1);
+    }
+
     /** @return iterable<string, array{string, string}> */
     public static function rejected(): iterable
     {
@@ -28,10 +52,13 @@ final class BeebAsmSourcePolicyTest extends TestCase
         yield 'colon directive bypass' => ["ORG &1900:INCBIN \"/etc/passwd\"\nSAVE &1900,&1901", 'BEEBASM_FILESYSTEM_DIRECTIVE'];
         yield 'putfile' => ["PUTFILE \"/etc/passwd\",\"X\",0\nSAVE &1900,&1901", 'BEEBASM_FILESYSTEM_DIRECTIVE'];
         yield 'dynamic assembly' => ["ASM \"INCBIN \\\"/etc/passwd\\\"\"\nSAVE &1900,&1901", 'BEEBASM_FILESYSTEM_DIRECTIVE'];
-        yield 'filename save' => ["ORG &1900\nRTS\nSAVE \"/tmp/out\",&1900,P%", 'BEEBASM_SAVE_FILENAME'];
+        yield 'absolute save' => ["ORG &1900\nRTS\nSAVE \"/tmp/out\",&1900,P%", 'BEEBASM_SAVE_FILENAME'];
+        yield 'save climbing out of the build' => ["ORG &1900\nRTS\nSAVE \"../out\",&1900,P%", 'BEEBASM_SAVE_FILENAME'];
+        yield 'save into the adapter directory' => ["ORG &1900\nRTS\nSAVE \".build/output.bin\",&1900,P%", 'BEEBASM_SAVE_FILENAME'];
+        yield 'save over a source of this build' => ["ORG &1900\nRTS\nSAVE \"main.asm\",&1900,P%", 'BEEBASM_SAVE_FILENAME'];
         yield 'source cpu' => ["CPU 1\nORG &1900\nRTS\nSAVE &1900,P%", 'BEEBASM_CPU_OWNED'];
         yield 'time dependent expression' => ["ORG &1900\nEQUS TIME$\nSAVE &1900,P%", 'BEEBASM_NONDETERMINISTIC'];
-        yield 'two saves' => ["ORG &1900\nRTS\nSAVE &1900,P%\nSAVE &1900,P%", 'BEEBASM_SAVE_COUNT'];
+        yield 'no save at all' => ["ORG &1900\nRTS", 'BEEBASM_SAVE_COUNT'];
     }
 
     #[DataProvider('rejected')]

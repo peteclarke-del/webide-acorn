@@ -47,6 +47,16 @@ final class BeebAsmBuildService
                 if (!is_dir($directory) && !mkdir($directory, 0700, true)) throw new ApiProblem(500, 'BUILD_JOB_CREATE', 'Could not create a project directory.', true);
                 if (file_put_contents($path, $file['content'], LOCK_EX) !== strlen($file['content'])) throw new ApiProblem(500, 'BUILD_JOB_WRITE', 'Could not stage a project source file.', true);
             }
+            /* A named SAVE writes where the source says and BeebAsm does not
+             * create the directory, so a project that saves into build/ would
+             * assemble to the end and then fail to write. */
+            foreach ($this->parser->saveDirectories($request->files) as $directory) {
+                $path = $job.'/'.$directory;
+                if (!is_dir($path) && !@mkdir($path, 0700, true) && !is_dir($path)) {
+                    throw new ApiProblem(500, 'BUILD_JOB_CREATE', sprintf('Could not create %s for this build to save into.', $directory), true);
+                }
+            }
+
             $root = $this->fileById($request, $request->sourceUnitIds[0]);
             $wrapper = sprintf("CPU %d\nINCLUDE \"%s\"\n", $request->processor === '6502' ? 0 : 1, $root['name']);
             file_put_contents($job.'/.build/entry.asm', $wrapper, LOCK_EX);
@@ -64,8 +74,18 @@ final class BeebAsmBuildService
             $artifact = null; $artifactRecord = []; $bytes = '';
             if ($process['reason'] === 'succeeded' && $errors === 0) {
                 $path = $job.'/.build/output.bin';
+                /* BeebAsm writes the -o output only for a SAVE that names no
+                 * file. A project whose SAVEs are all named — which is every
+                 * project that builds more than one binary — produced nothing
+                 * there, and was told it had not built. What it saved is the
+                 * build, so those files are the artifact instead. */
+                $saved = $this->savedArtifact($job, $combined, $request);
+                if (!file_exists($path) && $saved !== null) {
+                    $path = $saved['path'];
+                    $diagnostics[] = ['severity' => 'info', 'message' => $saved['detail'], 'line' => 1, 'column' => 1, 'fileId' => $root['id'], 'fileName' => $root['name']];
+                }
                 if (!file_exists($path)) {
-                    $diagnostics[] = ['severity' => 'error', 'message' => 'BeebAsm completed without the required filename-free SAVE output.', 'line' => 1, 'column' => 1, 'stage' => 'collect', 'fileId' => $root['id'], 'fileName' => $root['name']]; ++$errors;
+                    $diagnostics[] = ['severity' => 'error', 'message' => $this->noOutputMessage($combined), 'line' => 1, 'column' => 1, 'stage' => 'collect', 'fileId' => $root['id'], 'fileName' => $root['name']]; ++$errors;
                 } else {
                     $this->regular($path, 'BeebAsm binary'); $size = filesize($path);
                     if ($size === false || $size > BuildLimits::ARTIFACT_BYTES) throw new ApiProblem(400, 'BUILD_ARTIFACT_TOO_LARGE', 'BeebAsm binary exceeded the artifact limit.');
@@ -103,5 +123,55 @@ final class BeebAsmBuildService
     private function safeText(string $path): string { if (!file_exists($path)) return ''; $this->regular($path, 'generated document'); $size = filesize($path); if ($size === false || $size > BuildLimits::FILE_BYTES) throw new ApiProblem(400, 'BUILD_DOCUMENT_LIMIT', 'Generated document exceeded its limit.'); return (string) file_get_contents($path); }
     private function regular(string $path, string $label): void { if (is_link($path) || !is_file($path) || filetype($path) !== 'file') throw new ApiProblem(400, 'BUILD_OUTPUT_INVALID', $label.' was not a regular file.'); }
     private function terminalMessage(string $reason): string { return $reason === 'timeout' ? 'BeebAsm exceeded its wall-clock limit.' : ($reason === 'output-limit' ? 'BeebAsm exceeded its output limit.' : 'BeebAsm stopped without a parsed diagnostic.'); }
+    /**
+     * The saved file this build should answer with, or null if there is none.
+     *
+     * A build target names its output, and a project that saves several
+     * binaries needs somebody to say which of them is the one being built.
+     * Matching that name is the answer; a single saved file is the answer when
+     * nothing matches, because there is nothing else it could be; and several
+     * that match nothing is a question rather than a guess, answered by the
+     * message below.
+     *
+     * @return array{path: string, detail: string}|null
+     */
+    private function savedArtifact(string $job, string $output, NativeBuildRequest $request): ?array
+    {
+        $saved = array_values(array_filter(
+            $this->parser->savedFiles($output),
+            static fn (string $name): bool => $name !== '' && $name[0] !== '/' && !preg_match('#(^|/)\.\.(/|$)#', $name),
+        ));
+        $present = array_values(array_filter($saved, static fn (string $name): bool => is_file($job.'/'.$name)));
+        if ($present === []) {
+            return null;
+        }
+
+        $wanted = $request->outputName;
+        foreach ($present as $name) {
+            if ($name === $wanted || basename($name) === $wanted || basename($name) === basename($wanted)) {
+                return ['path' => $job.'/'.$name, 'detail' => sprintf('Answered with %s, the file this target names.', $name)];
+            }
+        }
+        if (count($present) === 1) {
+            return ['path' => $job.'/'.$present[0], 'detail' => sprintf('Answered with %s, the only file this build saved.', $present[0])];
+        }
+
+        return null;
+    }
+
+    /** What to say when a build produced no output this adapter can answer with. */
+    private function noOutputMessage(string $output): string
+    {
+        $saved = $this->parser->savedFiles($output);
+        if ($saved === []) {
+            return 'BeebAsm completed without the required filename-free SAVE output.';
+        }
+
+        return sprintf(
+            'BeebAsm saved %s but none of them is this target\'s output and there is more than one, so which is the build cannot be decided here. Set the target output name to one of them.',
+            implode(', ', $saved),
+        );
+    }
+
     private function fingerprint(string $bytes): string { $hash = 0x811c9dc5; for ($i = 0; $i < strlen($bytes); ++$i) { $hash ^= ord($bytes[$i]); $hash = ($hash * 0x01000193) & 0xffffffff; } return str_pad(dechex($hash), 8, '0', STR_PAD_LEFT); }
 }
