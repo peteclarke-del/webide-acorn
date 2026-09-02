@@ -27,6 +27,9 @@ import { setNodeBasePath } from 'jsbeeb/src/utils.js';
 export const RUNS = Object.freeze([
   { templateId: 'bbc-b-mode7-6502', model: 'B', origin: 0x1900, read: 'wrchv' },
   { templateId: 'master-mode7-6502', model: 'Master', origin: 0x1900, read: 'wrchv' },
+  /* The B+ is not one of the engine's machines, so this one is built here; the
+   * script that measures it boots it the same way and asks the same questions. */
+  { templateId: 'bbc-bplus-shadow-6502', model: 'BPlus', origin: 0x1900, read: 'wrchv' },
   /* The Atom's characters do not pass through a vector this harness can watch,
    * so its screen memory is read instead — in the Atom's own character codes,
    * where 0x00-0x1F are @A-Z[\]^_ and 0x20-0x3F the digits and punctuation. */

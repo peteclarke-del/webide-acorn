@@ -26,11 +26,11 @@ describe('the shipped template catalogue', () => {
   });
 
   it('ships a starter for every machine this build can run, each with unique identity', () => {
-    expect(TEMPLATE_CATALOGUE).toHaveLength(5);
-    expect(new Set(TEMPLATE_CATALOGUE.map((template) => template.id)).size).toBe(5);
+    expect(TEMPLATE_CATALOGUE).toHaveLength(6);
+    expect(new Set(TEMPLATE_CATALOGUE.map((template) => template.id)).size).toBe(6);
     /* One per runnable 6502 machine, and a second for the Model B in BASIC. */
     expect([...new Set(TEMPLATE_CATALOGUE.map((template) => template.target.machineId))].sort())
-      .toEqual(['atom', 'bbc-b', 'electron', 'master']);
+      .toEqual(['atom', 'bbc-b', 'bbc-bplus', 'electron', 'master']);
   });
 
   it('records where every template came from and under what licence', () => {
@@ -222,6 +222,6 @@ describe('every starter a machine offers', () => {
 
   it('gives each of the machines this build can run one to start from', () => {
     const withStarters = new Set(TEMPLATE_CATALOGUE.filter((candidate) => candidate.language === '6502').map((candidate) => candidate.target.machineId));
-    expect([...withStarters].sort()).toEqual(['atom', 'bbc-b', 'electron', 'master']);
+    expect([...withStarters].sort()).toEqual(['atom', 'bbc-b', 'bbc-bplus', 'electron', 'master']);
   });
 });

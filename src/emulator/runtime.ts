@@ -1,5 +1,6 @@
 import { fake6502 } from 'jsbeeb/src/fake6502.js';
 import { findModel } from 'jsbeeb/src/models.js';
+import { createBPlusCpu, resolveMachineModel } from './bbcBPlus';
 import { Video } from 'jsbeeb/src/video.js';
 import { Keyboard } from 'jsbeeb/src/keyboard.js';
 import { discFor } from 'jsbeeb/src/fdc.js';
@@ -298,8 +299,12 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   keyRemaps = new Map(validateMachineKeyRemaps(requestedKeyRemaps).map((remap) => [remap.hostCode, remap.targetCode]));
   if (runtimeSessionManifest.id !== debugSessionId || runtimeSessionManifest.adapter.id !== 'jsbeeb' || runtimeSessionManifest.machine.model !== modelName || runtimeSessionManifest.machine.romSetId !== romSetId) throw new Error('Runtime session manifest does not match this jsbeeb child or resolved machine profile');
   if (!Array.isArray(extraRoms) || extraRoms.length > 8 || extraRoms.some((path) => typeof path !== 'string' || path.length > 160 || path.includes('..') || path.startsWith('/') || !/^[a-zA-Z0-9._/-]+$/.test(path))) throw new Error('Invalid sideways ROM manifest');
-  const model = findModel(modelName);
-  if (!model) throw new Error(`Unsupported jsbeeb model ${modelName}`);
+  /* The B+ is this build's, on top of the engine's Model B; everything else is
+   * the engine's own. Asking through one place means a machine that is absent
+   * is absent for a stated reason rather than by a lookup returning nothing. */
+  const resolved = resolveMachineModel(modelName, findModel);
+  if (!resolved) throw new Error(`Unsupported jsbeeb model ${modelName}`);
+  const { model, bplus } = resolved;
   setStatus(`Loading ${model.name}`);
   setBaseUrl(`/user-roms/${encodeURIComponent(romSetId)}/`);
   framebuffer = new Uint32Array(WIDTH * HEIGHT);
@@ -309,7 +314,9 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   browserAudio = new BrowserAudio(model.isAtom, model.cyclesPerSecond);
   audioEnabled = false;
   runtimeSpeed = 1;
-  cpu = fake6502(model, { video, tube, soundChip: browserAudio.soundChip });
+  cpu = bplus
+    ? createBPlusCpu<typeof model, JsBeebCpu>(model, { video, soundChip: browserAudio.soundChip })
+    : fake6502(model, { video, tube, soundChip: browserAudio.soundChip });
   analogueJoystickChannels = [0x8000, 0x8000, 0x8000, 0x8000];
   atomMmcGamepadButtons = Array<boolean>(16).fill(false);
   if (model.isAtom && cpu.atommc) cpu.atommc.attachGamepad({ gamepadButtons: atomMmcGamepadButtons });

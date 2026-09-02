@@ -103,6 +103,43 @@ export const ROM_SETS: RomSetDefinition[] = [
     ],
   },
   {
+    /*
+     * The BBC Model B+, on the machine this build adds to the engine.
+     *
+     * The operating system is 16 KB. On a real B+ 64K it shares one 32 KB part
+     * at IC71 with BASIC II — the operating system in the upper half — so a
+     * dump of that part has to be split, and the two halves supplied here as
+     * the operating system and the language. A B+ 128 dump of OS 2.00 on its
+     * own is 16 KB already.
+     *
+     * The filing system is a 1770 DFS, not the Model B's 8271 one: a B+ has the
+     * 1770 controller, and the earlier DFS drives hardware it does not have.
+     */
+    id: 'bplus-os', machineIds: ['bbc-bplus'], label: 'B+ MOS 2.00 + BASIC II + 1770 DFS', adapterModel: 'BPlus', engine,
+    requirements: [
+      rom('os', 'B+ MOS 2.00', 'bplus/os2.rom', [16384], 'operating-system', true, undefined, {
+        provenanceNote: 'The upper half of the 32 KiB part at IC71 on a B+ 64K, or a 16 KiB OS 2.00 dump on its own. The machine introduces itself as Acorn OS 64K when this is right.',
+      }),
+      rom('basic', 'BBC BASIC II', 'bplus/BASIC2.ROM', [16384], 'language', true, undefined, {
+        provenanceNote: 'The lower half of that same 32 KiB part, or BASIC II on its own; they are the same image.',
+      }),
+      rom('dfs', '1770 DFS', 'bplus/dfs223.rom', [16384], 'filing-system'),
+      bbcWifi(),
+    ],
+  },
+  {
+    id: 'bplus-adfs', machineIds: ['bbc-bplus'], label: 'B+ MOS 2.00 + BASIC II + ADFS', adapterModel: 'BPlusADFS', engine,
+    requirements: [
+      rom('os', 'B+ MOS 2.00', 'bplus/os2.rom', [16384], 'operating-system'),
+      rom('basic', 'BBC BASIC II', 'bplus/BASIC2.ROM', [16384], 'language'),
+      /* ADFS takes the higher bank so it wins the filing system, which is the
+       * ordering the engine already uses for the Model B's ADFS set. */
+      rom('adfs', 'ADFS 1.30', 'bplus/adfs130.rom', [16384], 'filing-system'),
+      rom('dfs', '1770 DFS', 'bplus/dfs223.rom', [16384], 'filing-system'),
+      bbcWifi(),
+    ],
+  },
+  {
     id: 'mos320', machineIds: ['master'], label: 'Master MOS 3.20', adapterModel: 'Master', engine,
     requirements: [rom('mos320', 'Master MOS 3.20 combined image', 'master/mos3.20', [131072], 'operating-system'), rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube'), bbcWifi()],
   },

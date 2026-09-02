@@ -171,6 +171,80 @@ ORG &1900
 .program_end
 `;
 
+const BPLUS_ASM = `; Shadow-screen starter for the BBC Model B+.
+;
+; A complete, buildable program that does the smallest useful thing, and does
+; the one thing a Model B cannot: it selects a shadow screen mode, prints a line
+; through the operating system, waits for a key, and returns to BASIC cleanly.
+; Everything you write goes between .start and .finish.
+;
+; Only documented OS entry points are used, and they are the BBC's:
+;   OSWRCH (&FFEE) writes one character to the current output stream.
+;   OSRDCH (&FFE0) reads one character from the current input stream.
+;   OSNEWL (&FFE7) writes a newline.
+;
+; The mode number is what makes this a B+ program. Adding 128 to a mode asks for
+; it in shadow memory: the screen comes out of the twenty kilobytes the B+ has
+; for it rather than out of yours. On this machine MODE 128 leaves HIMEM at
+; &8000; on a Model B the same screen would take it down to &3000 and leave you
+; five kilobytes short of where you started.
+
+; Zero-page workspace. &70 upwards is reserved for the user by the OS.
+string_pointer = &70
+
+OSWRCH = &FFEE
+OSRDCH = &FFE0
+OSNEWL = &FFE7
+
+ORG &1900
+
+.start
+  JSR select_shadow_mode
+  LDX #<banner
+  LDY #>banner
+  JSR print_string
+  JSR OSNEWL
+  LDX #<prompt
+  LDY #>prompt
+  JSR print_string
+  JSR OSRDCH
+  JSR OSNEWL
+.finish
+  RTS
+
+; MODE 135 is MODE 7 with 128 added: the teletext screen, in shadow memory.
+.select_shadow_mode
+  LDA #22
+  JSR OSWRCH
+  LDA #135
+  JSR OSWRCH
+  RTS
+
+; Print the zero-terminated string whose address is in X (low) and Y (high).
+.print_string
+  STX string_pointer
+  STY string_pointer + 1
+  LDY #0
+.print_string_loop
+  LDA (string_pointer),Y
+  BEQ print_string_done
+  JSR OSWRCH
+  INY
+  BNE print_string_loop
+.print_string_done
+  RTS
+
+.banner
+  EQUS "8BIT-NET DEV"
+  EQUB 0
+
+.prompt
+  EQUS "Press any key."
+  EQUB 0
+
+.program_end
+`;
+
 export const TEMPLATE_CATALOGUE_SCHEMA = '8bit-net.template-catalogue';
 export const TEMPLATE_CATALOGUE_VERSION = 1;
 
@@ -382,6 +456,35 @@ export const TEMPLATE_CATALOGUE: readonly ProjectTemplate[] = Object.freeze([
       author: '8bit-net Dev',
       licence: 'MIT',
       note: 'Written for this product and run on a real Electron. It calls documented OS entry points, which are an interface rather than a work; nothing is copied from Acorn firmware or from any published listing.',
+    },
+  }),
+  Object.freeze({
+    id: 'bbc-bplus-shadow-6502',
+    name: 'BBC Model B+ · shadow screen starter',
+    summary: 'A buildable 6502 program that does the one thing a Model B cannot: it takes a screen out of shadow memory and keeps the RAM it would have cost.',
+    language: '6502' as const,
+    target: {
+      platformClass: '8-16-bit',
+      machineId: 'bbc-bplus',
+      variant: 'B+ 64K',
+      romId: 'bplus-os',
+      enabledCapabilities: ['shadow', 'dfs', 'cassette'],
+    },
+    requiredCapabilities: ['shadow'],
+    toolchainId: '8bit-net.asm.6502' as ToolchainId,
+    entryFileName: 'main.asm',
+    outputName: 'STARTER',
+    files: [{ name: 'main.asm', content: BPLUS_ASM }],
+    highlights: [
+      'Adds 128 to the mode number, which is how a B+ asks for its screen in shadow memory',
+      'Uses the same documented entry points as a Model B, because a B+ keeps them',
+      'Leaves the twelve kilobytes at &8000 alone: the paged RAM is there when a program wants it, not by default',
+      'Returns cleanly to BASIC, which was checked on the machine rather than assumed',
+    ],
+    provenance: {
+      author: '8bit-net Dev',
+      licence: 'MIT',
+      note: 'Written for this product and run on the B+ this build adds to the engine. It calls documented OS entry points, which are an interface rather than a work; nothing is copied from Acorn firmware or from any published listing.',
     },
   }),
   Object.freeze({

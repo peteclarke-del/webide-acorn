@@ -73,6 +73,33 @@ the release gate whenever it stops matching the code.
 | 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `os12-basic2-adfs/tube/6502Tube.rom` | — |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `os12-basic2-adfs/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
+### B+ MOS 2.00 + BASIC II + 1770 DFS
+
+- Machines: Acorn BBC B+
+- Engine: jsbeeb 1.19.1
+- Adapter model: `BPlus`
+
+| ROM | Purpose | Needed | Accepted length | Vault key | Note |
+| --- | --- | --- | --- | --- | --- |
+| B+ MOS 2.00 | operating system | required | 16 KiB | `bplus-os/bplus/os2.rom` | The upper half of the 32 KiB part at IC71 on a B+ 64K, or a 16 KiB OS 2.00 dump on its own. The machine introduces itself as Acorn OS 64K when this is right. |
+| BBC BASIC II | language | required | 16 KiB | `bplus-os/bplus/BASIC2.ROM` | The lower half of that same 32 KiB part, or BASIC II on its own; they are the same image. |
+| 1770 DFS | filing system | required | 16 KiB | `bplus-os/bplus/dfs223.rom` | — |
+| 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `bplus-os/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
+
+### B+ MOS 2.00 + BASIC II + ADFS
+
+- Machines: Acorn BBC B+
+- Engine: jsbeeb 1.19.1
+- Adapter model: `BPlusADFS`
+
+| ROM | Purpose | Needed | Accepted length | Vault key | Note |
+| --- | --- | --- | --- | --- | --- |
+| B+ MOS 2.00 | operating system | required | 16 KiB | `bplus-adfs/bplus/os2.rom` | — |
+| BBC BASIC II | language | required | 16 KiB | `bplus-adfs/bplus/BASIC2.ROM` | — |
+| ADFS 1.30 | filing system | required | 16 KiB | `bplus-adfs/bplus/adfs130.rom` | — |
+| 1770 DFS | filing system | required | 16 KiB | `bplus-adfs/bplus/dfs223.rom` | — |
+| 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `bplus-adfs/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
+
 ### Master MOS 3.20
 
 - Machines: BBC Master Series

@@ -52,6 +52,13 @@ export const STARTER_TEMPLATE_RUNS: readonly StarterTemplateRun[] = Object.freez
     basicAnsweredAfterwards: true,
   },
   {
+    templateId: 'bbc-bplus-shadow-6502',
+    model: 'BPlus',
+    call: 'CALL &1900',
+    shown: 'CALL &1900\n8BIT-NET DEV\nPress any key.\n>\n>PRINT 6*7\n        42\n>',
+    basicAnsweredAfterwards: true,
+  },
+  {
     templateId: 'atom-text-6502',
     model: 'Atom-Tape',
     call: 'LINK#2900',

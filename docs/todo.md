@@ -7966,17 +7966,17 @@ the whole line on one machine without leaving the workbench.
 
 | Stage | Atom | Electron | BBC B | B+ | Master |
 | --- | --- | --- | --- | --- | --- |
-| Project and firmware | yes | yes | yes | **no ROM set** | MOS 3.20 only |
+| Project and firmware | yes | yes | yes | yes | MOS 3.20 and 3.50 |
 | Author 6502 source | yes | yes | yes | yes | yes |
-| Start from a template | yes | yes | yes | no | yes |
+| Start from a template | yes | yes | yes | yes | yes |
 | Author graphics | yes | yes | yes | yes | yes |
 | Author sound | yes | yes | yes | yes | yes |
 | Build | yes | yes | yes | yes | yes |
-| Run | yes | yes | yes | **no engine** | yes |
-| Debug | yes | yes | yes | **no engine** | yes |
-| Package to media | ATM and tape | tape | DFS and tape | none | DFS and tape |
-| Boot the packaged media | tape, yes | tape, yes | yes | **no** | yes |
-| The whole line, unattended | yes | yes | yes | refuses, stating why | yes |
+| Run | yes | yes | yes | yes | yes |
+| Debug | yes | yes | yes | yes | yes |
+| Package to media | ATM and tape | tape | DFS and tape | DFS and tape | DFS and tape |
+| Boot the packaged media | tape, yes | tape, yes | yes | yes | yes |
+| The whole line, unattended | yes | yes | yes | yes | yes |
 
 - [x] GAME-001 Author an Acorn tape image from built files, for the BBC/Electron
   block format and the Atom's, so a game can leave the workbench on the medium
@@ -8017,9 +8017,30 @@ the whole line on one machine without leaving the workbench.
   machine's own scale of forty-eight pitch units to the octave — measured, at
   `src/assets/electronSoundMeasurements.ts` — and generates a player that uses
   channel 1 with no channel loop, because there is nothing to loop over.
-- [ ] GAME-004 Run a BBC B+. It is the one machine of the five with no engine at
-  all: jsbeeb 1.19.1 publishes no B+ model, so nothing here can execute its
-  shadow or sideways behaviour, and no ROM set is registered for it.
+- [x] GAME-004 Run a BBC B+. jsbeeb publishes no B+ — not in the pinned 1.19.1
+  and not in the current 1.22.4 — so this build adds one, in
+  `src/emulator/bbcBPlus.ts`: the engine's Model B with the two things that make
+  a B+ a B+, written against the engine's own memory tables rather than by
+  forking it. Twelve kilobytes of paged RAM at &8000 that ROMSEL bit 7 brings
+  in, and twenty kilobytes of shadow screen selected through &FE34.
+
+  Both were checked by asking the machine. It introduces itself as
+  `Acorn OS 64K`, which is what a B+ says and what a Model B does not. A shadow
+  mode leaves HIMEM at &8000 where a Model B would drop it to &3000 for the same
+  screen — the whole reason the machine exists. And a routine that pages the RAM
+  in, writes to &8000 and to &AFFF, then puts the ROM back, reads its own bytes
+  at both ends and the ROM's underneath: a Master's four kilobytes would have
+  failed at the top, which is why the mapping covers twelve.
+
+  The firmware was already in the vault. `scripts/measureBbcBPlus.mjs`
+  reproduces every answer, and `bbcBPlusMeasurements.ts` freezes them where the
+  always-running tests hold the model to them.
+
+  The B+ 128 is described and not offered, and the reason is the machine's own:
+  OS 2.00 counts sideways RAM in banks 0 and 1 and adds a flat thirty-two
+  kilobytes, so nothing that can be fitted makes it report a size Acorn sold a
+  B+ 128 with. Shipping a machine whose operating system contradicts its own
+  name would be worse than not shipping it.
 - [x] GAME-005 Register the Master MOS 3.50 ROM set, and say plainly why the
   Compact cannot follow. MOS 3.50 is the same engine model with a different
   image in its own vault directory, so it is a manifest rather than a fork; the

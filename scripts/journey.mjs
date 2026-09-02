@@ -49,7 +49,7 @@ export const JOURNEYS = Object.freeze([
   Object.freeze({ machineId: 'atom', label: 'Acorn Atom', template: 'atom-text-6502', runnable: true, packages: 'cassette' }),
   Object.freeze({ machineId: 'electron', label: 'Acorn Electron', template: 'electron-mode6-6502', runnable: true, packages: 'cassette' }),
   Object.freeze({ machineId: 'bbc-b', label: 'BBC Model B', template: 'bbc-b-mode7-6502', runnable: true, packages: 'cassette' }),
-  Object.freeze({ machineId: 'bbc-bplus', label: 'BBC Model B+', template: null, runnable: false, packages: null }),
+  Object.freeze({ machineId: 'bbc-bplus', label: 'BBC Model B+', template: 'bbc-bplus-shadow-6502', runnable: true, packages: 'cassette' }),
   Object.freeze({ machineId: 'master', label: 'BBC Master', template: 'master-mode7-6502', runnable: true, packages: 'cassette' }),
 ]);
 

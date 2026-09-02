@@ -33,17 +33,17 @@ describe('the authoring journey', () => {
     }
   });
 
-  it('expects the machine with no engine to refuse, and to be walked anyway', () => {
-    const refusing = JOURNEYS.filter((journey) => !journey.runnable);
-    expect(refusing.map((journey) => journey.machineId)).toEqual(['bbc-bplus']);
-    for (const journey of refusing) {
-      expect(journey.template, `${journey.machineId} offers no template`).toBeNull();
-      /* Every firmware it lists must carry the reason the walk asserts. */
+  it('walks every one of them, because every one of them now runs', () => {
+    /* The B+ was the exception, walked only to check it refused honestly. It
+     * runs now, on a machine this build adds to the engine, so it is walked the
+     * same way as the rest — and if that ever regresses, this is what says so
+     * rather than the journey quietly expecting a refusal again. */
+    expect(JOURNEYS.every((journey) => journey.runnable)).toBe(true);
+    for (const journey of JOURNEYS) {
       const machine = machineProfiles.find((candidate) => candidate.id === journey.machineId)!;
-      for (const rom of machine.roms) {
-        expect(romSetFor(machine.id, rom.id), `${rom.id} does not resolve`).toBeUndefined();
-        expect(rom.unavailableReason, `${rom.id} says why`).toBeTruthy();
-      }
+      expect(machine.roms.length, `${journey.machineId} offers firmware`).toBeGreaterThan(0);
+      const resolvable = machine.roms.filter((rom) => romSetFor(machine.id, rom.id));
+      expect(resolvable.length, `${journey.machineId} has a firmware set that resolves`).toBeGreaterThan(0);
     }
   });
 

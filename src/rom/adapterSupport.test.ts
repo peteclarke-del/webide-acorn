@@ -3,6 +3,7 @@ import { allModels } from 'jsbeeb/src/models.js';
 import { ADAPTER_SUPPORT, adapterSupportFor, adapterSupportSummary } from './adapterSupport';
 import { machineProfiles } from '../data/machines';
 import { ROM_SETS } from './romProfiles';
+import { BPLUS_MODELS } from '../emulator/bbcBPlus';
 
 /** Every selectable synonym the pinned engine actually publishes. */
 const engineSynonyms = new Set<string>(allModels.flatMap((model) => model.synonyms));
@@ -14,25 +15,43 @@ describe('adapter support matrix', () => {
     }
   });
 
-  it('names only models the pinned engine really publishes', () => {
+  it('names only models the pinned engine publishes, or ones this build adds and says so', () => {
+    /* The distinction matters. A model this build supplies is a claim about
+     * code somebody here wrote and has to have checked; a model the engine
+     * publishes is a claim about the engine. Letting the first pass as the
+     * second is how a machine ends up advertised because a name was typed. */
+    const added = new Set(BPLUS_MODELS.map((model) => model.synonym));
     for (const support of ADAPTER_SUPPORT) {
       if (support.engine?.id !== 'jsbeeb') continue;
       for (const model of support.engineModels) {
-        expect(engineSynonyms.has(model), `${support.machineId} claims model ${model}`).toBe(true);
+        expect(engineSynonyms.has(model) || added.has(model), `${support.machineId} claims model ${model}`).toBe(true);
       }
     }
   });
 
-  it('claims no model for a machine no engine in this build implements', () => {
-    /* jsbeeb 1.19.1 publishes no B+ model. If a future engine adds one this
-     * test fails, which is the point: the claim must follow the code. */
-    const support = adapterSupportFor('bbc-bplus');
-    expect(support.state).toBe('no-engine-model');
-    expect(support.engineModels).toEqual([]);
-    expect(support.engine).toBeNull();
-    expect(support.limitation).toMatch(/no .* model/i);
-    expect(support.limitation).toMatch(/would not change that/);
+  it('adds the B+ itself, because the engine has none', () => {
+    /* If a future engine publishes a B+ this fails, which is the point: the
+     * machine should then come from the engine rather than from here. */
     expect([...engineSynonyms].some((name) => /b\+|bplus/i.test(name))).toBe(false);
+    const support = adapterSupportFor('bbc-bplus');
+    expect(support.engineModels).toEqual(BPLUS_MODELS.map((model) => model.synonym));
+    for (const model of BPLUS_MODELS) {
+      expect(engineSynonyms.has(model.derivedFrom), `${model.synonym} is built on ${model.derivedFrom}`).toBe(true);
+    }
+  });
+
+  it('runs the B+, and says which parts of it were shown rather than assumed', () => {
+    const support = adapterSupportFor('bbc-bplus');
+    expect(support.state).toBe('runnable');
+    expect(support.engine?.id).toBe('jsbeeb');
+    expect(support.romSetIds).toEqual(['bplus-os', 'bplus-adfs']);
+    /* The two things that make a B+ a B+, and the machine's own words for
+     * each. A limitation that only said "supported" would be worth nothing. */
+    expect(support.limitation).toMatch(/Acorn OS 64K/);
+    expect(support.limitation).toMatch(/HIMEM at &8000/);
+    expect(support.limitation).toMatch(/&AFFF/);
+    /* And the variant that is not offered, with the reason. */
+    expect(support.limitation).toMatch(/B\+ 128/);
   });
 
   it('runs the Electron on either of its two cores, and says what each gives', () => {
@@ -70,7 +89,7 @@ describe('adapter support matrix', () => {
 
   it('reports the machines this build can actually run', () => {
     const runnable = ADAPTER_SUPPORT.filter((entry) => entry.state === 'runnable').map((entry) => entry.machineId).sort();
-    expect(runnable).toEqual(['archimedes-a300', 'atom', 'bbc-b', 'electron', 'master']);
+    expect(runnable).toEqual(['archimedes-a300', 'atom', 'bbc-b', 'bbc-bplus', 'electron', 'master']);
   });
 
   it('advertises a ROM manifest only when its engine can be started', () => {
@@ -110,7 +129,7 @@ describe('adapter support matrix', () => {
   it('summarises each state in words that match what supplying firmware would do', () => {
     expect(adapterSupportSummary(adapterSupportFor('bbc-b'))).toBe('Runs on jsbeeb 1.19.1.');
     expect(adapterSupportSummary(adapterSupportFor('electron'))).toBe('Runs on elkjs ff123355 or elkulator allegro5-6785521, chosen by the ROM set.');
-    expect(adapterSupportSummary(adapterSupportFor('bbc-bplus'))).toBe('No emulator in this build can run this machine.');
+    expect(adapterSupportSummary(adapterSupportFor('bbc-bplus'))).toBe('Runs on jsbeeb 1.19.1.');
     expect(adapterSupportSummary(adapterSupportFor('bbc-a'))).toMatch(/registers no ROM manifest for it yet/);
   });
 

@@ -127,22 +127,27 @@ export const machineProfiles: MachineProfile[] = [
     generation: '1985 · enhanced BBC Micro',
     cpu: 'MOS 6502A @ 2 MHz',
     memory: '64 or 128 KB RAM',
+    /* The 128 is described because Acorn sold it, and is not offered as a
+     * machine to run: its extra sideways RAM makes OS 2.00 report a memory size
+     * no B+ was sold with, so nothing here can show it behaving like one. */
     variants: ['B+ 64K', 'B+ 128K'],
     roms: [
-      {
-        id: 'bplus-os', label: 'B+ MOS + BASIC II + DFS', detail: 'Standard B+ ROM set',
-        unavailableReason: 'No emulator here models a BBC B+. jsbeeb publishes no B+ machine — not in the pinned 1.19.1 and not in the current 1.22.4 — and the B+ is not a Model B with different firmware: it has shadow screen RAM and twelve kilobytes of paged RAM reached through a control register the Model B does not have. Running B+ firmware on the B model would boot, and would be wrong exactly where a B+ program differs from a B one.',
-      },
-      {
-        id: 'bplus-adfs', label: 'B+ MOS + BASIC II + ADFS', detail: 'ADFS storage set',
-        unavailableReason: 'The same obstacle as the DFS set: no emulator here models a BBC B+, so its shadow and paged RAM cannot be executed. The filing system is not what is missing.',
-      },
+      { id: 'bplus-os', label: 'B+ MOS 2.00 + BASIC II + 1770 DFS', detail: 'Standard B+ ROM set' },
+      { id: 'bplus-adfs', label: 'B+ MOS 2.00 + BASIC II + ADFS', detail: 'ADFS storage set' },
     ],
+    /*
+     * The two capabilities that make this machine a B+ rather than a Model B
+     * are supported because the machine demonstrated them, not because the
+     * hardware had them: a shadow mode leaves HIMEM at &8000 where a Model B
+     * drops it to &3000, and the paged RAM answers across all twelve kilobytes
+     * and lifts again cleanly. See src/emulator/bbcBPlusMeasurements.ts.
+     */
     capabilities: [
-      capability('shadow', 'Shadow screen RAM', 'Dedicated display memory', 'supported', true),
-      capability('sideways', 'Sideways RAM', '12 KB or 64 KB banked workspace', 'supported', true),
+      capability('shadow', 'Shadow screen RAM', 'Twenty kilobytes of display memory the program never pays for', 'supported', true),
+      capability('sideways', 'Paged RAM at &8000', 'Twelve kilobytes brought in by ROMSEL bit 7', 'supported', true),
+      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported'),
       capability('dfs', '1770 DFS', 'Disk image mastering', 'supported', true),
-      capability('adfs', 'ADFS', 'Hierarchical filing system', 'preview'),
+      capability('adfs', 'ADFS', 'Hierarchical filing system', 'supported'),
       capability('tube', 'Tube second processor', 'External parasite CPU. Not offered while the pinned core does not complete the Tube boot on a BBC-family host; it does on the Master', 'planned'),
       capability('1mhzpi', '1MHzPi WiFi ROM', 'Development sideways ROM shared with BBC B and Master profiles', 'preview'),
       capability('econet', 'Econet', 'Network interface', 'planned'),

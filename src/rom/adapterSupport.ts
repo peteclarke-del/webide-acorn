@@ -21,6 +21,7 @@
  * model list so it cannot drift.
  */
 import { ROM_SETS } from './romProfiles';
+import { BPLUS_MODELS } from '../emulator/bbcBPlus';
 
 export type AdapterSupportState = 'runnable' | 'no-rom-manifest' | 'no-engine-model';
 
@@ -67,14 +68,24 @@ const ALTERNATE_ENGINES: Record<string, { engine: AdapterEngine; models: string[
   electron: { engine: ELKJS, models: ['Electron'], also: [ELKULATOR] },
 };
 
-/* Model synonyms jsbeeb 1.19.1 provides, by machine. Tube models are fitted to
- * a host by the configuration builder and are not separately selectable, so
- * they are recorded against the hosts that can carry one. */
+/*
+ * The machine models each profile can be started as.
+ *
+ * Most are synonyms jsbeeb 1.19.1 publishes. The two B+ models are not: the
+ * engine has no B+ and this build adds one, on top of the engine's Model B with
+ * the B+'s own paging. They are listed here because what matters to somebody
+ * choosing a machine is whether it starts, not whose code starts it — and the
+ * contract that holds this table to the engine's own list names them as this
+ * build's rather than letting them pass as the engine's.
+ *
+ * Tube models are fitted to a host by the configuration builder and are not
+ * separately selectable, so they are recorded against the hosts that carry one.
+ */
 const ENGINE_MODELS: Record<string, string[]> = {
   atom: ['Atom', 'Atom-Tape', 'Atom-Tape-FP', 'Atom-DOS'],
   'bbc-a': ['B-DFS1.2', 'B-DFS0.9', 'B1770', 'B1770A'],
   'bbc-b': ['B-DFS1.2', 'B-DFS0.9', 'B1770', 'B1770A'],
-  'bbc-bplus': [],
+  'bbc-bplus': [...BPLUS_MODELS.map((model) => model.synonym)],
   master: ['Master', 'MasterADFS', 'MasterANFS'],
 };
 
@@ -86,7 +97,7 @@ const LIMITATIONS: Record<string, string> = {
   atom: 'The tape and tape-with-floating-point models run here. The MMC and DOS models exist in the engine but need firmware images this build does not register a manifest for.',
   'bbc-a': 'jsbeeb models the BBC B; a Model A differs in fitted RAM and interfaces, and this build registers no separate Model A manifest, so it is described but not run.',
   'bbc-b': 'The 8271 DFS and 1770 DFS or ADFS models all run here. A second processor is not offered: the interface is fitted and answers, but this core never hands the language over on a BBC-family host — the parasite runs its own ROM and waits, and its RAM is never written. It does boot on the Master.',
-  'bbc-bplus': 'jsbeeb 1.19.1 has no BBC B+ model, so the B+ shadow and sideways memory behaviour cannot be executed here. Supplying B+ firmware would not change that; the profile is listed because the product models the machine, not because this build can emulate it.',
+  'bbc-bplus': 'The B+ runs here on a machine this build adds, because jsbeeb publishes none — not in the pinned 1.19.1 and not in the current 1.22.4. It is the engine\'s Model B with the two things that make a B+ a B+: the twelve kilobytes of paged RAM at &8000 that ROMSEL bit 7 brings in, and the twenty kilobytes of shadow screen selected through &FE34. Both were checked by asking the machine rather than by reading about it — it introduces itself as Acorn OS 64K, a shadow mode leaves HIMEM at &8000 where a Model B would drop it to &3000, and a write to &AFFF with ANDY paged comes back while the ROM underneath is untouched. What is not offered is the B+ 128: its extra sideways RAM makes this operating system report a size no B+ was sold with, so it is not claimed. A second processor is not offered either, for the same reason as on the Model B.',
   electron: 'The Electron has two cores here and the ROM set chooses between them. The Electron OS + BASIC set runs on the vendored ElkJS core, which models a base 32 KB machine with an operating system and BASIC only, and offers no instruction stepping, breakpoints or hardware test execution because it exposes no per-instruction hook. The Electron + Plus 1 expansions set runs on the Elkulator core built for WebAssembly, which has that hook, so stepping, breakpoints, register writing and key injection are available there; running a test plan is not, because the stop is real but its assertions, captures and teardown are not written yet. Cassette media works and is proved: a tape written here was mounted on that core, the machine was typed *LOAD at, it turned its own cassette motor on and the whole file arrived. Disc media is implemented on the same path and unproved, because an Electron reads discs through a Plus 3 and no ADFS or DFS firmware is registered for one. The remaining expansions are declared and their firmware checkable, but none has been exercised through that core, so each stays marked planned until it has been.',
   master: 'The Master 128 runs here with either its MOS 3.20 or its MOS 3.50 combined image, selecting DFS, ADFS or ANFS. The Master Compact cannot be selected: it is a different machine rather than a Master 128 with later firmware, and this engine models no Compact. A 65C102 Turbo second processor can be fitted through the Tube capability, and is the one machine here where the Tube boot completes: the host records it, the language reaches the parasite, and a conformance case asserting it passes on real hardware. Master Turbo, 512 and Compact are separate machines with no model in this engine.',
   'archimedes-a300': 'The qualified A310 slice runs on the pinned Arculator build. Machine state save and restore stay disabled because that core exposes no complete deterministic serializer.',
