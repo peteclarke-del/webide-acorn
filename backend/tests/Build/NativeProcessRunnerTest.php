@@ -17,9 +17,32 @@ use PHPUnit\Framework\TestCase;
  */
 final class NativeProcessRunnerTest extends TestCase
 {
-    protected function tearDown(): void
+    /* The wall clock is read from the process environment as well as from the
+     * superglobals, because that is where it arrives under `php -S` and in the
+     * gate, which sets NATIVE_STAGE_SECONDS to thirty. A test about what the
+     * default is has to start from nothing configured, or it measures the
+     * machine it happens to run on. */
+    private function forgetTheConfiguredWallClock(): void
     {
         unset($_SERVER[BuildLimits::STAGE_SECONDS_VARIABLE], $_ENV[BuildLimits::STAGE_SECONDS_VARIABLE]);
+        putenv(BuildLimits::STAGE_SECONDS_VARIABLE);
+    }
+
+    private ?string $inheritedWallClock = null;
+
+    protected function setUp(): void
+    {
+        $inherited = getenv(BuildLimits::STAGE_SECONDS_VARIABLE);
+        $this->inheritedWallClock = $inherited === false ? null : $inherited;
+        $this->forgetTheConfiguredWallClock();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->forgetTheConfiguredWallClock();
+        if ($this->inheritedWallClock !== null) {
+            putenv(BuildLimits::STAGE_SECONDS_VARIABLE.'='.$this->inheritedWallClock);
+        }
     }
 
     public function testStopsAToolThatOverrunsAndReportsItAsATimeout(): void
@@ -73,6 +96,7 @@ final class NativeProcessRunnerTest extends TestCase
          * deployment asked for. A limit below a second would also turn honest
          * work into a fabricated timeout. */
         foreach (['0.1', '600', 'soon', ''] as $refused) {
+            $this->forgetTheConfiguredWallClock();
             $_SERVER[BuildLimits::STAGE_SECONDS_VARIABLE] = $refused;
             self::assertSame(5.0, BuildLimits::stageSeconds(), sprintf('%s should have been ignored.', var_export($refused, true)));
         }

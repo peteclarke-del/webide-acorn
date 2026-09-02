@@ -852,7 +852,30 @@ async function measureFirefox(geckodriver, base, probe, runtimePages, runtimePro
     if (json.value?.error) throw new Error(`Firefox ${json.value.error}: ${String(json.value.message).split('\n')[0]}`);
     return json.value;
   };
-  const session = await call('POST', '/session', { capabilities: { alwaysMatch: { browserName: 'firefox', 'moz:firefoxOptions': { args: ['-headless'] } } } });
+  /* Firefox headless on a machine with no GPU decides for itself whether to
+   * offer WebGL, and a runner image that stops offering it turns a stage about
+   * this product into a stage about that machine. The emulator cores this
+   * product ships are Emscripten SDL builds that draw through GL, so WebGL is
+   * genuinely required; these preferences ask Firefox to provide it in
+   * software rather than to go without. They change nothing on a machine that
+   * already had it. */
+  const session = await call('POST', '/session', {
+    capabilities: {
+      alwaysMatch: {
+        browserName: 'firefox',
+        'moz:firefoxOptions': {
+          args: ['-headless'],
+          prefs: {
+            'webgl.force-enabled': true,
+            'webgl.disabled': false,
+            'webgl.forbid-software': false,
+            'gfx.webrender.software': true,
+            'layers.acceleration.force-enabled': true,
+          },
+        },
+      },
+    },
+  });
   const id = session.sessionId;
   started.push(async () => { await call('DELETE', `/session/${id}`).catch(() => undefined); });
   await call('POST', `/session/${id}/url`, { url: `${base}/` });
