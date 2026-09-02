@@ -8,6 +8,7 @@
  *
  * The generator is seeded, so a failure names an exact reproducible case. */
 import { describe, expect, it } from 'vitest';
+import { breathe } from '../test/breathe';
 import { createPixelAssetDocument, generatePixelAssetOutput, parsePixelAssetDocument, serializePixelAssetDocument } from './pixelAssetDocument';
 import { createTileMapDocument, generateTileMapOutput, parseTileMapDocument, serializeTileMapDocument, setTileMapTileset } from './tileMapDocument';
 import { createPaletteDocument, generatePaletteOutput, parsePaletteDocument, serializePaletteDocument, PALETTE_MODES } from './paletteDocument';
@@ -143,9 +144,10 @@ const DEFAULT_CASES = 60;
 const TIMEOUT_MS = 30_000;
 
 describe.each(CODECS)('$name codec properties', (codec) => {
-  it('serializes, re-parses and regenerates identically', () => {
+  it('serializes, re-parses and regenerates identically', async () => {
     const next = random(0x51ed);
     for (let index = 0; index < (codec.cases ?? DEFAULT_CASES); index += 1) {
+          await breathe(index, 4);
       const document = codec.build(next);
       const text = codec.serialize(document as never);
       const reparsed = codec.parse(text);
@@ -160,9 +162,10 @@ describe.each(CODECS)('$name codec properties', (codec) => {
     }
   }, TIMEOUT_MS);
 
-  it('either accepts or refuses a randomly mutated document, and never returns something different', () => {
+  it('either accepts or refuses a randomly mutated document, and never returns something different', async () => {
     const next = random(0xc0de);
     for (let index = 0; index < (codec.cases ?? DEFAULT_CASES); index += 1) {
+          await breathe(index, 4);
       const document = codec.build(next);
       const mutated = JSON.parse(codec.serialize(document as never)) as Record<string, unknown>;
       const keys = Object.keys(mutated);
