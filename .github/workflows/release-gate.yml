@@ -83,9 +83,20 @@ jobs:
       # host. The limit is raised for this runner only — a developer's machine
       # and the shipped default stay at five seconds — and the value in force is
       # published in the build manifest, so this is never a hidden change.
+      # Firefox on this runner stopped providing WebGL, which the emulator cores
+      # genuinely need: Elkulator and Arculator are Emscripten SDL builds that
+      # draw through GL. Nothing in this repository can affect whether a
+      # headless browser on a machine with no GPU offers it, so the machine is
+      # given a software GL to offer rather than the check being softened.
+      - name: Install a software OpenGL for the headless browsers
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libgl1 libglx-mesa0 libegl1 mesa-utils
+
       - name: Run the gate
         env:
           NATIVE_STAGE_SECONDS: '30'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          GALLIUM_DRIVER: llvmpipe
+          MOZ_ENABLE_WAYLAND: '0'
         run: npm run ci
 
       - name: Publish the gate report
