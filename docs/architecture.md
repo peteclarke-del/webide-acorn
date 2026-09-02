@@ -106,6 +106,7 @@ they are wired and idle rather than absent.
 | `src/editor` | Editing operations, document lifecycle, preferences, encodings and line endings. |
 | `src/emulator` | Adapter contract, debug models, and everything that talks to a running machine. |
 | `src/language` | The language adapter API, the project language index, completion, and the maintained first-party knowledge — opcodes, OS calls, hardware registers — that ships with the build. |
+| `src/layout` | How wide and how tall each workbench panel is, what may change it, and the rule that a resize never squeezes the editor below the width it can be read at. |
 | `src/media` | Disk, tape and ROM image readers and writers. |
 | `src/profiles` | Machine and configuration resolution, and portability comparison. |
 | `src/project` | The project document, its schema and migrations, import, bundles, trash and limits. |
