@@ -80,16 +80,24 @@ final class BeebAsmBuildService
                  * there, and was told it had not built. What it saved is the
                  * build, so those files are the artifact instead. */
                 $saved = $this->savedArtifact($job, $combined, $request);
+                $savedOrigin = null;
                 if (!file_exists($path) && $saved !== null) {
                     $path = $saved['path'];
-                    $diagnostics[] = ['severity' => 'info', 'message' => $saved['detail'], 'line' => 1, 'column' => 1, 'fileId' => $root['id'], 'fileName' => $root['name']];
+                    /* The listing's lowest address belongs to the whole
+                     * assembly, not to one of several files it saved: a project
+                     * that assembles a rules block at &1400 and its game at
+                     * &1900 would have its game reported as loading at &1400,
+                     * and every breakpoint and mapped line would be out by the
+                     * difference. */
+                    $savedOrigin = $this->parser->saveOrigin($request->files, $saved['name'], $symbols);
+                    $diagnostics[] = ['severity' => 'info', 'message' => $saved['detail'].($savedOrigin === null ? ' Its load address could not be read from the directive that saved it, so the target\'s own origin is used.' : ''), 'line' => 1, 'column' => 1, 'fileId' => $root['id'], 'fileName' => $root['name']];
                 }
                 if (!file_exists($path)) {
                     $diagnostics[] = ['severity' => 'error', 'message' => $this->noOutputMessage($combined), 'line' => 1, 'column' => 1, 'stage' => 'collect', 'fileId' => $root['id'], 'fileName' => $root['name']]; ++$errors;
                 } else {
                     $this->regular($path, 'BeebAsm binary'); $size = filesize($path);
                     if ($size === false || $size > BuildLimits::ARTIFACT_BYTES) throw new ApiProblem(400, 'BUILD_ARTIFACT_TOO_LARGE', 'BeebAsm binary exceeded the artifact limit.');
-                    $bytes = (string) file_get_contents($path); $origin = $listing['origin'] ?? $request->origin;
+                    $bytes = (string) file_get_contents($path); $origin = $savedOrigin ?? $listing['origin'] ?? $request->origin;
                     if ($origin !== $request->origin) throw new ApiProblem(400, 'BEEBASM_ORIGIN_MISMATCH', sprintf('First emitted address &%04X does not match target origin &%04X.', $origin, $request->origin), false, ['target.origin' => 'Must match the first emitted address']);
                     if (strlen($bytes) === 0 || $origin + strlen($bytes) - 1 > $request->maximumAddress) throw new ApiProblem(400, 'BUILD_MEMORY_OVERFLOW', 'BeebAsm output is empty or exceeds the target memory range.');
                     $entry = $this->entryPoint($request, $symbols, $origin, strlen($bytes));
@@ -133,7 +141,7 @@ final class BeebAsmBuildService
      * that match nothing is a question rather than a guess, answered by the
      * message below.
      *
-     * @return array{path: string, detail: string}|null
+     * @return array{path: string, name: string, detail: string}|null
      */
     private function savedArtifact(string $job, string $output, NativeBuildRequest $request): ?array
     {
@@ -149,11 +157,11 @@ final class BeebAsmBuildService
         $wanted = $request->outputName;
         foreach ($present as $name) {
             if ($name === $wanted || basename($name) === $wanted || basename($name) === basename($wanted)) {
-                return ['path' => $job.'/'.$name, 'detail' => sprintf('Answered with %s, the file this target names.', $name)];
+                return ['path' => $job.'/'.$name, 'name' => $name, 'detail' => sprintf('Answered with %s, the file this target names.', $name)];
             }
         }
         if (count($present) === 1) {
-            return ['path' => $job.'/'.$present[0], 'detail' => sprintf('Answered with %s, the only file this build saved.', $present[0])];
+            return ['path' => $job.'/'.$present[0], 'name' => $present[0], 'detail' => sprintf('Answered with %s, the only file this build saved.', $present[0])];
         }
 
         return null;

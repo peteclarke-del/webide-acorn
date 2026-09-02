@@ -200,4 +200,73 @@ final class BeebAsmOutputParser
 
         return array_values(array_unique($matches[1]));
     }
+
+    /**
+     * Where a named SAVE's output starts, or null when it cannot be told.
+     *
+     * The listing's lowest address is the lowest address the whole assembly
+     * emitted, which is the right origin for the one binary a filename-free
+     * SAVE writes and the wrong one for a project that emits several. Graveyard
+     * Shift assembles a rules block at &1400 and the game at &1900, and its
+     * game binary was being reported as loading at &1400 — five hundred bytes
+     * out, which would put every breakpoint and every mapped line in the wrong
+     * place.
+     *
+     * The start is read from the directive that wrote the file, resolved
+     * against the symbols BeebAsm emitted. A start that is neither a symbol nor
+     * a literal is not guessed at.
+     *
+     * @param list<array{name: string, content: string}> $files
+     * @param array<string, int>                         $symbols
+     */
+    public function saveOrigin(array $files, string $saved, array $symbols): ?int
+    {
+        $wanted = str_replace('\\', '/', $saved);
+        foreach ($files as $file) {
+            foreach (preg_split('/\R/u', $file['content']) ?: [] as $line) {
+                if (!preg_match('/^\s*SAVE\s+"([^"]+)"\s*,\s*([^,]+)/i', $this->stripListingComment($line), $match)) {
+                    continue;
+                }
+                if (str_replace('\\', '/', trim($match[1])) !== $wanted) {
+                    continue;
+                }
+
+                return $this->address(trim($match[2]), $symbols);
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<string, int> $symbols */
+    private function address(string $expression, array $symbols): ?int
+    {
+        $token = ltrim(trim($expression), '.');
+        if ($token === '') {
+            return null;
+        }
+        if (preg_match('/^&([0-9A-F]+)$/i', $token, $hex) || preg_match('/^\$([0-9A-F]+)$/i', $token, $hex)) {
+            return (int) hexdec($hex[1]);
+        }
+        if (preg_match('/^[0-9]+$/', $token)) {
+            return (int) $token;
+        }
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $token) && isset($symbols[$token])) {
+            return $symbols[$token];
+        }
+
+        return null;
+    }
+
+    private function stripListingComment(string $line): string
+    {
+        $quoted = false; $code = '';
+        foreach (str_split($line) as $character) {
+            if ($character === '"') $quoted = !$quoted;
+            if ($character === ';' && !$quoted) break;
+            $code .= $character;
+        }
+
+        return $code;
+    }
 }

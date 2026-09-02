@@ -90,4 +90,31 @@ final class BeebAsmOutputParserTest extends TestCase
         self::assertSame(['build/grave-bbc-tape', 'build/rules-bbc-tape'], $parser->savedFiles($output));
         self::assertSame([], $parser->savedFiles('nothing was saved'));
     }
+
+    public function testReadsALoadAddressFromTheDirectiveThatSavedTheFile(): void
+    {
+        /* The listing's lowest address belongs to the whole assembly. A project
+         * that assembles a rules block at &1400 and its game at &1900 had its
+         * game reported as loading at &1400, which would have put every
+         * breakpoint and every mapped line five hundred bytes out. */
+        $parser = new BeebAsmOutputParser();
+        $files = [['name' => 'main.asm', 'content' => "SAVE \"build/rules\", rules_start, rules_end\nSAVE \"build/game\", start, end, start\nSAVE \"build/fixed\", &2000, &2100\n"]];
+        $symbols = ['rules_start' => 0x1400, 'start' => 0x1900, 'end' => 0x2DA4];
+
+        self::assertSame(0x1900, $parser->saveOrigin($files, 'build/game', $symbols));
+        self::assertSame(0x1400, $parser->saveOrigin($files, 'build/rules', $symbols));
+        self::assertSame(0x2000, $parser->saveOrigin($files, 'build/fixed', $symbols));
+    }
+
+    public function testSaysNothingRatherThanGuessingAnAddressItCannotRead(): void
+    {
+        $parser = new BeebAsmOutputParser();
+        $files = [['name' => 'main.asm', 'content' => "SAVE \"build/game\", start + offset * 2, end\nSAVE \"build/other\", missing_symbol, end\n"]];
+
+        /* An expression, and a symbol nothing defines. Reporting the assembly's
+         * lowest address for either would be a wrong answer rather than none. */
+        self::assertNull($parser->saveOrigin($files, 'build/game', ['start' => 0x1900]));
+        self::assertNull($parser->saveOrigin($files, 'build/other', ['start' => 0x1900]));
+        self::assertNull($parser->saveOrigin($files, 'build/never-saved', ['start' => 0x1900]));
+    }
 }
