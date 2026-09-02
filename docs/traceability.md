@@ -22,12 +22,12 @@ is the part a machine can settle.
 
 | Measure | Count |
 | --- | --- |
-| Requirements tracked | 301 |
-| Complete | 202 |
+| Requirements tracked | 302 |
+| Complete | 204 |
 | Complete and traced | 124 |
-| Complete and described | 76 |
-| Complete and untraced | 2 |
-| Open | 99 |
+| Complete and described | 77 |
+| Complete and untraced | 3 |
+| Open | 98 |
 
 ## By area
 
@@ -49,7 +49,7 @@ is the part a machine can settle.
 | RSH | 10 | 9 | 8 | 1 | 0 |
 | A11Y | 9 | 4 | 4 | 0 | 0 |
 | PRJ | 9 | 9 | 6 | 3 | 0 |
-| GAME | 7 | 6 | 0 | 4 | 2 |
+| GAME | 8 | 8 | 0 | 5 | 3 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 3 | 3 | 0 | 0 |
 | PLAT | 7 | 6 | 5 | 1 | 0 |
@@ -73,6 +73,7 @@ are listed rather than quietly counted.
 | --- | --- |
 | GAME-001 | Author an Acorn tape image from built files, for the BBC/Electron block format and the… |
 | GAME-003 | Give the song editor an Electron target. What that machine's sound hardware actually does… |
+| GAME-008 | Prove the chain rather than the links: build a game with artwork and music in it, write… |
 
 ## Completed requirements and their evidence
 
@@ -303,6 +304,5 @@ are listed rather than quietly counted.
 | EXP-008 | Complete A4/A3010/A3020/A4000/A5000 tier. | not started |
 | EXP-009 | Complete Risc PC/A7000 tier without calling it Archimedes. | not started |
 | EXP-010 | Add additional toolchain dialects, media formats, expansion devices, trackers/codecs, and… | not started |
-| GAME-004 | Run a BBC B+. It is the one machine of the five with no engine at all: jsbeeb 1.19.1… | not started |
 | DOD-001 | Behavior and boundaries match linked requirements and accepted design. | 1 of 2 parts done |
 | DOD-004 | Authorization is server-enforced and sensitive action auditing/ redaction/retention is… | 1 of 2 parts done |

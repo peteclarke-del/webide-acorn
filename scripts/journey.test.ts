@@ -62,5 +62,38 @@ describe('the authoring journey', () => {
     const source = readFileSync(resolve(process.cwd(), 'scripts/journey.mjs'), 'utf8');
     expect(source).toContain("await call('Page.navigate'");
     expect(source).toContain('complaints = [];');
+    /* And in an empty workbench: the product remembers a project between
+     * visits, which is what somebody wants and is not where a journey starts. */
+    expect(source).toContain("Storage.clearDataForOrigin");
+  });
+
+  it('walks the whole authoring line and not only the parts that are easy to drive', () => {
+    const source = readFileSync(resolve(process.cwd(), 'scripts/journey.mjs'), 'utf8');
+    /* Every element of the workflow the journey is supposed to cover. Naming
+     * them here is what stops one being quietly dropped when a selector breaks
+     * and the walk still reports success. */
+    for (const element of ['Sprites', 'Sound', 'Build targets', 'Media']) {
+      expect(source, `${element} is visited`).toContain(`clickText('${element}')`);
+    }
+    expect(source, 'the drawing reaches the project').toContain("'Add EQUB source'");
+    expect(source, 'the song reaches the project').toContain("'Add generated source'");
+    /* And the step that decides whether the editors are part of the workflow or
+     * beside it: the generated units have to reach the binary. */
+    expect(source).toContain('build-check-list');
+    expect(source).toContain('did not change the program');
+  });
+
+  it('answers the question the workbench asks before discarding work', () => {
+    /* The product asks before it throws away unsaved edits, with the browser's
+     * own dialog — which blocks the page until something answers. A walk that
+     * ignored one would not fail, it would hang. */
+    const source = readFileSync(resolve(process.cwd(), 'scripts/journey.mjs'), 'utf8');
+    expect(source).toContain('Page.javascriptDialogOpening');
+    expect(source).toContain('Page.handleJavaScriptDialog');
+  });
+
+  it('gives every request a deadline, so a frozen page fails rather than hangs', () => {
+    const source = readFileSync(resolve(process.cwd(), 'scripts/journey.mjs'), 'utf8');
+    expect(source).toContain('did not answer within');
   });
 });

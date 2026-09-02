@@ -76,6 +76,7 @@ import { ROM_SETS, requiredRomRequirements, romSetFor, romStorageKey, runtimeSid
 import { ELECTRON_ADAPTER_SUMMARY, ELECTRON_CAPABILITIES, ELECTRON_UNAVAILABLE, electronCommandRefusal } from './emulator/electronAdapter';
 import { ELKULATOR_ADAPTER_SUMMARY, ELKULATOR_CAPABILITIES, ELKULATOR_UNAVAILABLE, elkulatorCommandRefusal } from './emulator/elkulatorAdapter';
 import { electronRuntimeRoute, isElectronEngine } from './emulator/electronRuntimeRouting';
+import { machineHoldsArtifact } from './emulator/breakpointArming';
 import { listRoms, type StoredRom } from './rom/romStore';
 import { archimedesCmosKey, archimedesCombinedRomKey, archimedesRuntimeConfiguration, type ArchimedesRuntimeConfiguration } from './rom/archimedesRom';
 import {
@@ -5048,7 +5049,13 @@ function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareSta
   const [breakpointMessage, setBreakpointMessage] = useState('');
   const resolvedPersistedBreakpoints = useMemo(() => resolve6502BreakpointIntents(persistedBreakpoints, artifact, breakpointGroups), [artifact, breakpointGroups, persistedBreakpoints]);
   const sourceBreakpointKey = [...new Set(sourceBreakpointAddresses)].sort((a, b) => a - b).join(',');
-  const hardwareArtifactLoaded = !!artifact && !!hardwareState && hardwareState.registers.pc >= artifact.origin && hardwareState.registers.pc < artifact.origin + artifact.bytes.length;
+  /* Whether the machine is holding the program these breakpoints are about.
+   * The reasoning, and the case this used to get wrong, are in the module. */
+  const hardwareArtifactLoaded = machineHoldsArtifact(
+    artifact ? { origin: artifact.origin, byteLength: artifact.bytes.length } : null,
+    hardwareState?.programManifest ?? null,
+    hardwareState?.registers.pc ?? null,
+  );
   useEffect(() => {
     if (!hardwareConnected || !hardwareArtifactLoaded) return;
     const combined = new Map<number, object>();

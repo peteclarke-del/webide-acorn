@@ -7976,6 +7976,7 @@ the whole line on one machine without leaving the workbench.
 | Debug | yes | yes | yes | yes | yes |
 | Package to media | ATM and tape | tape | DFS and tape | DFS and tape | DFS and tape |
 | Boot the packaged media | tape, yes | tape, yes | yes | yes | yes |
+| Draw, compose, and build them in | yes | yes | yes | yes | yes |
 | The whole line, unattended | yes | yes | yes | yes | yes |
 
 - [x] GAME-001 Author an Acorn tape image from built files, for the BBC/Electron
@@ -8091,35 +8092,44 @@ the whole line on one machine without leaving the workbench.
   unless each still does what a working runner would.
 - [x] GAME-007 Walk the whole journey on each machine in one headless run, and
   fail on any console error, policy violation or refusal that is not expected.
-  `scripts/journey.mjs` does it, and the release gate runs it as a stage: each
-  of the five machines is walked in a fresh page of the built workbench —
-  choose the machine, start from its template, enable the medium, build, and
-  write a cassette — with every console error, uncaught exception and blocked
-  resource collected and any of them failing the walk. All five walk: four from
-  an empty workbench to a UEF, and the B+ refuses with the reason that is true
-  rather than crashing or blaming a missing file.
+  `scripts/journey.mjs` does it and the release gate runs it as a stage. Each of
+  the five machines is walked in a fresh, empty workbench: choose the machine,
+  read what firmware it offers, start from its own template, enable the medium,
+  draw a sprite and add it to the project, compose a song on that machine's own
+  sound hardware and add that, build the starter alone, tick both generated
+  units as source, build again and require the program to have grown, then write
+  a cassette. Every console error, uncaught exception and blocked resource is
+  collected, and any of them fails the walk.
 
-  What needs firmware — running, debugging, booting the packaged media — is
-  measured against a real vault by the scripts beside it and frozen where the
-  always-running tests hold the product to it, because firmware cannot be
-  committed and a test that skips is not a test.
+  All five walk. The starter alone builds 85 bytes; with the artwork and the
+  music in it, 432 bytes in two tape blocks. That last step is the one that
+  matters: adding a generated source to a project is not the same as building
+  with it, and without it the asset editors would be beside the workflow rather
+  than in it.
+
+  Three things had to be true for the walk to be honest about what it drives.
+  Each machine starts from cleared storage, because the product remembers a
+  project between visits and that is not where a journey starts. The browser's
+  own confirmation — the workbench asks before discarding unsaved work — is
+  answered the way a person answers it, because that dialog blocks the page and
+  an ignored one hangs rather than fails. And every request has a deadline, so a
+  frozen page reports a frozen page.
 
   Walking it by hand first found three defects that the entire suite passed
-  through, all now fixed:
+  through, all now fixed: an assembler that gave every machine the BBC's
+  operating-system vocabulary, four machines with no starter template at all,
+  and an Electron whose Run printed nothing and reported no error.
 
-  - The assembler seeded the **BBC MOS** vocabulary for every machine. An Atom
-    program calling `OSWRCH` assembled to &FFEE, and an Atom listing opening
-    with `OSWRCH = &FFF4` — as they all do — was rejected for contradicting a
-    fact the assembler had no business assuming.
-  - Four of the five machines had **no starter template at all**.
-  - The Electron's **Run** was broken silently: loading a program moved the
-    program counter, which abandons whatever the operating system was doing, so
-    the program printed until its first blocking OS call and then the screen
-    cleared with no error at all.
+- [x] GAME-008 Prove the chain rather than the links: build a game with artwork
+  and music in it, write it to tape, and have a real machine load and play it.
+  `scripts/measureGameEndToEnd.mjs` assembles a program with sprite-editor
+  artwork and song-editor music compiled in, writes a UEF, mounts it on a BBC
+  Model B and a BBC Master, and types `*RUN GAME`. Both machines searched,
+  loaded two blocks, and printed the game's title and two bytes it had read out
+  of its own artwork and music — so the assets were in the binary the machine
+  loaded, not merely in the project it was built from. Nothing placed a byte in
+  either machine's memory.
 
-  The walk also closed a smaller gap: the Master 128 has a cassette port and
-  this build did not offer one, although a tape written here had already been
-  loaded on a Master. It is offered now, on that measurement.
 
 ## 13. Definition of done for every backlog item
 
