@@ -726,13 +726,13 @@ describe('functional source workspace', () => {
   it('persists bounded editor typography, tab width and wrapping preferences', () => {
     render(<Harness initial={'10 PRINT "A LONG SOURCE LINE"'} />);
     fireEvent.click(screen.getByText('Preferences'));
-    fireEvent.change(screen.getByLabelText('Editor font size'), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText('Editor font size'), { target: { value: '18' } });
     fireEvent.change(screen.getByLabelText('Editor line height'), { target: { value: '28' } });
     fireEvent.change(screen.getByLabelText('Editor tab size'), { target: { value: '4' } });
     fireEvent.click(screen.getByLabelText('Editor word wrap'));
     const editor = screen.getByLabelText('Edit main.bas') as HTMLTextAreaElement;
     const layout = editor.closest('.source-editor-layout') as HTMLElement;
-    expect(layout.style.getPropertyValue('--editor-font-size')).toBe('15px');
+    expect(layout.style.getPropertyValue('--editor-font-size')).toBe('18px');
     expect(layout.style.getPropertyValue('--editor-line-height')).toBe('28px');
     expect(layout.style.getPropertyValue('--editor-tab-size')).toBe('4');
     expect(editor.style.whiteSpace).toBe('pre-wrap');
@@ -740,12 +740,12 @@ describe('functional source workspace', () => {
 
     render(<Harness />);
     fireEvent.click(screen.getByText('Preferences'));
-    expect(screen.getByLabelText('Editor font size')).toHaveValue(15);
+    expect(screen.getByLabelText('Editor font size')).toHaveValue(18);
     expect(screen.getByLabelText('Editor line height')).toHaveValue(28);
     expect(screen.getByLabelText('Editor tab size')).toHaveValue('4');
     expect(screen.getByLabelText('Editor word wrap')).toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: 'Reset view' }));
-    expect(screen.getByLabelText('Editor font size')).toHaveValue(11);
+    expect(screen.getByLabelText('Editor font size')).toHaveValue(15);
   });
 
   it('exposes per-file encoding and line-ending controls without changing editor text', () => {

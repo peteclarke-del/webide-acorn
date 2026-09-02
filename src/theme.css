@@ -23,8 +23,22 @@
    * fixes the bottom of the scale; the multiplier is what a person can raise
    * when they want the whole workbench larger.
    */
-  --ui-scale: 1.45;
-  --fs-floor: 12px;
+  /*
+   * Two numbers, and they have to be read together.
+   *
+   * The multiplier raises everything; the floor stops anything landing below a
+   * size that can be read. The trap is setting them far apart: at a 1.74
+   * multiplier with a 14px floor, every size from 4.5 to 8 collapsed onto the
+   * floor while the 13px body — which everything without a rule of its own
+   * inherits — went to 22.6. Captions at 14 and inherited text at 22.6 is not a
+   * scale, it is two scales, and it showed: a details summary and a couple of
+   * buttons rendered half again as large as the labels beside them.
+   *
+   * So they are kept close. The floor is a little under the base rather than a
+   * long way under it, and the whole range lands between 15 and 21.
+   */
+  --ui-scale: 1.3;
+  --fs-floor: 15px;
   --fs-4-5: max(var(--fs-floor), calc(4.5px * var(--ui-scale)));
   --fs-5: max(var(--fs-floor), calc(5px * var(--ui-scale)));
   --fs-5-5: max(var(--fs-floor), calc(5.5px * var(--ui-scale)));
@@ -46,6 +60,8 @@
   --fs-14: max(var(--fs-floor), calc(14px * var(--ui-scale)));
   --fs-15: max(var(--fs-floor), calc(15px * var(--ui-scale)));
   --fs-16: max(var(--fs-floor), calc(16px * var(--ui-scale)));
+  /* Page display headings — the largest text the workbench uses. */
+  --fs-18: max(var(--fs-floor), calc(18px * var(--ui-scale)));
 
     color-scheme: dark;
 
