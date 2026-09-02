@@ -543,7 +543,7 @@ await stage('smoke', async () => {
      * a name is meaningful or whether a reading order makes sense; what it can
      * decide is checked here, and what it cannot stays in the manual matrix.
      * The rules are shared with the test suite rather than restated. */
-    const { SCAN, TEXT_SPACING, FOCUS_VISIBILITY, REDUCED_MOTION, FORCED_COLOURS, REDUCED_TRANSPARENCY, KEYBOARD_REACHABILITY, POINTER_ALTERNATIVES, VISUAL_ALTERNATIVES, summarise } = await import('./accessibilityRules.mjs');
+    const { SCAN, TEXT_SPACING, FOCUS_VISIBILITY, REDUCED_MOTION, FORCED_COLOURS, REDUCED_TRANSPARENCY, KEYBOARD_REACHABILITY, POINTER_ALTERNATIVES, SCROLLABLE_OVERFLOW, VISUAL_ALTERNATIVES, summarise } = await import('./accessibilityRules.mjs');
     /* Every workspace the tab strip actually offers, read from the page rather
      * than listed here, so a new one is scanned the day it is added. Search
      * opens a modal over whatever is behind it and is scanned in place. */
@@ -669,6 +669,11 @@ await stage('smoke', async () => {
         for (const finding of await evaluate(expression)) {
           accessibility.push({ rule: 'keyboard', criterion: '2.1.1', element: finding.element, detail: `${finding.detail} (in ${workspace})` });
         }
+      }
+      /* Content that does not fit and cannot be scrolled to is not reachable by
+       * any means at all, which is a stronger failure than a keyboard one. */
+      for (const finding of await evaluate(SCROLLABLE_OVERFLOW)) {
+        accessibility.push({ rule: 'reflow', criterion: '1.4.10', element: finding.element, detail: `${finding.detail} (in ${workspace})` });
       }
       /* A workspace that opened a dialog must not hide the next one. */
       await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);

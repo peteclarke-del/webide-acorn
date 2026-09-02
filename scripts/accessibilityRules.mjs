@@ -584,6 +584,90 @@ export const POINTER_ALTERNATIVES = `(() => {
  * live region that says what it currently shows. Anything else is a picture
  * with nothing behind it.
  */
+/*
+ * Content that does not fit and cannot be scrolled to.
+ *
+ * A panel taller than the space it is given is not a cosmetic problem: the
+ * entries past the fold cannot be read, reached or operated by anyone, with a
+ * pointer or without. The settings column did this — ten panels stacked in a
+ * pane with `overflow: hidden` and no scroller — and the list simply ended
+ * partway down with no indication that there was more.
+ *
+ * An element is reported when its own content overflows it and neither it nor
+ * anything between it and the page can scroll in that direction. Clipping is
+ * only a fault when something is being clipped: a container with
+ * `overflow: hidden` whose content fits is doing its job.
+ */
+export const SCROLLABLE_OVERFLOW = `(() => {
+  const scrolls = (node, axis) => {
+    const style = getComputedStyle(node);
+    /* The shorthand is the fallback: an engine that does not expand the
+     * overflow shorthand into its two axes would otherwise report every
+     * scroller as a trap. */
+    const overflow = (axis === 'y' ? style.overflowY : style.overflowX) || style.overflow || '';
+    return overflow === 'auto' || overflow === 'scroll';
+  };
+  const shown = (node) => {
+    const style = getComputedStyle(node);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  };
+  const identity = (node) => node.tagName.toLowerCase()
+    + (node.className && node.className.toString ? '.' + node.className.toString().trim().split(/\\s+/).slice(0, 2).join('.') : '')
+    + (node.getAttribute('aria-label') ? ' [' + node.getAttribute('aria-label') + ']' : '');
+
+  const problems = [];
+  for (const node of document.querySelectorAll('body *')) {
+    /* A box a few pixels across shows nothing whatever it contains. That is
+     * how a file input is hidden while keeping its accessible name, and
+     * reporting those would bury the panels that are genuinely cut off. */
+    if (!shown(node) || node.clientHeight <= 4 || node.clientWidth <= 4) continue;
+    for (const axis of ['y', 'x']) {
+      /* Two pixels of tolerance: sub-pixel rounding is not lost content. */
+      const beyond = axis === 'y' ? node.scrollHeight - node.clientHeight : node.scrollWidth - node.clientWidth;
+      if (beyond <= 2) continue;
+      if (scrolls(node, axis)) continue;
+      /* Content that spills out of a box with overflow visible is still on the
+       * screen and still readable; it is a layout untidiness rather than
+       * something lost, and the reflow check is what has an opinion about it.
+       * Only a box that clips actually takes content away. */
+      const clip = axis === 'y' ? (getComputedStyle(node).overflowY || getComputedStyle(node).overflow) : (getComputedStyle(node).overflowX || getComputedStyle(node).overflow);
+      if (clip !== 'hidden' && clip !== 'clip') continue;
+      let reachable = false;
+      for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        if (scrolls(parent, axis)) { reachable = true; break; }
+      }
+      if (reachable) continue;
+      /* An element kept in step with another one's scrolling says so, and the
+       * element it names has to be able to scroll for the claim to hold. The
+       * editor gutter is the case: taller than its box for any file of length,
+       * moved by the text beside it rather than by a scrollbar of its own. */
+      const follows = node.getAttribute('data-scroll-follows');
+      if (follows) {
+        const partner = document.querySelector(follows);
+        if (partner && scrolls(partner, axis)) continue;
+      }
+      /* Overflow reported for a box whose own children all fit belongs to
+       * something deeper that scrolls for itself, and the browser counts it
+       * here anyway. What matters is a child that is actually outside its
+       * parent with no way to bring it in. */
+      const box = node.getBoundingClientRect();
+      const escaping = [...node.children].some((child) => {
+        const childBox = child.getBoundingClientRect();
+        if (childBox.height === 0 && childBox.width === 0) return false;
+        return axis === 'y' ? childBox.bottom > box.bottom + 2 : childBox.right > box.right + 2;
+      });
+      if (!escaping) continue;
+      problems.push({
+        element: identity(node),
+        detail: identity(node) + ' is ' + beyond + 'px larger than the room it has '
+          + (axis === 'y' ? 'vertically' : 'horizontally')
+          + ', and neither it nor anything around it can be scrolled, so that much of it cannot be reached',
+      });
+    }
+  }
+  return problems;
+})()`;
+
 export const VISUAL_ALTERNATIVES = `(() => {
   const problems = [];
   const shown = (node) => typeof node.checkVisibility === 'function'

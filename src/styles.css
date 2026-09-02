@@ -97,7 +97,12 @@
   /* The columns are set from the panel sizes in `src/layout/panelLayout.ts`,
    * because they are resizable now; what used to be here was eight fixed
    * permutations of which panels were open. */
-  .workbench { position: relative; display: grid; grid-template-columns: var(--workbench-columns, 43px minmax(320px, 1fr)); min-width: 0; min-height: 0; overflow: hidden; }
+  /* One row, bounded by the workbench rather than by what is in it. Without
+   * this the row is sized to its tallest child, so a configuration panel longer
+   * than the window made the whole grid five hundred pixels taller than the
+   * space it had — and since the workbench clips, everything past the fold was
+   * unreachable however much the panel inside it was willing to scroll. */
+  .workbench { position: relative; display: grid; grid-template-columns: var(--workbench-columns, 43px minmax(320px, 1fr)); grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden; }
   .panel-surface { min-width: 0; min-height: 0; border-right: 1px solid var(--theme-line); background: color-mix(in srgb, var(--theme-surface-1) 97%, transparent); }
   .activity-rail { z-index: 11; display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 7px 4px 5px; border-right: 1px solid var(--theme-line); background: var(--theme-surface-0); }
   .rail-button { position: relative; display: grid; width: 34px; height: 34px; margin-bottom: 3px; padding: 0; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--theme-faint); }
@@ -106,7 +111,10 @@
   .rail-button.active::before { position: absolute; top: 6px; bottom: 6px; left: -4px; width: 2px; background: var(--theme-primary); content: ''; }
   .rail-spacer { flex: 1; }
 
-  .config-panel, .explorer-panel, .inspector-panel { overflow: hidden; }
+  /* min-height: 0 because a grid item will not shrink below its content
+   * otherwise, and a panel that cannot shrink cannot scroll: it grows past the
+   * workbench instead, which clips it, and the rest of the panel is gone. */
+  .config-panel, .explorer-panel, .inspector-panel { min-height: 0; overflow: hidden; }
   .config-panel { display: flex; flex-direction: column; overflow-y: auto; scrollbar-color: var(--theme-line-strong) transparent; }
   .panel-heading { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; min-height: 59px; padding: 11px 12px 8px 14px; border-bottom: 1px solid var(--theme-line); }
   .panel-heading.compact { min-height: 51px; }
@@ -404,7 +412,11 @@
   .analysis-inspector section button { padding: 4px 5px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-2); color: var(--theme-secondary); font: var(--fs-7)/1 var(--font-mono); }
   .analysis-inspector section small, .analysis-inspector section p { margin: 0; color: var(--theme-faint); font-size: var(--fs-7); line-height: 1.45; }
 
-  .build-workspace, .debug-workspace { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; background: var(--theme-editor); }
+  /* These stack more panels than fit — the build workspace comes to several
+   * hundred pixels more than its pane on an ordinary window — and clipping them
+   * put the build graph and the output log out of reach entirely. They scroll.
+   * Anything inside that manages its own scrolling still does. */
+  .build-workspace, .debug-workspace { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; background: var(--theme-editor); }
   .runtime-heading { display: flex; flex: 0 0 auto; min-height: 52px; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 11px; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
   .runtime-heading h2 { margin: 3px 0 0; color: var(--theme-ink-strong); font-size: var(--fs-11); }
   .runtime-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }.runtime-actions button, .breakpoint-entry button { display: flex; min-height: 28px; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--theme-line); border-radius: 4px; background: var(--theme-surface-2); color: var(--theme-muted); font-size: var(--fs-7-5); }.runtime-actions button:hover:not(:disabled), .breakpoint-entry button:hover { border-color: var(--theme-line-strong); color: var(--theme-ink); }
@@ -744,7 +756,12 @@
   .emulator-empty svg { flex: 0 0 auto; }.emulator-empty strong { color: var(--theme-muted); font-size: var(--fs-9); }.emulator-empty p { max-width: 520px; margin: 4px 0 0; font-size: var(--fs-7-5); line-height: 1.45; }
   .emulator-powered-off { background: color-mix(in srgb, var(--theme-emulator-bezel) 88%, #000); }
   .emulator-powered-off svg { color: var(--theme-warning); }
-  .settings-workspace { display: grid; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
+  /* Ten panels, and on an ordinary window they come to several times the height
+   * of the pane. It used to clip them: five thousand pixels of settings behind
+   * a four-hundred-pixel window with no scrollbar, no wheel and no keyboard
+   * route to any of it. The rows are sized by their content and the pane
+   * scrolls. */
+  .settings-workspace { display: grid; min-height: 0; grid-auto-rows: min-content; align-content: start; overflow-y: auto; overflow-x: hidden; }
   .keyboard-shortcuts-panel { display: grid; max-height: 42vh; align-content: start; gap: 10px; padding: 10px 14px; overflow: auto; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); color: var(--theme-muted); font: var(--fs-7)/1.4 var(--font-mono); }
   .keyboard-shortcuts-panel > header { display: grid; gap: 5px; }
   .keyboard-shortcuts-panel h3 { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--theme-ink-strong); font: 700 var(--fs-9)/1 var(--font-ui); }

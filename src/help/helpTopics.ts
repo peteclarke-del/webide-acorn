@@ -38,6 +38,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "The IDE opens with a recoverable local project and no bundled proprietary ROM.",
       "Controls that need firmware remain disabled or state that firmware is required.",
       "The panel arrangement is remembered in this browser, so the workbench opens the way it was left.",
+      "A panel with more in it than fits scrolls. Nothing is clipped away with no route to it, and the release gate fails if anything ever is.",
     ],
     limitations: [
       "Imported ROMs are stored in browser IndexedDB and are not included in project exports.",

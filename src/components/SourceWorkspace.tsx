@@ -908,7 +908,15 @@ export function SourceWorkspace({
       {largeSourceFile && <div className="large-source-policy" role="status"><strong>Large source mode</strong><span>{sourceBytes.toLocaleString()} bytes. Automatic completion, outline and type-hint scans are paused. {isReadOnly ? 'Inspection, find, navigation, copy and download remain available.' : 'Manual completion, editing, find, navigation, save and download remain available.'}</span></div>}
       <div className="source-editor-layout" style={{ '--editor-font-size': `${editorPreferences.fontSize}px`, '--editor-line-height': `${editorPreferences.lineHeight}px`, '--editor-tab-size': editorPreferences.tabSize } as CSSProperties}>
         <div className="source-editor-wrap">
-          <div className="source-gutter" ref={gutterRef} aria-label="Line numbers, source bookmarks and breakpoints">{largeSourceFile ? <span className="large-gutter-summary" title={`${lines.length.toLocaleString()} lines; individual gutter controls are paused in large source mode`}>1…{lines.length}</span> : lines.map((_, index) => { const line = index + 1; const bookmark = fileBookmarks.find((item) => item.line === line); return <button type="button" aria-label={`${breakpoints.includes(line) ? 'Remove' : 'Add'} breakpoint at line ${line}${bookmark ? `; source bookmark ${bookmark.name}${bookmark.enabled ? '' : ' disabled'}${bookmark.orphaned ? ' orphaned' : ''}` : ''}`} className={`${bookmark ? `bookmarked${bookmark.enabled ? '' : ' disabled'}${bookmark.orphaned ? ' orphaned' : ''} ` : ''}${breakpoints.includes(line) ? 'breakpoint' : ''}`} onClick={() => onToggleBreakpoint?.(line)} key={index}>{line}</button>; })}</div>
+          <div className="source-gutter" ref={gutterRef} aria-label="Line numbers, source bookmarks and breakpoints"
+            /* The gutter is taller than its box for any file of length,
+             * and is moved in step with the editor rather than scrolled
+             * on its own. Saying so here is what tells a reader — and
+             * the check that looks for content nothing can reach — that
+             * the rest of it is one keystroke away in the text beside
+             * it. */
+            data-scroll-follows=".source-textarea"
+          >{largeSourceFile ? <span className="large-gutter-summary" title={`${lines.length.toLocaleString()} lines; individual gutter controls are paused in large source mode`}>1…{lines.length}</span> : lines.map((_, index) => { const line = index + 1; const bookmark = fileBookmarks.find((item) => item.line === line); return <button type="button" aria-label={`${breakpoints.includes(line) ? 'Remove' : 'Add'} breakpoint at line ${line}${bookmark ? `; source bookmark ${bookmark.name}${bookmark.enabled ? '' : ' disabled'}${bookmark.orphaned ? ' orphaned' : ''}` : ''}`} className={`${bookmark ? `bookmarked${bookmark.enabled ? '' : ' disabled'}${bookmark.orphaned ? ' orphaned' : ''} ` : ''}${breakpoints.includes(line) ? 'breakpoint' : ''}`} onClick={() => onToggleBreakpoint?.(line)} key={index}>{line}</button>; })}</div>
           {editorPreferences.inlayHints && (hintRail.available ? (
             /* One row per source line so the rail lines up with the text; the
              * lines that have no hint are still rows, or every row below the

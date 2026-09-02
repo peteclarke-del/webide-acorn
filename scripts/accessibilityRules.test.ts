@@ -4,7 +4,8 @@
  * jsdom. The release gate runs the same expression against the built product,
  * so the two cannot disagree about what a finding is. */
 import { describe, expect, it, beforeEach } from 'vitest';
-import { COVERAGE, FOCUS_VISIBILITY, FORCED_COLOURS, KEYBOARD_REACHABILITY, MINIMUM_TARGET, POINTER_ALTERNATIVES, REDUCED_MOTION, REDUCED_TRANSPARENCY, SCAN, TEXT_SPACING, VISUAL_ALTERNATIVES, summarise } from './accessibilityRules.mjs';
+import { COVERAGE, FOCUS_VISIBILITY, FORCED_COLOURS, KEYBOARD_REACHABILITY,
+  SCROLLABLE_OVERFLOW, MINIMUM_TARGET, POINTER_ALTERNATIVES, REDUCED_MOTION, REDUCED_TRANSPARENCY, SCAN, TEXT_SPACING, VISUAL_ALTERNATIVES, summarise } from './accessibilityRules.mjs';
 
 /* jsdom has no layout, so the geometry rules need boxes supplied. */
 function withBox(element: Element, box: { width: number; height: number; left?: number; top?: number }) {
@@ -250,6 +251,78 @@ describe('operating the product without a pointer', () => {
       </div>`;
     const findings = run(KEYBOARD_REACHABILITY);
     expect(findings.map((finding) => finding.detail).join(' ')).toContain('2 controls and no keyboard tab stop');
+  });
+
+  it('reports content that does not fit and cannot be scrolled to', () => {
+    /* The settings column did this: panels stacked in a pane with overflow
+     * hidden and no scroller, so the list ended partway down with no sign that
+     * there was more. */
+    document.body.innerHTML = '<div id="pane" style="height: 40px; overflow: hidden"><div id="tall" style="height: 400px">…</div></div>';
+    const pane = document.getElementById('pane')!;
+    Object.defineProperty(pane, 'clientHeight', { value: 40, configurable: true });
+    Object.defineProperty(pane, 'clientWidth', { value: 300, configurable: true });
+    Object.defineProperty(pane, 'scrollHeight', { value: 400, configurable: true });
+    /* This environment lays nothing out, so the boxes are described here: a
+     * pane forty tall holding something four hundred tall, which is the shape
+     * the rule is about. */
+    pane.getBoundingClientRect = () => ({ top: 0, bottom: 40, left: 0, right: 300, width: 300, height: 40, x: 0, y: 0, toJSON: () => ({}) });
+    const tall = document.getElementById('tall')!;
+    tall.getBoundingClientRect = () => ({ top: 0, bottom: 400, left: 0, right: 300, width: 300, height: 400, x: 0, y: 0, toJSON: () => ({}) });
+    const findings = run(SCROLLABLE_OVERFLOW);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.detail).toContain('larger than the room it has vertically');
+    expect(findings[0]!.detail).toContain('cannot be reached');
+  });
+
+  it('accepts a strip that says what scrolls it, when that thing scrolls', () => {
+    /* The editor gutter is taller than its box for any file of length and is
+     * moved in step with the text beside it rather than by a scrollbar of its
+     * own. It says so in the markup, which is what tells a reader as well as
+     * this check. */
+    document.body.innerHTML = '<div id="gutter" style="height: 40px; overflow: hidden" data-scroll-follows="#text"><span>1…400</span></div>'
+      + '<textarea id="text" style="height: 40px; overflow: auto"></textarea>';
+    const gutter = document.getElementById('gutter')!;
+    Object.defineProperty(gutter, 'clientHeight', { value: 40, configurable: true });
+    Object.defineProperty(gutter, 'clientWidth', { value: 60, configurable: true });
+    Object.defineProperty(gutter, 'scrollHeight', { value: 400, configurable: true });
+    gutter.getBoundingClientRect = () => ({ top: 0, bottom: 40, left: 0, right: 60, width: 60, height: 40, x: 0, y: 0, toJSON: () => ({}) });
+    (gutter.firstElementChild as HTMLElement).getBoundingClientRect = () => ({ top: 0, bottom: 400, left: 0, right: 60, width: 60, height: 400, x: 0, y: 0, toJSON: () => ({}) });
+    expect(run(SCROLLABLE_OVERFLOW)).toEqual([]);
+  });
+
+  it('refuses the claim when the thing it names cannot scroll either', () => {
+    document.body.innerHTML = '<div id="gutter" style="height: 40px; overflow: hidden" data-scroll-follows="#text"><span>1…400</span></div>'
+      + '<textarea id="text" style="height: 40px; overflow: hidden"></textarea>';
+    const gutter = document.getElementById('gutter')!;
+    Object.defineProperty(gutter, 'clientHeight', { value: 40, configurable: true });
+    Object.defineProperty(gutter, 'clientWidth', { value: 60, configurable: true });
+    Object.defineProperty(gutter, 'scrollHeight', { value: 400, configurable: true });
+    gutter.getBoundingClientRect = () => ({ top: 0, bottom: 40, left: 0, right: 60, width: 60, height: 40, x: 0, y: 0, toJSON: () => ({}) });
+    (gutter.firstElementChild as HTMLElement).getBoundingClientRect = () => ({ top: 0, bottom: 400, left: 0, right: 60, width: 60, height: 400, x: 0, y: 0, toJSON: () => ({}) });
+    expect(run(SCROLLABLE_OVERFLOW)).toHaveLength(1);
+  });
+
+  it('accepts a pane that clips nothing, and one that can be scrolled', () => {
+    document.body.innerHTML = '<div id="fits" style="height: 40px; overflow: hidden"></div>'
+      + '<div id="scrolls" style="height: 40px; overflow: auto"><div style="height: 400px">…</div></div>';
+    const fits = document.getElementById('fits')!;
+    Object.defineProperty(fits, 'clientHeight', { value: 40, configurable: true });
+    Object.defineProperty(fits, 'scrollHeight', { value: 40, configurable: true });
+    const scroller = document.getElementById('scrolls')!;
+    Object.defineProperty(scroller, 'clientHeight', { value: 40, configurable: true });
+    Object.defineProperty(scroller, 'scrollHeight', { value: 400, configurable: true });
+    expect(run(SCROLLABLE_OVERFLOW)).toEqual([]);
+  });
+
+  it('accepts content an ancestor can scroll, which is where a page usually puts it', () => {
+    document.body.innerHTML = '<div id="outer" style="height: 40px; overflow: auto"><div id="inner" style="height: 400px; overflow: hidden"><p>…</p></div></div>';
+    const outer = document.getElementById('outer')!;
+    Object.defineProperty(outer, 'clientHeight', { value: 40, configurable: true });
+    Object.defineProperty(outer, 'scrollHeight', { value: 400, configurable: true });
+    const inner = document.getElementById('inner')!;
+    Object.defineProperty(inner, 'clientHeight', { value: 40, configurable: true });
+    Object.defineProperty(inner, 'scrollHeight', { value: 400, configurable: true });
+    expect(run(SCROLLABLE_OVERFLOW)).toEqual([]);
   });
 
   it('says so when a page offers no tab stop at all', () => {
