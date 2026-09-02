@@ -62,10 +62,31 @@ final class BlobStoreTest extends TestCase
         $store->get($digest);
     }
 
-    public function testRefusesAnEmptyBlobRatherThanStoringSomethingIndistinguishableFromNothing(): void
+    public function testAnEmptyFileIsADigestThatIsAlwaysPresentRatherThanARefusal(): void
     {
-        $this->expectExceptionMessageMatches('/indistinguishable from a missing one/');
-        $this->store()->put('');
+        /* An empty file used to be refused, which made the store unusable for
+         * the case it exists for: a source file somebody has just created is
+         * empty, and the whole project went with it. Emptiness is a digest that
+         * is never written and always answers, so an empty blob and a missing
+         * one are no longer alike. */
+        $store = $this->store();
+        $digest = $store->put('');
+        self::assertSame(BlobStore::EMPTY_DIGEST, $digest);
+        self::assertSame(hash('sha256', ''), $digest);
+        self::assertTrue($store->has($digest));
+        self::assertSame('', $store->get($digest));
+        self::assertFileDoesNotExist($this->root.'/blobs/e3/b0/'.$digest);
+    }
+
+    public function testABlobThatIsNotThereIsStillMissing(): void
+    {
+        /* The exemption is for emptiness alone; every other digest still has to
+         * be on disk, or the store says so rather than returning nothing. */
+        $store = $this->store();
+        $absent = hash('sha256', 'never stored');
+        self::assertFalse($store->has($absent));
+        $this->expectExceptionMessageMatches('/No blob is stored under/');
+        $store->get($absent);
     }
 
     public function testRefusesAFileLargerThanTheLimitAndSaysBothNumbers(): void

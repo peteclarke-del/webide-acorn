@@ -6,6 +6,8 @@ import { directorySupport, pickDirectory, readDirectory, type FileSystemDirector
 import { archiveRefusalSummary, readZipArchive } from '../project/archiveImport';
 import { projectFromTemplate, templatesForMachine } from '../project/templateCatalogue';
 import type { LocalProject } from '../project/project';
+import { ProjectStoreClient, type StoredProject, type StoredRevision } from '../cloud/projectStoreClient';
+import { projectFromStoredFiles } from '../cloud/storedProject';
 
 interface StartProjectDialogProps {
   /** The folder handle is passed on only when the project came from one that
@@ -15,9 +17,13 @@ interface StartProjectDialogProps {
   onNotice: (message: string) => void;
   /** The machine currently selected, so templates are offered against it. */
   machineId: string;
+  /** Supplied by tests; the real dialog talks to the store this build ships. */
+  storeClient?: ProjectStoreClient;
+  /** Which source to show first, when something opened the dialog for one. */
+  initialTab?: 'samples' | 'templates' | 'folder' | 'store';
 }
 
-type Tab = 'samples' | 'templates' | 'folder';
+type Tab = 'samples' | 'templates' | 'folder' | 'store';
 
 const EXCLUSION_LABELS: Record<string, string> = {
   'ignored-directory': 'Skipped folder',
@@ -29,8 +35,17 @@ const EXCLUSION_LABELS: Record<string, string> = {
   'empty-name': 'No filename',
 };
 
-export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId }: StartProjectDialogProps) {
-  const [tab, setTab] = useState<Tab>('samples');
+export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId, storeClient, initialTab }: StartProjectDialogProps) {
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'samples');
+  /* The project store, which is where work lives when it is meant to outlast
+   * this browser. Everything about it is reported rather than assumed: a store
+   * that is not running says so, and a revision with no project manifest says
+   * that too rather than being opened as a guess. */
+  const store = useMemo(() => storeClient ?? new ProjectStoreClient(), [storeClient]);
+  const [stored, setStored] = useState<StoredProject[]>([]);
+  const [storeUnreachable, setStoreUnreachable] = useState<string>();
+  const [storeBusy, setStoreBusy] = useState(false);
+  const [storeRevisions, setStoreRevisions] = useState<Record<string, StoredRevision[]>>({});
   const [samples, setSamples] = useState<SampleProject[]>();
   const [sampleError, setSampleError] = useState<string>();
   const [plan, setPlan] = useState<CodebaseImportPlan>();
@@ -183,6 +198,43 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
     return [...groups.entries()].sort((left, right) => right[1] - left[1]);
   }, [plan]);
 
+  /* Asked for once when the tab is opened, so a dialog that is never taken to
+   * the store makes no request to it. */
+  useEffect(() => {
+    if (tab !== 'store') return;
+    let cancelled = false;
+    void (async () => {
+      const listed = await store.projects();
+      if (cancelled) return;
+      if (!listed.ok) { setStoreUnreachable(listed.reason); setStored([]); return; }
+      setStoreUnreachable(undefined);
+      setStored(listed.value);
+    })();
+    return () => { cancelled = true; };
+  }, [tab, store]);
+
+  const showRevisions = async (projectId: string) => {
+    setStoreBusy(true);
+    const listed = await store.revisions(projectId);
+    setStoreBusy(false);
+    if (!listed.ok) { onNotice(`The store could not list revisions of ${projectId}: ${listed.reason}`); return; }
+    setStoreRevisions((current) => ({ ...current, [projectId]: listed.value }));
+  };
+
+  const openStored = async (projectId: string, revisionId: string) => {
+    setStoreBusy(true);
+    const read = await store.read(projectId, revisionId);
+    setStoreBusy(false);
+    if (!read.ok) { onNotice(`The store could not read ${projectId} ${revisionId}: ${read.reason}`); return; }
+    /* The client has already decoded the contents; decoding again here would
+     * turn every file into whatever base64 of base64 happens to be. */
+    const opened = projectFromStoredFiles(read.value);
+    if (!opened.project) { onNotice(opened.detail); return; }
+    /* No folder handle: this came from the store, not from a folder on disk,
+     * and saying otherwise would offer a write-back that could not happen. */
+    onOpenProject(opened.project, `${opened.detail} From the project store, revision ${revisionId}.`, null);
+  };
+
   return (
     <div className="modal-scrim" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="start-project-dialog panel-surface" role="dialog" aria-modal="true" aria-label="Start a project">
@@ -194,6 +246,7 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
           <button type="button" role="tab" id="start-tab-samples" aria-selected={tab === 'samples'} aria-controls="start-panel-samples" className={tab === 'samples' ? 'active' : undefined} onClick={() => setTab('samples')}>Sample projects</button>
           <button type="button" role="tab" id="start-tab-templates" aria-selected={tab === 'templates'} aria-controls="start-panel-templates" className={tab === 'templates' ? 'active' : undefined} onClick={() => setTab('templates')}>Templates</button>
           <button type="button" role="tab" id="start-tab-folder" aria-selected={tab === 'folder'} aria-controls="start-panel-folder" className={tab === 'folder' ? 'active' : undefined} onClick={() => setTab('folder')}>From an existing codebase</button>
+          <button type="button" role="tab" id="start-tab-store" aria-selected={tab === 'store'} aria-controls="start-panel-store" className={tab === 'store' ? 'active' : undefined} onClick={() => setTab('store')}>From the project store</button>
         </div>
 
         {tab === 'samples' && (
@@ -479,6 +532,48 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 </p>
               </div>
             )}
+          </div>
+        )}
+        {tab === 'store' && (
+          <div className="start-project-panel" role="tabpanel" id="start-panel-store" aria-labelledby="start-tab-store">
+            <p>
+              Projects the store holds. The store lives on the volume the deployment mounts, not in this
+              browser, so what is here survives clearing the browser and opening the workbench somewhere else.
+            </p>
+            {storeUnreachable && (
+              <p className="binding-warning" role="status">
+                No project store is running, so nothing can be opened from one. {storeUnreachable}
+              </p>
+            )}
+            {!storeUnreachable && !stored.length && (
+              <p className="honest-empty">The store is running and holds no projects yet. Save one from Settings, or from the command palette.</p>
+            )}
+            <ul className="sample-list">
+              {stored.map((project) => (
+                <li key={project.id}>
+                  <div className="sample-heading">
+                    <h3>{project.id}</h3>
+                    <span className="sample-meta">{project.revisions} revision{project.revisions === 1 ? '' : 's'}</span>
+                  </div>
+                  {!storeRevisions[project.id] ? (
+                    <button type="button" disabled={storeBusy} onClick={() => void showRevisions(project.id)}>
+                      Show revisions
+                    </button>
+                  ) : (
+                    <ul className="sample-highlights">
+                      {storeRevisions[project.id]!.map((revision) => (
+                        <li key={revision.id}>
+                          <span>{revision.writtenAt} · {revision.files} file{revision.files === 1 ? '' : 's'}{revision.note ? ` · ${revision.note}` : ''}</span>
+                          <button type="button" disabled={storeBusy} onClick={() => void openStored(project.id, revision.id)}>
+                            Open this revision
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

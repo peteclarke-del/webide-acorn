@@ -242,6 +242,11 @@ reported a specific readiness check as failed. The readiness detail comes
 straight from the manifest, so a missing binary names the path it was looked
 for at.
 
+The store needs somewhere to write. In the container that is the mounted
+volume; outside it, `PROJECT_STORE_ROOT` has to name a directory the backend may
+create, or every write is refused with `PROJECT_UNWRITABLE` naming the path it
+tried. `backend/var/store` is the usual choice locally and is ignored by git.
+
 The backend finds each executable rather than assuming one absolute path.
 `BEEBASM_PATH`, `CA65_PATH`, `LD65_PATH`, `CC65_PATH` and `ARM_*_PATH` are used
 exactly as given when they are set; otherwise `PATH` is searched, then

@@ -147,8 +147,8 @@ final class ProjectStore
         foreach ($files as $name => $bytes) $this->blobs->put($bytes);
 
         $directory = $this->projectRoot($owner, $projectId).'/revisions';
-        if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
-            throw new StorageError('PROJECT_UNWRITABLE', 'The project store could not be written to.');
+        if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
+            throw new StorageError('PROJECT_UNWRITABLE', sprintf('The project store could not be written to at %s.', $directory));
         }
         $sequence = count($history) + 1;
         $revision = [
@@ -163,8 +163,8 @@ final class ProjectStore
             'files' => $manifest,
         ];
         $path = sprintf('%s/%s.json', $directory, $revision['id']);
-        if (file_put_contents($path, json_encode($revision, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX) === false) {
-            throw new StorageError('PROJECT_UNWRITABLE', 'The project store could not be written to.');
+        if (@file_put_contents($path, json_encode($revision, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX) === false) {
+            throw new StorageError('PROJECT_UNWRITABLE', sprintf('The project store could not be written to at %s.', $path));
         }
 
         return $revision;
@@ -302,10 +302,15 @@ final class ProjectStore
             'reason' => mb_substr($reason, 0, 200),
         ];
         $graves = $this->ownerRoot($owner).'/tombstones';
-        if (!is_dir($graves) && !mkdir($graves, 0700, true) && !is_dir($graves)) {
-            throw new StorageError('PROJECT_UNWRITABLE', 'The project store could not be written to.');
+        if (!is_dir($graves) && !@mkdir($graves, 0700, true) && !is_dir($graves)) {
+            throw new StorageError('PROJECT_UNWRITABLE', sprintf('The project store could not be written to at %s.', $graves));
         }
-        file_put_contents(sprintf('%s/%s.json', $graves, $projectId), json_encode($tombstone, JSON_PRETTY_PRINT), LOCK_EX);
+        $grave = sprintf('%s/%s.json', $graves, $projectId);
+        if (@file_put_contents($grave, json_encode($tombstone, JSON_PRETTY_PRINT), LOCK_EX) === false) {
+            /* A deletion whose record could not be written is not accountable,
+             * and an unaccountable deletion is worse than a refused one. */
+            throw new StorageError('PROJECT_UNWRITABLE', sprintf('The deletion could not be recorded at %s.', $grave));
+        }
 
         /* Content no surviving revision names is now collectable. Content
          * another project still names is not, and is left alone. */

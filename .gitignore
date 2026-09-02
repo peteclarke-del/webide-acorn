@@ -22,6 +22,7 @@ coverage/
 # Symfony regenerates these on every boot; they are not project files.
 /backend/var/cache/
 /backend/var/log/
+/backend/var/store/
 /backend/.phpunit.cache/
 # The formatter's cache of what it has already checked. It is written in the
 # directory the formatter was started from, which is the repository root when

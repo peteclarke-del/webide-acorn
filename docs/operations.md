@@ -17,7 +17,14 @@ A directory tree on a mounted volume, at `PROJECT_STORE_ROOT`, defaulting to
   against, and when. Also `owners/<owner>/tombstones/*.json`, which record what
   was deleted so that a deletion is accountable rather than an absence.
 - `blobs/<aa>/<bb>/<digest>` — the file contents, addressed by their SHA-256 and
-  stored once however many revisions name them.
+  stored once however many revisions name them. An empty file is the one
+  exception: it is recorded under the SHA-256 of no bytes and never written, so
+  there is nothing on disk to lose and nothing ambiguous about its absence.
+
+A revision also carries `.8bit-net-project.json`, the project's own portable
+bundle. That is what makes a stored revision a project rather than a pile of
+files: without it the build targets, breakpoints, bookmarks, disk sets and
+settings would have to be guessed again from the source when it was opened.
 
 Two properties follow from that and both matter here. History over a project
 that barely changes costs almost nothing, because a revision that changed one

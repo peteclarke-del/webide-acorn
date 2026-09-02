@@ -4,6 +4,9 @@ import '@testing-library/jest-dom/vitest';
 import { StartProjectDialog } from './StartProjectDialog';
 import type { LocalProject } from '../project/project';
 import { parseTileMapDocument } from '../assets/tileMapDocument';
+import { ProjectStoreClient, encodeContent } from '../cloud/projectStoreClient';
+import { storedFilesFor } from '../cloud/storedProject';
+import { newProject } from '../project/project';
 
 /* The sample catalogue is a dynamic import of a large generated module. Under a
  * loaded machine that can take longer than the one-second default wait, which
@@ -387,5 +390,62 @@ describe('starting from a template', () => {
     render(<StartProjectDialog machineId="archimedes-a3000" onOpenProject={() => {}} onClose={() => {}} onNotice={() => {}} />);
     fireEvent.click(await screen.findByRole('tab', { name: 'Templates' }, { timeout: SAMPLE_LOAD_TIMEOUT }));
     expect(screen.getByText('No template ships for this machine yet.')).toBeInTheDocument();
+  });
+});
+
+describe('opening a project the store holds', () => {
+  const answer = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+  /* A store with one project, one revision, and a real project bundle inside
+   * it, so what the dialog opens is what the workbench would have stored. */
+  const storeWith = (files: Record<string, string>) => new ProjectStoreClient(vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    if (path.endsWith('/store/projects')) {
+      return answer({ schema: '8bit-net.project-store-projects', version: 1, projects: [{ id: 'harvest', revisions: 1 }] });
+    }
+    if (path.endsWith('/revisions')) {
+      return answer({ schema: '8bit-net.project-revisions', version: 1, revisions: [{ id: '000001-abc', parent: null, writtenAt: '2026-09-02T00:00:00Z', note: 'first', files: Object.keys(files).length }] });
+    }
+    return answer({
+      schema: '8bit-net.project-revision', version: 1, id: '000001-abc',
+      files: Object.fromEntries(Object.entries(files).map(([name, text]) => [name, encodeContent(text)])),
+    });
+  }) as unknown as typeof fetch);
+
+  it('opens a stored revision with the build targets it was stored with', async () => {
+    const project = { ...newProject(), name: 'Harvest' };
+    const onOpenProject = vi.fn();
+    render(<StartProjectDialog machineId="bbc-b" onOpenProject={onOpenProject} onClose={() => {}} onNotice={() => {}} storeClient={storeWith(storedFilesFor(project, '2026-09-02T00:00:00Z'))} initialTab="store" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Show revisions' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open this revision' }));
+
+    await waitFor(() => expect(onOpenProject).toHaveBeenCalled());
+    const [opened, description, folder] = onOpenProject.mock.calls[0]!;
+    expect(opened.name).toBe('Harvest');
+    expect(opened.buildTargets).toHaveLength(project.buildTargets.length);
+    expect(description).toContain('From the project store');
+    /* No folder handle: it came from the store, and offering a write-back that
+     * could not happen would be a lie about where the project lives. */
+    expect(folder).toBeNull();
+  });
+
+  it('says a revision without a manifest cannot be opened as a project', async () => {
+    const onOpenProject = vi.fn();
+    const onNotice = vi.fn();
+    render(<StartProjectDialog machineId="bbc-b" onOpenProject={onOpenProject} onClose={() => {}} onNotice={onNotice} storeClient={storeWith({ 'main.asm': 'RTS\n' })} initialTab="store" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Show revisions' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open this revision' }));
+
+    await waitFor(() => expect(onNotice).toHaveBeenCalled());
+    expect(onNotice.mock.calls[0]![0]).toContain('no project manifest');
+    expect(onOpenProject).not.toHaveBeenCalled();
+  });
+
+  it('says so when no store is running, rather than showing an empty list', async () => {
+    const unreachable = new ProjectStoreClient(vi.fn(async () => { throw new TypeError('Failed to fetch'); }) as unknown as typeof fetch);
+    render(<StartProjectDialog machineId="bbc-b" onOpenProject={vi.fn()} onClose={() => {}} onNotice={() => {}} storeClient={unreachable} initialTab="store" />);
+    expect(await screen.findByText(/No project store is running/)).toBeInTheDocument();
   });
 });

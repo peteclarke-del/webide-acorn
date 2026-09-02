@@ -46,6 +46,8 @@ import { analyseBuildGraph, impactedBuildTargets, sourceInputsForTarget } from '
 import { BUILD_PROFILES, buildEntryUpdate, buildProfileDefines, buildProfileKeepsDebugMetadata, buildProfileManifest, buildToolchainUpdate, compatibleToolchains, createBuildTarget, provenanceMatches, shouldScheduleBackgroundBuild, toolchainFor, validateBuildTarget, type BuildTarget } from './build/buildTarget';
 import { analysisCandidates, candidateReference, projectFileBytes, type AnalysisCandidate } from './analysis/projectAnalysisCandidates';
 import { PanelSeparator } from './components/PanelSeparator';
+import { isStoreManifest, storedFilesFor } from './cloud/storedProject';
+import { ProjectStoreClient } from './cloud/projectStoreClient';
 import { useMediaQuery } from './layout/useMediaQuery';
 import { DEFAULT_PANEL_SIZES, readPanelSizes, resizePanel, workbenchColumns, workspaceRows, writePanelSizes, type PanelId, type PanelOpenState, type PanelSizes } from './layout/panelLayout';
 import { BuildExecutionError, buildExecutionError, executeBuild, type BuildArtifact, type BuildRequest, type BuildResponse, type BuildResultMetadata } from './build/buildService';
@@ -66,7 +68,7 @@ import { SdkDocumentView } from './components/SdkDocumentView';
 import { ProjectExportDialog } from './components/ProjectExportDialog';
 import { StartProjectDialog } from './components/StartProjectDialog';
 import { writeDirectory, type FileSystemDirectoryHandleLike } from './project/directoryAccess';
-import { ProjectStorePanel } from './components/ProjectStorePanel';
+import { ProjectStorePanel, storeProjectId } from './components/ProjectStorePanel';
 import { SampleWorkspace } from './components/SampleWorkspace';
 import { TileMapWorkspace } from './components/TileMapWorkspace';
 import { PaletteWorkspace } from './components/PaletteWorkspace';
@@ -368,6 +370,9 @@ function App() {
   const [workspaceTab, setWorkspaceTab] = useState('Code');
   const [projectExportOpen, setProjectExportOpen] = useState(false);
   const [startProjectOpen, setStartProjectOpen] = useState(false);
+  /* Which source the Start dialog shows first, so a command that means "open
+   * one from the store" lands on the store rather than on the samples. */
+  const [startProjectTab, setStartProjectTab] = useState<'samples' | 'templates' | 'folder' | 'store'>('samples');
   const [caretLine, setCaretLine] = useState(1);
   const [caretColumn, setCaretColumn] = useState(1);
   const [caretSelectionLength, setCaretSelectionLength] = useState(0);
@@ -1663,6 +1668,17 @@ function App() {
    * room for the panel to sit beside the editor. */
   const panelsOverlayEditor = useMediaQuery('(max-width: 900px)');
   const inspectorFitsBeside = !useMediaQuery('(max-width: 1180px)');
+  /* What a revision of this project would hold: its sources, and the project
+   * itself, so that opening a stored revision restores the build targets and
+   * breakpoints rather than having them guessed again from the source. Rebuilt
+   * only when the project changes, which is also the only time a new revision
+   * is worth writing. */
+  const storeClient = useMemo(() => new ProjectStoreClient(), []);
+  const storedProjectFiles = useMemo(
+    () => Object.entries(storedFilesFor(project, new Date().toISOString())).map(([name, content]) => ({ name, content })),
+    [project],
+  );
+
   const panelOpenState: PanelOpenState = {
     config: configOpen && !panelsOverlayEditor,
     explorer: explorerOpen && !panelsOverlayEditor,
@@ -1815,6 +1831,20 @@ function App() {
     { id: 'view-target', label: `${configOpen ? 'Hide' : 'Show'} target configuration`, category: 'View', keywords: ['machine', 'profile'], enabled: true, run: toggleConfigPanel },
     { id: 'view-explorer', label: `${explorerOpen ? 'Hide' : 'Show'} project explorer`, category: 'View', keywords: ['files', 'tree'], enabled: true, run: toggleExplorerPanel },
     { id: 'view-inspector', label: `${inspectorOpen ? 'Hide' : 'Show'} inspector`, category: 'View', keywords: ['problems', 'registers'], enabled: true, run: () => setInspectorOpen((current) => !current) },
+    { id: 'store-save', label: 'Project store: save this project', category: 'Project', keywords: ['backend', 'persist', 'commit', 'revision', 'server'], enabled: true, run: () => { void (async () => {
+      const files = Object.fromEntries(storedProjectFiles.map((file) => [file.name, file.content]));
+      /* Written against the head the store reports, so a second workbench
+       * editing the same project collides here rather than one of them quietly
+       * overwriting the other. */
+      const id = storeProjectId(project.name).id;
+      const history = await storeClient.revisions(id);
+      const head = history.ok && history.value.length ? history.value[history.value.length - 1]!.id : null;
+      const written = await storeClient.commit(id, files, head, `Saved from the workbench on ${new Date().toISOString()}`);
+      setNotice(written.ok
+        ? `Saved ${project.name} to the project store as revision ${written.value.id}.`
+        : `The project store did not accept this project: ${written.reason}`);
+    })(); } },
+    { id: 'store-open', label: 'Project store: open a project', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
     { id: 'view-runtime', label: `${runtimeOpen ? 'Hide' : 'Show'} machine runtime`, category: 'View', keywords: ['emulator', 'screen', 'panel'], enabled: true, run: () => setRuntimeOpen((current) => !current) },
     { id: 'view-reset-panels', label: 'Reset panel sizes', category: 'View', keywords: ['layout', 'width', 'resize', 'default'], enabled: true, run: () => { setPanelSizes({ ...DEFAULT_PANEL_SIZES }); try { writePanelSizes(DEFAULT_PANEL_SIZES, window.localStorage); } catch { /* the arrangement is lost, the session is not */ } setNotice('Panel sizes reset'); } },
     ...workspaceCommands,
@@ -1923,7 +1953,7 @@ function App() {
         }}
       />
       <CommandPalette open={commandPaletteOpen} commands={commands} onClose={() => setCommandPaletteOpen(false)} />
-      {startProjectOpen && <StartProjectDialog onOpenProject={adoptProject} onClose={() => setStartProjectOpen(false)} onNotice={setNotice} machineId={resolved.machine.id} />}
+      {startProjectOpen && <StartProjectDialog onOpenProject={adoptProject} initialTab={startProjectTab} onClose={() => { setStartProjectOpen(false); setStartProjectTab('samples'); }} onNotice={setNotice} machineId={resolved.machine.id} />}
       <ProjectExportDialog open={projectExportOpen} projectName={project.name} projectBookmarkCount={project.bookmarks.filter((bookmark) => bookmark.scope === 'project').length} privateBookmarkCount={project.bookmarks.filter((bookmark) => bookmark.scope === 'private').length} preview={exportPreview} onClose={() => setProjectExportOpen(false)} onExport={exportLocalProject} />
       <GoToSourceDialog open={goToSourceOpen} files={project.files} activeFileId={activeFileId} currentLine={caretLine} sourceLocations={currentMachineArtifact?.sourceLocations} onClose={() => setGoToSourceOpen(false)} onNavigate={(fileId, line, column, length) => {
         jumpToSourceLocation(fileId, line, column, length);
@@ -2345,7 +2375,7 @@ function App() {
                     <button type="button" onClick={() => { clearQuarantinedSnapshot(); setUnreadableSnapshot(null); setNotice('The preserved copy has been discarded at your request'); }}>Discard it</button>
                   </div>
                 </section>
-              )}<SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProjectStorePanel projectName={project.name} files={project.files.map((file) => ({ name: file.name, content: file.content }))} onNotice={setNotice} onOpenFiles={(opened) => { for (const file of opened) addSourceFile(file.name, file.content); }} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><ProfileComparisonPanel /><SystemStatusPanel /><ConformancePanel machineId={machine.id} capabilities={enabledCapabilities} romSetId={resolved.rom.id} /><ReferenceLibraryPanel library={packLibrary} target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }} onNotice={setNotice} onChange={(next) => { setPackLibrary(next); const failure = savePackLibrary(next); if (failure) setNotice(failure); }} /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
+              )}<SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProjectStorePanel projectName={project.name} files={storedProjectFiles} onNotice={setNotice} onOpenFiles={(opened) => { for (const file of opened) if (!isStoreManifest(file.name)) addSourceFile(file.name, file.content); }} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><ProfileComparisonPanel /><SystemStatusPanel /><ConformancePanel machineId={machine.id} capabilities={enabledCapabilities} romSetId={resolved.rom.id} /><ReferenceLibraryPanel library={packLibrary} target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }} onNotice={setNotice} onChange={(next) => { setPackLibrary(next); const failure = savePackLibrary(next); if (failure) setNotice(failure); }} /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
             ) : workspaceTab === 'Help' ? (
               <HelpWorkspace />
             ) : workspaceTab === 'Sound' ? (

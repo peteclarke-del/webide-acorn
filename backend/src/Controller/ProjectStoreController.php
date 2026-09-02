@@ -36,7 +36,6 @@ final class ProjectStoreController
         'FILENAME_INVALID' => [400, false],
         'REVISION_EMPTY' => [400, false],
         'REVISION_TOO_MANY_FILES' => [400, false],
-        'BLOB_EMPTY' => [400, false],
         'BLOB_TOO_LARGE' => [413, false],
         'BLOB_DIGEST_INVALID' => [400, false],
         'OWNER_BYTE_QUOTA' => [409, false],
