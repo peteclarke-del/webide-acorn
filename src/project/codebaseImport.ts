@@ -11,6 +11,8 @@ import { languageForFilename, parseProject, PROJECT_FORMAT, type LocalProject, t
 import { BUILD_TARGET_SCHEMA, defaultToolchainId, toolchainFor, type ToolchainId } from '../build/buildTarget';
 import { assemblyByteRuns, pixelAssetCandidates, tileMapCandidates, tileMapFromCandidate, type DerivedPixelAsset, type TileMapCandidate } from '../assets/assemblyPixelData';
 import { serializeTileMapDocument } from '../assets/tileMapDocument';
+import { normalizeProjectPath } from './safeNames';
+import { basenameOf } from './includeResolution';
 
 export const MAX_IMPORT_FILES = 512;
 
@@ -115,10 +117,10 @@ function scoreEntry(file: PlannedImportFile, content: string, included: Set<stri
   let score = 0;
   if (/^\s*(?:ORG\b|\*\s*=)/im.test(content)) { score += 40; reasons.push('sets an origin'); }
   if (/^\s*(?:int|void)\s+main\s*\(/im.test(content)) { score += 40; reasons.push('defines main()'); }
-  if (/^main\.[^.]+$/i.test(file.name)) { score += 30; reasons.push('is named main'); }
+  if (/^main\.[^.]+$/i.test(basenameOf(file.name))) { score += 30; reasons.push('is named main'); }
   if (/^\s*INCLUDE(?:ASSET)?\s/im.test(content)) { score += 15; reasons.push('includes other files'); }
   if (/^\s*\.(?:start|main|init|entry)\b/im.test(content)) { score += 10; reasons.push('declares a start label'); }
-  if (!included.has(file.name.toLowerCase())) { score += 25; reasons.push('is not included by another file'); }
+  if (!included.has(file.name.toLowerCase()) && !included.has(basenameOf(file.name).toLowerCase())) { score += 25; reasons.push('is not included by another file'); }
   return { file, score, reasons };
 }
 
@@ -137,7 +139,7 @@ function proposeTargets(files: PlannedImportFile[], contents: Map<string, string
     if (best.score <= 0) { warnings.push(`No ${language} file looked like a build entry, so no ${language} target was proposed.`); continue; }
     const tied = scored.filter((entry) => entry.score === best.score);
     if (tied.length > 1) warnings.push(`${tied.map((entry) => entry.file.name).join(' and ')} scored equally as the ${language} entry file. ${best.file.name} was proposed and can be changed before the project is created.`);
-    const stem = best.file.name.replace(/\.[^.]+$/, '') || 'program';
+    const stem = basenameOf(best.file.name).replace(/\.[^.]+$/, '') || 'program';
     targets.push({
       id: `import-${language}`,
       name: `${stem} build`,
@@ -155,9 +157,9 @@ function proposeTargets(files: PlannedImportFile[], contents: Map<string, string
     const numbered = basic
       .map((file) => ({ file, lines: (contents.get(file.name) ?? '').split('\n').filter((line) => /^\s*\d{1,5}(?:\s|$)/.test(line)).length }))
       .sort((left, right) => right.lines - left.lines || left.file.name.localeCompare(right.file.name));
-    const preferred = numbered.find((entry) => /^main\./i.test(entry.file.name)) ?? numbered[0]!;
+    const preferred = numbered.find((entry) => /^main\./i.test(basenameOf(entry.file.name))) ?? numbered[0]!;
     if (preferred.lines === 0) warnings.push(`${preferred.file.name} has no numbered BASIC lines, so building it will report line-number diagnostics.`);
-    const stem = preferred.file.name.replace(/\.[^.]+$/, '') || 'program';
+    const stem = basenameOf(preferred.file.name).replace(/\.[^.]+$/, '') || 'program';
     targets.push({
       id: 'import-bbc-basic',
       name: `${stem} build`,
@@ -165,7 +167,7 @@ function proposeTargets(files: PlannedImportFile[], contents: Map<string, string
       toolchainId: '8bit-net.basic.bbc2',
       outputName: `${stem}.bbc`,
       language: 'bbc-basic',
-      reason: /^main\./i.test(preferred.file.name) ? 'Proposed because it is named main.' : `Proposed because it carries the most numbered lines (${preferred.lines}).`,
+      reason: /^main\./i.test(basenameOf(preferred.file.name)) ? 'Proposed because it is named main.' : `Proposed because it carries the most numbered lines (${preferred.lines}).`,
       candidates: numbered.map((entry) => ({ name: entry.file.name, reason: entry.lines ? `Carries ${entry.lines} numbered line${entry.lines === 1 ? '' : 's'}.` : 'Has no numbered BASIC lines.' })),
     });
   }
@@ -178,9 +180,19 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
   const contents = new Map<string, string>();
   const usedNames = new Set<string>();
   const warnings: string[] = [];
+  const pathWarnings: string[] = [];
   let totalBytes = 0;
 
   const ordered = [...inputs].sort((left, right) => left.path.localeCompare(right.path));
+  /* A directory picker reports every path under the folder that was chosen, so
+   * the folder's own name is the first segment of all of them. Dropping it
+   * keeps the project's top level looking like the folder somebody opened,
+   * rather than a single directory holding everything. */
+  const normalizedPaths = ordered.map((input) => input.path.replace(/\\/g, '/').replace(/^\.\//, ''));
+  const firstSegments = new Set(normalizedPaths.filter((path) => path.includes('/')).map((path) => path.split('/')[0]!));
+  const sharedRoot = firstSegments.size === 1 && normalizedPaths.every((path) => path.includes('/'))
+    ? `${[...firstSegments][0]!}/`
+    : '';
   for (const input of ordered) {
     const path = input.path.replace(/\\/g, '/').replace(/^\.\//, '');
     const segments = path.split('/').filter((segment) => segment && segment !== '.' && segment !== '..');
@@ -198,25 +210,29 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
     if (files.length >= MAX_IMPORT_FILES) { exclusions.push({ path, reason: 'file-count-limit', detail: `More than ${MAX_IMPORT_FILES} importable files were offered.` }); continue; }
     if (totalBytes + bytes > MAX_PROJECT_SOURCE_BYTES) { exclusions.push({ path, reason: 'project-size-limit', detail: 'Adding this file would exceed the 8 MiB project total.' }); continue; }
 
-    /* Project filenames are flat. Keep the basename wherever it is unique so
-     * existing INCLUDE directives keep resolving, and disambiguate with the
-     * containing folder only when two files genuinely collide. */
-    let name = base;
+    /* The project keeps the folders the codebase arrived in, because that is
+     * what its INCLUDE directives, its build scripts and its author assume.
+     * Only the folder that was opened is dropped, and a path the filesystem
+     * rule had to change is reported rather than silently altered. */
+    const relative = sharedRoot && path.startsWith(sharedRoot) ? path.slice(sharedRoot.length) : path;
+    const normalized = normalizeProjectPath(relative);
+    let name = normalized.name;
+    if (normalized.reason) pathWarnings.push(`${path}: ${normalized.reason}.`);
     if (usedNames.has(name.toLowerCase())) {
-      const parent = segments.length > 1 ? segments[segments.length - 2]! : 'file';
-      name = `${parent}-${base}`;
+      const stem = name.slice(0, name.length - base.length);
       let counter = 2;
-      while (usedNames.has(name.toLowerCase())) { name = `${parent}-${counter}-${base}`; counter += 1; }
+      do { name = `${stem}${counter}-${base}`; counter += 1; } while (usedNames.has(name.toLowerCase()));
     }
     usedNames.add(name.toLowerCase());
     const language = languageForFilename(name);
-    files.push({ path, name, language, bytes, role: roleFor(name, language), ...(name === base ? {} : { renamedFrom: base }) });
+    files.push({ path, name, language, bytes, role: roleFor(name, language), ...(name.endsWith(base) && !name.includes('-' + base) ? {} : { renamedFrom: base }) });
     contents.set(name, content);
     totalBytes += bytes;
   }
 
   const renamed = files.filter((file) => file.renamedFrom);
   if (renamed.length) warnings.push(`${renamed.length} file${renamed.length === 1 ? '' : 's'} shared a name with another file and ${renamed.length === 1 ? 'was' : 'were'} renamed. Any INCLUDE directive that named ${renamed.length === 1 ? 'it' : 'them'} needs updating.`);
+  warnings.push(...pathWarnings);
 
   const { targets, warnings: targetWarnings } = proposeTargets(files, contents);
   const runs = files
@@ -311,7 +327,7 @@ export function codebaseImportDocument(
     const first = files.find((file) => file.language !== 'text') ?? files[0]!;
     const language = first.language === 'text' ? '6502' : first.language;
     const toolchainId = defaultToolchainId(language);
-    const stem = first.name.replace(/\.[^.]+$/, '') || 'program';
+    const stem = basenameOf(first.name).replace(/\.[^.]+$/, '') || 'program';
     buildTargets.push({ schemaVersion: BUILD_TARGET_SCHEMA, id: 'import-default', name: `${stem} build`, entryFileId: first.id, sourceFileIds: [first.id], toolchainId, outputName: `${stem}.${toolchainFor(toolchainId)?.language === 'bbc-basic' ? 'bbc' : 'bin'}` });
   }
   return {

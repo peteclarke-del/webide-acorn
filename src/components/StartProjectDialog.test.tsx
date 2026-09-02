@@ -62,7 +62,8 @@ describe('StartProjectDialog', () => {
     expect(summary).toHaveTextContent('2 files');
     expect(summary).toHaveTextContent('1 proposed build target');
     expect(summary).toHaveTextContent('2 excluded');
-    expect(screen.getByText('main.asm', { selector: 'th' })).toBeInTheDocument();
+    /* The folder that was opened is dropped; the folders inside it are kept. */
+    expect(screen.getByText('src/main.asm', { selector: 'th' })).toBeInTheDocument();
     expect(screen.getByText(/Proposed because it/)).toBeInTheDocument();
     expect(screen.getByLabelText('Imported project name')).toHaveValue('game');
   });

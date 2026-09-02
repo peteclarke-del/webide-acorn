@@ -6,6 +6,7 @@ import { generatePaletteOutput, parsePaletteDocument } from '../assets/paletteDo
 import { generateFontOutput, parseFontDocument } from '../assets/fontDocument';
 import { generateScreenOutput, parseScreenDocument } from '../assets/screenDocument';
 import { generateSongOutput, parseSongDocument } from '../assets/songDocument';
+import { resolveIncluded } from '../project/includeResolution';
 
 export interface AssemblySourceFile { id: string; name: string; content: string }
 export interface ProjectAssemblyOptions {
@@ -79,7 +80,7 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
       const include = /^\s*INCLUDE\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(source);
       if (songInclude) {
         const requested = (songInclude[1] ?? songInclude[2] ?? songInclude[3])!.trim();
-        const target = byName.get(requested.toLowerCase());
+        const target = resolveIncluded(byName, requested, file.name);
         if (!pushLine(`; ${source.trim()}`, { fileId: file.id, fileName: file.name, line: index + 1 })) return;
         if (!target) { diagnostics.push(sourceDiagnostic(file, index + 1, `Included song not found: ${requested}`)); continue; }
         if (!dependencySet.has(target.id) && target.id !== entry.id) { dependencySet.add(target.id); dependencies.push(target.name); }
@@ -89,7 +90,7 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
         } catch (error) { diagnostics.push(sourceDiagnostic(target, 1, `Song generation failed: ${error instanceof Error ? error.message : String(error)}`)); }
       } else if (screenInclude) {
         const requested = (screenInclude[1] ?? screenInclude[2] ?? screenInclude[3])!.trim();
-        const target = byName.get(requested.toLowerCase());
+        const target = resolveIncluded(byName, requested, file.name);
         if (!pushLine(`; ${source.trim()}`, { fileId: file.id, fileName: file.name, line: index + 1 })) return;
         if (!target) { diagnostics.push(sourceDiagnostic(file, index + 1, `Included screen not found: ${requested}`)); continue; }
         if (!dependencySet.has(target.id) && target.id !== entry.id) { dependencySet.add(target.id); dependencies.push(target.name); }
@@ -99,7 +100,7 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
         } catch (error) { diagnostics.push(sourceDiagnostic(target, 1, `Screen generation failed: ${error instanceof Error ? error.message : String(error)}`)); }
       } else if (fontInclude) {
         const requested = (fontInclude[1] ?? fontInclude[2] ?? fontInclude[3])!.trim();
-        const target = byName.get(requested.toLowerCase());
+        const target = resolveIncluded(byName, requested, file.name);
         if (!pushLine(`; ${source.trim()}`, { fileId: file.id, fileName: file.name, line: index + 1 })) return;
         if (!target) { diagnostics.push(sourceDiagnostic(file, index + 1, `Included font not found: ${requested}`)); continue; }
         if (!dependencySet.has(target.id) && target.id !== entry.id) { dependencySet.add(target.id); dependencies.push(target.name); }
@@ -109,7 +110,7 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
         } catch (error) { diagnostics.push(sourceDiagnostic(target, 1, `Font generation failed: ${error instanceof Error ? error.message : String(error)}`)); }
       } else if (paletteInclude) {
         const requested = (paletteInclude[1] ?? paletteInclude[2] ?? paletteInclude[3])!.trim();
-        const target = byName.get(requested.toLowerCase());
+        const target = resolveIncluded(byName, requested, file.name);
         if (!pushLine(`; ${source.trim()}`, { fileId: file.id, fileName: file.name, line: index + 1 })) return;
         if (!target) { diagnostics.push(sourceDiagnostic(file, index + 1, `Included palette not found: ${requested}`)); continue; }
         if (!dependencySet.has(target.id) && target.id !== entry.id) { dependencySet.add(target.id); dependencies.push(target.name); }
@@ -119,7 +120,7 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
         } catch (error) { diagnostics.push(sourceDiagnostic(target, 1, `Palette generation failed: ${error instanceof Error ? error.message : String(error)}`)); }
       } else if (mapInclude) {
         const requested = (mapInclude[1] ?? mapInclude[2] ?? mapInclude[3])!.trim();
-        const target = byName.get(requested.toLowerCase());
+        const target = resolveIncluded(byName, requested, file.name);
         if (!pushLine(`; ${source.trim()}`, { fileId: file.id, fileName: file.name, line: index + 1 })) return;
         if (!target) { diagnostics.push(sourceDiagnostic(file, index + 1, `Included map not found: ${requested}`)); continue; }
         if (!dependencySet.has(target.id) && target.id !== entry.id) { dependencySet.add(target.id); dependencies.push(target.name); }
@@ -133,13 +134,13 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
           diagnostics.push(sourceDiagnostic(target, 1, `Map ${target.name} declares tile index ${index} with no artwork chosen, so its pointer stays zero`));
         }
         for (const assetFile of generated.requiredAssets) {
-          const asset = byName.get(assetFile.toLowerCase());
+          const asset = resolveIncluded(byName, assetFile, target.name);
           if (!asset) { diagnostics.push(sourceDiagnostic(target, 1, `Map ${target.name} needs tileset asset ${assetFile}, which is not in this project`)); continue; }
           if (!emitAsset(asset, target, 1)) return;
         }
         for (const generatedLine of generated.assembly.split('\n')) if (!pushLine(generatedLine, { fileId: target.id, fileName: target.name, line: 1 })) return;
       } else if (assetInclude) {
-        const requested = (assetInclude[1] ?? assetInclude[2] ?? assetInclude[3])!.trim(); const target = byName.get(requested.toLowerCase());
+        const requested = (assetInclude[1] ?? assetInclude[2] ?? assetInclude[3])!.trim(); const target = resolveIncluded(byName, requested, file.name);
         if (!pushLine(`; ${source.trim()}`, { fileId: file.id, fileName: file.name, line: index + 1 })) return;
         if (!target) { diagnostics.push(sourceDiagnostic(file, index + 1, `Included asset not found: ${requested}`)); continue; }
         if (!emitAsset(target, file, index + 1)) return;
@@ -147,7 +148,7 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
         if (!pushLine(source, { fileId: file.id, fileName: file.name, line: index + 1 })) return;
       } else {
         const requested = (include[1] ?? include[2] ?? include[3])!.trim();
-        const target = byName.get(requested.toLowerCase());
+        const target = resolveIncluded(byName, requested, file.name);
         if (!pushLine(`; ${source.trim()}`, { fileId: file.id, fileName: file.name, line: index + 1 })) return;
         if (!target) { diagnostics.push(sourceDiagnostic(file, index + 1, `Included file not found: ${requested}`)); continue; }
         if (nextStack.includes(target.id)) {

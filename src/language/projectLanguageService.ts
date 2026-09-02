@@ -19,6 +19,7 @@ import { basicLanguageItem, mosLanguageItem } from './acornLanguageReference';
 import { acornTargetReferenceItems } from './acornTargetReference';
 import { languageSnippetItems } from './languageSnippets';
 import type { LanguageTargetContext } from './languageTarget';
+import { resolveIncluded } from '../project/includeResolution';
 
 export interface ProjectSymbol extends SourceDefinition {
   /* Conditional-compilation directives guarding this declaration, when there
@@ -149,10 +150,10 @@ export function buildProjectLanguageIndex(files: ProjectFile[]): ProjectLanguage
   const symbols = files.flatMap(extractSymbols);
   for (const file of files) {
     const assemblyTargets = Array.from(file.content.matchAll(/^\s*\.?INCLUDE(?:ASSET)?\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))/gim))
-      .map((match) => byName.get((match[1] ?? match[2] ?? match[3] ?? '').toLowerCase())?.id)
+      .map((match) => resolveIncluded(byName, match[1] ?? match[2] ?? match[3] ?? '', file.name)?.id)
       .filter((id): id is string => !!id);
     const cTargets = file.language === 'c' ? Array.from(file.content.matchAll(/^\s*#\s*include\s*"([^"]+)"/gim))
-      .map((match) => byName.get((match[1] ?? '').toLowerCase())?.id)
+      .map((match) => resolveIncluded(byName, match[1] ?? '', file.name)?.id)
       .filter((id): id is string => !!id) : [];
     includes.set(file.id, Array.from(new Set([...assemblyTargets, ...cTargets])));
   }
@@ -903,7 +904,7 @@ function includeTargetAt(file: ProjectFile, position: number, index: ProjectLang
     const include = /^\s*#\s*include\s*"([^"]+)"/.exec(line); const requested = include?.[1];
     if (!include || !requested) return undefined;
     const start = lineStart + (include.index ?? 0) + include[0].indexOf(requested); if (position < start || position > start + requested.length) return undefined;
-    const target = index.files.find((candidate) => candidate.name.toLowerCase() === requested.toLowerCase());
+    const target = resolveIncluded(new Map(index.files.map((candidate) => [candidate.name.toLowerCase(), candidate])), requested, file.name);
     if (!target) return undefined;
     return { token: target.name, line: 1, column: 1, length: 0, kind: 'label', fileId: target.id, fileName: target.name, language: target.language, signature: `#include "${target.name}"`, parameters: [] };
   }
@@ -911,7 +912,7 @@ function includeTargetAt(file: ProjectFile, position: number, index: ProjectLang
   const match = /\bINCLUDE(ASSET)?\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))/i.exec(line); const requested = match?.[2] ?? match?.[3] ?? match?.[4];
   if (!match || !requested) return undefined;
   const start = lineStart + match.index + match[0].indexOf(requested); if (position < start || position > start + requested.length) return undefined;
-  const target = index.files.find((candidate) => candidate.name.toLowerCase() === requested.toLowerCase());
+  const target = resolveIncluded(new Map(index.files.map((candidate) => [candidate.name.toLowerCase(), candidate])), requested, file.name);
   if (!target) return undefined;
   return { token: target.name, line: 1, column: 1, length: 0, kind: 'label', fileId: target.id, fileName: target.name, language: target.language, signature: `${match[1] ? 'INCLUDEASSET' : 'INCLUDE'} "${target.name}"`, parameters: [] };
 }

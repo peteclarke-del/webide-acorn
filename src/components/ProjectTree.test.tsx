@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { ProjectTree, nextTreeIndex, sourceGroupOf } from './ProjectTree';
+import { ProjectTree, foldersAndFiles, nextTreeIndex, sourceGroupOf } from './ProjectTree';
+import type { ProjectFile } from '../project/project';
 import type { ProjectFile } from '../project/project';
 import type { TrashedFile } from '../project/projectTrash';
 
@@ -281,5 +282,39 @@ describe('reordering files in the tree', () => {
     rowFor('cpu').focus();
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp', altKey: true });
     expect(props.onReorder).not.toHaveBeenCalled();
+  });
+});
+
+describe('showing the folders a project keeps', () => {
+  const file = (id: string, name: string): ProjectFile => ({ id, name, content: '', language: '6502', modified: false, kind: 'imported' });
+
+  it('announces each folder once and names files by their basename', () => {
+    const rows = foldersAndFiles([
+      file('a', 'src/game/main.asm'),
+      file('b', 'src/game/sprites.asm'),
+      file('c', 'src/lib/maths.asm'),
+      file('d', 'readme.md'),
+    ]);
+    expect(rows.map((row) => `${row.kind}:${row.label}:${row.depth}`)).toEqual([
+      'folder:src:0',
+      'folder:game:1',
+      'file:main.asm:2',
+      'file:sprites.asm:2',
+      'folder:lib:1',
+      'file:maths.asm:2',
+      'file:readme.md:0',
+    ]);
+  });
+
+  it('announces a folder again when the order leaves and returns to it', () => {
+    /* Files can be reordered by hand, so a folder's files need not be
+     * contiguous; repeating the heading is truthful about where each file is. */
+    const rows = foldersAndFiles([file('a', 'src/main.asm'), file('b', 'top.asm'), file('c', 'src/other.asm')]);
+    expect(rows.filter((row) => row.kind === 'folder')).toHaveLength(2);
+  });
+
+  it('leaves a project without folders looking exactly as it did', () => {
+    const rows = foldersAndFiles([file('a', 'main.asm'), file('b', 'gfx.asm')]);
+    expect(rows.every((row) => row.kind === 'file' && row.depth === 0)).toBe(true);
   });
 });

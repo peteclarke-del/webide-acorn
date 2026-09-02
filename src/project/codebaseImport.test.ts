@@ -22,7 +22,7 @@ describe('planning a codebase import', () => {
   const plan = planCodebaseImport(SIMPLE, 'My Game');
 
   it('imports editable source and reports everything it left out', () => {
-    expect(plan.files.map((file) => file.name).sort()).toEqual(['README.md', 'design.txt', 'gfx.asm', 'main.asm']);
+    expect(plan.files.map((file) => file.name).sort()).toEqual(['README.md', 'notes/design.txt', 'src/gfx.asm', 'src/main.asm']);
     const excluded = Object.fromEntries(plan.exclusions.map((exclusion) => [exclusion.path, exclusion.reason]));
     expect(excluded['.git/config']).toBe('ignored-directory');
     expect(excluded['build/out.bin']).toBe('ignored-directory');
@@ -31,13 +31,13 @@ describe('planning a codebase import', () => {
   });
 
   it('classifies each file by the language the project parser will give it', () => {
-    expect(plan.files.find((file) => file.name === 'main.asm')).toMatchObject({ language: '6502', role: 'source' });
+    expect(plan.files.find((file) => file.name === 'src/main.asm')).toMatchObject({ language: '6502', role: 'source' });
     expect(plan.files.find((file) => file.name === 'README.md')).toMatchObject({ language: 'text', role: 'text' });
   });
 
   it('proposes the entry file that is not included by another, and says why', () => {
     expect(plan.targets).toHaveLength(1);
-    expect(plan.targets[0]).toMatchObject({ entryName: 'main.asm', toolchainId: '8bit-net.asm.6502', language: '6502' });
+    expect(plan.targets[0]).toMatchObject({ entryName: 'src/main.asm', toolchainId: '8bit-net.asm.6502', language: '6502' });
     expect(plan.targets[0]!.reason).toMatch(/sets an origin/);
     expect(plan.targets[0]!.reason).toMatch(/is not included by another file/);
   });
@@ -47,7 +47,7 @@ describe('planning a codebase import', () => {
     expect(project.name).toBe('My Game');
     expect(project.files).toHaveLength(4);
     expect(project.buildTargets).toHaveLength(1);
-    expect(project.buildTargets[0]!.entryFileId).toBe('main.asm');
+    expect(project.buildTargets[0]!.entryFileId).toBe('src/main.asm');
     expect(project.activeBuildTargetId).toBe(project.buildTargets[0]!.id);
     // Fields the importer does not write must be filled in by the migration.
     expect(project.buildTargets[0]).toMatchObject({ buildPolicy: 'manual', machineProfile: 'project', language: '6502' });
@@ -56,7 +56,7 @@ describe('planning a codebase import', () => {
   });
 });
 
-describe('flattening folder paths', () => {
+describe('keeping the folders a codebase arrived in', () => {
   const nested: CodebaseFileInput[] = [
     { path: 'a/util.asm', content: '.one\nRTS\n' },
     { path: 'b/util.asm', content: '.two\nRTS\n' },
@@ -65,18 +65,36 @@ describe('flattening folder paths', () => {
   ];
   const plan = planCodebaseImport(nested, 'Nested');
 
-  it('keeps the first basename and disambiguates the rest with their folder', () => {
-    const names = plan.files.map((file) => file.name);
-    expect(names).toContain('util.asm');
-    expect(names).toContain('b-util.asm');
-    expect(names).toContain('c-util.asm');
-    expect(new Set(names).size).toBe(names.length);
+  it('keeps three files of the same name apart by the folders they came from', () => {
+    /* These used to be flattened to util.asm, b-util.asm and c-util.asm, which
+     * broke every INCLUDE that named them and lost the shape of the checkout. */
+    expect(plan.files.map((file) => file.name).sort()).toEqual(['a/util.asm', 'b/util.asm', 'c/util.asm', 'main.asm']);
+    expect(plan.files.every((file) => !file.renamedFrom)).toBe(true);
+    expect(plan.warnings.join(' ')).not.toMatch(/renamed/);
   });
 
-  it('records every rename and warns that INCLUDE directives may need updating', () => {
-    expect(plan.files.filter((file) => file.renamedFrom).map((file) => file.renamedFrom)).toEqual(['util.asm', 'util.asm']);
-    expect(plan.warnings.join(' ')).toMatch(/renamed/);
-    expect(plan.warnings.join(' ')).toMatch(/INCLUDE/);
+  it('drops only the folder that was opened, so its contents sit at the top', () => {
+    const checkout = planCodebaseImport([
+      { path: 'MyGame/main.asm', content: 'ORG &1900\n.start\nRTS\n' },
+      { path: 'MyGame/src/util.asm', content: '.one\nRTS\n' },
+    ], 'MyGame');
+    expect(checkout.files.map((file) => file.name).sort()).toEqual(['main.asm', 'src/util.asm']);
+  });
+
+  it('repairs a path segment a filesystem would refuse, and says what it changed', () => {
+    const awkward = planCodebaseImport([
+      { path: 'src?bad/main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'README.md', content: '# notes\n' },
+    ], 'Awkward');
+    expect(awkward.files.map((file) => file.name).sort()).toEqual(['README.md', 'srcbad/main.asm']);
+    expect(awkward.warnings.join(' ')).toMatch(/characters that a filesystem will not accept/);
+  });
+
+  it('places a file at the top rather than nesting it beyond what it will hold', () => {
+    const deep = 'a/'.repeat(20);
+    const buried = planCodebaseImport([{ path: `${deep}main.asm`, content: 'ORG &1900\nRTS\n' }], 'Deep');
+    expect(buried.files[0]!.name).toBe('main.asm');
+    expect(buried.warnings.join(' ')).toMatch(/folders are kept to/);
   });
 });
 
@@ -162,10 +180,10 @@ describe('importing a real multi-file codebase', () => {
 
     expect(plan.files).toHaveLength(inputs.length);
     expect(plan.files.every((file) => !file.renamedFrom)).toBe(true);
-    expect(plan.targets.map((target) => target.entryName)).toContain('main.asm');
+    expect(plan.targets.map((target) => target.entryName)).toContain('src/main.asm');
 
     const project = projectFromCodebaseImport(plan, contentsOf(inputs, plan));
-    const artifact = assembleProject6502('main.asm', project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
+    const artifact = assembleProject6502('src/main.asm', project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
     expect(artifact.diagnostics).toEqual([]);
     expect(artifact.bytes.length).toBeGreaterThan(0);
   });

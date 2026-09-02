@@ -15,7 +15,7 @@
  * The trash sits at the bottom, because a deletion that can be undone is only
  * useful if the undo is somewhere you can see.
  */
-import { useRef, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useRef, useState, type CSSProperties, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Icon, type IconName } from './Icon';
 import type { ProjectFile } from '../project/project';
 import { trashEntrySummary, type TrashedFile } from '../project/projectTrash';
@@ -50,6 +50,40 @@ export function nextTreeIndex(key: string, index: number, length: number): numbe
   const next = moves[key];
   if (next === undefined) return null;
   return Math.max(0, Math.min(length - 1, next));
+}
+
+export type TreeRow =
+  | { kind: 'folder'; key: string; label: string; depth: number }
+  | { kind: 'file'; key: string; file: ProjectFile; label: string; depth: number };
+
+/**
+ * A group's files laid out as folders and files, in the order they are shown.
+ *
+ * A project keeps the folders an imported codebase arrived in, so the explorer
+ * has to show them: a flat list of `src/game/main.asm` beside `src/lib/maths.s`
+ * reads as noise, and hides which files sit together. Folder rows are headings
+ * rather than tree items, so the arrow keys still move file to file and the
+ * number of tab stops does not change.
+ *
+ * Pure, so what the tree shows can be checked without rendering one.
+ */
+export function foldersAndFiles(files: readonly ProjectFile[]): TreeRow[] {
+  const rows: TreeRow[] = [];
+  let open: string[] = [];
+  for (const file of files) {
+    const segments = file.name.split('/');
+    const folders = segments.slice(0, -1);
+    /* Only announce the folders that changed since the previous file, so a run
+     * of files in one folder is listed under one heading. */
+    let shared = 0;
+    while (shared < folders.length && shared < open.length && folders[shared] === open[shared]) shared += 1;
+    for (let depth = shared; depth < folders.length; depth += 1) {
+      rows.push({ kind: 'folder', key: folders.slice(0, depth + 1).join('/'), label: folders[depth]!, depth });
+    }
+    open = folders;
+    rows.push({ kind: 'file', key: file.id, file, label: segments[segments.length - 1]!, depth: folders.length });
+  }
+  return rows;
 }
 
 export interface ProjectTreeProps {
@@ -162,29 +196,35 @@ export function ProjectTree({
         return (
           <div key={group.id} role="group" aria-label={group.label}>
             <div className="tree-section"><Icon name="chevron" size={13} /><Icon name={group.icon} size={15} /><strong>{group.label}</strong><small>{grouped.length}</small></div>
-            {grouped.map((file) => (
+            {foldersAndFiles(grouped).map((row) => row.kind === 'folder' ? (
+              <div className="tree-folder" key={`folder:${row.key}`} style={{ '--tree-depth': row.depth } as CSSProperties}>
+                <Icon name="folder" size={14} /><span>{row.label}</span>
+              </div>
+            ) : (
               <button
                 className={[
-                  activeFileId === file.id ? 'tree-item active' : 'tree-item',
-                  dragging === file.id ? 'dragging' : '',
-                  dropTarget?.id === file.id ? `drop-${dropTarget.position}` : '',
+                  activeFileId === row.file.id ? 'tree-item active' : 'tree-item',
+                  dragging === row.file.id ? 'dragging' : '',
+                  dropTarget?.id === row.file.id ? `drop-${dropTarget.position}` : '',
                 ].filter(Boolean).join(' ')}
                 type="button"
                 role="treeitem"
-                aria-selected={activeFileId === file.id}
-                tabIndex={tabIndexFor(file.id)}
-                data-tree-item={file.id}
-                key={file.id}
+                aria-selected={activeFileId === row.file.id}
+                tabIndex={tabIndexFor(row.file.id)}
+                data-tree-item={row.file.id}
+                key={row.file.id}
+                title={row.file.name}
+                style={{ '--tree-depth': row.depth } as CSSProperties}
                 draggable={!!onReorder}
-                onDragStart={(event) => beginDrag(event, file.id)}
-                onDragOver={(event) => overRow(event, file.id)}
-                onDragLeave={() => setDropTarget((current) => current?.id === file.id ? null : current)}
-                onDrop={(event) => dropOnRow(event, file.id)}
+                onDragStart={(event) => beginDrag(event, row.file.id)}
+                onDragOver={(event) => overRow(event, row.file.id)}
+                onDragLeave={() => setDropTarget((current) => current?.id === row.file.id ? null : current)}
+                onDrop={(event) => dropOnRow(event, row.file.id)}
                 onDragEnd={endDrag}
-                onClick={() => onOpenFile(file.id)}
+                onClick={() => onOpenFile(row.file.id)}
               >
-                <Icon name="file" size={15} /> <span>{file.name}</span>
-                <small>{file.kind === 'generated' ? 'GEN RO' : file.access === 'read-only' ? 'RO' : file.modified ? 'M' : ''}</small>
+                <Icon name="file" size={15} /> <span>{row.label}</span>
+                <small>{row.file.kind === 'generated' ? 'GEN RO' : row.file.access === 'read-only' ? 'RO' : row.file.modified ? 'M' : ''}</small>
               </button>
             ))}
           </div>
