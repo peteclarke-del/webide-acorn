@@ -9,6 +9,12 @@ use PHPUnit\Framework\TestCase;
 
 final class ToolLocatorTest extends TestCase
 {
+    /* Not BEEBASM_PATH: the suite is run with the pinned toolchains exported
+     * into its environment, so a test asserting what happens when nothing is
+     * configured has to use a key nothing configures. That the real key is
+     * honoured is asserted separately, by setting it. */
+    private const KEY = 'TOOL_LOCATOR_TEST_PATH';
+
     private string $root;
 
     /** @var array<string, mixed> */
@@ -19,11 +25,15 @@ final class ToolLocatorTest extends TestCase
         $this->root = sys_get_temp_dir().'/tool-locator-'.bin2hex(random_bytes(6));
         mkdir($this->root.'/somewhere/bin', 0o755, true);
         $this->server = $_SERVER;
+        unset($_SERVER[self::KEY], $_ENV[self::KEY]);
+        putenv(self::KEY);
     }
 
     protected function tearDown(): void
     {
         $_SERVER = $this->server;
+        unset($_ENV[self::KEY]);
+        putenv(self::KEY);
         foreach (['/somewhere/bin/beebasm', '/somewhere/bin'] as $path) {
             if (is_file($this->root.$path)) unlink($this->root.$path);
             elseif (is_dir($this->root.$path)) rmdir($this->root.$path);
@@ -46,45 +56,50 @@ final class ToolLocatorTest extends TestCase
         /* Somebody who names a binary means that binary. Silently substituting
          * another one found on PATH would build with a toolchain they did not
          * choose and say nothing about it. */
-        $_SERVER['BEEBASM_PATH'] = '/opt/my-own/beebasm';
+        $_SERVER[self::KEY] = '/opt/my-own/beebasm';
         $this->installExecutable('beebasm');
 
+        self::assertSame('/opt/my-own/beebasm', ToolLocator::locate(self::KEY, 'beebasm', '/usr/local/bin/beebasm'));
+
+        /* And under the name the documentation gives, which is the one people
+         * actually set. */
+        $_SERVER['BEEBASM_PATH'] = '/opt/my-own/beebasm';
         self::assertSame('/opt/my-own/beebasm', ToolLocator::locate('BEEBASM_PATH', 'beebasm', '/usr/local/bin/beebasm'));
     }
 
     public function testAnExecutableOnThePathIsFoundWhenNothingIsConfigured(): void
     {
-        unset($_SERVER['BEEBASM_PATH']);
+        unset($_SERVER[self::KEY]);
         $installed = $this->installExecutable('beebasm');
 
-        self::assertSame($installed, ToolLocator::locate('BEEBASM_PATH', 'beebasm', '/usr/local/bin/beebasm', [$this->root.'/somewhere/bin']));
+        self::assertSame($installed, ToolLocator::locate(self::KEY, 'beebasm', '/usr/local/bin/beebasm', [$this->root.'/somewhere/bin']));
     }
 
     public function testAFileThatIsNotExecutableIsNotMistakenForTheTool(): void
     {
-        unset($_SERVER['BEEBASM_PATH']);
+        unset($_SERVER[self::KEY]);
         $path = $this->root.'/somewhere/bin/beebasm';
         file_put_contents($path, "not a program\n");
         chmod($path, 0o644);
 
-        self::assertSame('/usr/local/bin/beebasm', ToolLocator::locate('BEEBASM_PATH', 'beebasm', '/usr/local/bin/beebasm', [$this->root.'/somewhere/bin']));
+        self::assertSame('/usr/local/bin/beebasm', ToolLocator::locate(self::KEY, 'beebasm', '/usr/local/bin/beebasm', [$this->root.'/somewhere/bin']));
     }
 
     public function testTheConventionalPathIsReportedWhenNothingIsInstalled(): void
     {
         /* The readiness check has to name a concrete path for somebody to act
          * on, so a failed search reports where the tool is expected to be. */
-        unset($_SERVER['BEEBASM_PATH']);
+        unset($_SERVER[self::KEY]);
 
-        self::assertSame('/usr/local/bin/beebasm', ToolLocator::locate('BEEBASM_PATH', 'beebasm', '/usr/local/bin/beebasm', [$this->root.'/somewhere/bin']));
+        self::assertSame('/usr/local/bin/beebasm', ToolLocator::locate(self::KEY, 'beebasm', '/usr/local/bin/beebasm', [$this->root.'/somewhere/bin']));
     }
 
     public function testAnEmptyConfiguredValueDoesNotSuppressTheSearch(): void
     {
         $installed = $this->installExecutable('beebasm');
-        $_SERVER['BEEBASM_PATH'] = '';
+        $_SERVER[self::KEY] = '';
 
-        self::assertSame($installed, ToolLocator::locate('BEEBASM_PATH', 'beebasm', '/usr/local/bin/beebasm', [$this->root.'/somewhere/bin']));
+        self::assertSame($installed, ToolLocator::locate(self::KEY, 'beebasm', '/usr/local/bin/beebasm', [$this->root.'/somewhere/bin']));
     }
 
     public function testTheSearchLooksWhereThesToolsAreActuallyInstalled(): void
@@ -124,12 +139,12 @@ final class ToolLocatorTest extends TestCase
 
     public function testPathIsSearchedBeforeTheWellKnownDirectories(): void
     {
-        unset($_SERVER['BEEBASM_PATH']);
+        unset($_SERVER[self::KEY]);
         $installed = $this->installExecutable('beebasm');
         $_SERVER['PATH'] = $this->root.'/somewhere/bin';
 
         /* No injected list here: this is the real search, and it has to reach
          * an executable that is only on PATH. */
-        self::assertSame($installed, ToolLocator::locate('BEEBASM_PATH', 'beebasm', '/usr/local/bin/beebasm'));
+        self::assertSame($installed, ToolLocator::locate(self::KEY, 'beebasm', '/usr/local/bin/beebasm'));
     }
 }
