@@ -16,7 +16,7 @@
  * catches an input that costs a hundred times what it should, not one that
  * costs twice as much on a slow machine.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { compareArtifacts, searchArtifact } from './artifactInspector';
 import { decodeTokenizedBasic, decodePlainText, isProbablyText } from './bbcBasic';
 import { disassemble6502 } from './disassembler6502';
@@ -24,11 +24,47 @@ import { disassembleArm } from './disassemblerArm';
 import { parseAdfsCatalogue } from '../media/adfsCatalogue';
 import { parseDfsCatalogue } from '../media/dfsCatalogue';
 
-/* Generous on purpose. A machine running the whole suite in parallel is several
- * times slower than an idle one, and a ceiling tight enough to notice that
- * would fail for reasons that have nothing to do with the reader. What it
- * catches is an input that costs orders of magnitude more than it should. */
-const CEILING_MS = 4000;
+/*
+ * What these tests are for is an input that costs orders of magnitude more than
+ * it should — a reader that goes quadratic on a pathological file. What they
+ * are not for is measuring the machine they run on, and a fixed millisecond
+ * ceiling does exactly that: four seconds is generous on an idle box and not
+ * generous on a shared runner building four other things, where this failed a
+ * gate on a green tree.
+ *
+ * So the budget is calibrated against the machine. A fixed, neutral piece of
+ * arithmetic is timed three times and the fastest run is taken, because the
+ * fastest is the one least disturbed by whatever else is happening. A machine
+ * twice as slow gets twice the budget; a reader that has become quadratic still
+ * exceeds it by orders of magnitude.
+ *
+ * The bounds matter as much as the multiple. The floor stops a very fast
+ * machine producing a budget that ordinary scheduling noise would fail, and the
+ * ceiling keeps the budget below the timeout the test itself has, so that a
+ * slow reader fails on the budget with a number in the message rather than on a
+ * timeout with none.
+ */
+const CALIBRATION_MS = (() => {
+  let fastest = Number.POSITIVE_INFINITY;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const started = performance.now();
+    let sum = 0;
+    for (let index = 0; index < 3_000_000; index += 1) sum = (sum + index * 31) >>> 0;
+    if (sum === -1) throw new Error('unreachable'); /* read, so nothing is optimised away */
+    fastest = Math.min(fastest, performance.now() - started);
+  }
+  return Math.max(fastest, 0.5);
+})();
+
+/* Four hundred, because the slowest of these readers legitimately costs about
+ * two hundred times the calibration on an idle machine and the budget has to
+ * leave room above that rather than sit on it. Twenty seconds is the cap, well
+ * inside the timeout below, and four seconds the floor, which is what the fixed
+ * ceiling used to be. */
+const CEILING_MS = Math.min(20_000, Math.max(4_000, CALIBRATION_MS * 400));
+
+/* Room for the budget to be what fails, rather than the timeout around it. */
+vi.setConfig({ testTimeout: 30_000 });
 
 function timed<T>(work: () => T): { value: T; durationMs: number } {
   const started = performance.now();

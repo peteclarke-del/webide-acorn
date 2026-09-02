@@ -5,6 +5,15 @@ import { useState } from 'react';
 import { KeyboardShortcutsPanel } from './KeyboardShortcutsPanel';
 import { resolveKeyBindings, type KeyBindingOverrides } from '../commands/keyBindings';
 
+/* This panel renders the whole shortcut inventory — every command in both
+ * dispatch scopes — and each of these tests renders it again and then queries
+ * it by role, which walks the rendered table computing roles as it goes. The
+ * file takes about nineteen seconds on an idle machine, with its slowest test
+ * around four; on a loaded one that test passed the ten-second default and
+ * failed the gate on a green tree. The work is real and none of it is skipped,
+ * so it is given room rather than trimmed. */
+vi.setConfig({ testTimeout: 30_000 });
+
 afterEach(cleanup);
 
 function Harness({ onNotice = () => {}, initial = {} as KeyBindingOverrides }) {
