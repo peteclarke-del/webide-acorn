@@ -44,6 +44,7 @@ import { artifactListingRows, artifactSymbolReferences, generatedArtifactDocumen
 import { executeBuildAll, type BuildAllRecord } from './build/buildAll';
 import { analyseBuildGraph, impactedBuildTargets, sourceInputsForTarget } from './build/buildGraph';
 import { BUILD_PROFILES, buildEntryUpdate, buildProfileDefines, buildProfileKeepsDebugMetadata, buildProfileManifest, buildToolchainUpdate, compatibleToolchains, createBuildTarget, provenanceMatches, shouldScheduleBackgroundBuild, toolchainFor, validateBuildTarget, type BuildTarget } from './build/buildTarget';
+import { analysisCandidates, candidateReference, projectFileBytes, type AnalysisCandidate } from './analysis/projectAnalysisCandidates';
 import { BuildExecutionError, buildExecutionError, executeBuild, type BuildArtifact, type BuildRequest, type BuildResponse, type BuildResultMetadata } from './build/buildService';
 import { sha256Hex } from './build/digest';
 import { detectNativeToolchains, invokeNativeToolchain, type NativeToolchainStatus } from './build/nativeToolchainAdapter';
@@ -1098,6 +1099,39 @@ function App() {
       bank: executable ? 'Unbanked build output' : 'Not applicable', warnings: [],
     };
     openAnalysisPayload(name, artifact.bytes, metadata, executable ? { processor: artifact.processor, origin: artifact.origin, entryPoint: artifact.entryPoint } : {});
+  };
+
+  /* Everything the project can hand the analyser directly. Built output is
+   * named by the target that produced it, because that is how somebody who has
+   * several build targets tells one output from another. */
+  const analysisPickerCandidates = useMemo<AnalysisCandidate[]>(() => analysisCandidates(
+    project.files,
+    retainedArtifacts.map((record) => ({
+      targetId: record.targetId,
+      targetName: record.targetName,
+      outputName: record.artifact.provenance?.target.outputName
+        ?? project.buildTargets.find((target) => target.id === record.targetId)?.outputName
+        ?? record.targetName,
+      byteLength: record.artifact.bytes.length,
+    })),
+  ), [project.files, project.buildTargets, retainedArtifacts]);
+
+  const chooseAnalysisCandidate = (id: string) => {
+    const reference = candidateReference(id);
+    if (!reference) { setNotice('Analysis refused · that is not something this project holds'); return; }
+    if (reference.origin === 'artifact') {
+      const record = retainedArtifacts.find((candidate) => candidate.targetId === reference.key);
+      if (!record) { setNotice('Analysis refused · that build output is no longer held'); return; }
+      analyseBuildArtifact(record.artifact);
+      return;
+    }
+    const file = project.files.find((candidate) => candidate.id === reference.key);
+    if (!file) { setNotice('Analysis refused · that file is no longer in the project'); return; }
+    const bytes = projectFileBytes(file);
+    openAnalysisPayload(file.name, bytes, {
+      source: 'project-manifest', catalogueName: file.name, declaredLength: bytes.length,
+      addressSpace: 'Project source text', bank: 'Not applicable', warnings: [],
+    });
   };
 
   const toggleCapability = (id: string) => {
@@ -2186,6 +2220,8 @@ function App() {
                 onEntryChange={setAnalysisEntry}
                 onProcessorChange={setAnalysisProcessor}
                 onOpen={openAnalysisFile}
+                candidates={analysisPickerCandidates}
+                onChooseCandidate={chooseAnalysisCandidate}
                 onReanalyse={reanalyse}
                 onCancel={() => analysisTaskRef.current?.cancel()}
                 onAddSource={addSourceFile}
@@ -2323,6 +2359,10 @@ export interface AnalysisWorkspaceProps {
   onEntryChange: (value: string) => void;
   onProcessorChange: (value: AnalysisProcessor) => void;
   onOpen: () => void;
+  /* What the project itself can offer, so reading a program the workbench just
+   * built does not mean going and finding it on disk again. */
+  candidates: AnalysisCandidate[];
+  onChooseCandidate: (id: string) => void;
   onReanalyse: () => void;
   onCancel: () => void;
   onAddSource: (name: string, content: string) => void;
@@ -2339,9 +2379,31 @@ export interface AnalysisWorkspaceProps {
   coverage: RuntimeCoverage | null;
 }
 
+/* The analyser can read what the project already holds, so choosing the
+ * program somebody just built does not mean finding it on disk again. */
+function ProjectAnalysisPicker({ candidates, onChoose, disabled }: { candidates: AnalysisCandidate[]; onChoose: (id: string) => void; disabled?: boolean }) {
+  if (!candidates.length) return null;
+  return (
+    <label className="project-source-picker">
+      <span>From this project</span>
+      <select
+        aria-label="Analyse a file from this project"
+        value=""
+        disabled={disabled}
+        onChange={(event) => { const chosen = event.target.value; if (chosen) onChoose(chosen); }}
+      >
+        <option value="">Choose a file…</option>
+        {candidates.map((candidate) => (
+          <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.detail}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function AnalysisWorkspace({
   file, origin, entryPoint, processor, activity, onOriginChange, onEntryChange,
-  onProcessorChange, onOpen, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
+  onProcessorChange, onOpen, candidates, onChooseCandidate, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
   annotations, history, onAnnotationsChange, onHistoryMove, coverage,
 }: AnalysisWorkspaceProps) {
   const [filter, setFilter] = useState('');
@@ -2595,6 +2657,7 @@ export function AnalysisWorkspace({
         <h2>{activity.status === 'running' ? 'Analysing file' : 'File analyser'}</h2>
         <p>{activity.status === 'idle' ? 'Load an Atom/BBC BASIC program or 6502/65C02/ARM2/ARM3 binary. Files remain in this browser and are never executed.' : activity.message}</p>
         {activity.status === 'running' ? <button type="button" onClick={onCancel}>Cancel analysis</button> : <button className="primary-action" type="button" onClick={onOpen}><Icon name="open" size={16} /> Choose Acorn file</button>}
+        <ProjectAnalysisPicker candidates={candidates} onChoose={onChooseCandidate} disabled={activity.status === 'running'} />
         <small>Select one data file plus an optional matching .inf sidecar · 4 MiB input limit</small>
       </div>
     );
@@ -2622,6 +2685,7 @@ export function AnalysisWorkspace({
           </div>
         )}
         <div className="analysis-actions">
+          <ProjectAnalysisPicker candidates={candidates} onChoose={onChooseCandidate} disabled={activity.status === 'running'} />
           <button type="button" onClick={onOpen}><Icon name="open" size={14} /> Open</button>
           <button type="button" onClick={exportListing}><Icon name="download" size={14} /> Listing</button>
           {disassembly && (processor === '6502' || processor === '65c02') && <button type="button" disabled={!assemblySource?.verified} title={assemblySource?.verificationMessage} onClick={exportAssemblySource}><Icon name="download" size={14} /> Verified source</button>}
