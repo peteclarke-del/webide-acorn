@@ -22,8 +22,8 @@ final class BeebAsmManifest
     public function detect(): array
     {
         $path = $this->executablePath();
-        $source = $_SERVER['BEEBASM_SOURCE_PATH'] ?? $_ENV['BEEBASM_SOURCE_PATH'] ?? '/usr/share/source/beebasm-source.tar';
-        $licence = $_SERVER['BEEBASM_LICENCE_PATH'] ?? $_ENV['BEEBASM_LICENCE_PATH'] ?? '/usr/share/licenses/beebasm/COPYING.txt';
+        $source = ToolLocator::configured('BEEBASM_SOURCE_PATH') ?? '/usr/share/source/beebasm-source.tar';
+        $licence = ToolLocator::configured('BEEBASM_LICENCE_PATH') ?? '/usr/share/licenses/beebasm/COPYING.txt';
         $version = $this->version($path);
         $readiness = (new Readiness())
             ->executable('beebasm', $path)
@@ -38,7 +38,7 @@ final class BeebAsmManifest
             /* Every other manifest carries this and this one did not, so a
              * client reading four manifests of the same declared schema found
              * the field missing from one of them. */
-            'packageVersion' => $_SERVER['BEEBASM_PACKAGE_VERSION'] ?? $_ENV['BEEBASM_PACKAGE_VERSION'] ?? 'host-development',
+            'packageVersion' => ToolLocator::configured('BEEBASM_PACKAGE_VERSION') ?? 'host-development',
             'upstream' => ['version' => self::UPSTREAM_VERSION, 'commit' => self::COMMIT, 'repository' => 'https://github.com/stardot/beebasm'],
             'binary' => ['path' => $path, 'sha256' => is_file($path) ? hash_file('sha256', $path) : null],
             'licence' => ['spdx' => 'GPL-3.0-or-later', 'path' => $licence, 'sourceArchive' => $source, 'sourceSha256' => is_file($source) ? hash_file('sha256', $source) : null],

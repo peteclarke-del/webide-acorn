@@ -43,8 +43,8 @@ final class ToolLocator
      */
     public static function locate(string $envKey, string $name, string $conventional, ?array $searchDirectories = null): string
     {
-        $configured = $_SERVER[$envKey] ?? $_ENV[$envKey] ?? null;
-        if (is_string($configured) && $configured !== '') {
+        $configured = self::configured($envKey);
+        if ($configured !== null) {
             return $configured;
         }
 
@@ -58,11 +58,34 @@ final class ToolLocator
         return $conventional;
     }
 
+    /**
+     * A configured value for $key, or null when nothing configures it.
+     *
+     * All three sources are consulted because which one carries an environment
+     * variable depends on how PHP is being served. Under nginx and PHP-FPM the
+     * container passes them as FastCGI parameters and they arrive in $_SERVER;
+     * a developer running `php -S` exports them into the process environment,
+     * where PHP's default `variables_order` of GPCS puts them in neither
+     * $_SERVER nor $_ENV, and only getenv() can see them. Reading just the two
+     * superglobals meant a documented setting silently did nothing outside the
+     * container.
+     */
+    public static function configured(string $key): ?string
+    {
+        foreach ([$_SERVER[$key] ?? null, $_ENV[$key] ?? null, getenv($key)] as $value) {
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     /** @return list<string> */
     private static function searchDirectories(): array
     {
-        $path = $_SERVER['PATH'] ?? $_ENV['PATH'] ?? '';
-        $fromPath = is_string($path) && $path !== '' ? explode(PATH_SEPARATOR, $path) : [];
+        $path = self::configured('PATH') ?? '';
+        $fromPath = $path !== '' ? explode(PATH_SEPARATOR, $path) : [];
 
         $directories = [];
         foreach ([...$fromPath, ...self::WELL_KNOWN] as $directory) {

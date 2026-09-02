@@ -99,6 +99,29 @@ final class ToolLocatorTest extends TestCase
         );
     }
 
+    public function testAnEnvironmentVariableIsSeenHoweverPhpIsBeingServed(): void
+    {
+        /* Under `php -S` an exported variable reaches neither $_SERVER nor
+         * $_ENV, because PHP's default variables_order is GPCS. Reading only
+         * those two made BEEBASM_PATH silently do nothing outside the
+         * container, which is where it is most needed. */
+        unset($_SERVER['TOOL_LOCATOR_PROBE'], $_ENV['TOOL_LOCATOR_PROBE']);
+        putenv('TOOL_LOCATOR_PROBE=/from/the/process/environment');
+        try {
+            self::assertSame('/from/the/process/environment', ToolLocator::configured('TOOL_LOCATOR_PROBE'));
+            self::assertSame('/from/the/process/environment', ToolLocator::locate('TOOL_LOCATOR_PROBE', 'beebasm', '/usr/local/bin/beebasm'));
+        } finally {
+            putenv('TOOL_LOCATOR_PROBE');
+        }
+    }
+
+    public function testNothingConfiguredReadsAsNothing(): void
+    {
+        unset($_SERVER['TOOL_LOCATOR_ABSENT'], $_ENV['TOOL_LOCATOR_ABSENT']);
+        putenv('TOOL_LOCATOR_ABSENT');
+        self::assertNull(ToolLocator::configured('TOOL_LOCATOR_ABSENT'));
+    }
+
     public function testPathIsSearchedBeforeTheWellKnownDirectories(): void
     {
         unset($_SERVER['BEEBASM_PATH']);

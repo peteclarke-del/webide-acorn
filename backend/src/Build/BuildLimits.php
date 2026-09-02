@@ -48,9 +48,8 @@ final class BuildLimits
      */
     public static function stageSeconds(): float
     {
-        $raw = $_SERVER[self::STAGE_SECONDS_VARIABLE] ?? $_ENV[self::STAGE_SECONDS_VARIABLE] ?? null;
-        if (!is_string($raw) && !is_numeric($raw)) return self::STAGE_SECONDS;
-        if (!is_numeric($raw)) return self::STAGE_SECONDS;
+        $raw = ToolLocator::configured(self::STAGE_SECONDS_VARIABLE);
+        if ($raw === null || !is_numeric($raw)) return self::STAGE_SECONDS;
         $seconds = (float) $raw;
         if ($seconds < self::STAGE_SECONDS_MINIMUM || $seconds > self::STAGE_SECONDS_MAXIMUM) return self::STAGE_SECONDS;
 
