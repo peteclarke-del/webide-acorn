@@ -2094,6 +2094,14 @@ function App() {
             <div className="explorer-actions">
               <button type="button" onClick={() => addSourceFile()}><Icon name="new" size={14} /> New</button>
               <button type="button" onClick={() => sourceInputRef.current?.click()}><Icon name="open" size={14} /> Import</button>
+              {/* Only while a folder is connected: a control that is always
+                * there but never usable is noise, and the connection lasts only
+                * as long as the session because a handle cannot be persisted. */}
+              {connectedFolder && (
+                <button type="button" title={`Write this project's sources back into ${connectedFolder.name}`} onClick={() => void writeProjectToFolder()}>
+                  <Icon name="save" size={14} /> To folder
+                </button>
+              )}
             </div>
             <ProjectTree
               files={project.files}

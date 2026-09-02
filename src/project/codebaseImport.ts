@@ -12,7 +12,7 @@ import { BUILD_TARGET_SCHEMA, defaultToolchainId, toolchainFor, type ToolchainId
 import { assemblyByteRuns, pixelAssetCandidates, tileMapCandidates, tileMapFromCandidate, type DerivedPixelAsset, type TileMapCandidate } from '../assets/assemblyPixelData';
 import { serializeTileMapDocument } from '../assets/tileMapDocument';
 import { normalizeProjectPath } from './safeNames';
-import { basenameOf } from './includeResolution';
+import { basenameOf, directoryOf } from './includeResolution';
 
 export const MAX_IMPORT_FILES = 512;
 
@@ -218,14 +218,18 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
     const normalized = normalizeProjectPath(relative);
     let name = normalized.name;
     if (normalized.reason) pathWarnings.push(`${path}: ${normalized.reason}.`);
+    let renamed = basenameOf(name) !== base;
     if (usedNames.has(name.toLowerCase())) {
-      const stem = name.slice(0, name.length - base.length);
+      /* Two files at the same path can only come from an archive, since a
+       * filesystem cannot hold them, but the project cannot hold them either. */
+      const folder = directoryOf(name);
       let counter = 2;
-      do { name = `${stem}${counter}-${base}`; counter += 1; } while (usedNames.has(name.toLowerCase()));
+      do { name = `${folder}${counter}-${basenameOf(normalized.name)}`; counter += 1; } while (usedNames.has(name.toLowerCase()));
+      renamed = true;
     }
     usedNames.add(name.toLowerCase());
     const language = languageForFilename(name);
-    files.push({ path, name, language, bytes, role: roleFor(name, language), ...(name.endsWith(base) && !name.includes('-' + base) ? {} : { renamedFrom: base }) });
+    files.push({ path, name, language, bytes, role: roleFor(name, language), ...(renamed ? { renamedFrom: base } : {}) });
     contents.set(name, content);
     totalBytes += bytes;
   }

@@ -144,13 +144,13 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     expected: [
       "Only editable source types are imported; everything else is listed with the reason it was excluded.",
-      "Filenames keep their basename wherever it is unique, so existing INCLUDE directives keep resolving.",
+      "The folders the codebase arrived in are kept, so existing INCLUDE directives keep resolving. Only the folder you opened is dropped, so its contents sit at the top of the project.",
       "A proposed entry file states why it was chosen, and can be changed afterwards on the build target.",
       "A recovered asset regenerates the original assembler bytes exactly and the source it came from is unchanged.",
       "The project is created through the same parser and migration as any imported project.",
     ],
     limitations: [
-      "Project filenames are flat. Two files with the same basename in different folders are renamed, and any INCLUDE that named them needs updating; every rename is listed.",
+      "Folders are kept to twelve deep and a path to 240 characters. A file beyond either keeps its filename and is placed at the top of the project, which is reported.",
       "Imports are bounded to 512 files, 1 MiB per file and 8 MiB in total.",
       "Binaries, disk images and anything that does not decode as text are reported rather than imported.",
       "Data that looks like a tile map is reported with its possible grid shapes only. This build has no map document, so nothing is created for it and no grid shape is chosen for you.",
@@ -1594,7 +1594,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Hardware catalogues deliberately contain only addresses checked against maintained machine documentation. Controller-specific registers remain absent until target capability and access semantics are authoritative.",
       "RISC OS completion currently covers the kernel and FileSwitch SWIs from OS_WriteC through OS_Exit. Module SWIs and X-bit variants remain open.",
       "Generated addresses are exposed only from an exact current successful machine-code build. Debug types, storage classes and symbols without retained toolchain output are not guessed.",
-      "The current project model uses a flat project file collection. Include-path display is target-aware, while nested virtual folder resolution remains future work.",
+      "An INCLUDE is resolved beside the file that wrote it, then from the top of the project, then by filename anywhere in it — and the last only when exactly one file carries that name, because guessing between two would build a different program without saying so.",
     ],
     recovery: [
       "Check that the required assembly file is connected by INCLUDE when a label is absent.",
