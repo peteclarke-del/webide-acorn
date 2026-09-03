@@ -761,6 +761,18 @@
    * a four-hundred-pixel window with no scrollbar, no wheel and no keyboard
    * route to any of it. The rows are sized by their content and the pane
    * scrolls. */
+  /* The close dialog: a short question with the consequence written above the
+   * buttons, because deleting a project's history is not something to discover
+   * afterwards. */
+  .close-project-dialog { display: grid; gap: 12px; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 64px); padding: 18px; border: 1px solid var(--theme-line-strong); border-radius: var(--radius-md); overflow-y: auto; }
+  .close-project-dialog h2 { margin: 0; color: var(--theme-ink-strong); font: 700 var(--fs-12)/1.2 var(--font-ui); }
+  .close-project-dialog p { margin: 0; color: var(--theme-muted); }
+  .close-project-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  .close-project-actions button { min-height: 30px; padding: 0 12px; border: 1px solid var(--theme-line-strong); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-ink); }
+  .close-project-actions .primary-action { border-color: var(--theme-primary); color: var(--theme-ink-strong); }
+  .close-project-actions .destructive-action { border-color: var(--theme-danger); color: var(--theme-danger); }
+  .close-project-actions button:hover { border-color: var(--theme-primary); color: var(--theme-ink-strong); }
+
   .settings-workspace { display: grid; min-height: 0; grid-auto-rows: min-content; align-content: start; overflow-y: auto; overflow-x: hidden; }
   .keyboard-shortcuts-panel { display: grid; max-height: 42vh; align-content: start; gap: 10px; padding: 10px 14px; overflow: auto; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); color: var(--theme-muted); font: var(--fs-7)/1.4 var(--font-mono); }
   .keyboard-shortcuts-panel > header { display: grid; gap: 5px; }

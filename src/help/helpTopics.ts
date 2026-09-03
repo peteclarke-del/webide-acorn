@@ -147,6 +147,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.",
       "Tick any recoverable asset you want as an editable document.",
       "Adjust the project name and choose Create project.",
+      "To finish with a project, use Close this project in the explorer or the command palette. It says what the store holds for it and offers to keep or delete that copy before anything happens.",
     ],
     expected: [
       "Only editable source types are imported; everything else is listed with the reason it was excluded.",

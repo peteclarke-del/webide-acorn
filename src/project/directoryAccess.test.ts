@@ -7,6 +7,7 @@ import {
   writeDirectory,
   type FileSystemDirectoryHandleLike,
 } from './directoryAccess';
+import { planCodebaseImport } from './codebaseImport';
 
 /* jsdom does not define `isSecureContext`, and the picker legitimately requires
  * one. Declaring it here keeps the production check honest rather than relaxing
@@ -112,6 +113,27 @@ describe('reading a folder', () => {
     expect(result.entries.map((entry) => entry.path).sort()).toEqual(['main.asm', 'src/assets/sprite.asm', 'src/helper.asm']);
     expect(result.entries.find((entry) => entry.path === 'src/helper.asm')!.content).toBe('RTS\n');
     expect(result.truncated).toBe(false);
+  });
+
+  it('hands the importer paths that keep their folders, and the importer keeps them', async () => {
+    /* The two folder routes disagree about whether the chosen folder is in the
+     * paths: a directory input reports MyGame/src/main.asm, while this one
+     * walks from the handle and reports src/main.asm for the same folder. The
+     * join between them is where a project lost its directories once, so it is
+     * checked end to end rather than at either end. */
+    const read = await readDirectory(directory({
+      'Makefile': 'all:\n\tbeebasm -i src/main.asm -o game\n',
+      src: { 'main.asm': 'ORG &1900\n.start\nINCLUDE "src/util.asm"\nRTS\n', 'util.asm': '.one\nRTS\n' },
+      lib: { 'maths.asm': '.double\nASL A\nRTS\n' },
+    }));
+    const plan = planCodebaseImport(
+      read.entries.map((entry) => ({ path: entry.path, content: entry.content })),
+      'MyGame',
+      { pathsIncludeChosenFolder: false },
+    );
+
+    expect(plan.files.map((file) => file.name).sort()).toEqual(['Makefile', 'lib/maths.asm', 'src/main.asm', 'src/util.asm']);
+    expect(plan.files.every((file) => !file.renamedFrom)).toBe(true);
   });
 
   it('names the build directories it passed over rather than skipping them quietly', async () => {

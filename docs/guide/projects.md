@@ -57,6 +57,7 @@ Turn a folder of existing Acorn source into a working project, reviewing the who
 3. Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.
 4. Tick any recoverable asset you want as an editable document.
 5. Adjust the project name and choose Create project.
+6. To finish with a project, use Close this project in the explorer or the command palette. It says what the store holds for it and offers to keep or delete that copy before anything happens.
 
 **What should happen**
 

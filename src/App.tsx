@@ -47,6 +47,7 @@ import { BUILD_PROFILES, buildEntryUpdate, buildProfileDefines, buildProfileKeep
 import { analysisCandidates, candidateReference, projectFileBytes, type AnalysisCandidate } from './analysis/projectAnalysisCandidates';
 import { PanelSeparator } from './components/PanelSeparator';
 import { isStoreManifest, storedFilesFor } from './cloud/storedProject';
+import { closeOutcome, closeQuestion, type CloseChoice, type CloseQuestion } from './project/closeProject';
 import { ProjectStoreClient } from './cloud/projectStoreClient';
 import { useMediaQuery } from './layout/useMediaQuery';
 import { DEFAULT_PANEL_SIZES, readPanelSizes, resizePanel, workbenchColumns, workspaceRows, writePanelSizes, type PanelId, type PanelOpenState, type PanelSizes } from './layout/panelLayout';
@@ -370,6 +371,10 @@ function App() {
   const [workspaceTab, setWorkspaceTab] = useState('Code');
   const [projectExportOpen, setProjectExportOpen] = useState(false);
   const [startProjectOpen, setStartProjectOpen] = useState(false);
+  /* Closing states what it will do to the stored copy before it does it, so
+   * neither deleting somebody's history nor leaving it behind is a decision
+   * made silently on their behalf. */
+  const [closing, setClosing] = useState<CloseQuestion | null>(null);
   /* Which source the Start dialog shows first, so a command that means "open
    * one from the store" lands on the store rather than on the samples. */
   const [startProjectTab, setStartProjectTab] = useState<'samples' | 'templates' | 'folder' | 'store'>('samples');
@@ -1160,6 +1165,28 @@ function App() {
     });
   };
 
+  const beginCloseProject = async () => {
+    const listed = await storeClient.projects();
+    setClosing(closeQuestion(storeProjectId(project.name).id, listed.ok ? listed.value : null));
+  };
+
+  const finishCloseProject = async (choice: CloseChoice) => {
+    const question = closing;
+    setClosing(null);
+    if (!question) return;
+    const name = project.name;
+    let deleted: { revisions: number } | null = null;
+    let refusal: string | undefined;
+    if (choice === 'delete-stored' && question.stored) {
+      const removed = await storeClient.deleteProject(question.stored.id, `Deleted when ${name} was closed in the workbench`);
+      if (removed.ok) deleted = { revisions: removed.value.revisions };
+      else refusal = removed.reason;
+    }
+    /* A fresh project rather than an empty screen: the workbench always has one
+     * open, and adopting is the same path every other way in uses. */
+    adoptProject(newProject(), closeOutcome(name, choice, deleted, refusal), null);
+  };
+
   const toggleCapability = (id: string) => {
     setEnabledCapabilities((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
@@ -1844,6 +1871,7 @@ function App() {
         ? `Saved ${project.name} to the project store as revision ${written.value.id}.`
         : `The project store did not accept this project: ${written.reason}`);
     })(); } },
+    { id: 'project-close', label: 'Close this project', category: 'Project', keywords: ['shut', 'discard', 'finish', 'delete', 'stored'], enabled: true, run: () => { void beginCloseProject(); } },
     { id: 'store-open', label: 'Project store: open a project', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
     { id: 'view-runtime', label: `${runtimeOpen ? 'Hide' : 'Show'} machine runtime`, category: 'View', keywords: ['emulator', 'screen', 'panel'], enabled: true, run: () => setRuntimeOpen((current) => !current) },
     { id: 'view-reset-panels', label: 'Reset panel sizes', category: 'View', keywords: ['layout', 'width', 'resize', 'default'], enabled: true, run: () => { setPanelSizes({ ...DEFAULT_PANEL_SIZES }); try { writePanelSizes(DEFAULT_PANEL_SIZES, window.localStorage); } catch { /* the arrangement is lost, the session is not */ } setNotice('Panel sizes reset'); } },
@@ -1954,6 +1982,25 @@ function App() {
       />
       <CommandPalette open={commandPaletteOpen} commands={commands} onClose={() => setCommandPaletteOpen(false)} />
       {startProjectOpen && <StartProjectDialog onOpenProject={adoptProject} initialTab={startProjectTab} onClose={() => { setStartProjectOpen(false); setStartProjectTab('samples'); }} onNotice={setNotice} machineId={resolved.machine.id} />}
+      {closing && (
+        <div className="modal-scrim" role="presentation" onClick={() => setClosing(null)}>
+          <div className="close-project-dialog panel-surface" role="dialog" aria-modal="true" aria-labelledby="close-project-title" onClick={(event) => event.stopPropagation()}>
+            <header><h2 id="close-project-title">Close {project.name}</h2></header>
+            <p>{closing.detail}</p>
+            <div className="close-project-actions">
+              <button type="button" onClick={() => setClosing(null)}>Keep working on it</button>
+              {closing.asks ? (
+                <>
+                  <button type="button" className="primary-action" onClick={() => void finishCloseProject('keep-stored')}>Close and keep the stored copy</button>
+                  <button type="button" className="destructive-action" onClick={() => void finishCloseProject('delete-stored')}>Close and delete the stored copy</button>
+                </>
+              ) : (
+                <button type="button" className="primary-action" onClick={() => void finishCloseProject('nothing-stored')}>Close it</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <ProjectExportDialog open={projectExportOpen} projectName={project.name} projectBookmarkCount={project.bookmarks.filter((bookmark) => bookmark.scope === 'project').length} privateBookmarkCount={project.bookmarks.filter((bookmark) => bookmark.scope === 'private').length} preview={exportPreview} onClose={() => setProjectExportOpen(false)} onExport={exportLocalProject} />
       <GoToSourceDialog open={goToSourceOpen} files={project.files} activeFileId={activeFileId} currentLine={caretLine} sourceLocations={currentMachineArtifact?.sourceLocations} onClose={() => setGoToSourceOpen(false)} onNavigate={(fileId, line, column, length) => {
         jumpToSourceLocation(fileId, line, column, length);
@@ -2167,6 +2214,7 @@ function App() {
             <div className="panel-heading compact">
               <div><span className="eyebrow">LOCAL PROJECT</span><h2>{project.name}</h2></div>
               <button className="plain-icon" type="button" aria-label="Export portable project" onClick={() => setProjectExportOpen(true)}><Icon name="download" size={17} /></button>
+              <button className="plain-icon" type="button" aria-label="Close this project" onClick={() => void beginCloseProject()}><Icon name="close" size={17} /></button>
               <button className="plain-icon" type="button" aria-label="Close project explorer" onClick={() => setExplorerOpen(false)}><Icon name="close" size={16} /></button>
             </div>
             <div className="explorer-actions">
