@@ -44,16 +44,31 @@ import { parseDfsCatalogue } from '../media/dfsCatalogue';
  * slow reader fails on the budget with a number in the message rather than on a
  * timeout with none.
  */
+/*
+ * Measured once, on first use, and kept.
+ *
+ * Measuring it beside every assertion put forty-eight synchronous arithmetic
+ * loops in one file on top of the readers' own work, and a worker that never
+ * pauses long enough to talk to the reporter is killed for it: the suite passed
+ * all two and a half thousand tests and the run still failed, on an RPC
+ * deadline rather than on anything about the code. First use is inside the
+ * first test, so it is still taken under whatever load the run is under, which
+ * was the point of calibrating at all.
+ */
+let calibration: number | null = null;
+
 function calibrationMs(): number {
+  if (calibration !== null) return calibration;
   let fastest = Number.POSITIVE_INFINITY;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const started = performance.now();
     let sum = 0;
-    for (let index = 0; index < 3_000_000; index += 1) sum = (sum + index * 31) >>> 0;
+    for (let index = 0; index < 1_000_000; index += 1) sum = (sum + index * 31) >>> 0;
     if (sum === -1) throw new Error('unreachable'); /* read, so nothing is optimised away */
     fastest = Math.min(fastest, performance.now() - started);
   }
-  return Math.max(fastest, 0.5);
+  calibration = Math.max(fastest, 0.5);
+  return calibration;
 }
 
 /*
@@ -67,7 +82,7 @@ function calibrationMs(): number {
  * used to be.
  */
 function ceilingMs(): number {
-  return Math.min(20_000, Math.max(4_000, calibrationMs() * 400));
+  return Math.min(20_000, Math.max(4_000, calibrationMs() * 1_200));
 }
 
 /* Room for the budget to be what fails, rather than the timeout around it. */
