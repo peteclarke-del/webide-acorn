@@ -144,6 +144,33 @@
     --radius-sm: 5px;
     --radius-md: 8px;
     --radius-lg: 12px;
+
+    /*
+     * How large a control is.
+     *
+     * Every button, select and text input in the workbench measured whatever
+     * the component it happened to live in said: eleven different heights
+     * across fifty-one rules, three of them inside dialogs alone, so two
+     * buttons side by side in the same dialog were different sizes. Sizes
+     * resolve through these three properties now, the way type sizes already
+     * resolve through the --fs-* scale, so the whole product moves together
+     * and a new component cannot quietly invent a twelfth height.
+     *
+     * There are three, and each has a reason:
+     *
+     *   --control-h          every ordinary control, wherever it appears
+     *   --control-h-strip    controls that are the height of the mode strip
+     *                        they sit in, so the strip stays one line
+     *   --control-h-primary  the single emphasised action on a surface
+     *
+     * A cell of artwork in a pixel, tile, map or screen grid is not a control
+     * and is exempt: enlarging it past the artwork would change what the
+     * editor edits, which is WCAG 2.2 AA 2.5.8's essential exception.
+     */
+    --control-h: 28px;
+    --control-h-strip: 36px;
+    --control-h-primary: 34px;
+    --control-pad-x: 9px;
   }
 
   :root[data-theme='light'] {

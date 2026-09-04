@@ -695,3 +695,49 @@ export const VISUAL_ALTERNATIVES = `(() => {
   }
   return problems;
 })()`;
+
+/*
+ * The sizes a control is allowed to be, and a check that every one of them is.
+ *
+ * The workbench had eleven button heights across fifty-one rules — three of
+ * them inside a single dialog, so two buttons side by side were different
+ * sizes. Nothing noticed, because no rule was wrong on its own; the product
+ * simply had no shared answer to how large a control is. It has three now, and
+ * this is what keeps it at three.
+ *
+ * Only controls that are drawn as controls count: a thing with a border or a
+ * background of its own, holding one line. A file in a tree and a line of an
+ * outline are buttons too, and nobody looks at those and sees a button; a card
+ * that stacks a name over a detail is as tall as what it holds, in this product
+ * and in every other.
+ */
+export const CONTROL_HEIGHTS = [28, 34, 36];
+
+export const CONTROL_SIZES = `(() => {
+  const allowed = ${JSON.stringify([28, 34, 36])};
+  const odd = [];
+  for (const node of document.querySelectorAll('button, select, input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range])')) {
+    const box = node.getBoundingClientRect();
+    if (!box.height || !box.width) continue;
+    /* A cell of artwork is not a control: enlarging it past the artwork would
+     * change what the editor edits, which is 2.5.8's essential exception. */
+    if (node.closest('.pixel-grid, .tile-grid, .map-grid, .glyph-grid, .screen-grid, .song-grid, .font-grid, .font-preview-glyph, .pixel-palette, .help-navigation, .research-results')) continue;
+    const style = getComputedStyle(node);
+    const bordered = style.borderTopStyle !== 'none' && style.borderTopWidth !== '0px';
+    const filled = !/^(transparent|rgba\\(0, 0, 0, 0\\))$/.test(style.backgroundColor);
+    if (!bordered && !filled) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const lines = range.getClientRects().length;
+    range.detach();
+    if (lines > 1 || node.querySelectorAll('*').length > 2) continue;
+    const height = Math.round(box.height);
+    if (allowed.includes(height)) continue;
+    odd.push({
+      height,
+      klass: (node.className && node.className.toString().split(' ')[0]) || node.tagName.toLowerCase(),
+      text: (node.textContent || node.getAttribute('aria-label') || '').trim().slice(0, 24),
+    });
+  }
+  return odd;
+})()`;

@@ -572,7 +572,7 @@ await stage('smoke', async () => {
      * a name is meaningful or whether a reading order makes sense; what it can
      * decide is checked here, and what it cannot stays in the manual matrix.
      * The rules are shared with the test suite rather than restated. */
-    const { SCAN, TEXT_SPACING, FOCUS_VISIBILITY, REDUCED_MOTION, FORCED_COLOURS, REDUCED_TRANSPARENCY, KEYBOARD_REACHABILITY, POINTER_ALTERNATIVES, SCROLLABLE_OVERFLOW, VISUAL_ALTERNATIVES, summarise } = await import('./accessibilityRules.mjs');
+    const { CONTROL_HEIGHTS, CONTROL_SIZES, SCAN, TEXT_SPACING, FOCUS_VISIBILITY, REDUCED_MOTION, FORCED_COLOURS, REDUCED_TRANSPARENCY, KEYBOARD_REACHABILITY, POINTER_ALTERNATIVES, SCROLLABLE_OVERFLOW, VISUAL_ALTERNATIVES, summarise } = await import('./accessibilityRules.mjs');
     /* Every workspace the tab strip actually offers, read from the page rather
      * than listed here, so a new one is scanned the day it is added. Search
      * opens a modal over whatever is behind it and is scanned in place. */
@@ -684,6 +684,7 @@ await stage('smoke', async () => {
     let draggableSeen = 0;
     let drawingSeen = 0;
     const visited = [];
+    const mismatched = [];
     for (const workspace of offered) {
       const opened = await evaluate(`(() => {
         const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === ${JSON.stringify(workspace)});
@@ -695,6 +696,7 @@ await stage('smoke', async () => {
       await delay(500);
       visited.push(workspace);
       for (const finding of await evaluate(SCAN)) accessibility.push({ ...finding, detail: `${finding.detail} (in ${workspace})` });
+      for (const odd of await evaluate(CONTROL_SIZES)) mismatched.push({ ...odd, workspace });
       /* Operating the workspace without a pointer, in the workspace itself
        * rather than only on whichever one happens to be showing. */
       draggableSeen = Math.max(draggableSeen, await evaluate(`document.querySelectorAll('[draggable="true"]').length`));
@@ -750,8 +752,13 @@ await stage('smoke', async () => {
     }
     await call('Emulation.setEmulatedMedia', { features: [] });
 
+    if (mismatched.length) {
+      const shown = mismatched.slice(0, 6).map((odd) => `${odd.height}px .${odd.klass} "${odd.text}" in ${odd.workspace}`);
+      throw new Error(`${mismatched.length} control(s) are not one of the ${CONTROL_HEIGHTS.join(', ')} pixel sizes the product declares: ${shown.join(' | ')}`);
+    }
+
     if (errors.length) throw new Error(`The workbench reported ${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`);
-    return { detail: `${workspaces} controls under the shipped security headers, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
+    return { detail: `${workspaces} controls under the shipped security headers, every one at one of ${CONTROL_HEIGHTS.length} declared sizes, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
   } finally {
     /* Every handle opened here is closed here. A gate that printed its verdict
      * and then sat with an open socket would hang a pipeline until its timeout
