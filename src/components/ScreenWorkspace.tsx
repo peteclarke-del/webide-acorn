@@ -260,7 +260,9 @@ export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource
           { id: 'document', label: 'Document', items: [
             ...openable.map((entry) => ({
               id: `open-${entry.id}`,
-              label: `Open ${entry.name}`,
+              label: entry.name.replace(/\.screen\.json$/i, ''),
+              icon: 'file' as const,
+              description: `Open ${entry.name} from this project`,
               hint: entry.detail,
               onSelect: () => {
                 const held = projectFiles.find((file) => file.id === entry.id);
@@ -268,16 +270,16 @@ export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource
                 guard(() => parseScreenDocument(held.content), `${entry.name} opened from this project`);
               },
             })),
-            { id: 'import-image', label: 'Import an image', hint: 'converted to this mode', separated: !!openable.length, onSelect: () => imageInputRef.current?.click() },
+            { id: 'import-image', label: 'Import image…', icon: 'image', description: 'Convert an image into this display mode, reporting what the conversion lost', hint: 'converted', separated: !!openable.length, onSelect: () => imageInputRef.current?.click() },
           ] },
           { id: 'edit', label: 'Edit', items: [
-            { id: 'undo', label: 'Undo', disabled: !past.length, onSelect: () => {
+            { id: 'undo', label: 'Undo', icon: 'reset', description: 'Undo the last change to this screen', disabled: !past.length, onSelect: () => {
           const previous = past[past.length - 1];
           if (!previous) return;
           setPast((current) => current.slice(0, -1));
           setScreen((current) => ({ ...previous, bytes: previous.bytes.slice(), revision: current.revision + 1 }));
         } },
-            { id: 'fill', label: 'Fill screen with the chosen colour', separated: true, onSelect: () => {
+            { id: 'fill', label: 'Fill screen', description: 'Fill the whole screen with the chosen logical colour', separated: true, onSelect: () => {
           remember();
           setScreen((current) => {
             const next = new Uint8Array(geometry.byteLength);
@@ -287,10 +289,10 @@ export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource
           });
           onNotice(`Screen filled with logical colour ${colour}`);
         } },
-            { id: 'copy-area', label: 'Copy area', disabled: !selection, separated: true, onSelect: copyArea },
-            { id: 'cut-area', label: 'Cut area', disabled: !selection, onSelect: cutArea },
-            { id: 'paste-area', label: 'Paste at cursor', disabled: !clipboard, onSelect: pasteArea },
-            { id: 'clear-selection', label: 'Clear selection', disabled: !selection && !selectionAnchor, onSelect: () => { setSelection(undefined); setSelectionAnchor(undefined); } },
+            { id: 'copy-area', label: 'Copy area', description: 'Copy the marked rectangle of pixels', disabled: !selection, separated: true, onSelect: copyArea },
+            { id: 'cut-area', label: 'Cut area', description: 'Copy the marked rectangle and clear it', disabled: !selection, onSelect: cutArea },
+            { id: 'paste-area', label: 'Paste', description: 'Paste the copied pixels at the cursor', disabled: !clipboard, onSelect: pasteArea },
+            { id: 'clear-selection', label: 'Deselect', description: 'Forget the marked rectangle', disabled: !selection && !selectionAnchor, onSelect: () => { setSelection(undefined); setSelectionAnchor(undefined); } },
           ] },
         ]} />
         <div className="map-selection-tools" role="group" aria-label="Rectangular selection">

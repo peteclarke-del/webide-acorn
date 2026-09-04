@@ -242,7 +242,7 @@ describe('TileMapWorkspace Tiled interchange', () => {
   it('exports the current map as a Tiled document', () => {
     const { onAddSource } = renderWorkspace();
     fireEvent.change(screen.getByLabelText('Map name'), { target: { value: 'level one' } });
-    chooseFromMenu('Document', /^Export Tiled JSON/);
+    chooseFromMenu('Document', /^Export Tiled/);
     expect(onAddSource).toHaveBeenCalledWith('level-one.tiled.json', expect.stringContaining('"orientation": "orthogonal"'));
   });
 });

@@ -182,7 +182,7 @@ describe('a screen the project already holds', () => {
      * recovered screen was in the file tree and nowhere else. */
     const document = createScreenDocument('loading', 'bbc-mode-2');
     const props = renderWorkspace(projectHolding('loading.screen.json', serializeScreenDocument(document)));
-    chooseFromMenu('Document', /^Open loading\.screen\.json/);
+    chooseFromMenu('Document', /^loading/);
     expect(props.onNotice).toHaveBeenCalledWith(expect.stringContaining('opened from this project'));
     expect(screen.getByLabelText('Screen name')).toHaveValue('loading');
   });

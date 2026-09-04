@@ -100,7 +100,7 @@ Open one of the two complete sample games as an ordinary editable project, then 
 
 **Procedure**
 
-1. Choose Project then Start a project from a sample or an existing codebase in the workbench menu bar, or run that command from the command palette.
+1. Choose Project then Start from a sample in the workbench menu bar, or run Start a project from a sample or an existing codebase from the command palette.
 2. Stay on the Sample projects tab and read what each sample demonstrates.
 3. Choose Open Acorn Harvest for the 6502 assembly maze game, or Open Acorn Catcher for the BBC BASIC II game.
 4. Press F7 to build, or F5 to build and run once firmware is present.

@@ -1823,44 +1823,44 @@ function App() {
     run: () => tab === 'Search' ? openProjectSearch() : setWorkspaceTab(tab),
   }));
   const commandDefinitions: WorkbenchCommand[] = [
-    { id: 'project-new', label: 'Create new project', category: 'Project', keywords: ['clear', 'start'], enabled: true, run: newLocalProject },
-    { id: 'project-open', label: 'Open portable project', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
-    { id: 'project-start', label: 'Start a project from a sample or an existing codebase', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => setStartProjectOpen(true) },
-    { id: 'file-save', label: 'Save current source in browser', category: 'File', keywords: ['persist', 'local', 'dirty'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: saveCurrentSource },
-    { id: 'project-save-all', label: 'Save all project files in browser', category: 'Project', keywords: ['persist', 'local', 'dirty'], enabled: true, run: saveLocalProject },
-    { id: 'project-write-folder', label: 'Write project files back to the connected folder', category: 'Project', keywords: ['folder', 'disk', 'save', 'write'], enabled: !!connectedFolder, run: () => { void writeProjectToFolder(); } },
-    { id: 'project-export', label: 'Export portable project', category: 'Project', keywords: ['download', 'bundle', 'private', 'redact'], enabled: true, run: () => setProjectExportOpen(true) },
-    { id: 'file-new', label: 'Create new source file', category: 'File', keywords: ['add'], enabled: true, run: () => addSourceFile() },
-    { id: 'file-import', label: 'Import source files', category: 'File', keywords: ['open', 'multiple'], enabled: true, run: () => sourceInputRef.current?.click() },
-    { id: 'file-analyse', label: 'Analyse local binary or BASIC file', category: 'Analysis', keywords: ['disassemble', 'list', 'inspect'], enabled: true, run: openAnalysisFile },
-    { id: 'file-close-editor', label: 'Close current source editor', category: 'File', keywords: ['tab', 'document'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: () => activeSource && closeSourceEditor(activeSource.id) },
-    { id: 'file-close-other-editors', label: 'Close other source editors', category: 'File', keywords: ['tabs', 'documents'], enabled: !!activeSource && documents.openIds.length > 1, disabledReason: activeSource ? 'No other source editors are open' : 'No source editor is open', run: () => activeSource && closeOtherSourceEditors(activeSource.id) },
-    { id: 'file-close-all-editors', label: 'Close all source editors', category: 'File', keywords: ['tabs', 'documents'], enabled: documents.openIds.length > 0, disabledReason: 'No source editors are open', run: closeAllSourceEditors },
-    { id: 'file-reopen-editor', label: 'Reopen recently closed source editor', category: 'File', keywords: ['tab', 'document', 'history'], enabled: canReopenClosed, disabledReason: 'No recently closed project file is available', run: reopenClosedSourceEditor },
-    { id: 'file-revert-editor', label: 'Revert current source to last save', category: 'File', keywords: ['discard', 'restore', 'baseline'], enabled: !!activeSource && activeSource.saved !== false && activeSource.content !== (activeSource.savedContent ?? activeSource.content), disabledReason: activeSource?.saved === false ? 'Current source has never been explicitly saved' : activeSource ? 'Current source matches its saved content' : 'No source editor is open', run: () => activeSource && revertSourceFile(activeSource.id) },
-    { id: 'editor-find', label: 'Find and replace in current file', category: 'Editor', keywords: ['search'], enabled: !!activeSource, disabledReason: 'No active source file', run: findInCurrentFile },
-    { id: 'editor-search-project', label: 'Search and replace project', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
-    { id: 'editor-go-line', label: 'Go to line or project symbol', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
-    { id: 'build-active', label: 'Build selected target', category: 'Build', keywords: ['compile', 'assemble', 'tokenize'], enabled: canBuild, disabledReason: buildTargetErrors[0] ?? 'Build target is invalid', run: () => { buildActiveSource(); } },
-    { id: 'run-active', label: 'Build and run selected target', category: 'Run', keywords: ['execute', 'emulator'], enabled: canRun, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before running BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: runProgram },
-    { id: 'debug-active', label: 'Build and debug selected target', category: 'Debug', keywords: ['breakpoint', 'inspect'], enabled: canDebug, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before debugging BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: () => void startDebugger() },
-    { id: 'debug-run-to', label: 'Debugger: run to address', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
-    { id: 'debug-pause', label: 'Debugger: pause', category: 'Debug', keywords: ['break', 'suspend'], enabled: debugAttached && !!debugCoreState?.running, disabledReason: !debugAttached ? 'Start a debug session first' : 'The attached core is already paused', run: debugPauseCommand },
-    { id: 'debug-stop', label: 'Debugger: stop session', category: 'Debug', keywords: ['terminate', 'end'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: stopDebugSession },
-    { id: 'debug-restart', label: 'Debugger: restart bound machine', category: 'Debug', keywords: ['reset', 'reboot'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: debugRestartCommand },
-    { id: 'debug-step-instruction', label: 'Debugger: step one instruction', category: 'Debug', keywords: ['cpu', 'opcode'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core before stepping' : 'Start a debug session first', run: debugInstructionStepCommand },
-    { id: 'debug-step-source-in', label: 'Debugger: source step into', category: 'Debug', keywords: ['line', 'statement'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('in') },
-    { id: 'debug-step-source-over', label: 'Debugger: source step over', category: 'Debug', keywords: ['line', 'call'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('over') },
-    { id: 'debug-step-source-out', label: 'Debugger: source step out', category: 'Debug', keywords: ['return', 'stack', 'r14'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('out') },
-    { id: 'debug-run-cursor', label: 'Debugger: run to cursor', category: 'Debug', keywords: ['line', 'source'], enabled: debugPaused && !!currentMachineArtifact && !!activeSource, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact and active file are required', run: runToCursorCommand },
-    { id: 'debug-run-symbol', label: 'Debugger: run to symbol', category: 'Debug', keywords: ['label', 'function'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current artifact symbol table is required', run: runToSymbolCommand },
-    { id: 'runtime-continue', label: 'Runtime: continue execution', category: 'Run', keywords: ['resume', 'play'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Hardware CPU is already running' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'run' }) : continueProgram() },
-    { id: 'runtime-step', label: 'Runtime: step one instruction', category: 'Debug', keywords: ['cpu', 'instruction'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Pause the hardware CPU first' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'step' }) : stepProgram() },
-    { id: 'runtime-reset', label: 'Runtime: reset machine or program', category: 'Run', keywords: ['restart'], enabled: !!hardwareState || !!runtimeState, disabledReason: 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'reset' }) : resetProgram() },
-    { id: 'view-target', label: `${configOpen ? 'Hide' : 'Show'} target configuration`, category: 'View', keywords: ['machine', 'profile'], enabled: true, run: toggleConfigPanel },
-    { id: 'view-explorer', label: `${explorerOpen ? 'Hide' : 'Show'} project explorer`, category: 'View', keywords: ['files', 'tree'], enabled: true, run: toggleExplorerPanel },
-    { id: 'view-inspector', label: `${inspectorOpen ? 'Hide' : 'Show'} inspector`, category: 'View', keywords: ['problems', 'registers'], enabled: true, run: () => setInspectorOpen((current) => !current) },
-    { id: 'store-save', label: 'Project store: save this project', category: 'Project', keywords: ['backend', 'persist', 'commit', 'revision', 'server'], enabled: true, run: () => { void (async () => {
+    { id: 'project-new', label: 'Create new project', short: 'New project', icon: 'new', category: 'Project', keywords: ['clear', 'start'], enabled: true, run: newLocalProject },
+    { id: 'project-open', label: 'Open portable project', short: 'Open project…', icon: 'open', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
+    { id: 'project-start', label: 'Start a project from a sample or an existing codebase', short: 'Start from a sample…', icon: 'layers', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => setStartProjectOpen(true) },
+    { id: 'file-save', label: 'Save current source in browser', short: 'Save', icon: 'save', category: 'File', keywords: ['persist', 'local', 'dirty'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: saveCurrentSource },
+    { id: 'project-save-all', label: 'Save all project files in browser', short: 'Save all', icon: 'save', category: 'Project', keywords: ['persist', 'local', 'dirty'], enabled: true, run: saveLocalProject },
+    { id: 'project-write-folder', label: 'Write project files back to the connected folder', short: 'Write to folder', icon: 'folder', category: 'Project', keywords: ['folder', 'disk', 'save', 'write'], enabled: !!connectedFolder, run: () => { void writeProjectToFolder(); } },
+    { id: 'project-export', label: 'Export portable project', short: 'Export…', icon: 'download', category: 'Project', keywords: ['download', 'bundle', 'private', 'redact'], enabled: true, run: () => setProjectExportOpen(true) },
+    { id: 'file-new', label: 'Create new source file', short: 'New file', icon: 'new', category: 'File', keywords: ['add'], enabled: true, run: () => addSourceFile() },
+    { id: 'file-import', label: 'Import source files', short: 'Import files…', icon: 'open', category: 'File', keywords: ['open', 'multiple'], enabled: true, run: () => sourceInputRef.current?.click() },
+    { id: 'file-analyse', label: 'Analyse local binary or BASIC file', short: 'Analyse a file…', icon: 'terminal', category: 'Analysis', keywords: ['disassemble', 'list', 'inspect'], enabled: true, run: openAnalysisFile },
+    { id: 'file-close-editor', label: 'Close current source editor', short: 'Close editor', icon: 'close', category: 'File', keywords: ['tab', 'document'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: () => activeSource && closeSourceEditor(activeSource.id) },
+    { id: 'file-close-other-editors', label: 'Close other source editors', short: 'Close others', category: 'File', keywords: ['tabs', 'documents'], enabled: !!activeSource && documents.openIds.length > 1, disabledReason: activeSource ? 'No other source editors are open' : 'No source editor is open', run: () => activeSource && closeOtherSourceEditors(activeSource.id) },
+    { id: 'file-close-all-editors', label: 'Close all source editors', short: 'Close all', category: 'File', keywords: ['tabs', 'documents'], enabled: documents.openIds.length > 0, disabledReason: 'No source editors are open', run: closeAllSourceEditors },
+    { id: 'file-reopen-editor', label: 'Reopen recently closed source editor', short: 'Reopen editor', category: 'File', keywords: ['tab', 'document', 'history'], enabled: canReopenClosed, disabledReason: 'No recently closed project file is available', run: reopenClosedSourceEditor },
+    { id: 'file-revert-editor', label: 'Revert current source to last save', short: 'Revert', category: 'File', keywords: ['discard', 'restore', 'baseline'], enabled: !!activeSource && activeSource.saved !== false && activeSource.content !== (activeSource.savedContent ?? activeSource.content), disabledReason: activeSource?.saved === false ? 'Current source has never been explicitly saved' : activeSource ? 'Current source matches its saved content' : 'No source editor is open', run: () => activeSource && revertSourceFile(activeSource.id) },
+    { id: 'editor-find', label: 'Find and replace in current file', short: 'Find…', icon: 'search', category: 'Editor', keywords: ['search'], enabled: !!activeSource, disabledReason: 'No active source file', run: findInCurrentFile },
+    { id: 'editor-search-project', label: 'Search and replace project', short: 'Search project…', icon: 'search', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
+    { id: 'editor-go-line', label: 'Go to line or project symbol', short: 'Go to line…', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
+    { id: 'build-active', label: 'Build selected target', short: 'Build', icon: 'build', category: 'Build', keywords: ['compile', 'assemble', 'tokenize'], enabled: canBuild, disabledReason: buildTargetErrors[0] ?? 'Build target is invalid', run: () => { buildActiveSource(); } },
+    { id: 'run-active', label: 'Build and run selected target', short: 'Build and run', icon: 'play', category: 'Run', keywords: ['execute', 'emulator'], enabled: canRun, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before running BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: runProgram },
+    { id: 'debug-active', label: 'Build and debug selected target', short: 'Build and debug', icon: 'debug', category: 'Debug', keywords: ['breakpoint', 'inspect'], enabled: canDebug, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before debugging BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: () => void startDebugger() },
+    { id: 'debug-run-to', label: 'Debugger: run to address', short: 'Run to address…', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
+    { id: 'debug-pause', label: 'Debugger: pause', short: 'Pause', icon: 'pause', category: 'Debug', keywords: ['break', 'suspend'], enabled: debugAttached && !!debugCoreState?.running, disabledReason: !debugAttached ? 'Start a debug session first' : 'The attached core is already paused', run: debugPauseCommand },
+    { id: 'debug-stop', label: 'Debugger: stop session', short: 'Stop', icon: 'stop', category: 'Debug', keywords: ['terminate', 'end'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: stopDebugSession },
+    { id: 'debug-restart', label: 'Debugger: restart bound machine', short: 'Restart machine', icon: 'reset', category: 'Debug', keywords: ['reset', 'reboot'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: debugRestartCommand },
+    { id: 'debug-step-instruction', label: 'Debugger: step one instruction', short: 'Step instruction', category: 'Debug', keywords: ['cpu', 'opcode'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core before stepping' : 'Start a debug session first', run: debugInstructionStepCommand },
+    { id: 'debug-step-source-in', label: 'Debugger: source step into', short: 'Step into', category: 'Debug', keywords: ['line', 'statement'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('in') },
+    { id: 'debug-step-source-over', label: 'Debugger: source step over', short: 'Step over', category: 'Debug', keywords: ['line', 'call'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('over') },
+    { id: 'debug-step-source-out', label: 'Debugger: source step out', short: 'Step out', category: 'Debug', keywords: ['return', 'stack', 'r14'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('out') },
+    { id: 'debug-run-cursor', label: 'Debugger: run to cursor', short: 'Run to cursor', category: 'Debug', keywords: ['line', 'source'], enabled: debugPaused && !!currentMachineArtifact && !!activeSource, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact and active file are required', run: runToCursorCommand },
+    { id: 'debug-run-symbol', label: 'Debugger: run to symbol', short: 'Run to symbol…', category: 'Debug', keywords: ['label', 'function'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current artifact symbol table is required', run: runToSymbolCommand },
+    { id: 'runtime-continue', label: 'Runtime: continue execution', short: 'Continue', icon: 'play', category: 'Run', keywords: ['resume', 'play'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Hardware CPU is already running' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'run' }) : continueProgram() },
+    { id: 'runtime-step', label: 'Runtime: step one instruction', short: 'Step', category: 'Debug', keywords: ['cpu', 'instruction'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Pause the hardware CPU first' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'step' }) : stepProgram() },
+    { id: 'runtime-reset', label: 'Runtime: reset machine or program', short: 'Reset', icon: 'reset', category: 'Run', keywords: ['restart'], enabled: !!hardwareState || !!runtimeState, disabledReason: 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'reset' }) : resetProgram() },
+    { id: 'view-target', label: `${configOpen ? 'Hide' : 'Show'} target configuration`, short: 'Target configuration', checked: configOpen, category: 'View', keywords: ['machine', 'profile'], enabled: true, run: toggleConfigPanel },
+    { id: 'view-explorer', label: `${explorerOpen ? 'Hide' : 'Show'} project explorer`, short: 'Project explorer', checked: explorerOpen, category: 'View', keywords: ['files', 'tree'], enabled: true, run: toggleExplorerPanel },
+    { id: 'view-inspector', label: `${inspectorOpen ? 'Hide' : 'Show'} inspector`, short: 'Inspector', checked: inspectorOpen, category: 'View', keywords: ['problems', 'registers'], enabled: true, run: () => setInspectorOpen((current) => !current) },
+    { id: 'store-save', label: 'Project store: save this project', short: 'Save to store', icon: 'cloud', category: 'Project', keywords: ['backend', 'persist', 'commit', 'revision', 'server'], enabled: true, run: () => { void (async () => {
       const files = Object.fromEntries(storedProjectFiles.map((file) => [file.name, file.content]));
       /* Written against the head the store reports, so a second workbench
        * editing the same project collides here rather than one of them quietly
@@ -1873,10 +1873,10 @@ function App() {
         ? `Saved ${project.name} to the project store as revision ${written.value.id}.`
         : `The project store did not accept this project: ${written.reason}`);
     })(); } },
-    { id: 'project-close', label: 'Close this project', category: 'Project', keywords: ['shut', 'discard', 'finish', 'delete', 'stored'], enabled: true, run: () => { void beginCloseProject(); } },
-    { id: 'store-open', label: 'Project store: open a project', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
-    { id: 'view-runtime', label: `${runtimeOpen ? 'Hide' : 'Show'} machine runtime`, category: 'View', keywords: ['emulator', 'screen', 'panel'], enabled: true, run: () => setRuntimeOpen((current) => !current) },
-    { id: 'view-reset-panels', label: 'Reset panel sizes', category: 'View', keywords: ['layout', 'width', 'resize', 'default'], enabled: true, run: () => { setPanelSizes({ ...DEFAULT_PANEL_SIZES }); try { writePanelSizes(DEFAULT_PANEL_SIZES, window.localStorage); } catch { /* the arrangement is lost, the session is not */ } setNotice('Panel sizes reset'); } },
+    { id: 'project-close', label: 'Close this project', short: 'Close project', icon: 'close', category: 'Project', keywords: ['shut', 'discard', 'finish', 'delete', 'stored'], enabled: true, run: () => { void beginCloseProject(); } },
+    { id: 'store-open', label: 'Project store: open a project', short: 'Open from store…', icon: 'cloud', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
+    { id: 'view-runtime', label: `${runtimeOpen ? 'Hide' : 'Show'} machine runtime`, short: 'Machine runtime', checked: runtimeOpen, category: 'View', keywords: ['emulator', 'screen', 'panel'], enabled: true, run: () => setRuntimeOpen((current) => !current) },
+    { id: 'view-reset-panels', label: 'Reset panel sizes', short: 'Reset panel sizes', category: 'View', keywords: ['layout', 'width', 'resize', 'default'], enabled: true, run: () => { setPanelSizes({ ...DEFAULT_PANEL_SIZES }); try { writePanelSizes(DEFAULT_PANEL_SIZES, window.localStorage); } catch { /* the arrangement is lost, the session is not */ } setNotice('Panel sizes reset'); } },
     ...workspaceCommands,
   ];
   /* The dispatched binding table is the only source of advertised chords. */
@@ -1895,13 +1895,20 @@ function App() {
     .filter((command) => categories.includes(command.category))
     .map((command) => ({
       id: `menu-${command.id}`,
-      label: command.label,
+      /* A word or two, the way a desktop menu reads; the palette keeps the
+       * whole descriptive phrase, because that is what somebody searches
+       * against, and it becomes this entry's tooltip. */
+      label: command.short ?? command.label,
+      description: command.enabled ? command.label : `${command.label} · ${command.disabledReason ?? 'unavailable here'}`,
+      ...(command.icon ? { icon: command.icon } : {}),
+      ...(command.checked === undefined ? {} : { checked: command.checked }),
       onSelect: command.run,
       disabled: !command.enabled,
-      /* The chord where there is one, and otherwise the reason the item is
-       * greyed: an action that cannot be taken should say why on itself rather
-       * than leave somebody clicking at it. */
-      hint: command.shortcut ?? (command.enabled ? undefined : command.disabledReason),
+      /* Only the chord. The reason a greyed item is greyed used to sit here as
+       * well, which put a sentence beside every unavailable entry and made the
+       * menu as wide as the longest of them. It is in the tooltip above, where
+       * somebody who wants it can find it and nobody else pays for it. */
+      ...(command.shortcut ? { hint: command.shortcut } : {}),
     }));
   const workspaceHelpTopic = workspaceTab === 'Debugger'
     ? (buildEntry?.language === 'arm' ? 'debugger-arm' : 'debugger-6502')
@@ -1920,6 +1927,7 @@ function App() {
       items: [...menuItemsFor(['View']), ...[...workspaceTabs, ...assetTabs].map((tab) => ({
         id: `menu-open-${tab}`,
         label: tab,
+        description: `Show the ${tab} workspace`,
         onSelect: () => tab === 'Search' ? openProjectSearch() : setWorkspaceTab(tab),
         checked: workspaceTab === tab,
         separated: tab === workspaceTabs[0] || tab === assetTabs[0],
@@ -1929,11 +1937,11 @@ function App() {
       id: 'menu-help',
       label: 'Help',
       items: [
-        { id: 'menu-help-here', label: `Help for ${workspaceTab}`, onSelect: () => openHelp(workspaceHelpTopic) },
-        { id: 'menu-help-start', label: 'First run and workspace layout', onSelect: () => openHelp('first-run') },
-        { id: 'menu-help-search', label: 'Search and navigate the guide', onSelect: () => openHelp('using-help') },
-        { id: 'menu-help-keys', label: 'Keyboard shortcuts', onSelect: () => setWorkspaceTab('Settings'), separated: true },
-        { id: 'menu-help-palette', label: 'Command palette', onSelect: () => setCommandPaletteOpen(true) },
+        { id: 'menu-help-here', label: `Help for ${workspaceTab}`, icon: 'book', description: `Open the guide at the ${workspaceTab} workspace`, onSelect: () => openHelp(workspaceHelpTopic) },
+        { id: 'menu-help-start', label: 'First run', icon: 'book', description: 'First run and workspace layout', onSelect: () => openHelp('first-run') },
+        { id: 'menu-help-search', label: 'Search the guide…', icon: 'search', description: 'Search and navigate this guide', onSelect: () => openHelp('using-help') },
+        { id: 'menu-help-keys', label: 'Keyboard shortcuts', icon: 'settings', description: 'Review and rebind every workbench chord in Settings', separated: true, onSelect: () => setWorkspaceTab('Settings') },
+        { id: 'menu-help-palette', label: 'Command palette', icon: 'terminal', description: 'Search every command the workbench offers', onSelect: () => setCommandPaletteOpen(true) },
       ],
     },
   ];
@@ -3279,26 +3287,26 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
       <div><span className="eyebrow">2BPP · SCHEMA 1</span><h2>{kind} editor</h2></div>
       <PanelMenuBar label={`${kind} actions`} menus={[
         { id: 'document', label: 'Document', items: [
-          { id: 'add-document', label: 'Add document to project', hint: `${stem}.asset.json`, onSelect: () => onAddSource(`${stem}.asset.json`, serializePixelAssetDocument(storedDocument)) },
-          { id: 'add-equb', label: 'Add EQUB source to project', hint: `${stem}.asm`, onSelect: () => onAddSource(`${stem}.asm`, `${output.assembly}\n`) },
-          { id: 'add-live-target', label: 'Add live build target', hint: 'editable document and a 6502 target using INCLUDEASSET', onSelect: () => onAddLiveAsset(stem, serializePixelAssetDocument(storedDocument)) },
-          { id: 'download-document', label: 'Download document', separated: true, onSelect: () => downloadBlob(new Blob([serializePixelAssetDocument(storedDocument)], { type: 'application/json' }), `${stem}.asset.json`) },
-          { id: 'download-binary', label: 'Download binary', hint: `${output.bytes.length} bytes`, onSelect: downloadBinary },
-          ...(document.sprite ? [{ id: 'download-mask', label: 'Download opacity mask', disabled: !output.maskBytes, onSelect: () => { if (output.maskBytes) downloadBlob(new Blob([output.maskBytes], { type: 'application/octet-stream' }), `${stem}.mask.bin`); } }] : []),
+          { id: 'add-document', label: 'Add to project', icon: 'file', description: 'Write this editable document into the project', hint: `${stem}.asset.json`, onSelect: () => onAddSource(`${stem}.asset.json`, serializePixelAssetDocument(storedDocument)) },
+          { id: 'add-equb', label: 'Add EQUB source', icon: 'code', description: 'Write the generated assembler source into the project', hint: `${stem}.asm`, onSelect: () => onAddSource(`${stem}.asm`, `${output.assembly}\n`) },
+          { id: 'add-live-target', label: 'Add build target', icon: 'build', description: 'Create an editable document and a 6502 target that includes it with INCLUDEASSET, so edits stale the build', onSelect: () => onAddLiveAsset(stem, serializePixelAssetDocument(storedDocument)) },
+          { id: 'download-document', label: 'Save document…', icon: 'download', description: 'Download the editable document as a file', separated: true, onSelect: () => downloadBlob(new Blob([serializePixelAssetDocument(storedDocument)], { type: 'application/json' }), `${stem}.asset.json`) },
+          { id: 'download-binary', label: 'Save binary…', icon: 'download', description: 'Download the generated bytes exactly as the machine reads them', hint: `${output.bytes.length} bytes`, onSelect: downloadBinary },
+          ...(document.sprite ? ([{ id: 'download-mask', label: 'Save mask…', icon: 'download', description: 'Download the opacity mask as a separate binary', disabled: !output.maskBytes, onSelect: () => { if (output.maskBytes) downloadBlob(new Blob([output.maskBytes], { type: 'application/octet-stream' }), `${stem}.mask.bin`); } }] satisfies PanelMenuItem[]) : []),
         ] },
         { id: 'encoding', label: 'Encoding', items: [
           /* The generated byte order was a whole row of the editor for one
            * choice between two values. It is the same choice here, and it says
            * which one is in force without spending a line of the panel. */
-          { id: 'encoding-logical', label: 'Logical 2bpp interchange', hint: 'portable groups, not screen memory', checked: document.target.packing === 'logical-2bpp-msb-groups', onSelect: () => update({ target: { ...document.target, packing: 'logical-2bpp-msb-groups' } }) },
-          { id: 'encoding-mode5', label: 'BBC Micro MODE 5 screen bytes', hint: 'hardware bit-plane order', checked: document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp', onSelect: () => update({ target: { ...document.target, packing: 'bbc-mode-5-hardware-interleaved-2bpp' } }) },
+          { id: 'encoding-logical', label: 'Logical 2bpp', description: 'Portable logical groups, which are not screen memory', hint: 'interchange', checked: document.target.packing === 'logical-2bpp-msb-groups', onSelect: () => update({ target: { ...document.target, packing: 'logical-2bpp-msb-groups' } }) },
+          { id: 'encoding-mode5', label: 'BBC MODE 5', description: 'Hardware bit-plane order, four pixels to the byte, ready for screen memory', hint: 'screen bytes', checked: document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp', onSelect: () => update({ target: { ...document.target, packing: 'bbc-mode-5-hardware-interleaved-2bpp' } }) },
         ] },
         { id: 'edit', label: 'Edit', items: [
-          { id: 'undo', label: 'Undo', disabled: !history.past.length, onSelect: undo },
-          { id: 'redo', label: 'Redo', disabled: !history.future.length, onSelect: redo },
+          { id: 'undo', label: 'Undo', icon: 'reset', description: 'Undo the last change to this document', disabled: !history.past.length, onSelect: undo },
+          { id: 'redo', label: 'Redo', description: 'Redo the change that was undone', disabled: !history.future.length, onSelect: redo },
           ...(document.sprite ? [
-            { id: 'all-opaque', label: 'Make every pixel opaque', separated: true, onSelect: () => update({ sprite: { ...document.sprite!, mask: Array(document.pixels.length).fill(1) } }) },
-            { id: 'all-transparent', label: 'Make every pixel transparent', onSelect: () => update({ sprite: { ...document.sprite!, mask: Array(document.pixels.length).fill(0) } }) },
+            { id: 'all-opaque', label: 'All opaque', description: 'Make every pixel of the sprite opaque', separated: true, onSelect: () => update({ sprite: { ...document.sprite!, mask: Array(document.pixels.length).fill(1) } }) },
+            { id: 'all-transparent', label: 'All transparent', description: 'Make every pixel of the sprite transparent', onSelect: () => update({ sprite: { ...document.sprite!, mask: Array(document.pixels.length).fill(0) } }) },
           ] : []),
         ] },
       ]} />

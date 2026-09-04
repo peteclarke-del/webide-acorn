@@ -32,14 +32,18 @@ const source = [
 const maintainedControls = [
   'Save all project files in browser', 'Open technical help', 'Choose Acorn file',
   'Build all', 'Run', 'Pause', 'Step over', 'Apply permanent', 'Clear all',
-  'New plan', 'Build &amp; run test', 'Add live build target', 'Search reference',
+  'New plan', 'Build &amp; run test', 'Add live font build target', 'Search reference',
   'Search help', 'Import ROM set', 'Replace all',
   /* Named by the procedures that were corrected when the menu bars arrived. */
   'Start a project from a sample or an existing codebase', 'Export portable project',
   'Compare saved', 'Split editor', 'Reset split', 'Signature help',
   'Definition / Research', 'Call hierarchy', 'Declaration', 'Implementation',
-  'Type definition', 'Add generated source', 'Add EQUB source to project',
-  'Import an image', 'Import a Tiled JSON map', 'Declare tile', 'Add object at cursor',
+  'Type definition', 'Add generated source', 'Add EQUB source', 'Add build target',
+  'Declare tile', 'Add object at cursor',
+  /* And the workbench menu bar's own entries, which are what the guide's
+   * procedures now tell somebody to choose. */
+  'Start from a sample', 'Export…', 'Revert', 'Signature help', 'Import image…',
+  'Import Tiled…', 'Previous change', 'Next change', 'Scope start',
 ];
 for (const control of maintainedControls) {
   if (!source.includes(control)) failures.push(`Documented control is absent from the interface source: ${control}`);

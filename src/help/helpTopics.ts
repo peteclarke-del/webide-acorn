@@ -109,7 +109,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "For running or testing on the real machine, the BBC Model B ROM images you supply in Settings",
     ],
     steps: [
-      "Choose Project then Start a project from a sample or an existing codebase in the workbench menu bar, or run that command from the command palette.",
+      "Choose Project then Start from a sample in the workbench menu bar, or run Start a project from a sample or an existing codebase from the command palette.",
       "Stay on the Sample projects tab and read what each sample demonstrates.",
       "Choose Open Acorn Harvest for the 6502 assembly maze game, or Open Acorn Catcher for the BBC BASIC II game.",
       "Press F7 to build, or F5 to build and run once firmware is present.",
@@ -143,7 +143,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "A folder of Acorn source in editable text form",
     ],
     steps: [
-      "Choose Project then Start a project from a sample or an existing codebase in the workbench menu bar, then the From an existing codebase tab.",
+      "Choose Project then Start from a sample in the workbench menu bar, then the From an existing codebase tab.",
       "Choose the folder. It is read in this browser and is never uploaded.",
       "Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.",
       "Use Recover all to take every asset the plan found, or tick the ones you want. Each becomes an editable document in the project.",
@@ -522,7 +522,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "If text appears incorrect after import, do not save over the original host file. Convert it to UTF-8 or Windows-1252 with a trusted byte-aware tool, then import again.",
       "If Windows-1252 download is refused, replace or transliterate the named character, or choose UTF-8.",
       "If a file is rejected for size, split generated data into build inputs or use the binary analysis and media workflows.",
-      "Use Revert saved content to restore both text and saved byte-format choices.",
+      "Use Revert in the editor's File menu to restore both text and saved byte-format choices.",
       "Keep a portable project export before changing many file formats so the source and metadata can be inspected independently.",
     ],
     related: ["editor", "editor-splits", "projects", "analysis", "media"],
@@ -556,7 +556,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "When BOUNDED LARGE DIFF appears, interpret the rows as position-aligned changes. The bounded mode avoids an unresponsive quadratic comparison.",
       "Choose Close saved comparison to return the vertical space to language help and editing.",
       "Use Save only when the working copy is correct. Saving replaces the comparison baseline with the current text and format metadata.",
-      "Use Revert saved content only when the working changes should be discarded. Revert restores text, encoding and line endings together after confirmation.",
+      "Use Revert only when the working changes should be discarded. Revert restores text, encoding and line endings together after confirmation.",
     ],
     expected: [
       "The comparison is exposed as a named non-modal dialog with a semantic table of saved line, working line, change and source columns.",
@@ -1920,7 +1920,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Disable a bookmark without deleting it when it should be skipped during next and previous navigation.",
       "Search by name, description, scope, filename or line.",
       "Use Bookmark up and Bookmark down, or Ctrl+Alt+PageUp and Ctrl+Alt+PageDown, to move across enabled non-orphan bookmarks with wraparound.",
-      "Choose Project then Export portable project in the workbench menu bar. Review the project and private bookmark counts.",
+      "Choose Project then Export in the workbench menu bar. Review the project and private bookmark counts.",
       "Leave Include private bookmarks and notes clear for a privacy-safe export. Select it only after confirming that every private name, description, location and anchor may be shared.",
       "Download the portable project. The status message reports included bookmarks and any private records excluded.",
       "Use the editor gutter breakpoint control instead when an executable debugger stop is required.",
@@ -3855,7 +3855,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "An index with no artwork chosen generates a zero pointer and a build diagnostic naming it, rather than a made-up address.",
       "Maps are bounded to 128 by 128 tiles, 16,384 tiles in total, 4 layers, 256 tileset entries and 256 objects.",
       "Run-length layer compression is a request rather than a guarantee: a layer that would grow under it is stored raw, and the workspace says so.",
-      "Importing an image counts what the conversion lost — approximated colours, image outside the grid, and tiles the tileset could not hold — rather than absorbing it.",
+      "Importing an image counts what the conversion lost, rather than absorbing it: approximated colours, image outside the grid, and tiles the tileset could not hold.",
       "The picture is drawn on a canvas; environments without a 2D context still expose the cursor and row as text.",
     ],
     recovery: [

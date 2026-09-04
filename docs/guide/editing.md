@@ -111,7 +111,7 @@ Detect legacy source bytes, edit normalized text, choose exact download encoding
 - If text appears incorrect after import, do not save over the original host file. Convert it to UTF-8 or Windows-1252 with a trusted byte-aware tool, then import again.
 - If Windows-1252 download is refused, replace or transliterate the named character, or choose UTF-8.
 - If a file is rejected for size, split generated data into build inputs or use the binary analysis and media workflows.
-- Use Revert saved content to restore both text and saved byte-format choices.
+- Use Revert in the editor's File menu to restore both text and saved byte-format choices.
 - Keep a portable project export before changing many file formats so the source and metadata can be inspected independently.
 
 ![Large source editor showing the Windows-1252 and CRLF controls, status bar format, bounded large-source banner and summarized gutter](../../public/help/editor-source-format-large.png)
@@ -195,7 +195,7 @@ Mark source locations for project navigation, attach bounded technical notes and
 7. Disable a bookmark without deleting it when it should be skipped during next and previous navigation.
 8. Search by name, description, scope, filename or line.
 9. Use Bookmark up and Bookmark down, or Ctrl+Alt+PageUp and Ctrl+Alt+PageDown, to move across enabled non-orphan bookmarks with wraparound.
-10. Choose Project then Export portable project in the workbench menu bar. Review the project and private bookmark counts.
+10. Choose Project then Export in the workbench menu bar. Review the project and private bookmark counts.
 11. Leave Include private bookmarks and notes clear for a privacy-safe export. Select it only after confirming that every private name, description, location and anchor may be shared.
 12. Download the portable project. The status message reports included bookmarks and any private records excluded.
 13. Use the editor gutter breakpoint control instead when an executable debugger stop is required.

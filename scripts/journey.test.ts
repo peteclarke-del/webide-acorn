@@ -78,6 +78,7 @@ describe('the authoring journey', () => {
     /* The editors keep their actions in menus now, so the walk names the item
      * it chooses out of one rather than the whole label of a button. */
     expect(source, 'the drawing reaches the project').toContain('/^Add EQUB source/');
+    expect(source, 'a project is started from the menu bar').toContain('/^Start from a sample/');
     expect(source, 'the song reaches the project').toContain("'Add generated source'");
     /* And the step that decides whether the editors are part of the workflow or
      * beside it: the generated units have to reach the binary. */

@@ -144,7 +144,7 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
   }
 
   /* Starting from the machine's own template. */
-  await chooseFromMenu('Workbench menu', 'Project', /^Start a project from/, 'start a project from a sample or a codebase');
+  await chooseFromMenu('Workbench menu', 'Project', /^Start from a sample/, 'start a project from a sample or a codebase');
   await settle(() => !!document.querySelector('[aria-label="Start a project"]'), 'the start dialog');
   clickText('Templates');
   await wait(300);

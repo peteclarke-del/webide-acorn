@@ -52,7 +52,7 @@ Turn a folder of existing Acorn source into a working project, reviewing the who
 
 **Procedure**
 
-1. Choose Project then Start a project from a sample or an existing codebase in the workbench menu bar, then the From an existing codebase tab.
+1. Choose Project then Start from a sample in the workbench menu bar, then the From an existing codebase tab.
 2. Choose the folder. It is read in this browser and is never uploaded.
 3. Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.
 4. Use Recover all to take every asset the plan found, or tick the ones you want. Each becomes an editable document in the project.
@@ -210,7 +210,7 @@ Inspect line additions and removals against the explicit saved baseline without 
 9. When BOUNDED LARGE DIFF appears, interpret the rows as position-aligned changes. The bounded mode avoids an unresponsive quadratic comparison.
 10. Choose Close saved comparison to return the vertical space to language help and editing.
 11. Use Save only when the working copy is correct. Saving replaces the comparison baseline with the current text and format metadata.
-12. Use Revert saved content only when the working changes should be discarded. Revert restores text, encoding and line endings together after confirmation.
+12. Use Revert only when the working changes should be discarded. Revert restores text, encoding and line endings together after confirmation.
 
 **What should happen**
 

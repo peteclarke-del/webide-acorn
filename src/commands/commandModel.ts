@@ -1,6 +1,26 @@
+import type { IconName } from '../components/Icon';
 export interface WorkbenchCommand {
   id: string;
+  /**
+   * What the command palette shows and searches against, which is why it is a
+   * whole descriptive phrase rather than a menu's word or two.
+   */
   label: string;
+  /**
+   * What a menu shows: a word or two, the way a desktop application's menus
+   * read. The full `label` becomes the entry's tooltip, so the detail is a
+   * hover away rather than spent on the width of the menu. Absent where the
+   * label is already short enough to be one.
+   */
+  short?: string;
+  /** A small icon beside the entry, where one makes it faster to find. */
+  icon?: IconName;
+  /**
+   * Whether the thing this command shows is showing. A menu draws it as a
+   * tick beside a stable name, the way a desktop View menu does, rather than
+   * renaming the entry between Show and Hide as the palette's label does.
+   */
+  checked?: boolean;
   category: string;
   keywords?: string[];
   shortcut?: string;

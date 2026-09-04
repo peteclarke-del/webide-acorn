@@ -851,8 +851,8 @@ describe('functional source workspace', () => {
     await waitFor(() => expect(editor.selectionStart).toBe(editor.value.indexOf('20 GOTO')));
 
     fireEvent.click(screen.getByText('Navigate', { selector: 'summary' }));
-    expect(screen.getByRole('button', { name: /Previous diagnostic/ })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /Previous saved change/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Previous problem/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Previous change/ })).toBeEnabled();
   });
 
   it('previews, applies and undoes the safe missing BASIC line-number quick fix', async () => {

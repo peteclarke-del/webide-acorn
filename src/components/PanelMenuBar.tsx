@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Icon, type IconName } from './Icon';
 
 /* A menu bar for a panel's own actions.
  *
@@ -17,7 +18,15 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent }
 
 export interface PanelMenuItem {
   id: string;
+  /**
+   * A word or two, the way a desktop application's menus read. Whatever else
+   * needs saying belongs in `description`, which becomes the entry's tooltip.
+   */
   label: string;
+  /** The tooltip: what this entry does, for somebody who wants to know. */
+  description?: string;
+  /** A small icon beside the label, where one makes the entry faster to find. */
+  icon?: IconName;
   onSelect: () => void;
   disabled?: boolean;
   /** Shown after the label: a shortcut, or what the action will produce. */
@@ -120,8 +129,13 @@ export function PanelMenuBar({ label, menus }: PanelMenuBarProps) {
                   {...(item.checked === undefined ? {} : { 'aria-checked': item.checked })}
                   className={item.separated ? 'panel-menu-item separated' : 'panel-menu-item'}
                   disabled={item.disabled}
+                  title={item.description}
                   onClick={() => { setOpenId(null); item.onSelect(); }}
                 >
+                  {/* The icon column exists whether or not this entry has one,
+                    * so labels line up down the menu rather than stepping in
+                    * and out around the entries that do. */}
+                  <i className="panel-menu-icon" aria-hidden="true">{item.icon && <Icon name={item.icon} size={13} />}</i>
                   <span>{item.label}</span>
                   {item.hint && <small>{item.hint}</small>}
                 </button>

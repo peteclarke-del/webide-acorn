@@ -813,13 +813,21 @@
   .panel-actions-button { min-height: 27px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius-xs); background: transparent; color: var(--theme-muted); font: 650 var(--fs-8)/1 var(--font-ui); }
   .panel-actions-button:hover, .panel-actions-button:focus-visible { border-color: var(--theme-line-strong); color: var(--theme-ink); }
   .panel-actions-button.open { border-color: var(--theme-primary); background: var(--theme-surface-2); color: var(--theme-ink-strong); }
-  .panel-menu-items { position: absolute; z-index: 40; top: calc(100% + 3px); left: 0; display: grid; min-width: 210px; max-height: min(60vh, 420px); padding: 4px; border: 1px solid var(--theme-line-strong); border-radius: var(--radius-xs); background: var(--theme-surface-1); box-shadow: var(--theme-shadow-md); overflow-y: auto; }
-  .panel-menu-item { display: flex; min-height: 28px; align-items: center; justify-content: space-between; gap: 14px; padding: 0 8px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--theme-ink); font: var(--fs-8)/1 var(--font-ui); text-align: left; }
+  .panel-menu-items { position: absolute; z-index: 40; top: calc(100% + 3px); left: 0; display: grid; min-width: 210px; width: max-content; max-width: min(380px, 92vw); max-height: min(60vh, 420px); padding: 4px; border: 1px solid var(--theme-line-strong); border-radius: var(--radius-xs); background: var(--theme-surface-1); box-shadow: var(--theme-shadow-md); overflow-y: auto; }
+  .panel-menu-item { display: grid; grid-template-columns: 17px 1fr auto; min-height: 28px; align-items: center; gap: 10px; padding: 0 8px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--theme-ink); font: var(--fs-8)/1 var(--font-ui); text-align: left; }
+  /* Held open whether or not the entry has an icon, so the labels line up
+   * down the menu instead of stepping in and out around the ones that do. */
+  .panel-menu-icon { display: flex; width: 17px; align-items: center; justify-content: center; color: var(--theme-muted); }
+  .panel-menu-item:disabled .panel-menu-icon { opacity: .7; }
+  .panel-menu-item[aria-checked="true"] .panel-menu-icon::before { content: '\2713'; color: var(--theme-primary); }
   .panel-menu-item:hover:not(:disabled), .panel-menu-item:focus-visible { background: var(--theme-hover); color: var(--theme-ink-strong); }
   .panel-menu-item:disabled { opacity: .45; }
   .panel-menu-item.separated { margin-top: 4px; border-top: 1px solid var(--theme-line); padding-top: 4px; }
-  .panel-menu-item small { color: var(--theme-faint); font: var(--fs-7)/1 var(--font-mono); }
-  .panel-menu-item[aria-checked="true"]::before { content: '✓'; margin-right: 6px; color: var(--theme-primary); }
+  /* The label never wraps and the chord never crowds it: a menu that folded
+   * "Start from a sample" onto two lines read as a paragraph, which is the
+   * thing a menu is not. */
+  .panel-menu-item > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .panel-menu-item small { white-space: nowrap; padding-left: 18px; color: var(--theme-faint); font: var(--fs-7)/1 var(--font-mono); }
 
   .import-asset-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
   .import-asset-actions button { min-height: 27px; padding: 0 9px; border: 1px solid var(--theme-line-strong); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-ink); }

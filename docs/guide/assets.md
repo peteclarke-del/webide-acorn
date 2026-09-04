@@ -75,7 +75,7 @@ Paint a level from tiles that already exist in the project, add objects, and gen
 - An index with no artwork chosen generates a zero pointer and a build diagnostic naming it, rather than a made-up address.
 - Maps are bounded to 128 by 128 tiles, 16,384 tiles in total, 4 layers, 256 tileset entries and 256 objects.
 - Run-length layer compression is a request rather than a guarantee: a layer that would grow under it is stored raw, and the workspace says so.
-- Importing an image counts what the conversion lost — approximated colours, image outside the grid, and tiles the tileset could not hold — rather than absorbing it.
+- Importing an image counts what the conversion lost, rather than absorbing it: approximated colours, image outside the grid, and tiles the tileset could not hold.
 - The picture is drawn on a canvas; environments without a 2D context still expose the cursor and row as text.
 
 **If it goes wrong**

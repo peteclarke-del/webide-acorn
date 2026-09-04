@@ -350,21 +350,23 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
           { id: 'document', label: 'Document', items: [
             ...availableMaps.map((entry) => ({
               id: `open-${entry.id}`,
-              label: `Open ${entry.name}`,
+              label: entry.name.replace(/\.map\.json$/i, ''),
+              icon: 'file' as const,
+              description: `Open ${entry.name} from this project`,
               hint: entry.detail,
               onSelect: () => { guard(() => parseTileMapDocument(entry.content)); onNotice(`${entry.name} opened from this project`); },
             })),
-            { id: 'import-tiled', label: 'Import a Tiled JSON map', separated: !!availableMaps.length, onSelect: () => tiledInputRef.current?.click() },
-            { id: 'import-image', label: 'Import an image as tiles', onSelect: () => imageInputRef.current?.click() },
-            { id: 'export-tiled', label: 'Export Tiled JSON to the project', hint: 'tiled.json', separated: true, onSelect: () => onAddSource(`${document.name.replace(/[^A-Za-z0-9_-]+/g, '-') || 'map'}.tiled.json`, exportTiledMap(document)) },
+            { id: 'import-tiled', label: 'Import Tiled…', icon: 'open', description: 'Read a Tiled JSON map, reporting whatever it holds that this editor cannot', separated: !!availableMaps.length, onSelect: () => tiledInputRef.current?.click() },
+            { id: 'import-image', label: 'Import image…', icon: 'image', description: 'Cut an image into tiles and lay them out as a map, counting what the conversion lost', onSelect: () => imageInputRef.current?.click() },
+            { id: 'export-tiled', label: 'Export Tiled', icon: 'download', description: 'Write this map into the project as a Tiled JSON document', hint: 'tiled.json', separated: true, onSelect: () => onAddSource(`${document.name.replace(/[^A-Za-z0-9_-]+/g, '-') || 'map'}.tiled.json`, exportTiledMap(document)) },
           ] },
           { id: 'edit', label: 'Edit', items: [
-            { id: 'undo', label: 'Undo', disabled: !history.past.length, onSelect: () => setHistory((current) => current.past.length ? { past: current.past.slice(0, -1), present: current.past[current.past.length - 1]!, future: [current.present, ...current.future].slice(0, 100) } : current) },
-            { id: 'redo', label: 'Redo', disabled: !history.future.length, onSelect: () => setHistory((current) => current.future.length ? { past: [...current.past, current.present].slice(-100), present: current.future[0]!, future: current.future.slice(1) } : current) },
-            { id: 'copy-area', label: 'Copy area', disabled: !selection, separated: true, onSelect: copyArea },
-            { id: 'cut-area', label: 'Cut area', disabled: !selection, onSelect: cutArea },
-            { id: 'paste-area', label: 'Paste at cursor', disabled: !clipboard, onSelect: pasteArea },
-            { id: 'clear-selection', label: 'Clear selection', disabled: !selection && !selectionAnchor, onSelect: () => { setSelection(undefined); setSelectionAnchor(undefined); } },
+            { id: 'undo', label: 'Undo', icon: 'reset', description: 'Undo the last change to this map', disabled: !history.past.length, onSelect: () => setHistory((current) => current.past.length ? { past: current.past.slice(0, -1), present: current.past[current.past.length - 1]!, future: [current.present, ...current.future].slice(0, 100) } : current) },
+            { id: 'redo', label: 'Redo', description: 'Redo the change that was undone', disabled: !history.future.length, onSelect: () => setHistory((current) => current.future.length ? { past: [...current.past, current.present].slice(-100), present: current.future[0]!, future: current.future.slice(1) } : current) },
+            { id: 'copy-area', label: 'Copy area', description: 'Copy the marked rectangle of cells', disabled: !selection, separated: true, onSelect: copyArea },
+            { id: 'cut-area', label: 'Cut area', description: 'Copy the marked rectangle and clear it', disabled: !selection, onSelect: cutArea },
+            { id: 'paste-area', label: 'Paste', description: 'Paste the copied cells at the keyboard cursor', disabled: !clipboard, onSelect: pasteArea },
+            { id: 'clear-selection', label: 'Deselect', description: 'Forget the marked rectangle', disabled: !selection && !selectionAnchor, onSelect: () => { setSelection(undefined); setSelectionAnchor(undefined); } },
           ] },
         ]} />
         {/* Marking a corner and the magnification stay on the surface: both are
