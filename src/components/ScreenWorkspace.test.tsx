@@ -5,6 +5,18 @@ import { ScreenWorkspace } from './ScreenWorkspace';
 import { parseScreenDocument, readScreenPixel, screenBytes, screenGeometry } from '../assets/screenDocument';
 import { resolveProjectPalette } from '../assets/paletteDocument';
 
+/* The editor's actions live in a menu bar, so a test reaches them the way
+ * somebody with a pointer does: open the menu, then choose from it. Opening is
+ * idempotent, because clicking the bar again would shut a menu that is already
+ * open — right for a person, wrong for a test. */
+function openMenu(label: string) {
+  if (!screen.queryByRole('menu', { name: label })) fireEvent.click(screen.getByRole('menuitem', { name: label }));
+  return screen.getByRole('menu', { name: label });
+}
+function chooseFromMenu(menu: string, item: string | RegExp) {
+  fireEvent.click(within(openMenu(menu)).getByRole('menuitem', { name: item }));
+}
+
 afterEach(() => { cleanup(); localStorage.clear(); });
 
 function renderWorkspace() {
@@ -54,7 +66,7 @@ describe('ScreenWorkspace', () => {
   it('selects a logical colour within the mode and fills with it', async () => {
     const { onNotice } = renderWorkspace();
     fireEvent.click(screen.getByRole('radio', { name: 'Logical colour 3' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Fill screen' }));
+    chooseFromMenu('Edit', /^Fill screen/);
     expect(await pixelAt(0, 0)).toBe(3);
     expect(await pixelAt(159, 255)).toBe(3);
     expect(onNotice).toHaveBeenCalledWith('Screen filled with logical colour 3');
@@ -140,12 +152,15 @@ describe('selecting a rectangle of the screen', () => {
     expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/Cut 1 by 1 cells.* to logical colour 0/));
   });
 
-  it('offers the same operations as visible controls', () => {
+  it('offers the same operations to a pointer, not only to the keyboard', () => {
+    /* Marking a corner is done while working on the picture and stays on the
+     * surface; what is then done to the marked area is in the Edit menu. */
     renderWorkspace();
     const tools = screen.getByRole('group', { name: 'Rectangular selection' });
-    expect(within(tools).getByRole('button', { name: 'Copy area' })).toBeDisabled();
+    expect(within(openMenu('Edit')).getByRole('menuitem', { name: 'Copy area' })).toBeDisabled();
+    fireEvent.mouseDown(document.body);
     fireEvent.click(within(tools).getByRole('button', { name: 'Mark corner' }));
     fireEvent.click(within(tools).getByRole('button', { name: 'Mark opposite corner' }));
-    expect(within(tools).getByRole('button', { name: 'Copy area' })).toBeEnabled();
+    expect(within(openMenu('Edit')).getByRole('menuitem', { name: 'Copy area' })).toBeEnabled();
   });
 });

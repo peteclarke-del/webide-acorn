@@ -10,6 +10,7 @@ import {
   type GridSelection,
 } from '../assets/gridSelection';
 import { Icon } from './Icon';
+import { PanelMenuBar } from './PanelMenuBar';
 import {
   addTileMapLayer, createTileMapDocument, fillTileMapArea, generateTileMapOutput, MAX_MAP_DIMENSION,
   MAX_MAP_LAYERS, MAX_OBJECT_PROPERTIES, MIN_MAP_DIMENSION, paintTileMapCell, parseTileMapDocument,
@@ -64,6 +65,10 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
   const [brushAttribute, setBrushAttribute] = useState(0);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(2);
+  /* The two file inputs the Document menu reaches. A menu item cannot itself be
+   * a file input, so the inputs wait in the header for one to ask for them. */
+  const tiledInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [objectDraft, setObjectDraft] = useState<TileMapObject>();
   const [interchange, setInterchange] = useState<Omit<TiledImportReport, 'document'>>();
   const [imageImport, setImageImport] = useState<{ name: string; notes: string[]; distinctTiles: number; assets: number }>();
@@ -337,39 +342,42 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
   return (
     <section className="tile-map-workspace" aria-label="Tile map editor">
       <header className="tile-map-toolbar">
-        {!!availableMaps.length && (
-          /* The project's own maps. Recovering a level from imported source and
-           * then having to export it to open it would be a strange way round. */
-          <label className="project-source-picker"><span>From this project</span>
-            <select aria-label="Open a map from this project" value="" onChange={(event) => {
-              const chosen = availableMaps.find((entry) => entry.id === event.target.value);
-              if (!chosen) return;
-              guard(() => parseTileMapDocument(chosen.content));
-              onNotice(`${chosen.name} opened from this project`);
-            }}>
-              <option value="">Choose a map…</option>
-              {availableMaps.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
-            </select>
-          </label>
-        )}
-        <label><span>Name</span><input aria-label="Map name" value={document.name} onChange={(event) => guard(() => parseTileMapDocument({ ...document, name: event.target.value || 'untitled-map' }))} /></label>
-        <label><span>Width</span><input aria-label="Map width in tiles" type="number" min={MIN_MAP_DIMENSION} max={MAX_MAP_DIMENSION} value={document.width} onChange={(event) => guard(() => resizeTileMap(document, Number(event.target.value) || document.width, document.height))} /></label>
-        <label><span>Height</span><input aria-label="Map height in tiles" type="number" min={MIN_MAP_DIMENSION} max={MAX_MAP_DIMENSION} value={document.height} onChange={(event) => guard(() => resizeTileMap(document, document.width, Number(event.target.value) || document.height))} /></label>
-        <label><span>Zoom</span><select aria-label="Map zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}>{[1, 2, 3, 4].map((level) => <option key={level} value={level}>{level}×</option>)}</select></label>
-        <button type="button" disabled={!history.past.length} onClick={() => setHistory((current) => current.past.length ? { past: current.past.slice(0, -1), present: current.past[current.past.length - 1]!, future: [current.present, ...current.future].slice(0, 100) } : current)}>Undo</button>
+        <div><span className="eyebrow">TILE MAP · SCHEMA 1</span><h2>Map editor</h2></div>
+        {/* The document's own actions, in a menu rather than a row: the four
+          * imports and exports were spending a quarter of the panel's height on
+          * things somebody does once a session, above the map itself. */}
+        <PanelMenuBar label="Map actions" menus={[
+          { id: 'document', label: 'Document', items: [
+            ...availableMaps.map((entry) => ({
+              id: `open-${entry.id}`,
+              label: `Open ${entry.name}`,
+              hint: entry.detail,
+              onSelect: () => { guard(() => parseTileMapDocument(entry.content)); onNotice(`${entry.name} opened from this project`); },
+            })),
+            { id: 'import-tiled', label: 'Import a Tiled JSON map', separated: !!availableMaps.length, onSelect: () => tiledInputRef.current?.click() },
+            { id: 'import-image', label: 'Import an image as tiles', onSelect: () => imageInputRef.current?.click() },
+            { id: 'export-tiled', label: 'Export Tiled JSON to the project', hint: 'tiled.json', separated: true, onSelect: () => onAddSource(`${document.name.replace(/[^A-Za-z0-9_-]+/g, '-') || 'map'}.tiled.json`, exportTiledMap(document)) },
+          ] },
+          { id: 'edit', label: 'Edit', items: [
+            { id: 'undo', label: 'Undo', disabled: !history.past.length, onSelect: () => setHistory((current) => current.past.length ? { past: current.past.slice(0, -1), present: current.past[current.past.length - 1]!, future: [current.present, ...current.future].slice(0, 100) } : current) },
+            { id: 'redo', label: 'Redo', disabled: !history.future.length, onSelect: () => setHistory((current) => current.future.length ? { past: [...current.past, current.present].slice(-100), present: current.future[0]!, future: current.future.slice(1) } : current) },
+            { id: 'copy-area', label: 'Copy area', disabled: !selection, separated: true, onSelect: copyArea },
+            { id: 'cut-area', label: 'Cut area', disabled: !selection, onSelect: cutArea },
+            { id: 'paste-area', label: 'Paste at cursor', disabled: !clipboard, onSelect: pasteArea },
+            { id: 'clear-selection', label: 'Clear selection', disabled: !selection && !selectionAnchor, onSelect: () => { setSelection(undefined); setSelectionAnchor(undefined); } },
+          ] },
+        ]} />
+        {/* Marking a corner and the magnification stay on the surface: both are
+          * things somebody reaches for while working on the map. */}
         <div className="map-selection-tools" role="group" aria-label="Rectangular selection">
           <button type="button" aria-pressed={!!selectionAnchor} onClick={() => markSelectionCorner(cursor.x, cursor.y)}>
             {selectionAnchor ? 'Mark opposite corner' : 'Mark corner'}
           </button>
-          <button type="button" disabled={!selection} onClick={copyArea}>Copy area</button>
-          <button type="button" disabled={!selection} onClick={cutArea}>Cut area</button>
-          <button type="button" disabled={!clipboard} onClick={pasteArea}>Paste at cursor</button>
-          <button type="button" disabled={!selection && !selectionAnchor} onClick={() => { setSelection(undefined); setSelectionAnchor(undefined); }}>Clear selection</button>
         </div>
-        <label className="tile-map-import">
-          <input
-            type="file" accept=".json,application/json" aria-label="Import a Tiled JSON map"
-            onChange={(event) => {
+        <label><span>Zoom</span><select aria-label="Map zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}>{[1, 2, 3, 4].map((level) => <option key={level} value={level}>{level}×</option>)}</select></label>
+        {/* Reached from the Document menu; a file input cannot be a menu item,
+          * so it waits here for one to ask for it. */}
+        <input ref={tiledInputRef} type="file" accept=".json,application/json" aria-label="Import a Tiled JSON map" hidden onChange={(event) => {
               const file = event.target.files?.[0]; event.target.value = '';
               if (!file) return;
               void file.text().then((text) => {
@@ -380,19 +388,8 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
                   setInterchange(rest);
                 } catch (error) { onNotice(`That Tiled map was not imported: ${error instanceof Error ? error.message : String(error)}`); }
               });
-            }}
-          />
-          <Icon name="open" size={13} /> Import Tiled JSON
-        </label>
-        <label className="tile-map-import">
-          <input
-            type="file" accept="image/*" aria-label="Import an image as tiles"
-            onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importImage(file); }}
-          />
-          <Icon name="open" size={13} /> Import image
-        </label>
-        <button type="button" onClick={() => onAddSource(`${document.name.replace(/[^A-Za-z0-9_-]+/g, '-') || 'map'}.tiled.json`, exportTiledMap(document))}>Export Tiled JSON</button>
-        <button type="button" disabled={!history.future.length} onClick={() => setHistory((current) => current.future.length ? { past: [...current.past, current.present].slice(-100), present: current.future[0]!, future: current.future.slice(1) } : current)}>Redo</button>
+            }} />
+        <input ref={imageInputRef} type="file" accept="image/*" aria-label="Import an image as tiles" hidden onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importImage(file); }} />
       </header>
 
       <div className="tile-map-body">
@@ -430,6 +427,14 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
         </div>
 
         <div className="tile-map-side">
+          <section aria-label="Map document">
+            <h2>Document</h2>
+            <div className="tile-map-document">
+        <label><span>Name</span><input aria-label="Map name" value={document.name} onChange={(event) => guard(() => parseTileMapDocument({ ...document, name: event.target.value || 'untitled-map' }))} /></label>
+        <label><span>Width</span><input aria-label="Map width in tiles" type="number" min={MIN_MAP_DIMENSION} max={MAX_MAP_DIMENSION} value={document.width} onChange={(event) => guard(() => resizeTileMap(document, Number(event.target.value) || document.width, document.height))} /></label>
+        <label><span>Height</span><input aria-label="Map height in tiles" type="number" min={MIN_MAP_DIMENSION} max={MAX_MAP_DIMENSION} value={document.height} onChange={(event) => guard(() => resizeTileMap(document, document.width, Number(event.target.value) || document.height))} /></label>
+            </div>
+          </section>
           <section aria-label="Brush">
             <h2>Brush</h2>
             <div className="tile-map-brushes">

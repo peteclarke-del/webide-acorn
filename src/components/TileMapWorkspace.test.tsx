@@ -5,6 +5,18 @@ import { TileMapWorkspace } from './TileMapWorkspace';
 import { parseTileMapDocument } from '../assets/tileMapDocument';
 import { resolveProjectPalette } from '../assets/paletteDocument';
 
+/* The editor's document and edit actions live in a menu bar, so a test reaches
+ * them the way somebody with a pointer does: open the menu, then choose. */
+function openMenu(label: string) {
+  /* Idempotent, because clicking the bar again would shut a menu that is
+   * already open, which is right for a person and wrong for a test. */
+  if (!screen.queryByRole('menu', { name: label })) fireEvent.click(screen.getByRole('menuitem', { name: label }));
+  return screen.getByRole('menu', { name: label });
+}
+function chooseFromMenu(menu: string, item: string | RegExp) {
+  fireEvent.click(within(openMenu(menu)).getByRole('menuitem', { name: item }));
+}
+
 afterEach(() => { cleanup(); localStorage.clear(); });
 
 const wall = JSON.stringify({
@@ -90,9 +102,9 @@ describe('TileMapWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '1 ?' }));
     fireEvent.click(screen.getByRole('button', { name: 'Fill layer' }));
     expect(stored().layers[0]!.cells.every((cell) => cell === 1)).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    chooseFromMenu('Edit', 'Undo');
     expect(stored().layers[0]!.cells.every((cell) => cell === 0)).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
+    chooseFromMenu('Edit', 'Redo');
     expect(stored().layers[0]!.cells.every((cell) => cell === 1)).toBe(true);
   });
 
@@ -230,7 +242,7 @@ describe('TileMapWorkspace Tiled interchange', () => {
   it('exports the current map as a Tiled document', () => {
     const { onAddSource } = renderWorkspace();
     fireEvent.change(screen.getByLabelText('Map name'), { target: { value: 'level one' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Export Tiled JSON' }));
+    chooseFromMenu('Document', /^Export Tiled JSON/);
     expect(onAddSource).toHaveBeenCalledWith('level-one.tiled.json', expect.stringContaining('"orientation": "orthogonal"'));
   });
 });
@@ -306,14 +318,18 @@ describe('selecting a rectangle and moving it about', () => {
     expect(status()).toMatch(/No selection/);
   });
 
-  it('offers the same operations as visible controls, not only as keys', () => {
+  it('offers the same operations to a pointer, not only to the keyboard', () => {
+    /* Marking a corner stays on the surface because it is done while working on
+     * the map; what is done to the marked area is in the Edit menu. Both are
+     * reachable without touching the keyboard, which is the point. */
     renderWorkspace();
     const tools = screen.getByRole('group', { name: 'Rectangular selection' });
     expect(within(tools).getByRole('button', { name: 'Mark corner' })).toBeEnabled();
-    expect(within(tools).getByRole('button', { name: 'Copy area' })).toBeDisabled();
+    expect(within(openMenu('Edit')).getByRole('menuitem', { name: 'Copy area' })).toBeDisabled();
+    fireEvent.mouseDown(document.body);
     fireEvent.click(within(tools).getByRole('button', { name: 'Mark corner' }));
     fireEvent.click(within(tools).getByRole('button', { name: 'Mark opposite corner' }));
-    expect(within(tools).getByRole('button', { name: 'Copy area' })).toBeEnabled();
+    expect(within(openMenu('Edit')).getByRole('menuitem', { name: 'Copy area' })).toBeEnabled();
   });
 });
 

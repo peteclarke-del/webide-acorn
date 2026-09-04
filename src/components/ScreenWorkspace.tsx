@@ -11,6 +11,7 @@ import {
 } from '../assets/gridSelection';
 import { readableInk } from '../theme/readableInk';
 import { Icon } from './Icon';
+import { PanelMenuBar } from './PanelMenuBar';
 import {
   createScreenDocument, generateScreenOutputFromBytes, importImageIntoScreen, parseScreenDocument,
   readScreenPixel, screenBytes, screenDocumentFromBytes, screenGeometry, serializeScreenDocument,
@@ -47,6 +48,8 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
   const [selection, setSelection] = useState<GridSelection>();
   const [clipboard, setClipboard] = useState<GridClipboard>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /* Reached from the Document menu, since a menu item cannot be a file input. */
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const geometry = screenGeometry(screen.mode);
   const bytes = screen.bytes;
   const document = useMemo(() => screenDocumentFromBytes(screen.name, screen.mode, screen.bytes), [screen]);
@@ -241,15 +244,22 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
   return (
     <section className="screen-workspace" aria-label="Screen editor">
       <header className="screen-toolbar">
-        <label><span>Name</span><input aria-label="Screen name" value={document.name} onChange={(event) => guard(() => parseScreenDocument({ ...document, name: event.target.value || 'untitled-screen' }))} /></label>
-        <label>
-          <span>Display mode</span>
-          <select aria-label="Display mode" value={document.mode} onChange={(event) => changeMode(event.target.value as PaletteModeId)}>
-            {PALETTE_MODES.map((mode) => <option key={mode.id} value={mode.id}>{mode.label} · {mode.detail}</option>)}
-          </select>
-        </label>
-        <label><span>Zoom</span><select aria-label="Screen zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}>{[1, 2, 3].map((level) => <option key={level} value={level}>{level}×</option>)}</select></label>
-        <button type="button" onClick={() => {
+        <div><span className="eyebrow">SCREEN · SCHEMA 1</span><h2>Screen editor</h2></div>
+        {/* The same reasoning as the map and the sprite editors: the actions
+          * somebody takes once a session were spending a quarter of the panel's
+          * height above the picture they act on. */}
+        <PanelMenuBar label="Screen actions" menus={[
+          { id: 'document', label: 'Document', items: [
+            { id: 'import-image', label: 'Import an image', hint: 'converted to this mode', onSelect: () => imageInputRef.current?.click() },
+          ] },
+          { id: 'edit', label: 'Edit', items: [
+            { id: 'undo', label: 'Undo', disabled: !past.length, onSelect: () => {
+          const previous = past[past.length - 1];
+          if (!previous) return;
+          setPast((current) => current.slice(0, -1));
+          setScreen((current) => ({ ...previous, bytes: previous.bytes.slice(), revision: current.revision + 1 }));
+        } },
+            { id: 'fill', label: 'Fill screen with the chosen colour', separated: true, onSelect: () => {
           remember();
           setScreen((current) => {
             const next = new Uint8Array(geometry.byteLength);
@@ -258,26 +268,20 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
             return { ...current, bytes: next, revision: current.revision + 1 };
           });
           onNotice(`Screen filled with logical colour ${colour}`);
-        }}>Fill screen</button>
-        <label className="screen-import">
-          <input type="file" accept="image/*" aria-label="Import an image" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importImage(file); }} />
-          <Icon name="open" size={14} /> Import image
-        </label>
-        <button type="button" disabled={!past.length} onClick={() => {
-          const previous = past[past.length - 1];
-          if (!previous) return;
-          setPast((current) => current.slice(0, -1));
-          setScreen((current) => ({ ...previous, bytes: previous.bytes.slice(), revision: current.revision + 1 }));
-        }}>Undo</button>
+        } },
+            { id: 'copy-area', label: 'Copy area', disabled: !selection, separated: true, onSelect: copyArea },
+            { id: 'cut-area', label: 'Cut area', disabled: !selection, onSelect: cutArea },
+            { id: 'paste-area', label: 'Paste at cursor', disabled: !clipboard, onSelect: pasteArea },
+            { id: 'clear-selection', label: 'Clear selection', disabled: !selection && !selectionAnchor, onSelect: () => { setSelection(undefined); setSelectionAnchor(undefined); } },
+          ] },
+        ]} />
         <div className="map-selection-tools" role="group" aria-label="Rectangular selection">
           <button type="button" aria-pressed={!!selectionAnchor} onClick={() => markSelectionCorner(cursor.x, cursor.y)}>
             {selectionAnchor ? 'Mark opposite corner' : 'Mark corner'}
           </button>
-          <button type="button" disabled={!selection} onClick={copyArea}>Copy area</button>
-          <button type="button" disabled={!selection} onClick={cutArea}>Cut area</button>
-          <button type="button" disabled={!clipboard} onClick={pasteArea}>Paste at cursor</button>
-          <button type="button" disabled={!selection && !selectionAnchor} onClick={() => { setSelection(undefined); setSelectionAnchor(undefined); }}>Clear selection</button>
         </div>
+        <label><span>Zoom</span><select aria-label="Screen zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}>{[1, 2, 3].map((level) => <option key={level} value={level}>{level}×</option>)}</select></label>
+        <input ref={imageInputRef} type="file" accept="image/*" aria-label="Import an image" hidden onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importImage(file); }} />
       </header>
 
       <div className="screen-body">
@@ -309,6 +313,18 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
         </div>
 
         <div className="screen-side">
+          <section aria-label="Screen document">
+            <h2>Document</h2>
+            <div className="screen-document">
+        <label><span>Name</span><input aria-label="Screen name" value={document.name} onChange={(event) => guard(() => parseScreenDocument({ ...document, name: event.target.value || 'untitled-screen' }))} /></label>
+        <label>
+          <span>Display mode</span>
+          <select aria-label="Display mode" value={document.mode} onChange={(event) => changeMode(event.target.value as PaletteModeId)}>
+            {PALETTE_MODES.map((mode) => <option key={mode.id} value={mode.id}>{mode.label} · {mode.detail}</option>)}
+          </select>
+        </label>
+            </div>
+          </section>
           <section aria-label="Logical colour">
             <h2>Logical colour</h2>
             <div className="screen-colours" role="radiogroup" aria-label="Logical colour">
