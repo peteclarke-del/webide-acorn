@@ -908,10 +908,17 @@ async function measureFirefox(geckodriver, base, probe, runtimePages, runtimePro
   const runtimes = [];
   for (const runtime of runtimePages) {
     await call('POST', `/session/${id}/url`, { url: `${base}/ci-runtime-host.html?page=${encodeURIComponent(runtime.path)}` });
-    /* Given a moment to fail: a page whose script throws on load leaves the
-     * document there, and asking immediately would read it before it had. */
+    /* Given a moment to fail, then asked until it answers. A WebAssembly core
+     * takes as long as the machine makes it take: two seconds is plenty on an
+     * idle box and not enough on one running the rest of the gate, where the
+     * Arculator core read as never having announced itself twice on a tree
+     * whose runtimes were fine. The deadline is what fails now, and a page that
+     * throws on load still gets its moment before anything is read. */
     await delay(2_000);
-    const answer = JSON.parse(await call('POST', `/session/${id}/execute/sync`, { script: `return ${runtimeProbe(runtime.status, runtime.channel)}`, args: [] }));
+    const read = async () => JSON.parse(await call('POST', `/session/${id}/execute/sync`, { script: `return ${runtimeProbe(runtime.status, runtime.channel)}`, args: [] }));
+    const settled = (value) => value && (runtime.expectsAnnouncement === false ? value.statusPresent === true : (value.announced ?? []).length > 0);
+    const answer = await waitFor(async () => { const value = await read(); return settled(value) ? value : null; }, `${runtime.label} in Firefox`, 30_000, delay)
+      .catch(() => read());
     runtimes.push({ label: runtime.label, expectsAnnouncement: runtime.expectsAnnouncement !== false, page: answer });
   }
   return { browser: 'Firefox', version: session.capabilities?.browserVersion ?? 'unknown', page, runtimes };
@@ -977,9 +984,18 @@ async function measureChromium(chromium, base, probe, runtimePages, runtimeProbe
   const runtimes = [];
   for (const runtime of runtimePages) {
     await call('Page.navigate', { url: `${base}/ci-runtime-host.html?page=${encodeURIComponent(runtime.path)}` }, sessionId);
+    /* Given a moment to fail, then asked until it answers. A WebAssembly core
+     * takes as long as the machine makes it take: two seconds is plenty on an
+     * idle box and not enough on one running the rest of the gate, where the
+     * Arculator core read as never having announced itself twice on a tree
+     * whose runtimes were fine. The deadline is what fails now, and a page that
+     * throws on load still gets its moment before anything is read. */
     await delay(2_000);
-    const value = await evaluate(runtimeProbe(runtime.status, runtime.channel));
-    runtimes.push({ label: runtime.label, expectsAnnouncement: runtime.expectsAnnouncement !== false, page: value ? JSON.parse(value) : null });
+    const read = async () => { const value = await evaluate(runtimeProbe(runtime.status, runtime.channel)); return value ? JSON.parse(value) : null; };
+    const settled = (value) => value && (runtime.expectsAnnouncement === false ? value.statusPresent === true : (value.announced ?? []).length > 0);
+    const answer = await waitFor(async () => { const value = await read(); return settled(value) ? value : null; }, `${runtime.label} in Chromium`, 30_000, delay)
+      .catch(() => read());
+    runtimes.push({ label: runtime.label, expectsAnnouncement: runtime.expectsAnnouncement !== false, page: answer });
   }
   const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
   return { browser: 'Chromium', version: (version.Browser ?? 'unknown').replace(/^.*\//, ''), page: answer, runtimes };
