@@ -55,7 +55,7 @@ Turn a folder of existing Acorn source into a working project, reviewing the who
 1. Choose Start from a sample or existing codebase, then the From an existing codebase tab.
 2. Choose the folder. It is read in this browser and is never uploaded.
 3. Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.
-4. Tick any recoverable asset you want as an editable document.
+4. Use Recover all to take every asset the plan found, or tick the ones you want. Each becomes an editable document in the project.
 5. Adjust the project name and choose Create project.
 6. To finish with a project, use Close this project in the explorer or the command palette. It says what the store holds for it and offers to keep or delete that copy before anything happens.
 
@@ -65,6 +65,7 @@ Turn a folder of existing Acorn source into a working project, reviewing the who
 - The folders the codebase arrived in are kept, so existing INCLUDE directives keep resolving. Only the folder you opened is dropped, so its contents sit at the top of the project.
 - A proposed entry file states why it was chosen, and can be changed afterwards on the build target.
 - A recovered asset regenerates the original assembler bytes exactly and the source it came from is unchanged.
+- A recovered asset opens in the editor for what it is: a run labelled sprite_ or mask_ goes to Sprites, one labelled font_ or char_ to Characters, and anything else to Tiles. Every asset editor lists the documents this project holds, so nothing has to be exported and opened again to reach it.
 - The project is created through the same parser and migration as any imported project.
 
 **Limits**

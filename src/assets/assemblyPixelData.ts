@@ -139,6 +139,23 @@ function assetName(label: string): string {
   return (cleaned || label).slice(0, 60);
 }
 
+/**
+ * What a run is, taken from what its author called it.
+ *
+ * Everything used to come back a tile, so a project whose sprites are all
+ * labelled sprite_player_walk_1_down had twenty-seven of them recovered into
+ * the tile editor and none into the sprite editor, where anybody would go
+ * looking. The label is the author's own statement about the data rather than a
+ * guess about its shape, so it is what decides; a run named nothing in
+ * particular is still a tile.
+ */
+export function kindFromLabel(label: string, fallback: PixelAssetKind): PixelAssetKind {
+  const name = label.replace(/^\./, '').toLowerCase();
+  if (/(^|_)(sprite|mask|actor|player|enemy|zombie)($|_)/.test(name)) return 'sprite';
+  if (/(^|_)(char|character|font|glyph|letter|digit)($|_)/.test(name)) return 'character';
+  return fallback;
+}
+
 export interface PixelAssetCandidateOptions {
   /** Packing to propose. Both are reversible, so this is a presentation choice. */
   packing?: PixelPacking;
@@ -155,7 +172,7 @@ export function pixelAssetCandidates(
   options: PixelAssetCandidateOptions = {},
 ): DerivedPixelAsset[] {
   const packing = options.packing ?? 'bbc-mode-5-hardware-interleaved-2bpp';
-  const kind = options.kind ?? 'tile';
+  const fallbackKind = options.kind ?? 'tile';
   const used = new Set(existingFileNames);
   const mapLike = new Set(tileMapCandidates(runs).map((candidate) => candidate.id));
   const candidates: DerivedPixelAsset[] = [];
@@ -163,6 +180,7 @@ export function pixelAssetCandidates(
     const geometry = pixelGeometriesFor(run.bytes.length)[0];
     if (!geometry) continue;
     const name = assetName(run.label);
+    const kind = kindFromLabel(run.label, fallbackKind);
     const document = documentFor(name, kind, geometry.width, geometry.height, packing, run.bytes);
     if (!document) continue;
     let fileName = `${name}.asset.json`;

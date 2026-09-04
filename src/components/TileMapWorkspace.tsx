@@ -30,6 +30,8 @@ interface TileMapWorkspaceProps {
   projectPalette: ProjectPalette;
   /** Pixel asset documents already in the project, offered as tileset artwork. */
   availableAssets: Array<{ name: string; content: string }>;
+  /** Maps the project holds, so one can be opened without a file dialog. */
+  availableMaps?: Array<{ id: string; name: string; detail: string; content: string }>;
   onAddSource: (name: string, content: string) => void;
   onAddLiveMap: (stem: string, content: string) => void;
   onNotice: (message: string) => void;
@@ -48,7 +50,7 @@ function dominantColour(pixels: readonly number[]): number {
 
 interface History { past: TileMapDocument[]; present: TileMapDocument; future: TileMapDocument[] }
 
-export function TileMapWorkspace({ projectPalette, availableAssets, onAddSource, onAddLiveMap, onNotice }: TileMapWorkspaceProps) {
+export function TileMapWorkspace({ projectPalette, availableAssets, availableMaps = [], onAddSource, onAddLiveMap, onNotice }: TileMapWorkspaceProps) {
   const recovered = useMemo(() => {
     try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) return parseTileMapDocument(saved); }
     catch { /* an invalid recovery starts a new validated document */ }
@@ -335,6 +337,21 @@ export function TileMapWorkspace({ projectPalette, availableAssets, onAddSource,
   return (
     <section className="tile-map-workspace" aria-label="Tile map editor">
       <header className="tile-map-toolbar">
+        {!!availableMaps.length && (
+          /* The project's own maps. Recovering a level from imported source and
+           * then having to export it to open it would be a strange way round. */
+          <label className="project-source-picker"><span>From this project</span>
+            <select aria-label="Open a map from this project" value="" onChange={(event) => {
+              const chosen = availableMaps.find((entry) => entry.id === event.target.value);
+              if (!chosen) return;
+              guard(() => parseTileMapDocument(chosen.content));
+              onNotice(`${chosen.name} opened from this project`);
+            }}>
+              <option value="">Choose a map…</option>
+              {availableMaps.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
+            </select>
+          </label>
+        )}
         <label><span>Name</span><input aria-label="Map name" value={document.name} onChange={(event) => guard(() => parseTileMapDocument({ ...document, name: event.target.value || 'untitled-map' }))} /></label>
         <label><span>Width</span><input aria-label="Map width in tiles" type="number" min={MIN_MAP_DIMENSION} max={MAX_MAP_DIMENSION} value={document.width} onChange={(event) => guard(() => resizeTileMap(document, Number(event.target.value) || document.width, document.height))} /></label>
         <label><span>Height</span><input aria-label="Map height in tiles" type="number" min={MIN_MAP_DIMENSION} max={MAX_MAP_DIMENSION} value={document.height} onChange={(event) => guard(() => resizeTileMap(document, document.width, Number(event.target.value) || document.height))} /></label>

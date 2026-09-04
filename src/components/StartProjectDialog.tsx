@@ -436,12 +436,23 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 )}
 
                 {!!plan.derivedAssets.length && (
-                  <details>
+                  /* Open, because a list of recovered artwork behind a closed
+                   * disclosure is a list nobody finds: twenty-seven sprites
+                   * were read out of one project and none of them was taken,
+                   * because taking them meant opening this and ticking each. */
+                  <details open>
                     <summary>Editable assets that can be recovered ({plan.derivedAssets.length})</summary>
                     <p className="binding-note">
                       Each of these regenerates the original assembler bytes exactly. Creating one adds a new
                       editable document; it does not change or remove the data already in your source.
                     </p>
+                    <div className="import-asset-actions">
+                      <button type="button" onClick={() => setSelectedAssets(plan.derivedAssets.map((asset) => asset.id))} disabled={selectedAssets.length === plan.derivedAssets.length}>
+                        Recover all {plan.derivedAssets.length}
+                      </button>
+                      <button type="button" onClick={() => setSelectedAssets([])} disabled={!selectedAssets.length}>Recover none</button>
+                      <span className="binding-note">{selectedAssets.length} chosen</span>
+                    </div>
                     <ul className="import-assets">
                       {plan.derivedAssets.map((asset) => (
                         <li key={asset.id}>

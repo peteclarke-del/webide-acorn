@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { assemblyByteRuns, pixelAssetCandidates, pixelGeometriesFor, tileMapCandidates, tileMapFromCandidate } from './assemblyPixelData';
+import {
+  kindFromLabel, assemblyByteRuns, pixelAssetCandidates, pixelGeometriesFor, tileMapCandidates, tileMapFromCandidate } from './assemblyPixelData';
 import { generateTileMapOutput } from './tileMapDocument';
 import { generatePixelAssetOutput, parsePixelAssetDocument } from './pixelAssetDocument';
 
@@ -126,3 +127,31 @@ describe('promoting detected level data to a real map', () => {
     expect(() => tileMapFromCandidate(candidate!, 7, 7)).toThrow(/cannot be read as a 7 by 7 grid/);
   });
 });
+
+describe('what a recovered run is taken to be', () => {
+  it('reads the kind from the label its author gave it', () => {
+    /* Everything used to come back a tile, so a project whose artwork is all
+     * labelled sprite_player_walk_1_down had every sprite recovered into the
+     * tile editor and none into the sprite editor, where anybody would look. */
+    expect(kindFromLabel('.sprite_player_walk_1_down', 'tile')).toBe('sprite');
+    expect(kindFromLabel('.mask_player_walk_1_down', 'tile')).toBe('sprite');
+    expect(kindFromLabel('.scene_sprite_environment_door_open', 'tile')).toBe('sprite');
+    expect(kindFromLabel('.zombie_frames', 'tile')).toBe('sprite');
+    expect(kindFromLabel('.font_digits', 'tile')).toBe('character');
+    expect(kindFromLabel('.char_table', 'tile')).toBe('character');
+  });
+
+  it('leaves a run named nothing in particular as what it was going to be', () => {
+    expect(kindFromLabel('.level_tile_chars', 'tile')).toBe('tile');
+    expect(kindFromLabel('.reverse_nibble', 'tile')).toBe('tile');
+    expect(kindFromLabel('.data', 'character')).toBe('character');
+  });
+
+  it('does not read a word that merely contains one of the names', () => {
+    /* Whole words only: a spritely_table is not a sprite and a character_count
+     * is not a character set. */
+    expect(kindFromLabel('.spritely_table', 'tile')).toBe('tile');
+    expect(kindFromLabel('.unmasked_total', 'tile')).toBe('tile');
+  });
+});
+
