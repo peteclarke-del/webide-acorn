@@ -165,7 +165,7 @@ Derive a bounded incoming and outgoing call graph from exact parsed project sour
 **Procedure**
 
 1. Place the caret on the callable symbol or a direct call to it.
-2. Choose Call hierarchy in the editor toolbar or press Alt+Shift+H.
+2. Choose Call hierarchy from the editor's Navigate menu or press Alt+Shift+H.
 3. Read the source-index identity and the separate Incoming callers and Outgoing callees counts.
 4. In Incoming callers, review the caller, callee and exact call-site file, physical line and column.
 5. In Outgoing callees, review each direct call owned by the selected routine or nearest parsed assembly label.
@@ -230,7 +230,7 @@ Follow parsed control-flow operands and declarations while keeping ambiguous, un
 3. For a parsed ARM B, conditional B or BL operand, click or tap the operand once.
 4. For a parsed C function call whose definition is in the current source, click or tap the function name once.
 5. For a macro, include filename, constant, declaration or another semantic token, place the caret on the token and press F12.
-6. Pointer users can double-click the same semantic token. Touch and switch users can place the caret and choose Definition / Research in the editor toolbar.
+6. Pointer users can double-click the same semantic token. Touch and switch users can place the caret and choose Definition / Research from the editor's Navigate menu.
 7. Ctrl+click or Command+click also requests the semantic destination at the current caret.
 8. Confirm the destination file, physical line and column in the status bar. The exact declaration range is selected.
 9. Use Back or Alt+Left to return to the preceding source location. Use Forward or Alt+Right to revisit it.
@@ -253,7 +253,7 @@ Follow parsed control-flow operands and declarations while keeping ambiguous, un
 **Limits**
 
 - Direct one-click ranges currently cover BASIC line and routine calls, 6502 jump and call operands, ARM branches and direct C function calls identified by the registered parsers.
-- Macro and include activation uses F12, double-click, Ctrl+click or the visible toolbar control because a plain editing click must still position the caret safely.
+- Macro and include activation uses F12, double-click, Ctrl+click or the visible Navigate menu control because a plain editing click must still position the caret safely.
 - C function pointers, preprocessor-generated calls, linker aliases and conditionally compiled declarations require compiler language records and are not guessed.
 - Build-only symbols open immutable artifact evidence rather than an editable source declaration.
 - Bank-qualified symbols require explicit bank-aware debug metadata. Duplicate source names without bank evidence remain ambiguous.
@@ -446,6 +446,6 @@ Choose the exact relationship you need in connected C project source instead of 
 
 ![C project editor after Type definition selected the byte typedef in api.h, with Declaration, Implementation and Type definition controls visible and the exact api.h line reported in the status bar](../../public/help/editor-c-relationships.png)
 
-*The explicit Type definition action selects byte in the connected project header. Declaration and Implementation remain separate toolbar actions for the draw prototype and function body.*
+*The explicit Type definition action selects byte in the connected project header. Declaration and Implementation remain separate Navigate menu actions for the draw prototype and function body.*
 
 In the IDE: Help → `#help/c-source-relationships`

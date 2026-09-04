@@ -132,7 +132,7 @@ Open two independently navigable source views and retain pane, file, caret, sele
 **Procedure**
 
 1. Focus the source file that should seed the second pane.
-2. Select Split editor in the primary editor toolbar, or press Ctrl+Backslash in the primary editor.
+2. Select Split editor from the primary editor's File menu, or press Ctrl+Backslash in the primary editor.
 3. Confirm that Primary source editor pane and Secondary source editor pane are exposed to assistive technology. The focused pane has a non-colour focus edge.
 4. Choose a tab independently in either pane. Selecting a secondary tab does not replace the primary file.
 5. Move the caret, selection and vertical scroll independently in each pane.
@@ -165,7 +165,7 @@ Open two independently navigable source views and retain pane, file, caret, sele
 
 - If a navigation result opens in the unexpected pane, focus the intended editor before invoking the command again.
 - Use Back to recover the previous exact pane state after an unwanted jump.
-- Use Reset split from the primary toolbar to reopen the secondary pane from the primary file.
+- Use Reset split from the primary editor's File menu to reopen the secondary pane from the primary file.
 - If the responsive layout is too constrained, close the target profile or inspector panels, increase viewport width or close the split.
 - If a file was deleted, history ignores that unavailable destination instead of recreating source.
 
@@ -195,7 +195,7 @@ Mark source locations for project navigation, attach bounded technical notes and
 7. Disable a bookmark without deleting it when it should be skipped during next and previous navigation.
 8. Search by name, description, scope, filename or line.
 9. Use Bookmark up and Bookmark down, or Ctrl+Alt+PageUp and Ctrl+Alt+PageDown, to move across enabled non-orphan bookmarks with wraparound.
-10. Select Export portable project. Review the project and private bookmark counts.
+10. Choose Project then Export portable project in the workbench menu bar. Review the project and private bookmark counts.
 11. Leave Include private bookmarks and notes clear for a privacy-safe export. Select it only after confirming that every private name, description, location and anchor may be shared.
 12. Download the portable project. The status message reports included bookmarks and any private records excluded.
 13. Use the editor gutter breakpoint control instead when an executable debugger stop is required.

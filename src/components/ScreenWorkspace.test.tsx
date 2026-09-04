@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { ScreenWorkspace } from './ScreenWorkspace';
-import { parseScreenDocument, readScreenPixel, screenBytes, screenGeometry } from '../assets/screenDocument';
+import { createScreenDocument, serializeScreenDocument, parseScreenDocument, readScreenPixel, screenBytes, screenGeometry } from '../assets/screenDocument';
 import { resolveProjectPalette } from '../assets/paletteDocument';
 
 /* The editor's actions live in a menu bar, so a test reaches them the way
@@ -19,11 +19,21 @@ function chooseFromMenu(menu: string, item: string | RegExp) {
 
 afterEach(() => { cleanup(); localStorage.clear(); });
 
-function renderWorkspace() {
-  const props = { projectPalette: resolveProjectPalette([], 4), onAddSource: vi.fn(), onAddLiveScreen: vi.fn(), onNotice: vi.fn() };
+function renderWorkspace(projectFiles: ReturnType<typeof projectHolding> = []) {
+  const props = { projectPalette: resolveProjectPalette([], 4), projectFiles, onAddSource: vi.fn(), onAddLiveScreen: vi.fn(), onNotice: vi.fn() };
   render(<ScreenWorkspace {...props} />);
   return props;
 }
+/* A project holding one of these documents, so the editor can be asked whether
+ * it offers what the person already has. */
+function projectHolding(name: string, content: string) {
+  return [{
+    id: name, name, content, language: 'text' as const, encoding: 'utf-8' as const, lineEnding: 'lf' as const,
+    modified: false, saved: true, savedName: name, savedContent: content,
+    savedEncoding: 'utf-8' as const, savedLineEnding: 'lf' as const, kind: 'authored' as const, access: 'editable' as const,
+  }];
+}
+
 const canvas = () => screen.getByRole('application', { name: /Screen/ });
 
 /* Persisting a whole frame buffer is debounced in the editor, so the stored
@@ -162,5 +172,23 @@ describe('selecting a rectangle of the screen', () => {
     fireEvent.click(within(tools).getByRole('button', { name: 'Mark corner' }));
     fireEvent.click(within(tools).getByRole('button', { name: 'Mark opposite corner' }));
     expect(within(openMenu('Edit')).getByRole('menuitem', { name: 'Copy area' })).toBeEnabled();
+  });
+});
+
+describe('a screen the project already holds', () => {
+  it('is offered in the Document menu, and opening one loads it', () => {
+    /* The loading screen an import recovers lands in the project as a
+     * document. Before this the editor could only open one from disk, so the
+     * recovered screen was in the file tree and nowhere else. */
+    const document = createScreenDocument('loading', 'bbc-mode-2');
+    const props = renderWorkspace(projectHolding('loading.screen.json', serializeScreenDocument(document)));
+    chooseFromMenu('Document', /^Open loading\.screen\.json/);
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringContaining('opened from this project'));
+    expect(screen.getByLabelText('Screen name')).toHaveValue('loading');
+  });
+
+  it('offers nothing when the project holds no screen', () => {
+    renderWorkspace();
+    expect(within(openMenu('Document')).queryByRole('menuitem', { name: /^Open / })).toBeNull();
   });
 });

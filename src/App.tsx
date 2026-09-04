@@ -2475,13 +2475,13 @@ function App() {
             ) : workspaceTab === 'Help' ? (
               <HelpWorkspace />
             ) : workspaceTab === 'Sound' ? (
-              <SongWorkspace onAddSource={addSourceFile} onAddLiveSong={addLiveSong} onNotice={setNotice} />
+              <SongWorkspace projectFiles={project.files} onAddSource={addSourceFile} onAddLiveSong={addLiveSong} onNotice={setNotice} />
             ) : workspaceTab === 'Samples' ? (
-              <SampleWorkspace machineId={machine.id} machineLabel={machine.label} onAddSource={addSourceFile} onNotice={setNotice} />
+              <SampleWorkspace machineId={machine.id} machineLabel={machine.label} projectFiles={project.files} onAddSource={addSourceFile} onNotice={setNotice} />
             ) : workspaceTab === 'Screens' ? (
-              <ScreenWorkspace projectPalette={projectPalette} onAddSource={addSourceFile} onAddLiveScreen={addLiveScreen} onNotice={setNotice} />
+              <ScreenWorkspace projectPalette={projectPalette} projectFiles={project.files} onAddSource={addSourceFile} onAddLiveScreen={addLiveScreen} onNotice={setNotice} />
             ) : workspaceTab === 'Fonts' ? (
-              <FontWorkspace projectPalette={projectPalette} onAddSource={addSourceFile} onAddLiveFont={addLiveFont} onNotice={setNotice} />
+              <FontWorkspace projectPalette={projectPalette} projectFiles={project.files} onAddSource={addSourceFile} onAddLiveFont={addLiveFont} onNotice={setNotice} />
             ) : workspaceTab === 'Palettes' ? (
               <PaletteWorkspace
                 projectFiles={project.files.map((file) => ({ name: file.name, content: file.content }))}

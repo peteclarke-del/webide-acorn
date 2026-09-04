@@ -52,7 +52,7 @@ Turn a folder of existing Acorn source into a working project, reviewing the who
 
 **Procedure**
 
-1. Choose Start from a sample or existing codebase, then the From an existing codebase tab.
+1. Choose Project then Start a project from a sample or an existing codebase in the workbench menu bar, then the From an existing codebase tab.
 2. Choose the folder. It is read in this browser and is never uploaded.
 3. Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.
 4. Use Recover all to take every asset the plan found, or tick the ones you want. Each becomes an editable document in the project.
@@ -200,7 +200,7 @@ Inspect line additions and removals against the explicit saved baseline without 
 **Procedure**
 
 1. Edit a saved source file, or change its encoding, line endings or filename so its tab shows the modified marker.
-2. Choose Compare saved in the source toolbar.
+2. Choose Compare saved from the editor's File menu.
 3. Read SAVED BASELINE vs WORKING COPY before interpreting the line-number columns.
 4. Read the added and removed counts. A changed line is represented by one removed saved line and one added working line so neither version is hidden.
 5. Use the Saved and Working columns to distinguish physical line numbers. A blank cell means that line exists only in the other version.

@@ -12,6 +12,8 @@ import {
 import { readableInk } from '../theme/readableInk';
 import { Icon } from './Icon';
 import { PanelMenuBar } from './PanelMenuBar';
+import { projectDocuments } from '../project/projectDocuments';
+import type { ProjectFile } from '../project/project';
 import {
   createScreenDocument, generateScreenOutputFromBytes, importImageIntoScreen, parseScreenDocument,
   readScreenPixel, screenBytes, screenDocumentFromBytes, screenGeometry, serializeScreenDocument,
@@ -21,6 +23,8 @@ import { PALETTE_MODES, paletteModeProfile, physicalColour, type PaletteModeId, 
 
 interface ScreenWorkspaceProps {
   projectPalette: ProjectPalette;
+  /** Everything the project holds, so a screen already in it can be opened. */
+  projectFiles?: readonly ProjectFile[];
   onAddSource: (name: string, content: string) => void;
   onAddLiveScreen: (stem: string, content: string) => void;
   onNotice: (message: string) => void;
@@ -28,7 +32,11 @@ interface ScreenWorkspaceProps {
 
 const STORAGE_KEY = '8bit-net-dev:screen';
 
-export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, onNotice }: ScreenWorkspaceProps) {
+export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource, onAddLiveScreen, onNotice }: ScreenWorkspaceProps) {
+  /* A screen recovered from an imported game, or generated earlier, is in the
+   * project already; sending somebody to a file dialog to fetch what the
+   * product is holding is busy work. */
+  const openable = useMemo(() => projectDocuments(projectFiles, ['screen']), [projectFiles]);
   const recovered = useMemo(() => {
     try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) return parseScreenDocument(saved); }
     catch { /* an invalid recovery starts a new validated document */ }
@@ -250,7 +258,17 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
           * height above the picture they act on. */}
         <PanelMenuBar label="Screen actions" menus={[
           { id: 'document', label: 'Document', items: [
-            { id: 'import-image', label: 'Import an image', hint: 'converted to this mode', onSelect: () => imageInputRef.current?.click() },
+            ...openable.map((entry) => ({
+              id: `open-${entry.id}`,
+              label: `Open ${entry.name}`,
+              hint: entry.detail,
+              onSelect: () => {
+                const held = projectFiles.find((file) => file.id === entry.id);
+                if (!held) { onNotice(`${entry.name} is no longer in this project`); return; }
+                guard(() => parseScreenDocument(held.content), `${entry.name} opened from this project`);
+              },
+            })),
+            { id: 'import-image', label: 'Import an image', hint: 'converted to this mode', separated: !!openable.length, onSelect: () => imageInputRef.current?.click() },
           ] },
           { id: 'edit', label: 'Edit', items: [
             { id: 'undo', label: 'Undo', disabled: !past.length, onSelect: () => {

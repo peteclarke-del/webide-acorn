@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { projectDocuments } from '../project/projectDocuments';
+import type { ProjectFile } from '../project/project';
 import { Icon } from './Icon';
 import {
   clearSongRow, createSongDocument, emptyRow, generateSongOutput, MAX_ROW_DURATION, maximumPitch,
@@ -7,6 +9,8 @@ import {
 } from '../assets/songDocument';
 
 interface SongWorkspaceProps {
+  /** Everything the project holds, so a song already in it can be opened. */
+  projectFiles?: readonly ProjectFile[];
   onAddSource: (name: string, content: string) => void;
   onAddLiveSong: (stem: string, content: string) => void;
   onNotice: (message: string) => void;
@@ -14,7 +18,11 @@ interface SongWorkspaceProps {
 
 const STORAGE_KEY = '8bit-net-dev:song';
 
-export function SongWorkspace({ onAddSource, onAddLiveSong, onNotice }: SongWorkspaceProps) {
+export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, onNotice }: SongWorkspaceProps) {
+  /* A song document the project already holds. Sending somebody to a file
+   * dialog to fetch what the product is sitting on is busy work, and after an
+   * import it is the only thing they want. */
+  const openable = useMemo(() => projectDocuments(projectFiles, ['song']), [projectFiles]);
   const recovered = useMemo(() => {
     try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) return parseSongDocument(saved); }
     catch { /* an invalid recovery starts a new validated document */ }
@@ -52,6 +60,18 @@ export function SongWorkspace({ onAddSource, onAddLiveSong, onNotice }: SongWork
   return (
     <section className="song-workspace" aria-label="Song editor">
       <header className="song-toolbar">
+        {!!openable.length && (
+          <label className="project-source-picker"><span>From this project</span>
+            <select aria-label="Open a song from this project" value="" onChange={(event) => {
+              const held = projectFiles.find((file) => file.id === event.target.value);
+              if (!held) return;
+              guard(() => parseSongDocument(held.content), `${held.name} opened from this project`);
+            }}>
+              <option value="">Choose a song…</option>
+              {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
+            </select>
+          </label>
+        )}
         <label><span>Name</span><input aria-label="Song name" value={document.name} onChange={(event) => guard(() => parseSongDocument({ ...document, name: event.target.value || 'untitled-song' }))} /></label>
         <label>
           <span>Sound hardware</span>

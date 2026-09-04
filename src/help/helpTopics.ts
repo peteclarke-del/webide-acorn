@@ -109,7 +109,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "For running or testing on the real machine, the BBC Model B ROM images you supply in Settings",
     ],
     steps: [
-      "Choose Start from a sample or existing codebase in the toolbar, or run that command from the command palette.",
+      "Choose Project then Start a project from a sample or an existing codebase in the workbench menu bar, or run that command from the command palette.",
       "Stay on the Sample projects tab and read what each sample demonstrates.",
       "Choose Open Acorn Harvest for the 6502 assembly maze game, or Open Acorn Catcher for the BBC BASIC II game.",
       "Press F7 to build, or F5 to build and run once firmware is present.",
@@ -143,7 +143,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "A folder of Acorn source in editable text form",
     ],
     steps: [
-      "Choose Start from a sample or existing codebase, then the From an existing codebase tab.",
+      "Choose Project then Start a project from a sample or an existing codebase in the workbench menu bar, then the From an existing codebase tab.",
       "Choose the folder. It is read in this browser and is never uploaded.",
       "Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.",
       "Use Recover all to take every asset the plan found, or tick the ones you want. Each becomes an editable document in the project.",
@@ -431,7 +431,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     steps: [
       "Place the caret after the argument you are entering. Signature help updates from the current source position.",
       "Press Ctrl+Shift+Space for an explicit request. The editor retains keyboard focus.",
-      "Alternatively choose Ctrl Shift Space in the editor toolbar. Pointer activation moves focus to the chosen control as normal.",
+      "Alternatively choose Signature help from the editor's Edit menu. Pointer activation moves focus to the chosen control as normal.",
       "Read SIGNATURE n/total and the complete active syntax.",
       "Read Active parameter n of total. The active parameter has a bordered highlight and aria-current state; colour is not the only indicator.",
       "Treat optional or repeated as a semantic note. It is shown for a bracketed optional parameter or an ellipsis parameter.",
@@ -546,7 +546,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     steps: [
       "Edit a saved source file, or change its encoding, line endings or filename so its tab shows the modified marker.",
-      "Choose Compare saved in the source toolbar.",
+      "Choose Compare saved from the editor's File menu.",
       "Read SAVED BASELINE vs WORKING COPY before interpreting the line-number columns.",
       "Read the added and removed counts. A changed line is represented by one removed saved line and one added working line so neither version is hidden.",
       "Use the Saved and Working columns to distinguish physical line numbers. A blank cell means that line exists only in the other version.",
@@ -1003,7 +1003,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     steps: [
       "Focus the source file that should seed the second pane.",
-      "Select Split editor in the primary editor toolbar, or press Ctrl+Backslash in the primary editor.",
+      "Select Split editor from the primary editor's File menu, or press Ctrl+Backslash in the primary editor.",
       "Confirm that Primary source editor pane and Secondary source editor pane are exposed to assistive technology. The focused pane has a non-colour focus edge.",
       "Choose a tab independently in either pane. Selecting a secondary tab does not replace the primary file.",
       "Move the caret, selection and vertical scroll independently in each pane.",
@@ -1033,7 +1033,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     recovery: [
       "If a navigation result opens in the unexpected pane, focus the intended editor before invoking the command again.",
       "Use Back to recover the previous exact pane state after an unwanted jump.",
-      "Use Reset split from the primary toolbar to reopen the secondary pane from the primary file.",
+      "Use Reset split from the primary editor's File menu to reopen the secondary pane from the primary file.",
       "If the responsive layout is too constrained, close the target profile or inspector panels, increase viewport width or close the split.",
       "If a file was deleted, history ignores that unavailable destination instead of recreating source.",
     ],
@@ -1069,7 +1069,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "For a parsed ARM B, conditional B or BL operand, click or tap the operand once.",
       "For a parsed C function call whose definition is in the current source, click or tap the function name once.",
       "For a macro, include filename, constant, declaration or another semantic token, place the caret on the token and press F12.",
-      "Pointer users can double-click the same semantic token. Touch and switch users can place the caret and choose Definition / Research in the editor toolbar.",
+      "Pointer users can double-click the same semantic token. Touch and switch users can place the caret and choose Definition / Research from the editor's Navigate menu.",
       "Ctrl+click or Command+click also requests the semantic destination at the current caret.",
       "Confirm the destination file, physical line and column in the status bar. The exact declaration range is selected.",
       "Use Back or Alt+Left to return to the preceding source location. Use Forward or Alt+Right to revisit it.",
@@ -1090,7 +1090,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     limitations: [
       "Direct one-click ranges currently cover BASIC line and routine calls, 6502 jump and call operands, ARM branches and direct C function calls identified by the registered parsers.",
-      "Macro and include activation uses F12, double-click, Ctrl+click or the visible toolbar control because a plain editing click must still position the caret safely.",
+      "Macro and include activation uses F12, double-click, Ctrl+click or the visible Navigate menu control because a plain editing click must still position the caret safely.",
       "C function pointers, preprocessor-generated calls, linker aliases and conditionally compiled declarations require compiler language records and are not guessed.",
       "Build-only symbols open immutable artifact evidence rather than an editable source declaration.",
       "Bank-qualified symbols require explicit bank-aware debug metadata. Duplicate source names without bank evidence remain ambiguous.",
@@ -1266,7 +1266,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     steps: [
       "Place the caret on the callable symbol or a direct call to it.",
-      "Choose Call hierarchy in the editor toolbar or press Alt+Shift+H.",
+      "Choose Call hierarchy from the editor's Navigate menu or press Alt+Shift+H.",
       "Read the source-index identity and the separate Incoming callers and Outgoing callees counts.",
       "In Incoming callers, review the caller, callee and exact call-site file, physical line and column.",
       "In Outgoing callees, review each direct call owned by the selected routine or nearest parsed assembly label.",
@@ -1385,7 +1385,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       src: "/help/editor-c-relationships.png",
       alt: "C project editor after Type definition selected the byte typedef in api.h, with Declaration, Implementation and Type definition controls visible and the exact api.h line reported in the status bar",
       caption:
-        "The explicit Type definition action selects byte in the connected project header. Declaration and Implementation remain separate toolbar actions for the draw prototype and function body.",
+        "The explicit Type definition action selects byte in the connected project header. Declaration and Implementation remain separate Navigate menu actions for the draw prototype and function body.",
       captured: "2026.08 interface",
     },
   },
@@ -1920,7 +1920,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Disable a bookmark without deleting it when it should be skipped during next and previous navigation.",
       "Search by name, description, scope, filename or line.",
       "Use Bookmark up and Bookmark down, or Ctrl+Alt+PageUp and Ctrl+Alt+PageDown, to move across enabled non-orphan bookmarks with wraparound.",
-      "Select Export portable project. Review the project and private bookmark counts.",
+      "Choose Project then Export portable project in the workbench menu bar. Review the project and private bookmark counts.",
       "Leave Include private bookmarks and notes clear for a privacy-safe export. Select it only after confirming that every private name, description, location and anchor may be shared.",
       "Download the portable project. The status message reports included bookmarks and any private records excluded.",
       "Use the editor gutter breakpoint control instead when an executable debugger stop is required.",
@@ -3796,12 +3796,12 @@ export const HELP_TOPICS: HelpTopic[] = [
     steps: [
       "Open Characters, Sprites or Tiles.",
       "Create or open an asset document.",
-      "Set dimensions, bit depth, palette and transparency policy.",
+      "Set dimensions, palette and hotspot beside the canvas, and the generated byte encoding from the Encoding menu.",
       "Draw with pointer or keyboard controls.",
       "Select, copy, paste, fill, flip or move a bounded region.",
       "For sprites, add, reorder or remove frames.",
       "Preview generated bytes and target packing.",
-      "Add generated output to the project and build it.",
+      "Use the editor's Document menu to add the asset document, its EQUB source or a live build target to the project, and build it.",
     ],
     expected: [
       "Editable asset JSON retains dimensions, frames, palette and generation settings.",
@@ -3809,7 +3809,6 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Undo and redo cover document mutations.",
     ],
     limitations: [
-      "Maps and sound editors remain unavailable until their real domain adapters are implemented.",
       "Palette and transparency choices differ across Acorn machines and modes.",
     ],
     recovery: [
@@ -3855,7 +3854,8 @@ export const HELP_TOPICS: HelpTopic[] = [
       "A cell may only use an index the tileset declares; removing an index clears the cells that used it and says so.",
       "An index with no artwork chosen generates a zero pointer and a build diagnostic naming it, rather than a made-up address.",
       "Maps are bounded to 128 by 128 tiles, 16,384 tiles in total, 4 layers, 256 tileset entries and 256 objects.",
-      "Layer compression, tile flipping, priority attributes and image import are not implemented.",
+      "Run-length layer compression is a request rather than a guarantee: a layer that would grow under it is stored raw, and the workspace says so.",
+      "Importing an image counts what the conversion lost — approximated colours, image outside the grid, and tiles the tileset could not hold — rather than absorbing it.",
       "The picture is drawn on a canvas; environments without a 2D context still expose the cursor and row as text.",
     ],
     recovery: [

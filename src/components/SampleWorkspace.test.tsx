@@ -2,14 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { SampleWorkspace } from './SampleWorkspace';
+import { createVidcSampleDocument, serializeVidcSampleDocument } from '../assets/vidcSampleDocument';
 
 afterEach(cleanup);
 beforeEach(() => localStorage.clear());
 
-function open(machineId = 'archimedes-a300', machineLabel = 'Archimedes A310') {
-  const props = { machineId, machineLabel, onAddSource: vi.fn(), onNotice: vi.fn() };
+function open(machineId = 'archimedes-a300', machineLabel = 'Archimedes A310', projectFiles: ReturnType<typeof projectHolding> = []) {
+  const props = { machineId, machineLabel, projectFiles, onAddSource: vi.fn(), onNotice: vi.fn() };
   render(<SampleWorkspace {...props} />);
   return props;
+}
+
+/* A project holding one of these documents, so the editor can be asked whether
+ * it offers what the person already has. */
+function projectHolding(name: string, content: string) {
+  return [{
+    id: name, name, content, language: 'text' as const, encoding: 'utf-8' as const, lineEnding: 'lf' as const,
+    modified: false, saved: true, savedName: name, savedContent: content,
+    savedEncoding: 'utf-8' as const, savedLineEnding: 'lf' as const, kind: 'authored' as const, access: 'editable' as const,
+  }];
 }
 
 describe('what the editor will and will not do', () => {
@@ -150,5 +161,19 @@ describe('handing the result to the project', () => {
     expect(content).toContain('Encoded in the VIDC2 byte order');
     expect(content).toContain('LDR R1, =&03400000');
     expect(content).toMatch(/DCB &[0-9A-F]{2}/);
+  });
+});
+
+describe('a sample the project already holds', () => {
+  it('is offered beside the file dialog, and opening one loads it', () => {
+    const props = open('archimedes-a300', 'Archimedes A310', projectHolding('boom.sample.json', serializeVidcSampleDocument(createVidcSampleDocument('boom'))));
+    fireEvent.change(screen.getByLabelText('Open a sample from this project'), { target: { value: 'boom.sample.json' } });
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringContaining('opened from this project'));
+    expect(screen.getByLabelText('Sample name')).toHaveValue('boom');
+  });
+
+  it('does not offer a picker when the project holds no sample', () => {
+    open();
+    expect(screen.queryByLabelText('Open a sample from this project')).toBeNull();
   });
 });

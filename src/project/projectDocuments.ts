@@ -1,3 +1,10 @@
+import { FONT_SCHEMA } from '../assets/fontDocument';
+import { PIXEL_ASSET_SCHEMA } from '../assets/pixelAssetDocument';
+import { PALETTE_SCHEMA } from '../assets/paletteDocument';
+import { SCREEN_SCHEMA } from '../assets/screenDocument';
+import { SONG_SCHEMA } from '../assets/songDocument';
+import { TILE_MAP_SCHEMA } from '../assets/tileMapDocument';
+import { VIDC_SAMPLE_SCHEMA } from '../assets/vidcSampleDocument';
 import type { ProjectFile } from './project';
 
 /*
@@ -29,13 +36,23 @@ export interface ProjectDocument {
   detail: string;
 }
 
+/*
+ * The schema each editable document actually carries.
+ *
+ * These were written out as string literals and every one of them was the
+ * wrong string: `8bit-net.generated-map` is the manifest a build emits, not the
+ * map somebody edits, and the same was true of all six. So a project could hold
+ * sixty-one maps and a screen and the editors that open them offered nothing,
+ * while the sprite editor worked because its one literal happened to be right.
+ * They are imported now, so the mapping cannot drift from the documents again.
+ */
 const SCHEMA_KINDS: Record<string, ProjectDocumentKind> = {
-  '8bit-net.generated-map': 'map',
-  '8bit-net.generated-screen': 'screen',
-  '8bit-net.generated-font': 'font',
-  '8bit-net.generated-palette': 'palette',
-  '8bit-net.generated-song': 'song',
-  '8bit-net.generated-vidc-sample': 'sample',
+  [TILE_MAP_SCHEMA]: 'map',
+  [SCREEN_SCHEMA]: 'screen',
+  [FONT_SCHEMA]: 'font',
+  [PALETTE_SCHEMA]: 'palette',
+  [SONG_SCHEMA]: 'song',
+  [VIDC_SAMPLE_SCHEMA]: 'sample',
 };
 
 const PIXEL_KINDS = new Set<ProjectDocumentKind>(['character', 'sprite', 'tile']);
@@ -49,6 +66,32 @@ function described(kind: ProjectDocumentKind, parsed: Record<string, unknown>): 
       ? (parsed.sprite as { frames: unknown[] }).frames.length
       : 0;
     return [size, frames > 1 ? `${frames} frames` : ''].filter(Boolean).join(' · ');
+  }
+  /*
+   * Nothing else in this list carries a width and a height, so before this each
+   * of them was offered with an empty description and two documents of the same
+   * kind could only be told apart by their filenames. Each says the one thing
+   * that distinguishes it from its neighbours.
+   */
+  const mode = typeof parsed.mode === 'string' ? parsed.mode.replace(/^bbc-mode-/, 'MODE ') : '';
+  if (kind === 'screen') return mode;
+  if (kind === 'palette') {
+    const entries = Array.isArray(parsed.entries) ? parsed.entries.length : 0;
+    return [mode, entries ? `${entries} colours` : ''].filter(Boolean).join(' · ');
+  }
+  if (kind === 'font') {
+    const glyphs = Array.isArray(parsed.glyphs) ? parsed.glyphs.length : 0;
+    return glyphs ? `${glyphs} glyph${glyphs === 1 ? '' : 's'}` : '';
+  }
+  if (kind === 'song') {
+    const rows = Array.isArray(parsed.rows) ? parsed.rows.length : 0;
+    const target = typeof parsed.target === 'string' ? parsed.target : '';
+    return [target, rows ? `${rows} row${rows === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+  }
+  if (kind === 'sample') {
+    const period = typeof parsed.periodMicroseconds === 'number' ? parsed.periodMicroseconds : 0;
+    const channels = typeof parsed.channelMode === 'string' ? parsed.channelMode : '';
+    return [channels, period ? `${period} µs` : ''].filter(Boolean).join(' · ');
   }
   return size;
 }
@@ -73,7 +116,7 @@ export function projectDocuments(files: readonly ProjectFile[], kinds?: readonly
     } catch { continue; }
     const schema = typeof parsed.schema === 'string' ? parsed.schema : '';
     let kind: ProjectDocumentKind | undefined;
-    if (schema === '8bit-net.pixel-asset') {
+    if (schema === PIXEL_ASSET_SCHEMA) {
       const declared = typeof parsed.kind === 'string' ? parsed.kind : '';
       if (declared === 'character' || declared === 'sprite' || declared === 'tile') kind = declared;
     } else {

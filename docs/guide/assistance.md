@@ -322,7 +322,7 @@ Keep the source editor focused while inspecting the active argument, optional or
 
 1. Place the caret after the argument you are entering. Signature help updates from the current source position.
 2. Press Ctrl+Shift+Space for an explicit request. The editor retains keyboard focus.
-3. Alternatively choose Ctrl Shift Space in the editor toolbar. Pointer activation moves focus to the chosen control as normal.
+3. Alternatively choose Signature help from the editor's Edit menu. Pointer activation moves focus to the chosen control as normal.
 4. Read SIGNATURE n/total and the complete active syntax.
 5. Read Active parameter n of total. The active parameter has a bordered highlight and aria-current state; colour is not the only indicator.
 6. Treat optional or repeated as a semantic note. It is shown for a bracketed optional parameter or an ellipsis parameter.

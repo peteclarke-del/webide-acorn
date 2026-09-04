@@ -4,6 +4,9 @@ import { packBbcMode5Pixels, packOpaqueMask, packTwoBitPixels } from './pixelPac
 export type PixelAssetKind = 'character' | 'sprite' | 'tile';
 export type PixelPacking = 'logical-2bpp-msb-groups' | 'bbc-mode-5-hardware-interleaved-2bpp';
 
+/* The one schema every character, sprite and tile document carries. */
+export const PIXEL_ASSET_SCHEMA = '8bit-net.pixel-asset' as const;
+
 export interface PixelSpriteFrame {
   id: string;
   name: string;
@@ -14,7 +17,7 @@ export interface PixelSpriteFrame {
 }
 
 export interface PixelAssetDocument {
-  schema: '8bit-net.pixel-asset';
+  schema: typeof PIXEL_ASSET_SCHEMA;
   version: 1;
   name: string;
   kind: PixelAssetKind;
@@ -49,7 +52,7 @@ const SIZES = new Set([8, 16, 24, 32]);
 
 export function createPixelAssetDocument(kind: PixelAssetKind, width = kind === 'sprite' ? 16 : 8, height = kind === 'sprite' ? 16 : 8): PixelAssetDocument {
   return {
-    schema: '8bit-net.pixel-asset', version: 1, name: `untitled-${kind}`, kind, width, height,
+    schema: PIXEL_ASSET_SCHEMA, version: 1, name: `untitled-${kind}`, kind, width, height,
     pixels: Array(width * height).fill(0),
     palette: { indices: [0, 1, 2, 3], interpretation: 'logical-acorn-colours' },
     target: { family: 'acorn-8-bit', packing: 'logical-2bpp-msb-groups', previewPixelAspect: 'square-editor-preview' },
@@ -100,7 +103,7 @@ export function parsePixelAssetDocument(value: string | unknown, fallbackKind: P
     migrated.pixels = parsed.pixels.map(pixelIndex);
     return migrated;
   }
-  if (parsed.schema !== '8bit-net.pixel-asset' || parsed.version !== 1) throw new Error('Unsupported pixel asset schema or version');
+  if (parsed.schema !== PIXEL_ASSET_SCHEMA || parsed.version !== 1) throw new Error('Unsupported pixel asset schema or version');
   if (!['character', 'sprite', 'tile'].includes(String(parsed.kind))) throw new Error('Pixel asset kind must be character, sprite or tile');
   validateDimensions(parsed.width, parsed.height);
   if (typeof parsed.name !== 'string' || !parsed.name.trim() || parsed.name.length > 80) throw new Error('Pixel asset name must contain 1–80 characters');

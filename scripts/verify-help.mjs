@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
@@ -9,18 +9,37 @@ for (const path of screenshotPaths) {
   if (!existsSync(resolve(root, 'public', path.slice(1)))) failures.push(`Missing help screenshot ${path}`);
 }
 
+/*
+ * The whole interface, not a list of five files somebody remembered to extend.
+ * A control the guide names can live in any workspace, and naming the files by
+ * hand meant a control that moved into one of the others read as missing.
+ */
 const source = [
-  'src/App.tsx',
-  'src/components/HelpWorkspace.tsx',
-  'src/components/ProjectSearchWorkspace.tsx',
-  'src/components/RomManagerWorkspace.tsx',
-  'src/components/ArchimedesFirmwareWorkspace.tsx',
-].map(path => readFileSync(resolve(root, path), 'utf8')).join('\n');
+  readFileSync(resolve(root, 'src/App.tsx'), 'utf8'),
+  ...readdirSync(resolve(root, 'src/components'))
+    .filter(name => name.endsWith('.tsx') && !name.endsWith('.test.tsx'))
+    .map(name => readFileSync(resolve(root, 'src/components', name), 'utf8')),
+].join('\n');
+/*
+ * Controls the guide tells somebody to choose by name.
+ *
+ * The guide went on telling people to click six things in a toolbar long after
+ * they had moved into menus, and nothing noticed, because a procedure is prose
+ * and prose does not fail. Naming them here is what makes a move break
+ * something: rename or remove one and this stops passing, which is the moment
+ * to fix the sentence that names it too.
+ */
 const maintainedControls = [
   'Save all project files in browser', 'Open technical help', 'Choose Acorn file',
   'Build all', 'Run', 'Pause', 'Step over', 'Apply permanent', 'Clear all',
   'New plan', 'Build &amp; run test', 'Add live build target', 'Search reference',
   'Search help', 'Import ROM set', 'Replace all',
+  /* Named by the procedures that were corrected when the menu bars arrived. */
+  'Start a project from a sample or an existing codebase', 'Export portable project',
+  'Compare saved', 'Split editor', 'Reset split', 'Signature help',
+  'Definition / Research', 'Call hierarchy', 'Declaration', 'Implementation',
+  'Type definition', 'Add generated source', 'Add EQUB source to project',
+  'Import an image', 'Import a Tiled JSON map', 'Declare tile', 'Add object at cursor',
 ];
 for (const control of maintainedControls) {
   if (!source.includes(control)) failures.push(`Documented control is absent from the interface source: ${control}`);

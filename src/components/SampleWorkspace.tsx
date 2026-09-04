@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { projectDocuments } from '../project/projectDocuments';
+import type { ProjectFile } from '../project/project';
 import { Icon } from './Icon';
 import {
   CHANNEL_MODES, closestPeriodForRate, createVidcSampleDocument, generateVidcSampleOutput,
@@ -12,6 +14,8 @@ import {
 } from '../assets/vidcSample';
 
 interface SampleWorkspaceProps {
+  /** Everything the project holds, so a sample already in it can be opened. */
+  projectFiles?: readonly ProjectFile[];
   /** The machine the workbench is set to, which fixes the byte order. */
   machineId: string;
   machineLabel: string;
@@ -40,7 +44,11 @@ function outline(samples: Int16Array, channelMode: number, columns: number): Arr
   return points;
 }
 
-export function SampleWorkspace({ machineId, machineLabel, onAddSource, onNotice }: SampleWorkspaceProps) {
+export function SampleWorkspace({ machineId, machineLabel, projectFiles = [], onAddSource, onNotice }: SampleWorkspaceProps) {
+  /* A sample document the project already holds. Sending somebody to a file
+   * dialog to fetch what the product is sitting on is busy work, and after an
+   * import it is the only thing they want. */
+  const openable = useMemo(() => projectDocuments(projectFiles, ['sample']), [projectFiles]);
   /* The byte order follows the machine and is never defaulted, so a machine
    * that has not been measured is refused here rather than encoded for a
    * guess. */
@@ -131,6 +139,18 @@ export function SampleWorkspace({ machineId, machineLabel, onAddSource, onNotice
   return (
     <section className="sample-workspace" aria-label="Sample editor">
       <header className="sample-toolbar">
+        {!!openable.length && (
+          <label className="project-source-picker"><span>From this project</span>
+            <select aria-label="Open a sample from this project" value="" onChange={(event) => {
+              const held = projectFiles.find((file) => file.id === event.target.value);
+              if (!held) return;
+              guard(() => parseVidcSampleDocument(held.content), `${held.name} opened from this project`);
+            }}>
+              <option value="">Choose a sample…</option>
+              {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
+            </select>
+          </label>
+        )}
         <label><span>Name</span><input aria-label="Sample name" value={document.name} onChange={(event) => guard(() => parseVidcSampleDocument({ ...document, name: event.target.value || 'untitled-sample' }))} /></label>
         <label>
           <span>Period (µs)</span>
