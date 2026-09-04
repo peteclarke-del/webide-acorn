@@ -1011,11 +1011,6 @@ async function waitFor(op, what, limit, delay) {
   throw new Error(`${what} timed out${last ? `: ${last.message}` : ''}`);
 }
 
-/* ---- verdict -------------------------------------------------------------- */
-
-/* A filter that matches nothing must not read as a pass. */
-if (!results.length) { console.error(only ? `No gate stage matches "${only}".` : 'The gate ran no stages.'); exit(2); }
-
 await stage('journey', async () => {
   /*
    * The whole authoring line, once per machine, in the built workbench.
@@ -1060,6 +1055,14 @@ const report = {
   failed: failed.length,
   skipped: skipped.length,
 };
+/* ---- verdict -------------------------------------------------------------- */
+
+/* After every stage, not before the last one: this sat above the journey stage,
+ * so `npm run ci journey` reported that no stage matched a stage that was about
+ * to run, and the check that a filter matched something was reading a list that
+ * was not finished yet. */
+if (!results.length) { console.error(only ? `No gate stage matches "${only}".` : 'The gate ran no stages.'); exit(2); }
+
 await mkdir(join(root, 'ci'), { recursive: true });
 await writeFile(join(root, 'ci', 'gate-report.json'), `${JSON.stringify(report, null, 2)}\n`);
 

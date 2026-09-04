@@ -167,7 +167,14 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
   const side = Math.round(Math.sqrt(cells.length));
   for (let i = 0; i < side; i += 1) cells[i * side + i].click();
   await wait(300);
-  const addSprite = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Add EQUB source');
+  /* The editor's actions live in its menu bar, so this opens the menu the way a
+   * person does rather than looking for a button that is no longer on the
+   * surface. */
+  const documentMenu = [...document.querySelectorAll('.panel-actions-button')].find((button) => button.textContent.trim() === 'Document');
+  if (!documentMenu) throw new Error('The sprite editor offers no Document menu to put what was drawn into the project');
+  documentMenu.click();
+  await wait(200);
+  const addSprite = [...document.querySelectorAll('.panel-menu-items button')].find((button) => /^Add EQUB source/.test(button.textContent.trim()));
   if (!addSprite) throw new Error('The sprite editor offers no way to put what was drawn into the project');
   addSprite.click();
   await wait(500);
