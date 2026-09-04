@@ -32,6 +32,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Read the bottom status line before running or debugging. It reports build and runtime readiness.",
       "Put a panel away with its close button or its activity-bar button, and bring it back the same way. The machine runtime beneath the editor is a panel too.",
       "Drag the bar between two panels to resize them, or focus it and use the arrow keys. Home and End go to the narrowest and widest; Enter, Space or a double-click returns the panel to its usual size.",
+      "A panel's own actions are in the menu bar at the top of it. It is one tab stop: left and right move between menus, down opens one, Escape closes it.",
     ],
     expected: [
       "The webide-acorn and native-builder containers report healthy.",

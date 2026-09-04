@@ -769,6 +769,22 @@
   /* The close dialog: a short question with the consequence written above the
    * buttons, because deleting a project's history is not something to discover
    * afterwards. */
+  /* A panel's own actions, as a menu bar rather than a row of buttons. The row
+   * spent the width of the panel and the height of a control on things used
+   * once a session, in front of the work itself. */
+  .panel-menu-bar { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; }
+  .panel-menu { position: relative; }
+  .panel-actions-button { min-height: 27px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius-xs); background: transparent; color: var(--theme-muted); font: 650 var(--fs-8)/1 var(--font-ui); }
+  .panel-actions-button:hover, .panel-actions-button:focus-visible { border-color: var(--theme-line-strong); color: var(--theme-ink); }
+  .panel-actions-button.open { border-color: var(--theme-primary); background: var(--theme-surface-2); color: var(--theme-ink-strong); }
+  .panel-menu-items { position: absolute; z-index: 40; top: calc(100% + 3px); left: 0; display: grid; min-width: 210px; max-height: min(60vh, 420px); padding: 4px; border: 1px solid var(--theme-line-strong); border-radius: var(--radius-xs); background: var(--theme-surface-1); box-shadow: var(--theme-shadow-md); overflow-y: auto; }
+  .panel-menu-item { display: flex; min-height: 28px; align-items: center; justify-content: space-between; gap: 14px; padding: 0 8px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--theme-ink); font: var(--fs-8)/1 var(--font-ui); text-align: left; }
+  .panel-menu-item:hover:not(:disabled), .panel-menu-item:focus-visible { background: var(--theme-hover); color: var(--theme-ink-strong); }
+  .panel-menu-item:disabled { opacity: .45; }
+  .panel-menu-item.separated { margin-top: 4px; border-top: 1px solid var(--theme-line); padding-top: 4px; }
+  .panel-menu-item small { color: var(--theme-faint); font: var(--fs-7)/1 var(--font-mono); }
+  .panel-menu-item[aria-checked="true"]::before { content: '✓'; margin-right: 6px; color: var(--theme-primary); }
+
   .import-asset-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
   .import-asset-actions button { min-height: 27px; padding: 0 9px; border: 1px solid var(--theme-line-strong); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-ink); }
   .import-asset-actions button:disabled { opacity: .45; }

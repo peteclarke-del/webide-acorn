@@ -21,6 +21,7 @@ Start the container, open the IDE, identify the project, workbench, emulator and
 5. Read the bottom status line before running or debugging. It reports build and runtime readiness.
 6. Put a panel away with its close button or its activity-bar button, and bring it back the same way. The machine runtime beneath the editor is a panel too.
 7. Drag the bar between two panels to resize them, or focus it and use the arrow keys. Home and End go to the narrowest and widest; Enter, Space or a double-click returns the panel to its usual size.
+8. A panel's own actions are in the menu bar at the top of it. It is one tab stop: left and right move between menus, down opens one, Escape closes it.
 
 **What should happen**
 
