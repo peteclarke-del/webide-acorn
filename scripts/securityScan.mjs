@@ -47,6 +47,29 @@ export const UNSCANNED = Object.freeze([
 ]);
 
 /**
+ * The JSON document inside a tool's output.
+ *
+ * Both of these audits print their report to stdout and occasionally print
+ * something else there first — a notice about a newer version, a warning about
+ * a slow advisory database. Requiring the whole stream to parse turned one of
+ * those into "nothing says whether the backend dependencies were scanned",
+ * which failed a release on a tree whose dependencies were in fact clean.
+ *
+ * Taking the outermost braces keeps the guarantee that matters — a report was
+ * produced and read — while tolerating a line of chatter around it. Output with
+ * no document in it at all still fails, because that is the case the message is
+ * about.
+ *
+ * @param {string} raw
+ * @returns {string}
+ */
+function jsonDocument(raw) {
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  return start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+}
+
+/**
  * Read an `npm audit --json` document.
  *
  * @param {string} raw
@@ -55,7 +78,7 @@ export const UNSCANNED = Object.freeze([
 export function readNpmAudit(raw) {
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(jsonDocument(raw));
   } catch {
     throw new Error('npm audit did not return JSON, so nothing says whether the dependencies were scanned.');
   }
@@ -80,7 +103,7 @@ export function readNpmAudit(raw) {
 export function readComposerAudit(raw) {
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(jsonDocument(raw));
   } catch {
     throw new Error('composer audit did not return JSON, so nothing says whether the backend dependencies were scanned.');
   }

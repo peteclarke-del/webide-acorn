@@ -27,6 +27,11 @@ describe('reading what the scanners said', () => {
     /* A scanner that produced nothing readable must not read as a scanner that
      * found nothing. */
     expect(() => readNpmAudit('not json')).toThrow(/did not return JSON/);
+    /* A notice printed before the report is chatter, not a failed scan: the
+     * report is there and reading it is what the stage is for. */
+    expect(readNpmAudit('npm notice a new version is available\n{"metadata":{"vulnerabilities":{"total":0}}}').total).toBe(0);
+    expect(readComposerAudit('Warning: the advisory database was slow\n{"advisories":[],"abandoned":[]}').advisories).toBe(0);
+    expect(() => readComposerAudit('no document here at all')).toThrow(/did not return JSON/);
     expect(() => readNpmAudit('{}')).toThrow(/no vulnerability summary/);
   });
 
