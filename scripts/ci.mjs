@@ -28,6 +28,7 @@ import { cpus } from 'node:os';
 import { namesInBuild, readLockfile } from './sbom.mjs';
 import { COPYLEFT_COMPONENTS, licenceComplianceFindings } from './licenceCompliance.mjs';
 
+
 /* The browser smoke drives Chrome over a WebSocket, which Node 20 only exposes
  * behind a flag. Rather than fail with `WebSocket is not defined` when someone
  * runs this file directly instead of through `npm run ci`, the gate re-executes
@@ -46,6 +47,33 @@ const only = argv.slice(2).find((value) => !value.startsWith('--'));
  * space arrives percent-encoded otherwise, and every spawned command then
  * fails with ENOENT on a directory that does not exist. */
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+
+/* Three stages drive the built workbench out of dist rather than the sources,
+ * which is right — that is what ships. But run one of them on its own and it
+ * will happily walk whatever was built last, so a change under src looks like
+ * it made no difference, or an old defect looks like it is still there. In a
+ * whole gate the build stage runs first and this never fires; on its own it
+ * says what to do instead of quietly measuring yesterday. */
+async function assertBuiltFromCurrentSources(what) {
+  const { stat, readdir } = await import('node:fs/promises');
+  const newest = async (directory, ignore = new Set()) => {
+    let latest = 0;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (ignore.has(entry.name)) continue;
+      const path = join(directory, entry.name);
+      latest = Math.max(latest, entry.isDirectory() ? await newest(path, ignore) : (await stat(path)).mtimeMs);
+    }
+    return latest;
+  };
+  let built = 0;
+  try { built = await newest(join(root, 'dist')); } catch (reason) { throw new Error(`There is no build for ${what} to walk (${reason.message}). Run npm run build first.`); }
+  const authored = Math.max(
+    await newest(join(root, 'src')),
+    await newest(join(root, 'public'), new Set()).catch(() => 0),
+    (await stat(join(root, 'index.html'))).mtimeMs,
+  );
+  if (authored > built) throw new Error(`The build in dist is older than the sources, so ${what} would walk code that is no longer written. Run npm run build first.`);
+}
 
 /* A named browser is authoritative: a pipeline that sets CHROMIUM_PATH expects
  * that binary, and quietly falling back to another one would hide a broken
@@ -340,6 +368,7 @@ await stage('smoke', async () => {
   const chromium = await firstExisting(CHROMIUM_CANDIDATES);
   if (!chromium) return { skipped: true, reason: env.CHROMIUM_PATH ? `CHROMIUM_PATH names ${env.CHROMIUM_PATH}, which is not there` : 'no Chromium binary found; set CHROMIUM_PATH to include the browser smoke' };
 
+  await assertBuiltFromCurrentSources('the smoke scan');
   const port = Number(env.CI_SMOKE_PORT ?? 8137);
   const devtoolsPort = Number(env.CI_SMOKE_DEVTOOLS_PORT ?? 9137);
   const dist = join(root, 'dist');
@@ -600,7 +629,12 @@ await stage('smoke', async () => {
     })()`);
     await delay(500);
     const built = await evaluate(`(() => {
-      const build = [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Build');
+      /* Inside the workspace, because the workbench's own menu bar carries a
+       * Build menu whose button reads the same word and sits earlier in the
+       * page: an unscoped search opened that menu and assembled nothing. */
+      const workspace = document.querySelector('.build-workspace');
+      if (!workspace) return 'the Build targets workspace did not open';
+      const build = [...workspace.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Build');
       if (!build) return 'no build control on the Build targets workspace';
       if (build.disabled) return 'the build control is disabled';
       build.click();
@@ -769,6 +803,7 @@ await stage('browsers', async () => {
     : '';
   if (!chromium && !geckodriver) return { skipped: true, reason: 'no browser could be started; set CHROMIUM_PATH or GECKODRIVER_PATH' };
 
+  await assertBuiltFromCurrentSources('the browser matrix');
   const port = Number(env.CI_MATRIX_PORT ?? 8139);
   const dist = join(root, 'dist');
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.wasm': 'application/wasm' };
@@ -1034,6 +1069,7 @@ await stage('journey', async () => {
    */
   const chromium = await firstExisting(CHROMIUM_CANDIDATES);
   if (!chromium) return { skipped: true, reason: env.CHROMIUM_PATH ? `CHROMIUM_PATH names ${env.CHROMIUM_PATH}, which is not there` : 'no Chromium binary found; set CHROMIUM_PATH to include the authoring journey' };
+  await assertBuiltFromCurrentSources('the journey');
   const { walkJourneys, JOURNEYS } = await import('./journey.mjs');
   const results = await walkJourneys(join(root, 'dist'), { chromium, port: Number(env.CI_JOURNEY_PORT ?? 8139) });
   const stopped = results.filter((result) => !result.ok);

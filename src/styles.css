@@ -81,7 +81,7 @@
   .tone-amber { border-color: color-mix(in srgb, var(--theme-accent) 42%, var(--theme-line)); color: var(--theme-accent); }
   .tone-blue { border-color: color-mix(in srgb, var(--theme-secondary) 42%, var(--theme-line)); color: var(--theme-secondary); }
 
-  .modebar { z-index: 18; display: flex; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
+  .modebar { z-index: 18; display: flex; flex-wrap: wrap; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
   .tab-scroll { display: flex; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .tab-scroll::-webkit-scrollbar { display: none; }
   .tab-group-label { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; padding: 0 8px 0 12px; color: var(--theme-primary); font: 700 var(--fs-7)/1 var(--font-mono); letter-spacing: .12em; }
@@ -773,6 +773,12 @@
    * spent the width of the panel and the height of a control on things used
    * once a session, in front of the work itself. */
   .panel-menu-bar { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; }
+  /* The same bar at the head of the mode strip, where it carries the whole
+   * workbench rather than one panel: flush against the tabs, the height of a
+   * tab, and free to wrap onto a second line on a narrow display instead of
+   * pushing the workspaces off the edge. */
+  .modebar .panel-menu-bar { flex: 0 1 auto; min-width: 0; gap: 0; padding-right: 4px; border-right: 1px solid var(--theme-line); }
+  .modebar .panel-actions-button { min-height: 36px; border-radius: 0; }
   .panel-menu { position: relative; }
   .panel-actions-button { min-height: 27px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius-xs); background: transparent; color: var(--theme-muted); font: 650 var(--fs-8)/1 var(--font-ui); }
   .panel-actions-button:hover, .panel-actions-button:focus-visible { border-color: var(--theme-line-strong); color: var(--theme-ink); }
@@ -1282,6 +1288,9 @@
   }
 
   @media (max-width: 900px) {
+    /* Too narrow for a menu bar beside the workspaces, so it takes the line
+     * above them and wraps within it rather than running off the edge. */
+    .modebar .panel-menu-bar { flex: 1 1 100%; padding-right: 0; border-right: 0; border-bottom: 1px solid var(--theme-line); }
     .topbar { grid-template-columns: minmax(190px, 1fr) auto; }
     .project-crumb { display: none; }
     .workbench { grid-template-columns: 43px minmax(0, 1fr); }

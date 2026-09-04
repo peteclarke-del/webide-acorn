@@ -69,6 +69,24 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
     node.click();
     return node;
   };
+  /* Opening a menu and choosing from it, the way somebody with a pointer does.
+   * The workbench keeps its actions in menu bars now, so a walk that only knew
+   * how to find buttons lying on the surface would miss most of what the
+   * product offers. */
+  const chooseFromMenu = async (barLabel, menuLabel, pattern, what) => {
+    const bar = document.querySelector('[role="menubar"][aria-label="' + barLabel + '"]');
+    if (!bar) throw new Error('No menu bar labelled ' + JSON.stringify(barLabel));
+    const menu = [...bar.querySelectorAll('.panel-actions-button')].find((button) => button.textContent.trim() === menuLabel);
+    if (!menu) throw new Error(barLabel + ' offers no ' + menuLabel + ' menu');
+    menu.click();
+    await wait(200);
+    const item = [...bar.querySelectorAll('.panel-menu-items button')].find((button) => pattern.test(button.textContent.trim()));
+    if (!item) throw new Error(menuLabel + ' offers no way to ' + what);
+    if (item.disabled) throw new Error(menuLabel + ' offers ' + what + ' but will not do it: ' + item.textContent.trim());
+    item.click();
+    await wait(300);
+    return item;
+  };
   const setSelect = (label, value) => {
     const select = document.querySelector('select[aria-label="' + label + '"]');
     if (!select) throw new Error('No selector labelled ' + JSON.stringify(label));
@@ -126,7 +144,7 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
   }
 
   /* Starting from the machine's own template. */
-  byLabel('Start from a sample or existing codebase').click();
+  await chooseFromMenu('Workbench menu', 'Project', /^Start a project from/, 'start a project from a sample or a codebase');
   await settle(() => !!document.querySelector('[aria-label="Start a project"]'), 'the start dialog');
   clickText('Templates');
   await wait(300);
@@ -167,17 +185,8 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
   const side = Math.round(Math.sqrt(cells.length));
   for (let i = 0; i < side; i += 1) cells[i * side + i].click();
   await wait(300);
-  /* The editor's actions live in its menu bar, so this opens the menu the way a
-   * person does rather than looking for a button that is no longer on the
-   * surface. */
-  const documentMenu = [...document.querySelectorAll('.panel-actions-button')].find((button) => button.textContent.trim() === 'Document');
-  if (!documentMenu) throw new Error('The sprite editor offers no Document menu to put what was drawn into the project');
-  documentMenu.click();
+  await chooseFromMenu('Sprites actions', 'Document', /^Add EQUB source/, 'put what was drawn into the project');
   await wait(200);
-  const addSprite = [...document.querySelectorAll('.panel-menu-items button')].find((button) => /^Add EQUB source/.test(button.textContent.trim()));
-  if (!addSprite) throw new Error('The sprite editor offers no way to put what was drawn into the project');
-  addSprite.click();
-  await wait(500);
   record('sprite to project', notices().slice(-1)[0] ?? 'added');
 
   /*

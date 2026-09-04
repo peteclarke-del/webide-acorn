@@ -46,7 +46,7 @@ import { analyseBuildGraph, impactedBuildTargets, sourceInputsForTarget } from '
 import { BUILD_PROFILES, buildEntryUpdate, buildProfileDefines, buildProfileKeepsDebugMetadata, buildProfileManifest, buildToolchainUpdate, compatibleToolchains, createBuildTarget, provenanceMatches, shouldScheduleBackgroundBuild, toolchainFor, validateBuildTarget, type BuildTarget } from './build/buildTarget';
 import { analysisCandidates, candidateReference, projectFileBytes, type AnalysisCandidate } from './analysis/projectAnalysisCandidates';
 import { PanelSeparator } from './components/PanelSeparator';
-import { PanelMenuBar } from './components/PanelMenuBar';
+import { PanelMenuBar, type PanelMenu, type PanelMenuItem } from './components/PanelMenuBar';
 import { isStoreManifest, storedFilesFor } from './cloud/storedProject';
 import { closeOutcome, closeQuestion, type CloseChoice, type CloseQuestion } from './project/closeProject';
 import { projectDocuments } from './project/projectDocuments';
@@ -1885,6 +1885,59 @@ function App() {
     return shortcut ? { ...command, shortcut } : command;
   });
 
+  /* The workbench menu bar is a view of that same command table rather than a
+   * second copy of it. Every item below is a command the palette, the shortcut
+   * dispatcher and the Settings keyboard panel already agree on, so a menu
+   * cannot offer something the workbench will not do, nothing reachable by a
+   * chord is hidden from somebody driving with a pointer, and the actions the
+   * header used to drop at narrow widths are now always within reach. */
+  const menuItemsFor = (categories: string[]): PanelMenuItem[] => commands
+    .filter((command) => categories.includes(command.category))
+    .map((command) => ({
+      id: `menu-${command.id}`,
+      label: command.label,
+      onSelect: command.run,
+      disabled: !command.enabled,
+      /* The chord where there is one, and otherwise the reason the item is
+       * greyed: an action that cannot be taken should say why on itself rather
+       * than leave somebody clicking at it. */
+      hint: command.shortcut ?? (command.enabled ? undefined : command.disabledReason),
+    }));
+  const workspaceHelpTopic = workspaceTab === 'Debugger'
+    ? (buildEntry?.language === 'arm' ? 'debugger-arm' : 'debugger-6502')
+    : workspaceHelpTopics[workspaceTab] ?? 'first-run';
+  const workbenchMenus: PanelMenu[] = [
+    { id: 'menu-file', label: 'File', items: menuItemsFor(['File', 'Analysis']) },
+    { id: 'menu-project', label: 'Project', items: menuItemsFor(['Project']) },
+    { id: 'menu-edit', label: 'Edit', items: menuItemsFor(['Editor']) },
+    { id: 'menu-build', label: 'Build', items: menuItemsFor(['Build', 'Run']) },
+    { id: 'menu-debug', label: 'Debug', items: menuItemsFor(['Debug']) },
+    {
+      id: 'menu-view',
+      label: 'View',
+      /* The workspaces are radio items rather than plain ones because exactly
+       * one of them is showing, and the menu should say which. */
+      items: [...menuItemsFor(['View']), ...[...workspaceTabs, ...assetTabs].map((tab) => ({
+        id: `menu-open-${tab}`,
+        label: tab,
+        onSelect: () => tab === 'Search' ? openProjectSearch() : setWorkspaceTab(tab),
+        checked: workspaceTab === tab,
+        separated: tab === workspaceTabs[0] || tab === assetTabs[0],
+      }))],
+    },
+    {
+      id: 'menu-help',
+      label: 'Help',
+      items: [
+        { id: 'menu-help-here', label: `Help for ${workspaceTab}`, onSelect: () => openHelp(workspaceHelpTopic) },
+        { id: 'menu-help-start', label: 'First run and workspace layout', onSelect: () => openHelp('first-run') },
+        { id: 'menu-help-search', label: 'Search and navigate the guide', onSelect: () => openHelp('using-help') },
+        { id: 'menu-help-keys', label: 'Keyboard shortcuts', onSelect: () => setWorkspaceTab('Settings'), separated: true },
+        { id: 'menu-help-palette', label: 'Command palette', onSelect: () => setCommandPaletteOpen(true) },
+      ],
+    },
+  ];
+
   /* Every workbench shortcut is dispatched from the resolved binding table, so
    * the palette labels, the Settings keyboard panel and the actual key handler
    * cannot drift apart. Chords the user unbinds simply stop resolving. */
@@ -2029,14 +2082,6 @@ function App() {
 
         <div className="global-actions" aria-label="Project actions">
           <div className="action-cluster">
-            <ToolbarButton label="New project" icon="new" onClick={newLocalProject} />
-            <ToolbarButton label="Open project" icon="open" onClick={() => projectInputRef.current?.click()} />
-            <ToolbarButton label="Start from a sample or existing codebase" icon="layers" onClick={() => setStartProjectOpen(true)} />
-            <ToolbarButton label="Save all project files in browser" icon="save" onClick={saveLocalProject} />
-            <ToolbarButton label="Export portable project" icon="download" onClick={() => setProjectExportOpen(true)} />
-            <ToolbarButton label="Analyse local file" icon="terminal" tone="blue" onClick={openAnalysisFile} />
-          </div>
-          <div className="action-cluster">
             <ToolbarButton label="Open command palette" icon="terminal" onClick={() => setCommandPaletteOpen(true)} />
             <ToolbarButton label="Open technical help" icon="book" onClick={() => openHelp('using-help')} />
             <ToolbarButton label={canBuild ? `Build target ${activeBuildTarget.name}` : buildTargetErrors[0] ?? 'Build target is invalid'} icon="build" tone="amber" onClick={() => buildActiveSource()} disabled={!canBuild} />
@@ -2048,6 +2093,7 @@ function App() {
       </header>
 
       <nav className="modebar" aria-label="IDE sections">
+        <PanelMenuBar label="Workbench menu" menus={workbenchMenus} />
         <div className="tab-group-label"><span />WORKSPACE</div>
         <div className="tab-scroll">
           {workspaceTabs.map((tab) => (
@@ -2073,7 +2119,7 @@ function App() {
             </button>
           ))}
         </div>
-        <button className="panel-menu-button" type="button" aria-label={`Open help for ${workspaceTab}`} title={`Open technical help for ${workspaceTab}`} onClick={() => openHelp(workspaceTab === 'Debugger' ? (buildEntry?.language === 'arm' ? 'debugger-arm' : 'debugger-6502') : workspaceHelpTopics[workspaceTab] ?? 'first-run')}>
+        <button className="panel-menu-button" type="button" aria-label={`Open help for ${workspaceTab}`} title={`Open technical help for ${workspaceTab}`} onClick={() => openHelp(workspaceHelpTopic)}>
           <Icon name="book" />
         </button>
       </nav>
