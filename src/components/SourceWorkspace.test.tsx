@@ -358,7 +358,7 @@ describe('functional source workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Disable bookmark Load accumulator' }));
     expect(screen.getByRole('button', { name: 'Enable bookmark Load accumulator' })).toBeVisible();
     fireEvent.change(screen.getByLabelText('Search project bookmarks'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Bookmark ↓' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next bookmark' }));
     expect(navigate).toHaveBeenCalledWith('other', 1, 1);
     expect(prompt).toHaveBeenCalledTimes(3);
   }, 15_000);

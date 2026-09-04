@@ -50,6 +50,12 @@ export interface TileMapCandidate {
   values: number[];
   /** Grid shapes the byte count allows, widest first. */
   shapes: Array<{ width: number; height: number }>;
+  /**
+   * What each tile index was drawn as, when the map was recovered from text
+   * somebody wrote rather than from assembled bytes. A byte run carries no
+   * such thing, so it is absent there.
+   */
+  legend?: Array<{ character: string; index: number; count: number }>;
 }
 
 const PIXEL_SIZES = [8, 16, 24, 32] as const;

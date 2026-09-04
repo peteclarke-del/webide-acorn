@@ -1319,7 +1319,7 @@
      * the workbench underneath. */
     .app-shell { grid-template-rows: 58px auto minmax(0, 1fr) 25px; }
     .modebar { flex-wrap: wrap; }
-    .modebar .panel-menu-bar { flex: 1 1 100%; padding-right: 0; border-right: 0; border-bottom: 1px solid var(--theme-line); }
+    .modebar .panel-menu-bar { flex: 1 1 100%; flex-wrap: wrap; padding-right: 0; border-right: 0; border-bottom: 1px solid var(--theme-line); }
     .topbar { grid-template-columns: minmax(190px, 1fr) auto; }
     .project-crumb { display: none; }
     .workbench { grid-template-columns: 43px minmax(0, 1fr); }

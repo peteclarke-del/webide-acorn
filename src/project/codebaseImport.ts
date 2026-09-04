@@ -9,6 +9,10 @@
 import { MAX_PROJECT_SOURCE_BYTES, MAX_SOURCE_FILE_BYTES, sourceUtf8ByteLength } from '../editor/sourceTextFormat';
 import { languageForFilename, parseProject, PROJECT_FORMAT, type LocalProject, type ProjectFile, type SourceLanguage } from './project';
 import { BUILD_TARGET_SCHEMA, defaultToolchainId, toolchainFor, type ToolchainId } from '../build/buildTarget';
+import { asciiMapGrid } from '../assets/asciiTileMap';
+import { screenDocumentFromBytes, serializeScreenDocument } from '../assets/screenDocument';
+import { screenDumpCandidate, type ScreenDumpCandidate } from '../assets/screenDump';
+import type { PaletteModeId } from '../assets/paletteDocument';
 import { assemblyByteRuns, pixelAssetCandidates, tileMapCandidates, tileMapFromCandidate, type DerivedPixelAsset, type TileMapCandidate } from '../assets/assemblyPixelData';
 import { serializeTileMapDocument } from '../assets/tileMapDocument';
 import { normalizeProjectPath } from './safeNames';
@@ -55,6 +59,12 @@ export interface CodebaseFileInput {
   /** Path relative to the chosen folder, using forward slashes. */
   path: string;
   content: string;
+  /**
+   * The raw bytes, where the caller kept them. Only a file that is exactly the
+   * length of a display mode's frame buffer arrives with these, and it is
+   * offered as a screen rather than imported as a source file.
+   */
+  bytes?: Uint8Array;
 }
 
 export interface PlannedImportFile {
@@ -97,6 +107,8 @@ export interface CodebaseImportPlan {
   exclusions: ImportExclusion[];
   targets: ProposedBuildTarget[];
   derivedAssets: DerivedPixelAsset[];
+  /** Files that are exactly a frame buffer, offered as screens to recover. */
+  screenCandidates: ScreenDumpCandidate[];
   mapCandidates: TileMapCandidate[];
   totalBytes: number;
   warnings: string[];
@@ -232,6 +244,13 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
   const sharesOneFirstSegment = firstSegments.size === 1 && normalizedPaths.every((path) => path.includes('/'));
   const stripFirstSegment = options.pathsIncludeChosenFolder ?? sharesOneFirstSegment;
   const sharedRoot = stripFirstSegment && sharesOneFirstSegment ? `${[...firstSegments][0]!}/` : '';
+  /* The screen the game opens on, which is not text and never was. It is
+   * offered rather than imported: nothing in a frame buffer says which display
+   * mode it is for, so this only gets as far as saying what it could be. */
+  const screenCandidates = ordered
+    .flatMap((input) => input.bytes ? [screenDumpCandidate(input.path.replace(/\\/g, '/').replace(/^\.\//, ''), input.bytes) ?? []] : [])
+    .flat();
+
   for (const input of ordered) {
     const path = input.path.replace(/\\/g, '/').replace(/^\.\//, '');
     const segments = path.split('/').filter((segment) => segment && segment !== '.' && segment !== '..');
@@ -241,8 +260,9 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
     if (ignored) { exclusions.push({ path, reason: 'ignored-directory', detail: `Inside ${ignored}.` }); continue; }
     if (base.startsWith('.')) { exclusions.push({ path, reason: 'unsupported-file-type', detail: 'Dot files are not imported.' }); continue; }
     const extension = extensionOf(base);
-    if (!TEXT_EXTENSIONS.has(extension) && !EXTENSIONLESS_NAMES.has(base.toLowerCase())) { exclusions.push({ path, reason: 'unsupported-file-type', detail: extension ? `.${extension} is not an editable source type.` : 'The file has no extension and is not a name this product recognises, such as Makefile.' }); continue; }
-    if (!isProbablyText(input.content)) { exclusions.push({ path, reason: 'not-text', detail: 'The contents did not decode as text.' }); continue; }
+    const offeredAsScreen = screenCandidates.some((candidate) => candidate.sourceFile === path);
+    if (!TEXT_EXTENSIONS.has(extension) && !EXTENSIONLESS_NAMES.has(base.toLowerCase())) { exclusions.push({ path, reason: 'unsupported-file-type', detail: offeredAsScreen ? 'Offered above as a screen to recover, rather than imported as a source file.' : extension ? `.${extension} is not an editable source type.` : 'The file has no extension and is not a name this product recognises, such as Makefile.' }); continue; }
+    if (!isProbablyText(input.content)) { exclusions.push({ path, reason: 'not-text', detail: offeredAsScreen ? 'Offered above as a screen to recover, rather than imported as a source file.' : 'The contents did not decode as text.' }); continue; }
     const content = input.content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
     const bytes = sourceUtf8ByteLength(content);
     if (bytes > MAX_SOURCE_FILE_BYTES) { exclusions.push({ path, reason: 'file-too-large', detail: `${bytes.toLocaleString()} bytes exceeds the 1 MiB per-file limit.` }); continue; }
@@ -282,10 +302,37 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
     .filter((file) => file.language === '6502')
     .flatMap((file) => assemblyByteRuns(file.name, contents.get(file.name) ?? ''));
   const derivedAssets = pixelAssetCandidates(runs, new Set(files.map((file) => file.name.toLowerCase())));
-  const mapCandidates = tileMapCandidates(runs);
+  /* And the maps somebody drew as characters instead of assembling. The path
+   * above only ever sees a map once it has been packed into a byte run, so a
+   * project that keeps its rooms as text files — which is how most people
+   * write one, and how the generator that produced the binary read them — had
+   * no maps recovered at all. Only plain text is read this way: an assembler
+   * include of EQUB lines is also a rectangle of equal-length lines, and the
+   * run above already reads that properly as artwork. */
+
+  const asciiMaps: TileMapCandidate[] = files
+    .filter((file) => file.language === 'text')
+    .flatMap((file) => {
+      const grid = asciiMapGrid(contents.get(file.name) ?? '');
+      if (!grid) return [];
+      return [{
+        id: `${file.name}:drawn`,
+        sourceFile: file.name,
+        sourceLabel: (file.name.split('/').pop() ?? file.name).replace(/\.[^.]+$/, ''),
+        sourceLine: grid.line,
+        byteLength: grid.values.length,
+        distinctValues: grid.legend.length,
+        values: grid.values,
+        /* One shape, because the text says how wide the map is rather than
+         * leaving it to be guessed from a byte count. */
+        shapes: [{ width: grid.width, height: grid.height }],
+        legend: grid.legend,
+      }];
+    });
+  const mapCandidates = [...tileMapCandidates(runs), ...asciiMaps];
 
   if (!files.length) warnings.push('No editable source file was found in that folder.');
-  return { name: folderName.trim() || 'Imported project', files, exclusions, targets, derivedAssets, mapCandidates, totalBytes, warnings: [...warnings, ...targetWarnings] };
+  return { name: folderName.trim() || 'Imported project', files, exclusions, targets, derivedAssets, screenCandidates, mapCandidates, totalBytes, warnings: [...warnings, ...targetWarnings] };
 }
 
 /**
@@ -325,6 +372,8 @@ export interface CodebaseImportSelection {
   derivedAssetIds?: readonly string[];
   /** Map candidates to promote, each with a grid shape its length allows. */
   derivedMaps?: ReadonlyArray<{ id: string; width: number; height: number }>;
+  /** Screens to recover, each with the display mode to read the bytes as. */
+  derivedScreens?: ReadonlyArray<{ id: string; mode: PaletteModeId }>;
   projectName?: string;
 }
 
@@ -359,6 +408,20 @@ export function codebaseImportDocument(
     while (used.has(fileName.toLowerCase())) { fileName = `${document.name}-${counter}.map.json`; counter += 1; }
     used.add(fileName.toLowerCase());
     files.push(savedFile(identify(fileName), fileName, serializeTileMapDocument(document), 'text'));
+  }
+  /* A recovered screen is the bytes that were saved, read as the mode that was
+   * chosen. Nothing is converted and nothing is guessed: choosing the wrong
+   * mode gives a wrong picture rather than a wrong file, and it can be opened
+   * again as the other one. */
+  for (const request of selection.derivedScreens ?? []) {
+    const candidate = plan.screenCandidates.find((entry) => entry.id === request.id);
+    if (!candidate || !candidate.modes.includes(request.mode)) continue;
+    const document = screenDocumentFromBytes(candidate.sourceLabel.slice(0, 80), request.mode, candidate.bytes);
+    let fileName = `${candidate.sourceLabel}.screen.json`;
+    let counter = 2;
+    while (used.has(fileName.toLowerCase())) { fileName = `${candidate.sourceLabel}-${counter}.screen.json`; counter += 1; }
+    used.add(fileName.toLowerCase());
+    files.push(savedFile(identify(fileName), fileName, serializeScreenDocument(document), 'text'));
   }
   const buildTargets = plan.targets.map((target) => ({
     schemaVersion: BUILD_TARGET_SCHEMA,

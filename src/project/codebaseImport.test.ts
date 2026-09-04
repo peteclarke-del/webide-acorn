@@ -267,6 +267,79 @@ describe('recovering assets from an imported codebase', () => {
     expect(plan.derivedAssets.find((entry) => entry.sourceLabel === 'level_map')!.alsoLooksLikeMapData).toBe(true);
   });
 
+  it('recovers a room somebody drew as characters, which no byte run holds', () => {
+    /* The rooms of a real forty-level game are text files like this one, read
+     * by the generator that packs them. Before this they arrived as plain text
+     * and nothing else, so a project whose maps were all in this form imported
+     * with no maps at all. */
+    const drawn = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'rooms/room01.txt', content: [
+        '; NAME: Sub-Basement',
+        '; SHIFTS: 5',
+        '',
+        '################',
+        '#......F.......#',
+        '#..............#',
+        '#...====.......#',
+        '#............F.#',
+        '#......##......#',
+        '#...........#..#',
+        '#P.........E...#',
+        '################',
+      ].join('\n') },
+    ], 'Drawn');
+    const room = drawn.mapCandidates.find((candidate) => candidate.sourceLabel === 'room01');
+    expect(room, 'the room is offered as a map').toBeTruthy();
+    expect(room!.shapes).toEqual([{ width: 16, height: 9 }]);
+    /* The floor is what most of the room is, so it is the map's empty cell. */
+    expect(room!.legend?.[0]).toMatchObject({ character: '.', index: 0 });
+    /* And the file it was drawn in is still imported as itself. */
+    expect(drawn.files.map((file) => file.name)).toContain('rooms/room01.txt');
+  });
+
+  it('offers the loading screen a game opens on, which is not text and was skipped', () => {
+    /* Twenty kilobytes of frame buffer, exactly as the machine reads it. This
+     * is how a loading screen reaches a project: converted by a tool, saved as
+     * the bytes the video hardware wants, loaded by the game's own loader. */
+    const bytes = new Uint8Array(20_480);
+    bytes[0] = 0x0f;
+    const plan = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'assets/loading/loading_acorn_mode2_selected.scr', content: '', bytes },
+    ], 'Loading');
+    expect(plan.screenCandidates).toHaveLength(1);
+    const offered = plan.screenCandidates[0]!;
+    /* The filename names the mode, and three modes share that length, so the
+     * named one leads and the other two remain available. */
+    expect(offered.modes).toEqual(['bbc-mode-2', 'bbc-mode-0', 'bbc-mode-1']);
+    expect(offered.namedByFilename).toBe(true);
+
+    const contents = contentsOf([], plan);
+    const without = projectFromCodebaseImport(plan, contents);
+    expect(without.files.some((file) => file.name.endsWith('.screen.json')), 'nothing is recovered unasked').toBe(false);
+
+    const project = projectFromCodebaseImport(plan, contents, { derivedScreens: [{ id: offered.id, mode: 'bbc-mode-2' }] });
+    const screen = project.files.find((file) => file.name === 'loading_acorn_mode2_selected.screen.json');
+    expect(screen, 'the screen becomes an editable document').toBeTruthy();
+    const document = JSON.parse(screen!.content) as { mode: string; framebufferBase64: string };
+    expect(document.mode).toBe('bbc-mode-2');
+    /* And it is the picture that was saved, byte for byte. */
+    const recovered = Uint8Array.from(atob(document.framebufferBase64), (character) => character.charCodeAt(0));
+    expect(recovered.length).toBe(20_480);
+    expect(recovered[0]).toBe(0x0f);
+  });
+
+  it('does not read an assembler include as a drawn map, because the run already reads it', () => {
+    /* Eight EQUB lines of the same length are a rectangle too. Reading them
+     * twice would offer the same artwork as a map beside itself as a sprite. */
+    const include = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'sprites.inc', content: Array.from({ length: 8 }, () => '    EQUB &00,&0F,&F0,&FF,&00,&0F,&F0,&FF').join('\n') },
+    ], 'Include');
+    expect(include.mapCandidates.filter((candidate) => candidate.id.endsWith(':drawn'))).toEqual([]);
+  });
+
   it('reports map-shaped data without inventing a document for it', () => {
     expect(plan.mapCandidates.map((candidate) => candidate.sourceLabel)).toEqual(['level_map']);
     expect(plan.mapCandidates[0]!.shapes.length).toBeGreaterThan(0);

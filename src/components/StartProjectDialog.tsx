@@ -8,6 +8,11 @@ import { projectFromTemplate, templatesForMachine } from '../project/templateCat
 import type { LocalProject } from '../project/project';
 import { ProjectStoreClient, type StoredProject, type StoredRevision } from '../cloud/projectStoreClient';
 import { projectFromStoredFiles } from '../cloud/storedProject';
+import { PALETTE_MODES, paletteModeProfile, type PaletteModeId } from '../assets/paletteDocument';
+import { screenGeometry } from '../assets/screenDocument';
+
+/* Every length a BBC frame buffer takes. */
+const SCREEN_BUFFER_LENGTHS = new Set(PALETTE_MODES.map((profile) => screenGeometry(profile.id).byteLength));
 
 interface StartProjectDialogProps {
   /** The folder handle is passed on only when the project came from one that
@@ -52,6 +57,8 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
   const [contents, setContents] = useState<Map<string, string>>();
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
   const [selectedMaps, setSelectedMaps] = useState<Record<string, string>>({});
+  /* Which screens to recover, and the display mode to read each one as. */
+  const [selectedScreens, setSelectedScreens] = useState<Record<string, PaletteModeId>>({});
   const [projectName, setProjectName] = useState('');
   const [reading, setReading] = useState(false);
   /* Anything the folder walk itself could not bring in, kept apart from the
@@ -86,7 +93,7 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
       const contents = await readDirectory(handle);
       if (!contents.entries.length) { onNotice(`${handle.name} contains no readable source files`); return; }
       setConnectedFolder(handle);
-      applyPlan(contents.entries.map((entry) => ({ path: entry.path, content: entry.content })), handle.name, [
+      applyPlan(contents.entries.map((entry) => ({ path: entry.path, content: entry.content, ...(entry.bytes ? { bytes: entry.bytes } : {}) })), handle.name, [
         ...contents.skipped.map((entry) => `${entry.path}: ${entry.reason}`),
         ...(contents.truncated ? ['The folder was larger than this workbench reads in one go, so it was cut short.'] : []),
       /* This route walks from the handle, so its paths are already relative to
@@ -157,8 +164,15 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
       const inputs: CodebaseFileInput[] = [];
       for (const file of files) {
         const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
-        /* Text is read for every candidate; the planner decides what survives. */
-        inputs.push({ path, content: await file.text() });
+        /* Text is read for every candidate; the planner decides what survives.
+         * A file that is exactly the length of a display mode's frame buffer
+         * also hands over its bytes, because that is what a loading screen is
+         * and it will never decode as text. */
+        inputs.push({
+          path,
+          content: await file.text(),
+          ...(SCREEN_BUFFER_LENGTHS.has(file.size) ? { bytes: new Uint8Array(await file.arrayBuffer()) } : {}),
+        });
       }
       /* webkitRelativePath begins with the folder that was chosen, always. */
       applyPlan(inputs, inputs[0]?.path.split('/')[0] ?? 'Imported project', [], { pathsIncludeChosenFolder: true });
@@ -187,7 +201,8 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
         const [width, height] = shape.split('x').map(Number);
         return Number.isInteger(width) && Number.isInteger(height) ? [{ id, width: width!, height: height! }] : [];
       });
-      const project = projectFromCodebaseImport(plan, contents, { derivedAssetIds: selectedAssets, derivedMaps, projectName });
+      const derivedScreens = Object.entries(selectedScreens).map(([id, mode]) => ({ id, mode }));
+      const project = projectFromCodebaseImport(plan, contents, { derivedAssetIds: selectedAssets, derivedMaps, derivedScreens, projectName });
       const from = connectedFolder ? `, connected to ${connectedFolder.name}` : '';
       onOpenProject(project, `Created ${project.name} from ${plan.files.length} imported file${plan.files.length === 1 ? '' : 's'}${from}`, connectedFolder);
     } catch (error) {
@@ -511,6 +526,54 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                               onChange={(event) => setSelectedMaps((current) => ({ ...current, [candidate.id]: event.target.value }))}
                             >
                               {candidate.shapes.map((shape) => <option key={`${shape.width}x${shape.height}`} value={`${shape.width}x${shape.height}`}>{shape.width}×{shape.height}</option>)}
+                            </select>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+
+                {!!plan.screenCandidates.length && (
+                  <details>
+                    <summary>Screens that can be recovered ({plan.screenCandidates.length})</summary>
+                    <p className="binding-note">
+                      These files are exactly the length of a display mode's frame buffer, which is how a loading
+                      screen reaches a project: saved as the bytes the video hardware reads. Nothing in those bytes
+                      says which mode they are for, so choose the one that is right and the picture is recovered
+                      unchanged. Choosing the wrong one gives a wrong picture, not a wrong file, and it can be
+                      opened again as the other.
+                    </p>
+                    <ul className="import-maps">
+                      {plan.screenCandidates.map((candidate) => (
+                        <li key={candidate.id}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              aria-label={`Recover ${candidate.sourceLabel} as an editable screen`}
+                              checked={selectedScreens[candidate.id] !== undefined}
+                              onChange={(event) => setSelectedScreens((current) => {
+                                const next = { ...current };
+                                if (event.target.checked) next[candidate.id] = candidate.modes[0]!;
+                                else delete next[candidate.id];
+                                return next;
+                              })}
+                            />
+                            <span>
+                              <strong>{candidate.sourceLabel}</strong> in {candidate.sourceFile} ·
+                              {' '}{candidate.byteLength.toLocaleString()} bytes
+                              {candidate.namedByFilename ? ' · the filename names its mode' : ''}
+                            </span>
+                          </label>
+                          <label className="import-map-shape">
+                            <span>Mode</span>
+                            <select
+                              aria-label={`Display mode for ${candidate.sourceLabel}`}
+                              disabled={selectedScreens[candidate.id] === undefined}
+                              value={selectedScreens[candidate.id] ?? candidate.modes[0]!}
+                              onChange={(event) => setSelectedScreens((current) => ({ ...current, [candidate.id]: event.target.value as PaletteModeId }))}
+                            >
+                              {candidate.modes.map((mode) => <option key={mode} value={mode}>{paletteModeProfile(mode).label} · {paletteModeProfile(mode).detail}</option>)}
                             </select>
                           </label>
                         </li>
