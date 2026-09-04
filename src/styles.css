@@ -81,7 +81,7 @@
   .tone-amber { border-color: color-mix(in srgb, var(--theme-accent) 42%, var(--theme-line)); color: var(--theme-accent); }
   .tone-blue { border-color: color-mix(in srgb, var(--theme-secondary) 42%, var(--theme-line)); color: var(--theme-secondary); }
 
-  .modebar { z-index: 18; display: flex; flex-wrap: wrap; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
+  .modebar { z-index: 18; display: flex; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
   .tab-scroll { display: flex; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .tab-scroll::-webkit-scrollbar { display: none; }
   .tab-group-label { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; padding: 0 8px 0 12px; color: var(--theme-primary); font: 700 var(--fs-7)/1 var(--font-mono); letter-spacing: .12em; }
@@ -517,18 +517,41 @@
   .reference-detail p { max-width: 680px; color: var(--theme-ink); font-size: var(--fs-14); line-height: 1.65; }
   .reference-detail dl { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); max-width: 680px; margin-top: 25px; border: 1px solid var(--theme-line); border-radius: var(--radius-sm); background: var(--theme-surface-1); }
   .reference-detail dl div { display: grid; gap: 5px; padding: 10px; border-right: 1px solid var(--theme-line); }.reference-detail dl div:last-child { border-right: 0; }.reference-detail dt { color: var(--theme-muted); font: var(--fs-8)/1 var(--font-mono); text-transform: uppercase; }.reference-detail dd { margin: 0; color: var(--theme-ink-strong); font-size: var(--fs-11); }
-  .pixel-editor-layout { display: grid; grid-template-columns: 180px minmax(280px, 1fr) minmax(250px, 34%); flex: 1; min-height: 0; }
-  .pixel-encoding-toolbar { display: flex; min-height: 38px; align-items: center; gap: 12px; padding: 5px 14px; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
-  .pixel-encoding-toolbar label { display: flex; align-items: center; gap: 8px; color: var(--theme-muted); font-size: var(--fs-9); }
-  .pixel-encoding-toolbar select { min-height: 28px; border: 1px solid var(--theme-line); border-radius: var(--radius-xs); background: var(--theme-input); color: var(--theme-ink); }
-  .pixel-encoding-toolbar > span { color: var(--theme-faint); font: var(--fs-8)/1.3 var(--font-mono); }
-  .sprite-metadata-toolbar { display: flex; min-height: 38px; align-items: center; flex-wrap: wrap; gap: 7px; padding: 4px 14px; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
-  .sprite-metadata-toolbar > div { display: flex; gap: 4px; margin-right: auto; }
-  .sprite-metadata-toolbar label { display: flex; align-items: center; gap: 4px; color: var(--theme-muted); font-size: var(--fs-8); }
-  .sprite-metadata-toolbar button, .sprite-metadata-toolbar select { min-height: 27px; border: 1px solid var(--theme-line); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-ink); font-size: var(--fs-8); }
-  .sprite-metadata-toolbar [aria-checked="true"] { border-color: var(--theme-focus); color: var(--theme-ink-strong); }
-  .sprite-animation-toolbar { display: flex; min-height: 54px; max-height: 104px; align-items: center; gap: 7px; padding: 5px 14px; overflow-x: auto; border-bottom: 1px solid var(--theme-line); background: color-mix(in srgb, var(--theme-primary) 4%, var(--theme-surface-1)); }
-  .sprite-animation-toolbar > div:first-child { display: grid; flex: 0 0 auto; gap: 2px; min-width: 120px; }.sprite-animation-toolbar > div:first-child strong { color: var(--theme-ink-strong); font-size: var(--fs-9); }.sprite-animation-toolbar > div:first-child span { color: var(--theme-faint); font: var(--fs-8)/1.25 var(--font-mono); }
+  /* Four sections and three columns: the generated output was landing on a
+   * second row underneath the document panel, a hundred and eighty pixels
+   * wide, while the stage kept half the height it should have had. The two
+   * read-only panels share the last column and the stage keeps the middle one
+   * whole. */
+  .pixel-editor-layout { display: grid; grid-template-columns: 180px minmax(280px, 1fr) minmax(230px, 30%); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); flex: 1; min-height: 0; }
+  .pixel-controls { grid-area: 1 / 1 / 3 / 2; }
+  .pixel-stage { grid-area: 1 / 2 / 3 / 3; }
+  .target-mode-preview { grid-area: 1 / 3 / 2 / 4; }
+  .pixel-output { grid-area: 2 / 3 / 3 / 4; border-top: 1px solid var(--theme-line); }
+  /* What used to be three rows above the drawing. The plane switch is the one
+   * control that stayed on the surface, because it is a mode somebody changes
+   * while painting; the byte encoding moved into a menu, and the hotspot down
+   * beside the rest of the document's description. */
+  .pixel-stage-tools { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 5px 12px; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
+  .pixel-plane-switch { display: flex; flex: 0 0 auto; gap: 4px; }
+  .pixel-zoom { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; }
+  .pixel-zoom button { min-width: 28px; min-height: 27px; padding: 0 7px; border: 1px solid var(--theme-line); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-ink); font-size: var(--fs-9); }
+  .pixel-zoom button[aria-pressed="true"] { border-color: var(--theme-focus); color: var(--theme-ink-strong); }
+  .pixel-zoom span { min-width: 46px; color: var(--theme-muted); font: var(--fs-8)/1 var(--font-mono); text-align: center; }
+  /* The heading carries the bar, the plane switch and the magnification, and
+   * a bar that wrapped inside it would push the drawing further down. */
+  .runtime-heading .panel-menu-bar { flex-wrap: nowrap; }
+  .pixel-workspace .runtime-heading { min-height: 44px; padding-block: 4px; }
+  .pixel-workspace .runtime-heading > div:first-child { flex: 0 0 auto; }
+  .pixel-workspace .runtime-heading h2 { white-space: nowrap; }
+  .pixel-plane-switch button { min-height: 27px; padding: 0 9px; border: 1px solid var(--theme-line); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-ink); font-size: var(--fs-9); }
+  .pixel-plane-switch button.selected { border-color: var(--theme-focus); background: var(--theme-surface-3); color: var(--theme-ink-strong); }
+  .pixel-hotspot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .pixel-encoding-note { margin: -4px 0 10px; color: var(--theme-faint); font: var(--fs-8)/1.35 var(--font-mono); }
+  .sprite-animation-toolbar { border-bottom: 1px solid var(--theme-line); background: color-mix(in srgb, var(--theme-primary) 4%, var(--theme-surface-1)); }
+  .sprite-animation-toolbar > summary { display: flex; min-height: 30px; align-items: center; gap: 9px; padding: 4px 14px; cursor: pointer; }
+  .sprite-animation-toolbar > summary strong { color: var(--theme-ink-strong); font-size: var(--fs-9); }
+  .sprite-animation-toolbar > summary span { color: var(--theme-faint); font: var(--fs-8)/1.25 var(--font-mono); }
+  .sprite-animation-row { display: flex; min-height: 54px; max-height: 104px; align-items: center; gap: 7px; padding: 0 14px 6px; overflow-x: auto; }
   .sprite-frame-tabs { display: flex; flex: 0 0 auto; align-self: stretch; gap: 3px; max-width: 420px; overflow-x: auto; }
   .sprite-frame-tabs button { display: grid; grid-template-columns: auto 1fr; grid-template-rows: 1fr 1fr; min-width: 86px; padding: 3px 6px; text-align: left; }.sprite-frame-tabs button strong { grid-row: 1 / 3; align-self: center; margin-right: 4px; color: var(--theme-primary); }.sprite-frame-tabs button span { color: var(--theme-ink-strong); font-size: var(--fs-8); }.sprite-frame-tabs button small { color: var(--theme-faint); font: var(--fs-7) var(--font-mono); }.sprite-frame-tabs button.selected { border-color: var(--theme-focus); box-shadow: inset 0 -2px var(--theme-focus); }
   .sprite-animation-toolbar label { display: grid; flex: 0 0 auto; gap: 2px; color: var(--theme-muted); font-size: var(--fs-7); }.sprite-animation-toolbar label input { width: 92px; }.sprite-animation-toolbar label input[type="number"] { width: 70px; }.sprite-animation-toolbar label select { width: 68px; }
@@ -703,9 +726,6 @@
   .pixel-output { background: var(--theme-surface-1); }
   .asset-summary { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
   .asset-summary span { padding: 4px 6px; border: 1px solid var(--theme-line); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-muted); font: var(--fs-9)/1 var(--font-mono); }
-  .asset-build-toolbar { display: flex; min-height: 46px; align-items: center; gap: 12px; padding: 6px 14px; border-top: 1px solid var(--theme-line); background: var(--theme-surface-1); }
-  .asset-build-toolbar > div { display: grid; gap: 3px; margin-right: auto; }.asset-build-toolbar strong { color: var(--theme-ink-strong); font-size: var(--fs-9); }.asset-build-toolbar span { color: var(--theme-muted); font: var(--fs-8)/1.3 var(--font-mono); }
-  .asset-build-toolbar button { min-height: 30px; border: 1px solid var(--theme-primary); border-radius: var(--radius-xs); background: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-surface-2)); color: var(--theme-ink-strong); }
   .pixel-output pre { margin: 0; color: var(--theme-code-number); font: var(--fs-11)/1.55 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
   .media-loader { display: grid; min-height: 0; flex: 1; grid-template-columns: minmax(0, 1.4fr) minmax(220px, .8fr); }.media-loader > section { min-width: 0; padding: 14px; overflow: auto; border-right: 1px solid var(--theme-line); }.media-loader > section:last-child { border-right: 0; }.media-loader h3 { margin: 0 0 8px; color: var(--theme-ink-strong); font-size: var(--fs-9); }.media-loader p { max-width: 720px; color: var(--theme-muted); font-size: var(--fs-8); line-height: 1.5; }
   .media-fields { display: grid; max-width: 620px; grid-template-columns: minmax(0, 1fr) 120px auto; align-items: end; gap: 8px; margin-top: 15px; }.media-fields label { display: grid; gap: 5px; }.media-fields label > span { color: var(--theme-faint); font: var(--fs-6-5)/1 var(--font-mono); text-transform: uppercase; }.media-fields input, .media-fields select { min-width: 0; height: 32px; padding: 0 8px; border: 1px solid var(--theme-line); border-radius: 4px; background: var(--theme-input); color: var(--theme-ink); font: var(--fs-8)/1 var(--font-mono); }.media-fields button { display: flex; height: 32px; align-items: center; gap: 5px; padding: 0 9px; border: 1px solid var(--theme-line-strong); border-radius: 4px; background: var(--theme-surface-2); color: var(--theme-ink); font-size: var(--fs-8); }.media-fields button:disabled { opacity: .45; }
@@ -777,7 +797,11 @@
    * workbench rather than one panel: flush against the tabs, the height of a
    * tab, and free to wrap onto a second line on a narrow display instead of
    * pushing the workspaces off the edge. */
-  .modebar .panel-menu-bar { flex: 0 1 auto; min-width: 0; gap: 0; padding-right: 4px; border-right: 1px solid var(--theme-line); }
+  /* Neither shrinking nor wrapping: the strip is one fixed row, so a bar that
+   * wrapped inside it would draw its last menus over the workbench. The
+   * workspaces beside it scroll instead, which is what they are built to do. */
+  .modebar .panel-menu-bar { flex: 0 0 auto; flex-wrap: nowrap; gap: 0; padding-right: 4px; border-right: 1px solid var(--theme-line); }
+  .modebar .tab-scroll { flex: 1 1 auto; }
   .modebar .panel-actions-button { min-height: 36px; border-radius: 0; }
   .panel-menu { position: relative; }
   .panel-actions-button { min-height: 27px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius-xs); background: transparent; color: var(--theme-muted); font: 650 var(--fs-8)/1 var(--font-ui); }
@@ -1289,7 +1313,12 @@
 
   @media (max-width: 900px) {
     /* Too narrow for a menu bar beside the workspaces, so it takes the line
-     * above them and wraps within it rather than running off the edge. */
+     * above them and wraps within it rather than running off the edge. The
+     * strip is one fixed row in the shell at every other width, so the row has
+     * to be told to grow with it — a wrapped bar in a 37-pixel row draws over
+     * the workbench underneath. */
+    .app-shell { grid-template-rows: 58px auto minmax(0, 1fr) 25px; }
+    .modebar { flex-wrap: wrap; }
     .modebar .panel-menu-bar { flex: 1 1 100%; padding-right: 0; border-right: 0; border-bottom: 1px solid var(--theme-line); }
     .topbar { grid-template-columns: minmax(190px, 1fr) auto; }
     .project-crumb { display: none; }
@@ -1310,7 +1339,7 @@
   }
 
   @media (max-width: 700px) {
-    .app-shell { grid-template-rows: 52px 37px minmax(0, 1fr) 25px; }
+    .app-shell { grid-template-rows: 52px auto minmax(0, 1fr) 25px; }
     .topbar { grid-template-columns: minmax(150px, 1fr) auto; gap: 6px; padding-inline: 9px 5px; }
     .brand-mark { width: 31px; height: 31px; }
     .brand-name { font-size: var(--fs-12); }
