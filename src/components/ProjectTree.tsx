@@ -53,7 +53,7 @@ export function nextTreeIndex(key: string, index: number, length: number): numbe
 }
 
 export type TreeRow =
-  | { kind: 'folder'; key: string; label: string; depth: number }
+  | { kind: 'folder'; key: string; label: string; depth: number; collapsed: boolean; holds: number }
   | { kind: 'file'; key: string; file: ProjectFile; label: string; depth: number };
 
 /**
@@ -67,7 +67,18 @@ export type TreeRow =
  *
  * Pure, so what the tree shows can be checked without rendering one.
  */
-export function foldersAndFiles(files: readonly ProjectFile[]): TreeRow[] {
+export function foldersAndFiles(files: readonly ProjectFile[], collapsed: ReadonlySet<string> = new Set()): TreeRow[] {
+  /* What each folder holds, counted before anything is hidden, so a shut folder
+   * can say how much is inside it rather than just disappearing. */
+  const holds = new Map<string, number>();
+  for (const file of files) {
+    const folders = file.name.split('/').slice(0, -1);
+    for (let depth = 0; depth < folders.length; depth += 1) {
+      const key = folders.slice(0, depth + 1).join('/');
+      holds.set(key, (holds.get(key) ?? 0) + 1);
+    }
+  }
+
   const rows: TreeRow[] = [];
   let open: string[] = [];
   for (const file of files) {
@@ -77,13 +88,27 @@ export function foldersAndFiles(files: readonly ProjectFile[]): TreeRow[] {
      * of files in one folder is listed under one heading. */
     let shared = 0;
     while (shared < folders.length && shared < open.length && folders[shared] === open[shared]) shared += 1;
-    for (let depth = shared; depth < folders.length; depth += 1) {
-      rows.push({ kind: 'folder', key: folders.slice(0, depth + 1).join('/'), label: folders[depth]!, depth });
+    let hidden = false;
+    for (let depth = 0; depth < folders.length; depth += 1) {
+      const key = folders.slice(0, depth + 1).join('/');
+      /* A folder inside a shut one is not drawn at all; the shut folder is,
+       * because it is the way back to what it holds. */
+      if (depth >= shared && !hidden) {
+        rows.push({ kind: 'folder', key, label: folders[depth]!, depth, collapsed: collapsed.has(key), holds: holds.get(key) ?? 0 });
+      }
+      if (collapsed.has(key)) hidden = true;
     }
     open = folders;
-    rows.push({ kind: 'file', key: file.id, file, label: segments[segments.length - 1]!, depth: folders.length });
+    if (!hidden) rows.push({ kind: 'file', key: file.id, file, label: segments[segments.length - 1]!, depth: folders.length });
   }
   return rows;
+}
+
+/** The folder a row sits in, for the arrow key that moves out to the parent. */
+export function parentFolderOf(row: TreeRow): string | null {
+  const segments = row.kind === 'folder' ? row.key.split('/') : row.file.name.split('/').slice(0, -1);
+  const parent = row.kind === 'folder' ? segments.slice(0, -1) : segments;
+  return parent.length ? parent.join('/') : null;
 }
 
 export interface ProjectTreeProps {
@@ -102,6 +127,8 @@ export interface ProjectTreeProps {
   artifacts?: React.ReactNode;
 }
 
+const COLLAPSED_KEY = '8bit-net-dev:tree-collapsed';
+
 export function ProjectTree({
   files, buildTargets, activeFileId, activeBuildTargetId, trash,
   onOpenFile, onSelectBuildTarget, onRestore, onPurge, onReorder, artifacts,
@@ -111,6 +138,26 @@ export function ProjectTree({
    * here instead. It is kept in a ref as well as state because a drag that
    * reaches its first dragover before React has re-rendered would otherwise
    * find no drag in progress and refuse the drop. */
+  /*
+   * Which folders are shut.
+   *
+   * Remembered in this browser, because a project that arrives with sixty rooms
+   * under one folder is unusable if every visit reopens all of it, and because
+   * the arrangement of the workbench is already remembered this way.
+   */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(COLLAPSED_KEY) ?? '[]') as unknown;
+      return new Set(Array.isArray(saved) ? saved.filter((entry): entry is string => typeof entry === 'string') : []);
+    } catch { return new Set(); }
+  });
+  const toggleFolder = (key: string) => setCollapsed((current) => {
+    const next = new Set(current);
+    if (!next.delete(key)) next.add(key);
+    try { window.localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])); } catch { /* a browser that refuses storage still opens and shuts folders */ }
+    return next;
+  });
+
   const draggingRef = useRef<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null);
@@ -169,6 +216,23 @@ export function ProjectTree({
 
   const move = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (reorderByKeyboard(event)) return;
+    /* Right and left open and shut a folder, which is what they do in every
+     * tree. On a file, left goes out to the folder it sits in. */
+    const row = (event.target as HTMLElement).closest<HTMLElement>('[data-tree-item]');
+    const folderKey = row?.dataset.treeFolder;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      const shutting = event.key === 'ArrowLeft';
+      if (folderKey && collapsed.has(folderKey) !== shutting) { event.preventDefault(); toggleFolder(folderKey); return; }
+      if (shutting) {
+        const parent = row?.dataset.treeParent;
+        if (parent) {
+          event.preventDefault();
+          event.currentTarget.querySelector<HTMLElement>(`[data-tree-folder="${CSS.escape(parent)}"]`)?.focus();
+          return;
+        }
+      }
+      if (!folderKey && !shutting) return;
+    }
     const container = event.currentTarget;
     const items = Array.from(container.querySelectorAll<HTMLElement>('[data-tree-item]'));
     const current = (event.target as HTMLElement).closest<HTMLElement>('[data-tree-item]');
@@ -196,10 +260,25 @@ export function ProjectTree({
         return (
           <div key={group.id} role="group" aria-label={group.label}>
             <div className="tree-section"><Icon name="chevron" size={13} /><Icon name={group.icon} size={15} /><strong>{group.label}</strong><small>{grouped.length}</small></div>
-            {foldersAndFiles(grouped).map((row) => row.kind === 'folder' ? (
-              <div className="tree-folder" key={`folder:${row.key}`} style={{ '--tree-depth': row.depth } as CSSProperties}>
-                <Icon name="folder" size={14} /><span>{row.label}</span>
-              </div>
+            {foldersAndFiles(grouped, collapsed).map((row) => row.kind === 'folder' ? (
+              <button
+                className={row.collapsed ? 'tree-folder collapsed' : 'tree-folder'}
+                type="button"
+                role="treeitem"
+                aria-expanded={!row.collapsed}
+                aria-label={`${row.key}, ${row.holds} file${row.holds === 1 ? '' : 's'}`}
+                tabIndex={-1}
+                data-tree-item={`folder:${row.key}`}
+                data-tree-folder={row.key}
+                {...(parentFolderOf(row) ? { 'data-tree-parent': parentFolderOf(row)! } : {})}
+                key={`folder:${row.key}`}
+                title={`${row.key} · ${row.holds} file${row.holds === 1 ? '' : 's'}`}
+                style={{ '--tree-depth': row.depth } as CSSProperties}
+                onClick={() => toggleFolder(row.key)}
+              >
+                <Icon name="chevron" size={12} /><Icon name="folder" size={14} /><span>{row.label}</span>
+                {row.collapsed && <small>{row.holds}</small>}
+              </button>
             ) : (
               <button
                 className={[
@@ -212,6 +291,7 @@ export function ProjectTree({
                 aria-selected={activeFileId === row.file.id}
                 tabIndex={tabIndexFor(row.file.id)}
                 data-tree-item={row.file.id}
+                {...(parentFolderOf(row) ? { 'data-tree-parent': parentFolderOf(row)! } : {})}
                 key={row.file.id}
                 title={row.file.name}
                 style={{ '--tree-depth': row.depth } as CSSProperties}

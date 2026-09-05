@@ -199,7 +199,14 @@
    * indents by how deep a file sits. Folder rows are headings rather than tree
    * items, so the arrow keys still move from file to file. */
   .tree-item { padding-left: calc(21px + var(--tree-depth, 0) * 11px); }
-  .tree-folder { display: flex; align-items: center; gap: 5px; min-height: 23px; padding-left: calc(10px + var(--tree-depth, 0) * 11px); color: var(--theme-faint); font: 650 var(--fs-7)/1 var(--font-mono); }
+  /* A folder is something to open and shut now, so it is a control and takes
+   * the size every other control does. Its chevron turns rather than being
+   * swapped for another icon, so the row does not shift as it opens. */
+  .tree-folder { display: flex; width: 100%; align-items: center; gap: 5px; padding-left: calc(10px + var(--tree-depth, 0) * 11px); border: 0; border-radius: 0; background: transparent; text-align: left; color: var(--theme-faint); font: 650 var(--fs-7)/1 var(--font-mono); }
+  .tree-folder:hover, .tree-folder:focus-visible { background: var(--theme-hover); color: var(--theme-ink); }
+  .tree-folder > svg:first-child { flex: 0 0 auto; transition: transform 120ms ease; }
+  .tree-folder.collapsed > svg:first-child { transform: rotate(-90deg); }
+  .tree-folder small { margin-left: auto; padding-left: 6px; color: var(--theme-muted); font: var(--fs-6)/1 var(--font-mono); }
   .tree-folder span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-item:hover { background: var(--theme-hover); color: var(--theme-ink); }
   .tree-item.active { background: color-mix(in srgb, var(--theme-primary) 13%, var(--theme-surface-3)); color: var(--theme-ink-strong); }
