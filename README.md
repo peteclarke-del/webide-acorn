@@ -975,12 +975,24 @@ npm run build
   export and import as a versioned document that validates each entry on its own
   and preserves entries a newer build wrote; projects, firmware, test history
   and asset drafts are never included, and an import cannot smuggle one back in.
+- Benchmarks that say what they did not measure. `npm run benchmark` opens the
+  built workbench in every browser the machine can produce and records startup,
+  edit latency, live diagnostics, build, trace filtering and an asset canvas
+  against ceilings taken from what is already true rather than chosen. Safari
+  cannot be run on Linux and the emulator areas need firmware that may not enter
+  this repository; each is named with its reason, because an unmeasured area
+  with nothing beside it reads as an area that was fine.
 - One release gate, `npm run ci`, is the single definition of what must pass:
-  the TypeScript build, help verification, the whole test suite, the production
-  build, the vendored GPL provenance, an executable check that no firmware or
-  media image is tracked, and a headless browser smoke that boots the built
-  workbench and fails on any console error, and the backend suite against the
-  real assemblers. No test is allowed to skip: the gate fails if any test in
+  the TypeScript build, help verification, the whole test suite against its
+  coverage floors, the backend suite against the real assemblers, PHPStan at
+  level 8 with the PHP formatter in check mode, a dependency vulnerability scan
+  that names what it does not scan, the production build, the
+  vendored GPL provenance, an executable check that no firmware or media image
+  is tracked, a headless browser smoke that boots the built workbench and
+  fails on any console error, and a cross-browser stage that starts the same
+  build in every engine the machine has — Chromium and Firefox today — and names
+  every engine it could not start, including Safari, rather than substituting
+  another for it. No test is allowed to skip: the gate fails if any test in
   either suite did not run, and a stage that cannot run is reported as skipped
   with its reason and fails the gate too, so the pipeline cannot quietly check
   less than it believes it does. `npm run toolchains` obtains the pinned

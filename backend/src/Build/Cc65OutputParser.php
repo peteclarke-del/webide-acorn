@@ -116,7 +116,10 @@ final class Cc65OutputParser
     {
         $fields = [];
         foreach (str_getcsv($raw, ',', '"', '\\') as $field) {
-            if (!str_contains($field, '=')) {
+            /* A blank field comes back as null rather than as an empty string,
+             * and passing that to str_contains is a deprecation today and an
+             * error tomorrow. */
+            if (!is_string($field) || !str_contains($field, '=')) {
                 continue;
             }
             [$key, $value] = explode('=', $field, 2);

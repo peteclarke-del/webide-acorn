@@ -118,3 +118,56 @@ describe('assertions for protocols and machines beyond the BBC MOS', () => {
     expect(parse('NONSENSE = 1').errors[0]).toMatch(/AUDIO\[SPEAKER\].*EVENT\[address\].*CYCLES IN low\.\.high/);
   });
 });
+
+describe('which processor a plan is about', () => {
+  it('is the host unless the plan says otherwise', () => {
+    /* Every plan written before there was a second processor means the host,
+     * and has to keep meaning it. */
+    expect(parseTestPlan('&2000', 'A = 1', {}).processor).toBe('host');
+  });
+
+  it('takes the processor from a declaration, in either spelling', () => {
+    expect(parseTestPlan('&2000', 'PROCESSOR = PARASITE\nA = 1', {})).toMatchObject({ processor: 'parasite', errors: [] });
+    expect(parseTestPlan('&2000', 'PROCESSOR PARASITE\nA = 1', {}).processor).toBe('parasite');
+    expect(parseTestPlan('&2000', 'processor = host\nA = 1', {}).processor).toBe('host');
+  });
+
+  it('refuses a second declaration rather than letting one silently win', () => {
+    const plan = parseTestPlan('&2000', 'PROCESSOR = PARASITE\nA = 1\nPROCESSOR = HOST', {});
+    expect(plan.errors).toEqual(['Line 3: PROCESSOR is already declared on line 1']);
+    expect(plan.processor).toBe('parasite');
+  });
+
+  it('refuses assertions about host hardware in a parasite plan, saying why', () => {
+    /* These would each answer confidently about the wrong machine: a parasite
+     * program executes none of the host MOS and has none of its hardware. */
+    const plan = parseTestPlan('&2000', [
+      'PROCESSOR = PARASITE',
+      'A = 1',
+      'OUTPUT = "hello"',
+      'EVENT[OSWRCH] = 5',
+      'SCREEN[0,0,8,8] = FNV32:11223344',
+      'AUDIO[WRITES] = 11223344',
+    ].join('\n'), {});
+    expect(plan.errors).toEqual([
+      expect.stringContaining('OUTPUT captures the host MOS OSWRCH entry'),
+      expect.stringContaining('EVENT[MOS_CALL] counts entries to the host MOS'),
+      expect.stringContaining('SCREEN reads the host video hardware'),
+      expect.stringContaining('AUDIO[WRITES] counts writes to the host sound chip'),
+    ]);
+    expect(plan.errors.every((error) => error.includes('can assert registers, memory and cycles'))).toBe(true);
+  });
+
+  it('accepts what the parasite actually has', () => {
+    const plan = parseTestPlan('.done', 'PROCESSOR = PARASITE\nA = &42\nMEM[&2100] = 01 02\nCYCLES <= 100000', { done: 0x2000 });
+    expect(plan.errors).toEqual([]);
+    expect(plan.stopAddress).toBe(0x2000);
+    expect(plan.assertions.map((assertion) => assertion.kind)).toEqual(['register', 'memory', 'cycles']);
+  });
+
+  it('leaves the same assertions alone on a host plan', () => {
+    const plan = parseTestPlan('&2000', 'OUTPUT = "hello"\nEVENT[OSWRCH] = 5', {});
+    expect(plan.errors).toEqual([]);
+    expect(plan.processor).toBe('host');
+  });
+});

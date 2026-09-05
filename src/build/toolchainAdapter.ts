@@ -12,6 +12,11 @@ export interface ToolchainInvocation {
   target: BuildTarget;
   entry: ProjectFile;
   files: ProjectFile[];
+  /* The machine the program is being written for. It decides which operating
+   * system's entry points the source is assembled against: the Atom's are not
+   * the BBC's, and against the wrong table a program builds cleanly and calls
+   * addresses that mean something else. */
+  machineId?: string;
 }
 
 export interface BrowserToolchainAdapter {
@@ -34,9 +39,10 @@ const basicAdapter = (manifest: ToolchainManifest): BrowserToolchainAdapter => (
 const assemblyAdapter = (manifest: ToolchainManifest): BrowserToolchainAdapter => ({
   manifest,
   profileIds: BUILD_PROFILES.map((profile) => profile.id),
-  invoke: ({ target, entry, files }) => {
+  invoke: ({ target, entry, files, machineId }) => {
     const processor: Processor = manifest.processor === '65c02' ? '65c02' : '6502';
     const built = assembleProject6502(entry.id, files, processor, {
+      machineId,
       defaultOrigin: parseBuildAddress(target.memoryLayout.defaultOrigin) ?? 0x1900,
       maximumAddress: parseBuildAddress(target.memoryLayout.maximumAddress) ?? 0xffff,
       defines: { ...parsedBuildDefines(target.defines), ...buildProfileDefines(target) },

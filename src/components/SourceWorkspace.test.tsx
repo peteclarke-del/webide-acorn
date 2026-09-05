@@ -358,7 +358,7 @@ describe('functional source workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Disable bookmark Load accumulator' }));
     expect(screen.getByRole('button', { name: 'Enable bookmark Load accumulator' })).toBeVisible();
     fireEvent.change(screen.getByLabelText('Search project bookmarks'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Bookmark ↓' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next bookmark' }));
     expect(navigate).toHaveBeenCalledWith('other', 1, 1);
     expect(prompt).toHaveBeenCalledTimes(3);
   }, 15_000);
@@ -726,13 +726,13 @@ describe('functional source workspace', () => {
   it('persists bounded editor typography, tab width and wrapping preferences', () => {
     render(<Harness initial={'10 PRINT "A LONG SOURCE LINE"'} />);
     fireEvent.click(screen.getByText('Preferences'));
-    fireEvent.change(screen.getByLabelText('Editor font size'), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText('Editor font size'), { target: { value: '18' } });
     fireEvent.change(screen.getByLabelText('Editor line height'), { target: { value: '28' } });
     fireEvent.change(screen.getByLabelText('Editor tab size'), { target: { value: '4' } });
     fireEvent.click(screen.getByLabelText('Editor word wrap'));
     const editor = screen.getByLabelText('Edit main.bas') as HTMLTextAreaElement;
     const layout = editor.closest('.source-editor-layout') as HTMLElement;
-    expect(layout.style.getPropertyValue('--editor-font-size')).toBe('15px');
+    expect(layout.style.getPropertyValue('--editor-font-size')).toBe('18px');
     expect(layout.style.getPropertyValue('--editor-line-height')).toBe('28px');
     expect(layout.style.getPropertyValue('--editor-tab-size')).toBe('4');
     expect(editor.style.whiteSpace).toBe('pre-wrap');
@@ -740,12 +740,12 @@ describe('functional source workspace', () => {
 
     render(<Harness />);
     fireEvent.click(screen.getByText('Preferences'));
-    expect(screen.getByLabelText('Editor font size')).toHaveValue(15);
+    expect(screen.getByLabelText('Editor font size')).toHaveValue(18);
     expect(screen.getByLabelText('Editor line height')).toHaveValue(28);
     expect(screen.getByLabelText('Editor tab size')).toHaveValue('4');
     expect(screen.getByLabelText('Editor word wrap')).toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: 'Reset view' }));
-    expect(screen.getByLabelText('Editor font size')).toHaveValue(11);
+    expect(screen.getByLabelText('Editor font size')).toHaveValue(15);
   });
 
   it('exposes per-file encoding and line-ending controls without changing editor text', () => {
@@ -851,8 +851,8 @@ describe('functional source workspace', () => {
     await waitFor(() => expect(editor.selectionStart).toBe(editor.value.indexOf('20 GOTO')));
 
     fireEvent.click(screen.getByText('Navigate', { selector: 'summary' }));
-    expect(screen.getByRole('button', { name: /Previous diagnostic/ })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /Previous saved change/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Previous problem/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Previous change/ })).toBeEnabled();
   });
 
   it('previews, applies and undoes the safe missing BASIC line-number quick fix', async () => {
@@ -1046,5 +1046,48 @@ describe('accepting a completion with punctuation, and finding one by scattered 
     await screen.findByRole('option', { name: /ds_helper/ });
     const options = screen.getAllByRole('option').map((option) => option.textContent ?? '');
     expect(options.findIndex((text) => text.includes('ds_helper'))).toBeLessThan(options.findIndex((text) => text.includes('draw_sprite')));
+  });
+});
+
+describe('type hints decorated beside the source', () => {
+  const cFile: ProjectFile = { id: 'c', name: 'types.c', content: 'unsigned long ticks;\nint spare;\nvoid __fastcall__ draw(unsigned char frame) {\n  int local = 1;\n}', language: 'c', modified: false };
+  const target: LanguageTargetContext = { processor: '6502', machineId: 'bbc-b', machineLabel: 'BBC Micro Model B', romId: 'os12-basic2', romLabel: 'OS 1.20 / BASIC II', romReady: true, enabledCapabilities: [], toolchainId: 'cc65.c-bbc' };
+  const open = () => render(<SourceWorkspace files={[cFile]} languageTarget={target} activeFileId="c" onSelectFile={() => undefined} onChange={() => undefined} onNewFile={() => undefined} onRenameFile={() => undefined} onDeleteFile={() => undefined} onDownloadFile={() => undefined} onSave={() => undefined} onCaretChange={() => undefined} onNotice={() => undefined} />);
+
+  it('decorates nothing until somebody asks, and then draws the rail', () => {
+    /* A decoration nobody chose is clutter in the column source is read in. */
+    open();
+    expect(screen.queryByLabelText('Type hints beside the source')).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
+    const rail = screen.getByLabelText('Type hints beside the source');
+    expect(within(rail).getByRole('button', { name: /Line 1: ticks: unsigned long/ })).toBeVisible();
+  });
+
+  it('refuses to decorate under word wrap and says why, rather than drawing rows against the wrong lines', () => {
+    open();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Editor word wrap' }));
+    expect(screen.queryByLabelText('Type hints beside the source')).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Type hints' }));
+    expect(screen.getByText(/Word wrap is on, so a source line can take several rows/)).toBeVisible();
+  });
+
+  it('moves the caret to the line a rail row names', async () => {
+    /* The editor schedules its selection on the next frame, so this waits for
+     * it rather than reading the caret before it has moved. */
+    open();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
+    const rail = screen.getByLabelText('Type hints beside the source');
+    fireEvent.click(within(rail).getByRole('button', { name: /Line 3: draw/ }));
+    const textarea = screen.getByLabelText('Edit types.c') as HTMLTextAreaElement;
+    await waitFor(() => expect(cFile.content.slice(0, textarea.selectionStart).split('\n')).toHaveLength(3));
+  });
+
+  it('keeps a row for every line, so the rail stays level with the source', () => {
+    /* Rows only for the lines that carry a hint would put every row below the
+     * first one a line out. */
+    open();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
+    expect(screen.getByLabelText('Type hints beside the source').children).toHaveLength(cFile.content.split('\n').length);
   });
 });

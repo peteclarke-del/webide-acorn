@@ -1,3 +1,4 @@
+import { throttleProgress, type AnalysisProgressReporter } from './analysisProgress';
 import type { AnalysisProcessor, Disassembly, DisassemblyRow } from './types';
 
 type ArmProcessor = Extract<AnalysisProcessor, 'arm2' | 'arm3'>;
@@ -157,7 +158,8 @@ export function decodeArmWord(word: number, address: number, processor: ArmProce
   return { mnemonic: 'EQUD', operand: hex(word), comment: 'Unclassified ARM word', flow: 'stop', condition };
 }
 
-export function disassembleArm(source: Uint8Array, origin: number, entryPoint: number, processor: ArmProcessor): Disassembly {
+export function disassembleArm(source: Uint8Array, origin: number, entryPoint: number, processor: ArmProcessor, onProgress?: AnalysisProgressReporter): Disassembly {
+  const report = throttleProgress(onProgress);
   const warnings: string[] = [];
   origin &= 0x03ffffff; entryPoint &= 0x03ffffff;
   if ((origin & 3) !== 0) warnings.push(`Load address ${hex(origin)} is not word aligned; instruction rows retain the supplied byte address.`);
@@ -196,6 +198,8 @@ export function disassembleArm(source: Uint8Array, origin: number, entryPoint: n
       const word = (bytes[offset]! | (bytes[offset + 1]! << 8) | (bytes[offset + 2]! << 16) | (bytes[offset + 3]! << 24)) >>> 0;
       const instruction = decodeArmWord(word, address, processor);
       decoded.set(address, instruction);
+      /* Four bytes per decoded word, which is what the walk has settled. */
+      report({ stage: 'decoding', bytesDone: decoded.size * 4, bytesTotal: bytes.length });
       if (instruction.target !== undefined) enqueue(instruction.target, address);
       const conditional = instruction.condition !== 14;
       if (instruction.flow === 'stop' && !conditional) break;
@@ -204,12 +208,17 @@ export function disassembleArm(source: Uint8Array, origin: number, entryPoint: n
     }
   }
 
+  report({ stage: 'decoding', bytesDone: bytes.length, bytesTotal: bytes.length });
+  report({ stage: 'labelling', bytesDone: 0, bytesTotal: bytes.length });
+
   const labels: Record<number, string> = { [entryPoint]: `program_entry_${hex(entryPoint).slice(1)}` };
   for (const [target, incoming] of references) if (target >= origin && target < origin + bytes.length) {
     labels[target] = incoming.some((address) => target <= address) ? `loop_${hex(target).slice(1)}` : `location_${hex(target).slice(1)}`;
   }
+  report({ stage: 'labelling', bytesDone: bytes.length, bytesTotal: bytes.length });
   const rows: DisassemblyRow[] = [];
   for (let offset = 0; offset < bytes.length;) {
+    report({ stage: 'listing', bytesDone: offset, bytesTotal: bytes.length });
     const address = origin + offset;
     const instruction = decoded.get(address);
     if (instruction && offset + 4 <= bytes.length) {
@@ -228,5 +237,7 @@ export function disassembleArm(source: Uint8Array, origin: number, entryPoint: n
     offset = bytes.length;
   }
   const codeByteCount = rows.filter((row) => row.kind === 'instruction').reduce((total, row) => total + row.bytes.length, 0);
+  report({ stage: 'listing', bytesDone: bytes.length, bytesTotal: bytes.length });
+
   return { kind: 'machine-code', processor, origin, entryPoint, rows, labels, codeByteCount, dataByteCount: bytes.length - codeByteCount, warnings };
 }

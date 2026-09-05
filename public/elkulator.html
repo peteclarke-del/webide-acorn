@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>8bit-net Acorn Electron runtime (Elkulator)</title>
+  <link rel="stylesheet" href="/electron-runtime.css" />
+  <script defer src="/elkulator/elkulator.js"></script>
+  <script defer src="/elkulator-runtime.js"></script>
+</head>
+<body>
+  <main>
+    <!-- The identifier is SDL's, not this page's. Allegro's SDL backend finds
+         its drawing surface with the selector "#canvas", so a canvas named
+         anything else is not the one the emulator renders into. -->
+    <canvas id="canvas" width="640" height="512" tabindex="0" aria-label="Acorn Electron emulated display"></canvas>
+    <div id="runtime-status" role="status" aria-live="polite">Loading Elkulator…</div>
+    <pre id="output" aria-label="Acorn Electron emulator diagnostics"></pre>
+  </main>
+</body>
+</html>

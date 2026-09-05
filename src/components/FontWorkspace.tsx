@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { projectDocuments } from '../project/projectDocuments';
+import type { ProjectFile } from '../project/project';
 import { Icon } from './Icon';
 import {
   addGlyph, clearGlyph, createFontDocument, FIRST_DEFINABLE_CODE, FIRST_RESERVED_UDG_CODE,
@@ -9,6 +11,8 @@ import {
 import type { ProjectPalette } from '../assets/paletteDocument';
 
 interface FontWorkspaceProps {
+  /** Everything the project holds, so a font already in it can be opened. */
+  projectFiles?: readonly ProjectFile[];
   /** Colours the project's palette says the machine will show. */
   projectPalette: ProjectPalette;
   onAddSource: (name: string, content: string) => void;
@@ -29,7 +33,11 @@ const TRANSFORMS: Array<{ id: GlyphTransform; label: string }> = [
   { id: 'shift-down', label: 'Shift down' },
 ];
 
-export function FontWorkspace({ projectPalette, onAddSource, onAddLiveFont, onNotice }: FontWorkspaceProps) {
+export function FontWorkspace({ projectPalette, projectFiles = [], onAddSource, onAddLiveFont, onNotice }: FontWorkspaceProps) {
+  /* A font document the project already holds. Sending somebody to a file
+   * dialog to fetch what the product is sitting on is busy work, and after an
+   * import it is the only thing they want. */
+  const openable = useMemo(() => projectDocuments(projectFiles, ['font']), [projectFiles]);
   const recovered = useMemo(() => {
     try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) return parseFontDocument(saved); }
     catch { /* an invalid recovery starts a new validated document */ }
@@ -63,6 +71,18 @@ export function FontWorkspace({ projectPalette, onAddSource, onAddLiveFont, onNo
   return (
     <section className="font-workspace" aria-label="Character set editor">
       <header className="font-toolbar">
+        {!!openable.length && (
+          <label className="project-source-picker"><span>From this project</span>
+            <select aria-label="Open a font from this project" value="" onChange={(event) => {
+              const held = projectFiles.find((file) => file.id === event.target.value);
+              if (!held) return;
+              guard(() => parseFontDocument(held.content), `${held.name} opened from this project`);
+            }}>
+              <option value="">Choose a font…</option>
+              {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
+            </select>
+          </label>
+        )}
         <label><span>Name</span><input aria-label="Font name" value={document.name} onChange={(event) => guard(() => parseFontDocument({ ...document, name: event.target.value || 'untitled-font' }))} /></label>
         <label>
           <span>Editing</span>

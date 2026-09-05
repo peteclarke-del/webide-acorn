@@ -46,8 +46,13 @@ RUN mkdir -p /usr/local/lib/8bit-net/cc65-bbc \
     && ca65 --target bbc --cpu 6502 --debug-info -o /usr/local/lib/8bit-net/cc65-bbc/crt0.o /usr/local/share/8bit-net/cc65-bbc/crt0.s \
     && ca65 --target bbc --cpu 6502 --debug-info -o /usr/local/lib/8bit-net/cc65-bbc/platform.o /usr/local/share/8bit-net/cc65-bbc/platform.s \
     && sha256sum /usr/local/lib/8bit-net/cc65-bbc/crt0.o /usr/local/lib/8bit-net/cc65-bbc/platform.o /usr/share/cc65/lib/none.lib > /usr/local/share/8bit-net/cc65-bbc/runtime.sha256 \
-    && mkdir -p /run/php /tmp/native-builds \
-    && chown -R www-data:www-data /run/php /tmp/native-builds \
+    && mkdir -p /run/php /tmp/native-builds /var/lib/webide-acorn/store \
+    # The project store's directory exists in the image, owned by the user this
+    # service runs as, because Docker seeds a named volume from what is at the
+    # mount point — ownership included. Without it the volume arrives owned by
+    # root, the service cannot create anything inside it, and every write fails
+    # with a permission error that says nothing about a volume.
+    && chown -R www-data:www-data /run/php /tmp/native-builds /var/lib/webide-acorn \
     && chmod 0755 bin/console \
     && php bin/console cache:warmup --env=prod \
     && chown -R www-data:www-data var

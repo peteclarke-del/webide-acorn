@@ -1,3 +1,4 @@
+import { apiPath } from '../api/contracts';
 /* Whether the build service is ready, and if not, what to do about it.
  *
  * The readiness endpoint existed and nothing in the product asked it. When a
@@ -43,7 +44,7 @@ export function SystemStatusPanel() {
   const ask = useCallback(async () => {
     setOutcome({ kind: 'asking' });
     try {
-      const response = await fetch('/api/health/ready', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+      const response = await fetch(apiPath('healthReady'), { headers: { Accept: 'application/json' }, cache: 'no-store' });
       /* 503 is the service answering honestly that it is not ready, which is an
        * answer and not a failure to reach it. */
       const body = await response.json() as ReadyResponse;

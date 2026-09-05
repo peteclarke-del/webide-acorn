@@ -17,7 +17,10 @@
     "policy": "vitest run src/data/versioningPolicy.test.ts",
     "conformance": "vitest run src/data/accessibilityConformance.test.ts",
     "traceability": "vitest run scripts/traceability.test.ts",
-    "sbom": "node scripts/generateSbom.mjs"
+    "sbom": "node scripts/generateSbom.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "guides": "node scripts/generateGuides.mjs",
+    "api:types": "node scripts/generateApiTypes.mjs"
   },
   "dependencies": {
     "fflate": "0.8.2",

@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import { loadSampleProjects, sampleLocalProject, type SampleProject } from '../samples/sampleProjects';
-import { overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput, type CodebaseImportPlan } from '../project/codebaseImport';
+import { overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput, type CodebaseImportOptions, type CodebaseImportPlan } from '../project/codebaseImport';
 import { directorySupport, pickDirectory, readDirectory, type FileSystemDirectoryHandleLike } from '../project/directoryAccess';
 import { archiveRefusalSummary, readZipArchive } from '../project/archiveImport';
 import { projectFromTemplate, templatesForMachine } from '../project/templateCatalogue';
 import type { LocalProject } from '../project/project';
+import { ProjectStoreClient, type StoredProject, type StoredRevision } from '../cloud/projectStoreClient';
+import { projectFromStoredFiles } from '../cloud/storedProject';
+import { PALETTE_MODES, paletteModeProfile, type PaletteModeId } from '../assets/paletteDocument';
+import { screenGeometry } from '../assets/screenDocument';
+
+/* Every length a BBC frame buffer takes. */
+const SCREEN_BUFFER_LENGTHS = new Set(PALETTE_MODES.map((profile) => screenGeometry(profile.id).byteLength));
 
 interface StartProjectDialogProps {
   /** The folder handle is passed on only when the project came from one that
@@ -15,9 +22,13 @@ interface StartProjectDialogProps {
   onNotice: (message: string) => void;
   /** The machine currently selected, so templates are offered against it. */
   machineId: string;
+  /** Supplied by tests; the real dialog talks to the store this build ships. */
+  storeClient?: ProjectStoreClient;
+  /** Which source to show first, when something opened the dialog for one. */
+  initialTab?: 'samples' | 'templates' | 'folder' | 'store';
 }
 
-type Tab = 'samples' | 'templates' | 'folder';
+type Tab = 'samples' | 'templates' | 'folder' | 'store';
 
 const EXCLUSION_LABELS: Record<string, string> = {
   'ignored-directory': 'Skipped folder',
@@ -29,14 +40,25 @@ const EXCLUSION_LABELS: Record<string, string> = {
   'empty-name': 'No filename',
 };
 
-export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId }: StartProjectDialogProps) {
-  const [tab, setTab] = useState<Tab>('samples');
+export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId, storeClient, initialTab }: StartProjectDialogProps) {
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'samples');
+  /* The project store, which is where work lives when it is meant to outlast
+   * this browser. Everything about it is reported rather than assumed: a store
+   * that is not running says so, and a revision with no project manifest says
+   * that too rather than being opened as a guess. */
+  const store = useMemo(() => storeClient ?? new ProjectStoreClient(), [storeClient]);
+  const [stored, setStored] = useState<StoredProject[]>([]);
+  const [storeUnreachable, setStoreUnreachable] = useState<string>();
+  const [storeBusy, setStoreBusy] = useState(false);
+  const [storeRevisions, setStoreRevisions] = useState<Record<string, StoredRevision[]>>({});
   const [samples, setSamples] = useState<SampleProject[]>();
   const [sampleError, setSampleError] = useState<string>();
   const [plan, setPlan] = useState<CodebaseImportPlan>();
   const [contents, setContents] = useState<Map<string, string>>();
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
   const [selectedMaps, setSelectedMaps] = useState<Record<string, string>>({});
+  /* Which screens to recover, and the display mode to read each one as. */
+  const [selectedScreens, setSelectedScreens] = useState<Record<string, PaletteModeId>>({});
   const [projectName, setProjectName] = useState('');
   const [reading, setReading] = useState(false);
   /* Anything the folder walk itself could not bring in, kept apart from the
@@ -71,10 +93,12 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
       const contents = await readDirectory(handle);
       if (!contents.entries.length) { onNotice(`${handle.name} contains no readable source files`); return; }
       setConnectedFolder(handle);
-      applyPlan(contents.entries.map((entry) => ({ path: entry.path, content: entry.content })), handle.name, [
+      applyPlan(contents.entries.map((entry) => ({ path: entry.path, content: entry.content, ...(entry.bytes ? { bytes: entry.bytes } : {}) })), handle.name, [
         ...contents.skipped.map((entry) => `${entry.path}: ${entry.reason}`),
         ...(contents.truncated ? ['The folder was larger than this workbench reads in one go, so it was cut short.'] : []),
-      ]);
+      /* This route walks from the handle, so its paths are already relative to
+       * the folder that was chosen and its name is not among them. */
+      ], { pathsIncludeChosenFolder: false });
     } catch (error) {
       onNotice(error instanceof Error ? error.message : String(error));
     } finally {
@@ -84,13 +108,32 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
 
   /* Both folder routes end here, so a project imported through the picker and
    * one imported through the directory input are planned identically. */
-  const applyPlan = (inputs: CodebaseFileInput[], root: string, notes: string[]) => {
-    const nextPlan = planCodebaseImport(inputs, root);
+  const applyPlan = (inputs: CodebaseFileInput[], root: string, notes: string[], options: CodebaseImportOptions = {}) => {
+    const nextPlan = planCodebaseImport(inputs, root, options);
     const byPath = new Map(inputs.map((input) => [input.path, input.content]));
     setPlan(nextPlan);
     setContents(new Map(nextPlan.files.map((file) => [file.name, byPath.get(file.path) ?? ''])));
-    setSelectedAssets([]);
-    setSelectedMaps({});
+    /*
+     * Everything that can be recovered without a guess is recovered.
+     *
+     * These all began unticked, so importing a codebase that plainly held
+     * twenty-seven sprites and sixty-one rooms produced a project with none of
+     * them, and the only sign was a count in a collapsed summary. Somebody who
+     * imports a game expects the game's artwork and levels to come with it.
+     *
+     * What stays unticked is only what cannot be settled from the codebase: a
+     * map recovered from a byte run whose length allows several grid shapes,
+     * and a screen whose file does not name the display mode its bytes are for.
+     * Both would need a guess, and a wrong guess produces a plausible, wrong
+     * document — so those wait to be chosen, in the same list, already found.
+     */
+    setSelectedAssets(nextPlan.derivedAssets.map((asset) => asset.id));
+    setSelectedMaps(Object.fromEntries(nextPlan.mapCandidates
+      .filter((candidate) => candidate.shapes.length === 1)
+      .map((candidate) => [candidate.id, `${candidate.shapes[0]!.width}x${candidate.shapes[0]!.height}`])));
+    setSelectedScreens(Object.fromEntries(nextPlan.screenCandidates
+      .filter((candidate) => candidate.namedByFilename)
+      .map((candidate) => [candidate.id, candidate.modes[0]!])));
     setProjectName(nextPlan.name);
     setFolderNotes(notes);
   };
@@ -140,10 +183,18 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
       const inputs: CodebaseFileInput[] = [];
       for (const file of files) {
         const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
-        /* Text is read for every candidate; the planner decides what survives. */
-        inputs.push({ path, content: await file.text() });
+        /* Text is read for every candidate; the planner decides what survives.
+         * A file that is exactly the length of a display mode's frame buffer
+         * also hands over its bytes, because that is what a loading screen is
+         * and it will never decode as text. */
+        inputs.push({
+          path,
+          content: await file.text(),
+          ...(SCREEN_BUFFER_LENGTHS.has(file.size) ? { bytes: new Uint8Array(await file.arrayBuffer()) } : {}),
+        });
       }
-      applyPlan(inputs, inputs[0]?.path.split('/')[0] ?? 'Imported project', []);
+      /* webkitRelativePath begins with the folder that was chosen, always. */
+      applyPlan(inputs, inputs[0]?.path.split('/')[0] ?? 'Imported project', [], { pathsIncludeChosenFolder: true });
     } catch (error) {
       onNotice(`That folder could not be read: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -169,7 +220,8 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
         const [width, height] = shape.split('x').map(Number);
         return Number.isInteger(width) && Number.isInteger(height) ? [{ id, width: width!, height: height! }] : [];
       });
-      const project = projectFromCodebaseImport(plan, contents, { derivedAssetIds: selectedAssets, derivedMaps, projectName });
+      const derivedScreens = Object.entries(selectedScreens).map(([id, mode]) => ({ id, mode }));
+      const project = projectFromCodebaseImport(plan, contents, { derivedAssetIds: selectedAssets, derivedMaps, derivedScreens, projectName });
       const from = connectedFolder ? `, connected to ${connectedFolder.name}` : '';
       onOpenProject(project, `Created ${project.name} from ${plan.files.length} imported file${plan.files.length === 1 ? '' : 's'}${from}`, connectedFolder);
     } catch (error) {
@@ -183,6 +235,43 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
     return [...groups.entries()].sort((left, right) => right[1] - left[1]);
   }, [plan]);
 
+  /* Asked for once when the tab is opened, so a dialog that is never taken to
+   * the store makes no request to it. */
+  useEffect(() => {
+    if (tab !== 'store') return;
+    let cancelled = false;
+    void (async () => {
+      const listed = await store.projects();
+      if (cancelled) return;
+      if (!listed.ok) { setStoreUnreachable(listed.reason); setStored([]); return; }
+      setStoreUnreachable(undefined);
+      setStored(listed.value);
+    })();
+    return () => { cancelled = true; };
+  }, [tab, store]);
+
+  const showRevisions = async (projectId: string) => {
+    setStoreBusy(true);
+    const listed = await store.revisions(projectId);
+    setStoreBusy(false);
+    if (!listed.ok) { onNotice(`The store could not list revisions of ${projectId}: ${listed.reason}`); return; }
+    setStoreRevisions((current) => ({ ...current, [projectId]: listed.value }));
+  };
+
+  const openStored = async (projectId: string, revisionId: string) => {
+    setStoreBusy(true);
+    const read = await store.read(projectId, revisionId);
+    setStoreBusy(false);
+    if (!read.ok) { onNotice(`The store could not read ${projectId} ${revisionId}: ${read.reason}`); return; }
+    /* The client has already decoded the contents; decoding again here would
+     * turn every file into whatever base64 of base64 happens to be. */
+    const opened = projectFromStoredFiles(read.value);
+    if (!opened.project) { onNotice(opened.detail); return; }
+    /* No folder handle: this came from the store, not from a folder on disk,
+     * and saying otherwise would offer a write-back that could not happen. */
+    onOpenProject(opened.project, `${opened.detail} From the project store, revision ${revisionId}.`, null);
+  };
+
   return (
     <div className="modal-scrim" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="start-project-dialog panel-surface" role="dialog" aria-modal="true" aria-label="Start a project">
@@ -194,6 +283,7 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
           <button type="button" role="tab" id="start-tab-samples" aria-selected={tab === 'samples'} aria-controls="start-panel-samples" className={tab === 'samples' ? 'active' : undefined} onClick={() => setTab('samples')}>Sample projects</button>
           <button type="button" role="tab" id="start-tab-templates" aria-selected={tab === 'templates'} aria-controls="start-panel-templates" className={tab === 'templates' ? 'active' : undefined} onClick={() => setTab('templates')}>Templates</button>
           <button type="button" role="tab" id="start-tab-folder" aria-selected={tab === 'folder'} aria-controls="start-panel-folder" className={tab === 'folder' ? 'active' : undefined} onClick={() => setTab('folder')}>From an existing codebase</button>
+          <button type="button" role="tab" id="start-tab-store" aria-selected={tab === 'store'} aria-controls="start-panel-store" className={tab === 'store' ? 'active' : undefined} onClick={() => setTab('store')}>From the project store</button>
         </div>
 
         {tab === 'samples' && (
@@ -380,12 +470,23 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 )}
 
                 {!!plan.derivedAssets.length && (
-                  <details>
+                  /* Open, because a list of recovered artwork behind a closed
+                   * disclosure is a list nobody finds: twenty-seven sprites
+                   * were read out of one project and none of them was taken,
+                   * because taking them meant opening this and ticking each. */
+                  <details open>
                     <summary>Editable assets that can be recovered ({plan.derivedAssets.length})</summary>
                     <p className="binding-note">
                       Each of these regenerates the original assembler bytes exactly. Creating one adds a new
                       editable document; it does not change or remove the data already in your source.
                     </p>
+                    <div className="import-asset-actions">
+                      <button type="button" onClick={() => setSelectedAssets(plan.derivedAssets.map((asset) => asset.id))} disabled={selectedAssets.length === plan.derivedAssets.length}>
+                        Recover all {plan.derivedAssets.length}
+                      </button>
+                      <button type="button" onClick={() => setSelectedAssets([])} disabled={!selectedAssets.length}>Recover none</button>
+                      <span className="binding-note">{selectedAssets.length} chosen</span>
+                    </div>
                     <ul className="import-assets">
                       {plan.derivedAssets.map((asset) => (
                         <li key={asset.id}>
@@ -452,6 +553,54 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                   </details>
                 )}
 
+                {!!plan.screenCandidates.length && (
+                  <details>
+                    <summary>Screens that can be recovered ({plan.screenCandidates.length})</summary>
+                    <p className="binding-note">
+                      These files are exactly the length of a display mode's frame buffer, which is how a loading
+                      screen reaches a project: saved as the bytes the video hardware reads. Nothing in those bytes
+                      says which mode they are for, so choose the one that is right and the picture is recovered
+                      unchanged. Choosing the wrong one gives a wrong picture, not a wrong file, and it can be
+                      opened again as the other.
+                    </p>
+                    <ul className="import-maps">
+                      {plan.screenCandidates.map((candidate) => (
+                        <li key={candidate.id}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              aria-label={`Recover ${candidate.sourceLabel} as an editable screen`}
+                              checked={selectedScreens[candidate.id] !== undefined}
+                              onChange={(event) => setSelectedScreens((current) => {
+                                const next = { ...current };
+                                if (event.target.checked) next[candidate.id] = candidate.modes[0]!;
+                                else delete next[candidate.id];
+                                return next;
+                              })}
+                            />
+                            <span>
+                              <strong>{candidate.sourceLabel}</strong> in {candidate.sourceFile} ·
+                              {' '}{candidate.byteLength.toLocaleString()} bytes
+                              {candidate.namedByFilename ? ' · the filename names its mode' : ''}
+                            </span>
+                          </label>
+                          <label className="import-map-shape">
+                            <span>Mode</span>
+                            <select
+                              aria-label={`Display mode for ${candidate.sourceLabel}`}
+                              disabled={selectedScreens[candidate.id] === undefined}
+                              value={selectedScreens[candidate.id] ?? candidate.modes[0]!}
+                              onChange={(event) => setSelectedScreens((current) => ({ ...current, [candidate.id]: event.target.value as PaletteModeId }))}
+                            >
+                              {candidate.modes.map((mode) => <option key={mode} value={mode}>{paletteModeProfile(mode).label} · {paletteModeProfile(mode).detail}</option>)}
+                            </select>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+
                 {!!plan.exclusions.length && (
                   <details>
                     <summary>Left out ({plan.exclusions.length})</summary>
@@ -479,6 +628,48 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 </p>
               </div>
             )}
+          </div>
+        )}
+        {tab === 'store' && (
+          <div className="start-project-panel" role="tabpanel" id="start-panel-store" aria-labelledby="start-tab-store">
+            <p>
+              Projects the store holds. The store lives on the volume the deployment mounts, not in this
+              browser, so what is here survives clearing the browser and opening the workbench somewhere else.
+            </p>
+            {storeUnreachable && (
+              <p className="binding-warning" role="status">
+                No project store is running, so nothing can be opened from one. {storeUnreachable}
+              </p>
+            )}
+            {!storeUnreachable && !stored.length && (
+              <p className="honest-empty">The store is running and holds no projects yet. Save one from Settings, or from the command palette.</p>
+            )}
+            <ul className="sample-list">
+              {stored.map((project) => (
+                <li key={project.id}>
+                  <div className="sample-heading">
+                    <h3>{project.id}</h3>
+                    <span className="sample-meta">{project.revisions} revision{project.revisions === 1 ? '' : 's'}</span>
+                  </div>
+                  {!storeRevisions[project.id] ? (
+                    <button type="button" disabled={storeBusy} onClick={() => void showRevisions(project.id)}>
+                      Show revisions
+                    </button>
+                  ) : (
+                    <ul className="sample-highlights">
+                      {storeRevisions[project.id]!.map((revision) => (
+                        <li key={revision.id}>
+                          <span>{revision.writtenAt} · {revision.files} file{revision.files === 1 ? '' : 's'}{revision.note ? ` · ${revision.note}` : ''}</span>
+                          <button type="button" disabled={storeBusy} onClick={() => void openStored(project.id, revision.id)}>
+                            Open this revision
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

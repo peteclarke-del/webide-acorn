@@ -18,6 +18,16 @@ export const SONG_CHANNELS = 4;
 /** The Acorn Atom has one speaker bit and no volume control, so it has one
  * channel and cannot be given the BBC's four however the editor is used. */
 export const ATOM_CHANNELS = 1;
+/*
+ * The Acorn Electron has one tone generator in its ULA and that is the whole of
+ * its sound hardware. It is not a reduced SN76489: a note sent to a second
+ * channel does not queue behind the first, it replaces it. Measured on a real
+ * Electron — `SOUND 1,-15,53,10:SOUND 2,-15,197,10` sounded only the second
+ * note, and the first was lost without a word. So the editor gives this machine
+ * one channel, because a grid with more would let somebody write music the
+ * machine silently drops half of.
+ */
+export const ELECTRON_CHANNELS = 1;
 export const MAX_ATOM_ROWS = 128;
 export const MAX_SONG_ROWS = 256;
 export const MIN_SONG_ROWS = 1;
@@ -33,7 +43,7 @@ export interface SongCell {
   volume: number;
 }
 
-export type SongTarget = 'bbc-sn76489' | 'atom-speaker';
+export type SongTarget = 'bbc-sn76489' | 'atom-speaker' | 'electron-ula';
 
 export interface SongTargetProfile {
   id: SongTarget;
@@ -56,6 +66,11 @@ export const SONG_TARGETS: readonly SongTargetProfile[] = Object.freeze([
     id: 'atom-speaker', label: 'Atom · 1-bit speaker', channels: ATOM_CHANNELS, maxRows: MAX_ATOM_ROWS, maxVolume: 1,
     channelLabels: ['Speaker'],
     detail: 'One speaker bit toggled through the PPIA; on or off, with no volume and no second voice',
+  },
+  {
+    id: 'electron-ula', label: 'Electron · ULA tone', channels: ELECTRON_CHANNELS, maxRows: MAX_SONG_ROWS, maxVolume: 1,
+    channelLabels: ['Tone'],
+    detail: 'One ULA tone generator played through OSWORD 7 on channel 1; on or off, with no volume, no second voice and no noise channel a song can mix with it',
   },
 ]);
 
@@ -106,7 +121,7 @@ export function createSongDocument(name = 'untitled-song', rowCount = 16, target
  * pitch, and it must be at least one for the delay loop to terminate sensibly.
  */
 export function maximumPitch(channel: number, target: SongTarget = 'bbc-sn76489'): number {
-  if (target === 'atom-speaker') return MAX_PITCH;
+  if (target === 'atom-speaker' || target === 'electron-ula') return MAX_PITCH;
   return channel === 0 ? 7 : MAX_PITCH;
 }
 
@@ -372,10 +387,73 @@ export function generateSongOutput(document: SongDocument): SongOutput {
     '  SKIP 1',
   ];
 
-  const assembly = [...preamble, ...(validated.target === 'atom-speaker' ? atomPlayer : bbcPlayer)].join('\n');
+  /*
+   * The Electron's player is the BBC's OSWORD 7 path with the channel nailed to
+   * 1, because that is the machine's own tone channel: channel 0 on an Electron
+   * makes noise by modulating the same generator, and a song that alternated
+   * between them would lose every note it interrupted. There is no channel loop
+   * because there is nothing to loop over.
+   */
+  const electronPlayer = [
+    '; Play the current row and advance. Carry set means the song has finished.',
+    '; One tone generator, played through OSWORD 7 on channel 1. The Electron has',
+    '; no volume: any negative amplitude sounds the same, and zero is silence.',
+    `.${label}_play_row`,
+    `  LDA ${label}_row`,
+    `  CMP ${label}`,
+    `  BCC ${label}_play_go`,
+    '  SEC',
+    '  RTS',
+    `.${label}_play_go`,
+    ...pointerSetup,
+    '  LDY #0',
+    `  LDA (${hex(pointer)}),Y`,
+    `  STA ${label}_block + 4`,
+    '  INY',
+    `  LDA (${hex(pointer)}),Y`,
+    `  BEQ ${label}_play_next`,
+    '  EOR #&FF',
+    '  CLC',
+    '  ADC #1',
+    `  STA ${label}_block + 2`,
+    '  LDA #&FF',
+    `  STA ${label}_block + 3`,
+    '  LDA #1',
+    `  STA ${label}_block`,
+    '  LDA #0',
+    `  STA ${label}_block + 1`,
+    `  STA ${label}_block + 5`,
+    `  STA ${label}_block + 7`,
+    `  LDA ${label} + 2`,
+    `  STA ${label}_block + 6`,
+    `  LDX #<${label}_block`,
+    `  LDY #>${label}_block`,
+    '  LDA #7',
+    '  JSR &FFF1',
+    `.${label}_play_next`,
+    `  INC ${label}_row`,
+    '  CLC',
+    '  RTS',
+    '',
+    `.${label}_row`,
+    '  SKIP 1',
+    `.${label}_block`,
+    '  SKIP 8',
+  ];
+
+  const player = validated.target === 'atom-speaker' ? atomPlayer
+    : validated.target === 'electron-ula' ? electronPlayer
+      : bbcPlayer;
+  const assembly = [...preamble, ...player].join('\n');
 
   const basic = validated.target === 'atom-speaker'
     ? '; The Atom has no SOUND statement; use the generated machine-code player.'
+    : validated.target === 'electron-ula'
+    ? validated.rows
+      .flatMap((row, index) => (row[0]!.volume
+        ? [`REM row ${index}`, `SOUND 1,-15,${row[0]!.pitch},${validated.rowDuration}`]
+        : []))
+      .join('\n')
     : validated.rows
       .flatMap((row, index) => {
         const played = row.flatMap((cell, channel) => cell.volume ? [`SOUND ${channel},${-cell.volume},${cell.pitch},${validated.rowDuration}`] : []);

@@ -39,4 +39,17 @@ export function readLockfile(
 ): SbomEntry[];
 export function sbomSummary(entries: readonly SbomEntry[]): SbomSummary;
 export function licencesNeedingReview(entries: readonly SbomEntry[]): SbomEntry[];
-export function renderSbom(entries: readonly SbomEntry[], audit?: Record<string, number> | null): string;
+/** Composer's report: package name to its version and licence list. */
+export type BackendLicences = Record<string, { version?: string; license?: string[] } | string[]>;
+
+/** Package names referenced anywhere in the built output under `root`. */
+export function namesInBuild(lockfile: unknown, root: string): Promise<Set<string>>;
+
+/** The backend inventory section, or a statement that it could not be taken. */
+export function renderBackendSection(backend: BackendLicences | null): string;
+
+export function renderSbom(
+  entries: readonly SbomEntry[],
+  audit?: Record<string, number> | null,
+  backend?: BackendLicences | null,
+): string;

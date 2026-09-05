@@ -42,7 +42,10 @@ describe('ADFS D root catalogue reader', () => {
   });
 
   it('rejects the wrong geometry and missing D-format directory signatures', () => {
-    expect(() => parseAdfsCatalogue(new Uint8Array(640 * 1024))).toThrow('exactly 800 KiB');
+    /* Named rather than dismissed by size: a 640 KiB image is a real ADFS L
+     * disc, and the reader now says which disc it is and why it cannot list
+     * it. `adfsGeometry.test.ts` holds the wording; this holds the refusal. */
+    expect(() => parseAdfsCatalogue(new Uint8Array(640 * 1024))).toThrow('ADFS L');
     const image = fixture(); image[0x401] = 0;
     expect(() => parseAdfsCatalogue(image)).toThrow('signatures');
     const damaged = fixture(); damaged[0x405] = damaged[0x405]! ^ 1;

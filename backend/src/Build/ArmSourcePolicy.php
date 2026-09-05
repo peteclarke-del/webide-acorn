@@ -23,7 +23,10 @@ final class ArmSourcePolicy
                 }
                 $include = $pathMatch[1];
                 $segments = explode('/', $include);
-                if ($include === '' || str_starts_with($include, '/') || str_contains($include, '\\') || array_filter($segments, static fn (string $part): bool => $part === '' || $part === '.' || $part === '..')) {
+                /* Not tested for emptiness: the pattern above matches one or
+                 * more characters, so an empty include cannot reach here and a
+                 * test for it would be a check that can never fire. */
+                if (str_starts_with($include, '/') || str_contains($include, '\\') || array_filter($segments, static fn (string $part): bool => $part === '' || $part === '.' || $part === '..')) {
                     throw new ApiProblem(400, 'BUILD_INCLUDE_PATH', 'ARM .include cannot use absolute paths or traversal.', false, [$file['name'].':'.($index + 1) => 'Unsafe include path']);
                 }
                 $relative = strtolower(ltrim(dirname($file['name']).'/'.$include, './'));

@@ -53,7 +53,7 @@ final class CSDKDocumentService
     private function configuredRoots(): array
     {
         if ($this->roots !== null) return $this->roots;
-        $webIde = (string) ($_SERVER['CC65_BBC_INCLUDE'] ?? $_ENV['CC65_BBC_INCLUDE'] ?? '/usr/local/share/8bit-net/cc65-bbc/include');
+        $webIde = (string) (ToolLocator::configured('CC65_BBC_INCLUDE') ?? '/usr/local/share/8bit-net/cc65-bbc/include');
         return [
             ['root' => $webIde, 'source' => '8bit-net BBC C SDK include', 'licence' => 'Project runtime source, see repository licensing and third-party notices.'],
             ['root' => '/usr/share/cc65/include', 'source' => 'cc65 2.19-1 include', 'licence' => 'cc65 zlib-style licence; original notice is retained in source files where supplied.'],

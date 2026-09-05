@@ -29,7 +29,7 @@ final class ArmBuildManifest
             'label' => 'GNU ARM binutils · ARM2 bare-machine-code', 'execution' => 'server-native',
             'language' => 'arm', 'artifactKind' => 'arm-binary', 'processors' => ['arm2'],
             'profiles' => ['debug', 'size', 'speed', 'custom'], 'deterministic' => true,
-            'packageVersion' => $_SERVER['ARM_BINUTILS_PACKAGE_VERSION'] ?? $_ENV['ARM_BINUTILS_PACKAGE_VERSION'] ?? 'host-development',
+            'packageVersion' => ToolLocator::configured('ARM_BINUTILS_PACKAGE_VERSION') ?? 'host-development',
             'tools' => $tools,
             'licence' => [
                 'spdx' => 'GPL-3.0-or-later', 'component' => 'GNU Binutils',
@@ -51,7 +51,7 @@ final class ArmBuildManifest
     public function path(string $tool): string
     {
         $key = 'ARM_'.strtoupper($tool).'_PATH';
-        return (string) ($_SERVER[$key] ?? $_ENV[$key] ?? '/usr/bin/arm-none-eabi-'.$tool);
+        return ToolLocator::locate($key, 'arm-none-eabi-'.$tool, '/usr/bin/arm-none-eabi-'.$tool);
     }
 
     private function version(string $path): ?string

@@ -6,15 +6,45 @@ coverage/
 *.tsbuildinfo
 /local-roms/
 /ci/project.json
+/ci/conformance-project.json
+# Disc images the conformance generator masters from the case descriptions.
+/ci/*.ssd
 /ci/roms.json
 /ci/roms/
 /ci/results/
 /ci/gate-report.json
 /.ci-smoke-*
+# And the cross-browser stage's, for the same reason. Both are browser profiles
+# the gate creates and removes; a run that is interrupted between the two leaves
+# one behind, and it must not be mistaken for a project file.
+/.ci-matrix-*
 /.toolchains/
 # Symfony regenerates these on every boot; they are not project files.
 /backend/var/cache/
 /backend/var/log/
+/backend/var/store/
 /backend/.phpunit.cache/
+# The formatter's cache of what it has already checked. It is written in the
+# directory the formatter was started from, which is the repository root when
+# the gate runs it and backend/ when composer does.
+/backend/.php-cs-fixer.cache
+/.php-cs-fixer.cache
 # Composer restores these from composer.lock; they are not project files.
 /backend/vendor/
+
+# The Arculator WASM core is built from pinned upstream source in Docker and
+# copied into the image; a copy extracted here for a local A310 run is a build
+# output, not source, and must not be committed.
+/public/arculator/
+
+# The Elkulator WASM core is built the same way, from the recipe in
+# docker/elkulator, and copied into the image. A copy extracted here for a local
+# Electron run is a build output, not source.
+/public/elkulator/
+
+# Emulator sources cloned for investigation belong in a scratch directory, not
+# in the repository. One landed here when a `cd` to the scratchpad failed and
+# the clone ran from the working tree instead.
+/elkulator/
+/arculator-wasm/
+/allegro5/

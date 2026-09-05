@@ -92,8 +92,8 @@ function keyFromCode(code: string | undefined): string | null {
   return NAMED_KEY_LOOKUP.get(code.toLowerCase()) ?? null;
 }
 
-function composeChord(ctrl: boolean, alt: boolean, shift: boolean, key: string): string {
-  return `${ctrl ? 'Ctrl+' : ''}${alt ? 'Alt+' : ''}${shift ? 'Shift+' : ''}${key}`;
+function composeChord(ctrl: boolean, alt: boolean, shift: boolean, key: string, command = false): string {
+  return `${command ? 'Cmd+' : ''}${ctrl ? 'Ctrl+' : ''}${alt ? 'Alt+' : ''}${shift ? 'Shift+' : ''}${key}`;
 }
 
 /** Canonical chord for a keyboard event, or null for bare modifier presses. */
@@ -102,8 +102,37 @@ export function chordFromEvent(event: KeyChordEventLike): string | null {
   const key = keyFromCode(event.code) ?? canonicalKeyName(event.key);
   if (!key) return null;
   /* Command on macOS and Control elsewhere occupy the same role throughout the
-   * workbench, so both normalize to Ctrl. */
+   * workbench, so both normalize to Ctrl. `chordCandidates` is what a
+   * dispatcher uses when a binding wants to tell them apart. */
   return composeChord(!!event.ctrlKey || !!event.metaKey, !!event.altKey, !!event.shiftKey, key);
+}
+
+/**
+ * Every chord one key press could be, most specific first.
+ *
+ * Command and Control share a role by default, which is what a person moving
+ * between an Apple keyboard and any other expects. But they are different keys,
+ * and a binding that wants one of them specifically — because the other is
+ * taken, or because the machine below needs it — has no way to say so while
+ * they are collapsed into one name on the way in.
+ *
+ * So a press of Command produces `Cmd+X` first and `Ctrl+X` second: a binding
+ * that named Command wins, and one that named Control still answers, which is
+ * exactly the behaviour that was there before this existed. A press of Control
+ * produces only `Ctrl+X`, because Control is not Command anywhere.
+ */
+export function chordCandidates(event: KeyChordEventLike): string[] {
+  if (MODIFIER_KEYS.has(event.key)) return [];
+  const key = keyFromCode(event.code) ?? canonicalKeyName(event.key);
+  if (!key) return [];
+  const alt = !!event.altKey;
+  const shift = !!event.shiftKey;
+  if (event.metaKey) {
+    const command = composeChord(!!event.ctrlKey, alt, shift, key, true);
+    const shared = composeChord(true, alt, shift, key);
+    return command === shared ? [shared] : [command, shared];
+  }
+  return [composeChord(!!event.ctrlKey, alt, shift, key)];
 }
 
 /** Canonical chord for typed or stored text such as "ctrl shift p" or "Cmd+/". */
@@ -111,18 +140,57 @@ export function parseChord(text: unknown): string | null {
   if (typeof text !== 'string') return null;
   const parts = text.trim().split(/[\s+]+/).filter(Boolean);
   if (!parts.length) return null;
-  let ctrl = false, alt = false, shift = false;
+  let ctrl = false, alt = false, shift = false, command = false;
   let key: string | null = null;
   for (const part of parts) {
     const token = part.toLowerCase();
-    if (token === 'ctrl' || token === 'control' || token === 'cmd' || token === 'command' || token === 'meta' || token === 'super') { ctrl = true; continue; }
+    /* `Cmd` names the Command key itself. `Ctrl` keeps meaning "the Control
+     * role", which is Command on an Apple keyboard and Control everywhere
+     * else — every binding written before Command could be named on its own
+     * means that, and has to keep meaning it. */
+    if (token === 'cmd' || token === 'command' || token === 'meta' || token === 'super') { command = true; continue; }
+    if (token === 'ctrl' || token === 'control') { ctrl = true; continue; }
     if (token === 'alt' || token === 'option' || token === 'opt') { alt = true; continue; }
     if (token === 'shift') { shift = true; continue; }
     if (key !== null) return null;
     key = canonicalKeyName(part);
     if (!key) return null;
   }
-  return key ? composeChord(ctrl, alt, shift, key) : null;
+  return key ? composeChord(ctrl, alt, shift, key, command) : null;
+}
+
+/*
+ * Two-stroke sequences, separated by a comma.
+ *
+ * A comma rather than a space, which is what most editors use, because the
+ * single-chord parser above already accepts a space between modifiers — "ctrl
+ * shift p" is one chord — so a space cannot also mean "then" without making
+ * every existing binding ambiguous.
+ */
+export const CHORD_SEQUENCE_SEPARATOR = ',';
+/** How long a first stroke waits for its second before it is abandoned. */
+export const CHORD_SEQUENCE_TIMEOUT_MS = 2000;
+
+/** The strokes of a chord, which is one for all but a sequence. */
+export function chordSteps(chord: string | null): string[] {
+  return chord ? chord.split(CHORD_SEQUENCE_SEPARATOR).map((step) => step.trim()).filter(Boolean) : [];
+}
+
+/**
+ * Canonical form of a one- or two-stroke sequence, or null.
+ *
+ * Two strokes is the limit on purpose: a third is not a shortcut any more, it
+ * is a command nobody can remember, and every stroke a sequence adds is a
+ * stroke during which the workbench is holding a key press back from whatever
+ * else wanted it.
+ */
+export function parseChordSequence(text: unknown): string | null {
+  if (typeof text !== 'string') return null;
+  const steps = text.split(CHORD_SEQUENCE_SEPARATOR).map((step) => step.trim()).filter(Boolean);
+  if (steps.length < 1 || steps.length > 2) return null;
+  const parsed = steps.map(parseChord);
+  if (parsed.some((step) => step === null)) return null;
+  return parsed.join(`${CHORD_SEQUENCE_SEPARATOR} `);
 }
 
 const APPLE_PLATFORM = /mac|iphone|ipad|ipod/i;
@@ -155,6 +223,64 @@ const BROWSER_RESERVED: Record<string, string> = {
   'Alt+F4': 'The operating system closes the window.',
 };
 
+/*
+ * What the emulated machine does with a chord aimed at the workbench.
+ *
+ * The emulator runs in its own frame, and while a machine is running its
+ * keyboard handler takes every key press: `keyDown` in the pinned jsbeeb's
+ * `src/keyboard.js` calls `evt.preventDefault()` before it has looked at any
+ * modifier, and then hands the key to the machine as
+ * `keyInterface.keyDown(code, evt.shiftKey)` — carrying Shift and nothing
+ * else. So a chord pressed while the machine has focus does two things nobody
+ * would guess: it does not reach the workbench at all, and the machine
+ * receives it as the *unmodified* key. Ctrl+S over a BASIC prompt types S.
+ *
+ * That is worth saying about every chord rather than about a chosen few,
+ * because the surprising part is not which chords collide — they all do — but
+ * what the machine types instead. A chord whose key the Acorn keyboard does
+ * not have is still swallowed, and saying so is the honest answer.
+ *
+ * A paused machine takes nothing: the same handler returns early on
+ * `!this.running`.
+ */
+const ACORN_KEY_NAMES: Readonly<Record<string, string>> = Object.freeze({
+  Enter: 'RETURN', Backspace: 'DELETE', Escape: 'ESCAPE', Space: 'SPACE',
+  ArrowLeft: '\u2190', ArrowRight: '\u2192', ArrowUp: '\u2191', ArrowDown: '\u2193',
+  F1: 'f1', F2: 'f2', F3: 'f3', F4: 'f4', F5: 'f5', F6: 'f6', F7: 'f7', F8: 'f8', F9: 'f9',
+  F10: 'f0', F11: 'COPY',
+});
+
+export interface EmulatedKeyboardConflict {
+  /** What the Acorn keyboard receives, or null when it has no such key. */
+  machineKey: string | null;
+  note: string;
+}
+
+/**
+ * What a running machine would do with this chord, in the words a person needs.
+ *
+ * Reported rather than prevented. A chord that is unusable over a running
+ * machine is perfectly usable everywhere else in the workbench, and refusing to
+ * assign it would take away a shortcut to solve a problem the person may never
+ * have.
+ */
+export function emulatedKeyboardConflict(chord: string | null): EmulatedKeyboardConflict | null {
+  const steps = chordSteps(chord);
+  const first = steps[0];
+  if (!first) return null;
+  const key = first.split('+').pop()!;
+  const machineKey = ACORN_KEY_NAMES[key] ?? (/^[A-Z0-9]$/.test(key) ? key : null);
+  const swallowed = steps.length > 1
+    ? `While the machine is running and has focus, the first stroke of this sequence never reaches the workbench.`
+    : 'While the machine is running and has focus, this chord never reaches the workbench.';
+  return {
+    machineKey,
+    note: machineKey === null
+      ? `${swallowed} The machine takes the key and does nothing with it, because the Acorn keyboard has no ${key}.`
+      : `${swallowed} The machine receives ${machineKey} instead — modifiers other than Shift are not passed on — so this types ${machineKey} into whatever is running.`,
+  };
+}
+
 export function browserReservedNote(chord: string | null): string | null {
   return chord ? BROWSER_RESERVED[chord] ?? null : null;
 }
@@ -162,14 +288,21 @@ export function browserReservedNote(chord: string | null): string | null {
 /** Rejects chords that would swallow ordinary typing or cannot be represented. */
 export function chordAssignmentError(chord: string | null): string | null {
   if (!chord) return null;
-  const canonical = parseChord(chord);
+  const canonical = parseChordSequence(chord);
   if (!canonical || canonical !== chord) return 'Enter a supported key with Ctrl, Alt or a function key.';
-  const key = canonical.split('+').pop()!;
-  const hasCtrl = canonical.startsWith('Ctrl+');
-  const hasAlt = canonical.includes('Alt+');
-  const isFunctionKey = /^F([1-9]|1[0-2])$/.test(key);
-  if (!hasCtrl && !hasAlt && !isFunctionKey) return 'Use Ctrl, Alt or a function key so the chord cannot capture ordinary typing.';
-  if ((hasCtrl || hasAlt) && key === 'Tab') return 'Tab chords are reserved for focus movement.';
+  const steps = chordSteps(canonical);
+  if (steps.length > 2) return 'A sequence is at most two strokes; a third is not a shortcut any more.';
+  for (const [index, step] of steps.entries()) {
+    const key = step.split('+').pop()!;
+    const hasCtrl = step.includes('Ctrl+') || step.includes('Cmd+');
+    const hasAlt = step.includes('Alt+');
+    const isFunctionKey = /^F([1-9]|1[0-2])$/.test(key);
+    /* Only the first stroke has to keep clear of ordinary typing. A second
+     * stroke is only ever read while a prefix is held open, so a bare letter
+     * there captures nothing — which is what makes a sequence worth having. */
+    if (index === 0 && !hasCtrl && !hasAlt && !isFunctionKey) return 'Use Ctrl, Alt or a function key so the chord cannot capture ordinary typing.';
+    if (key === 'Tab' && (hasCtrl || hasAlt)) return 'Tab chords are reserved for focus movement.';
+  }
   return null;
 }
 
@@ -254,7 +387,7 @@ export function normalizeKeyBindingOverrides(value: unknown, definitions: readon
     const definition = known.get(id);
     if (!definition) continue;
     if (raw === null) { overrides[id] = null; continue; }
-    const chord = parseChord(raw);
+    const chord = parseChordSequence(raw);
     if (!chord || chordAssignmentError(chord)) continue;
     if (chord === definition.defaultChord) continue;
     overrides[id] = chord;
@@ -300,12 +433,65 @@ export function keyBindingLookup(resolved: readonly ResolvedKeyBinding[], scope:
   return lookup;
 }
 
+/** First strokes that begin a two-stroke sequence in one scope. */
+export function chordPrefixes(resolved: readonly ResolvedKeyBinding[], scope: BindingScope): Set<string> {
+  const prefixes = new Set<string>();
+  for (const binding of resolved) {
+    const steps = chordSteps(binding.scope === scope ? binding.chord : null);
+    if (steps.length === 2) prefixes.add(steps[0]!);
+  }
+  return prefixes;
+}
+
+export type KeyBindingMatch =
+  | { kind: 'command'; commandId: string; chord: string }
+  /* The first stroke of a sequence landed. The dispatcher holds it, and the
+   * next key press either completes a binding or cancels — a held prefix that
+   * swallowed unrelated keys forever would be worse than no sequences. */
+  | { kind: 'pending'; chord: string }
+  | { kind: 'none' };
+
+/**
+ * What one key press means, given what was pressed before it.
+ *
+ * `candidates` is what `chordCandidates` returned, so a binding that named
+ * Command is preferred over one that named the shared Control role.
+ */
+export function matchKeyBinding(
+  lookup: ReadonlyMap<string, string>,
+  prefixes: ReadonlySet<string>,
+  candidates: readonly string[],
+  pending: string | null = null,
+): KeyBindingMatch {
+  for (const candidate of candidates) {
+    if (pending) {
+      const sequence = `${pending}${CHORD_SEQUENCE_SEPARATOR} ${candidate}`;
+      const commandId = lookup.get(sequence);
+      if (commandId) return { kind: 'command', commandId, chord: sequence };
+    }
+  }
+  /* A pending prefix is spent by the press that follows it, whether or not
+   * that press completed anything. Otherwise a mistyped second stroke would
+   * leave the prefix open and the next unrelated key would complete it. */
+  if (pending) return { kind: 'none' };
+  for (const candidate of candidates) {
+    const commandId = lookup.get(candidate);
+    if (commandId) return { kind: 'command', commandId, chord: candidate };
+    if (prefixes.has(candidate)) return { kind: 'pending', chord: candidate };
+  }
+  return { kind: 'none' };
+}
+
 /** Space-separated `aria-keyshortcuts` value for one scope, in ARIA key names. */
 export function ariaKeyShortcuts(resolved: readonly ResolvedKeyBinding[], scope: BindingScope): string {
   const seen = new Set<string>();
   for (const binding of resolved) {
     if (binding.scope !== scope || !binding.chord) continue;
-    seen.add(binding.chord.replace(/^Ctrl\+/, 'Control+'));
+    /* ARIA has no notation for a two-stroke sequence, so only the strokes a
+     * browser could announce are listed; a sequence would otherwise be
+     * advertised as a chord that does nothing on its own. */
+    if (chordSteps(binding.chord).length > 1) continue;
+    seen.add(binding.chord.replace(/^Ctrl\+/, 'Control+').replace(/^Cmd\+/, 'Meta+'));
   }
   return [...seen].join(' ');
 }

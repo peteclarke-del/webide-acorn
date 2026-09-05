@@ -20,6 +20,7 @@ them later is a legal question and not only an engineering one.
 | [0007](0007-editable-asset-document-contract.md) | Editable asset document contract | Accepted |
 | [0008](0008-elkjs-electron-adapter-and-gpl-position.md) | ElkJS Electron adapter, and the GPL position it creates | Accepted; **licence position pending sign-off** |
 | [0009](0009-risc-os-c-toolchain-candidate.md) | RISC OS C toolchain candidate boundary | Accepted direction; toolchain unavailable |
+| [0010](0010-project-storage-and-revisions.md) | Project storage, revisions and the single local identity | Accepted for the local storage and revision slice |
 
 ## A note on numbering
 

@@ -1,8 +1,10 @@
-import { decodePlainText, decodeTokenizedBasic, isProbablyText } from './bbcBasic';
+import { decodePlainText, decodeTokenizedBasic, isProbablyText, type BasicDecodeTables } from './bbcBasic';
+import { BBC_BASIC_5 } from './basicDialects';
 import { disassemble6502 } from './disassembler6502';
 import { disassembleArm } from './disassemblerArm';
 import { decodePlainBasic, type PlainBasicDialect } from './plainBasic';
 import type { AnalysisAnnotations } from './analysisAnnotations';
+import type { AnalysisProgressReporter } from './analysisProgress';
 import type { AcornFileMetadata, AnalysisProcessor, FileAnalysis } from './types';
 
 export interface AnalysisOptions {
@@ -10,6 +12,16 @@ export interface AnalysisOptions {
   entryPoint: number;
   processor: AnalysisProcessor;
   basicDialect?: PlainBasicDialect;
+  /*
+   * Which BASIC tokenised bytes are read against.
+   *
+   * A tokenised file almost never says which ROM wrote it — of the five tables
+   * here, one token belongs to a single dialect — so this comes from the machine
+   * somebody selected rather than from the file. BASIC II is the default because
+   * it is what every 6502 Acorn shares; an ARM machine runs BASIC V, whose
+   * two-byte keywords a BASIC II table would read as two wrong ones.
+   */
+  tokenisedBasicDialect?: 'bbc-basic-2' | 'bbc-basic-5';
   /* What the reader has recorded about this binary. Carried through the worker
    * boundary as a plain document, and validated there rather than trusted. */
   annotations?: AnalysisAnnotations;
@@ -87,8 +99,15 @@ function looksLikePlainBasic(name: string, text: string): boolean {
   return Boolean(meaningful.length && (extensionSuggestsBasic || numbered / meaningful.length >= 0.7));
 }
 
-export function analyseFile(bytes: Uint8Array, name: string, options: AnalysisOptions): FileAnalysis {
-  const basic = decodeTokenizedBasic(bytes);
+const BASIC_V_TABLES: BasicDecodeTables = {
+  label: 'BBC BASIC V',
+  tokens: BBC_BASIC_5.tokens,
+  extended: BBC_BASIC_5.extended,
+  statementForms: BBC_BASIC_5.statementForms,
+};
+
+export function analyseFile(bytes: Uint8Array, name: string, options: AnalysisOptions, onProgress?: AnalysisProgressReporter): FileAnalysis {
+  const basic = decodeTokenizedBasic(bytes, options.tokenisedBasicDialect === 'bbc-basic-5' ? BASIC_V_TABLES : undefined);
   if (basic) return basic;
   if (isProbablyText(bytes)) {
     const text = decodePlainText(bytes);
@@ -97,9 +116,12 @@ export function analyseFile(bytes: Uint8Array, name: string, options: AnalysisOp
     }
     return { kind: 'text', text, lineCount: text.split('\n').length };
   }
+  /* Only the disassemblers report. A text or BASIC decode is a single pass
+   * that finishes before a progress bar could be drawn, and reporting on it
+   * would be reporting on nothing. */
   return options.processor === 'arm2' || options.processor === 'arm3'
-    ? disassembleArm(bytes, options.origin, options.entryPoint, options.processor)
-    : disassemble6502(bytes, options.origin, options.entryPoint, options.processor, options.annotations);
+    ? disassembleArm(bytes, options.origin, options.entryPoint, options.processor, onProgress)
+    : disassemble6502(bytes, options.origin, options.entryPoint, options.processor, options.annotations, onProgress);
 }
 
 export function parseHexAddress(value: string, maximumDigits = 4): number | null {

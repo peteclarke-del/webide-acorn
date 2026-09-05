@@ -9,10 +9,13 @@ import {
   validateTemplateCatalogue,
   type ProjectTemplate,
 } from './templateCatalogue';
+import { machineProfiles } from '../data/machines';
+import { romSetFor } from '../rom/romProfiles';
+import { TOOLCHAINS } from '../build/buildTarget';
+import { assemble6502 } from '../build/assembler6502';
 import { assembleProject6502 } from '../build/projectAssembler6502';
 import { tokenizeBasic } from '../build/basicTokeniser';
 import { toolchainFor, validateBuildTarget } from '../build/buildTarget';
-import { machineProfiles } from '../data/machines';
 import type { MachineProfile } from '../types';
 
 const bbcB = machineProfiles.find((machine) => machine.id === 'bbc-b')!;
@@ -22,10 +25,12 @@ describe('the shipped template catalogue', () => {
     expect(validateTemplateCatalogue()).toEqual([]);
   });
 
-  it('ships two templates for the first machine slice, each with unique identity', () => {
-    expect(TEMPLATE_CATALOGUE).toHaveLength(2);
-    expect(new Set(TEMPLATE_CATALOGUE.map((template) => template.id)).size).toBe(2);
-    for (const template of TEMPLATE_CATALOGUE) expect(template.target.machineId).toBe('bbc-b');
+  it('ships a starter for every machine this build can run, each with unique identity', () => {
+    expect(TEMPLATE_CATALOGUE).toHaveLength(6);
+    expect(new Set(TEMPLATE_CATALOGUE.map((template) => template.id)).size).toBe(6);
+    /* One per runnable 6502 machine, and a second for the Model B in BASIC. */
+    expect([...new Set(TEMPLATE_CATALOGUE.map((template) => template.target.machineId))].sort())
+      .toEqual(['atom', 'bbc-b', 'bbc-bplus', 'electron', 'master']);
   });
 
   it('records where every template came from and under what licence', () => {
@@ -72,8 +77,8 @@ describe('a template against the machine in front of you', () => {
   });
 
   it('says which machine profile is missing rather than offering the template anyway', () => {
-    const [template] = TEMPLATE_CATALOGUE;
-    const fit = templateFit(template!, []);
+    const template = TEMPLATE_CATALOGUE.find((candidate) => candidate.target.machineId === 'bbc-b')!;
+    const fit = templateFit(template, []);
     expect(fit.fits).toBe(false);
     expect(fit.problems[0]).toContain('no machine profile called bbc-b');
   });
@@ -142,7 +147,9 @@ describe('opening a template as a project', () => {
         const toolchain = toolchainFor(target.toolchainId)!;
         const build = () => toolchain.language === 'bbc-basic'
           ? tokenizeBasic(entry.content)
-          : assembleProject6502(entry.id, project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
+          /* The machine matters: a template written for the Atom is assembled
+           * against the Atom's entry points, which are not the BBC's. */
+          : assembleProject6502(entry.id, project.files, toolchainFor(target.toolchainId)!.processor === '65c02' ? '65c02' : '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff, machineId: template.target.machineId });
         const artifact = build();
         expect(artifact.diagnostics).toEqual([]);
         expect(artifact.bytes.length).toBeGreaterThan(0);
@@ -165,5 +172,56 @@ describe('opening a template as a project', () => {
   it('refuses a template whose entry file is not among its files', () => {
     const broken: ProjectTemplate = { ...TEMPLATE_CATALOGUE[0]!, entryFileName: 'absent.asm' };
     expect(() => projectFromTemplate(broken)).toThrow(/which is not among its files/);
+  });
+});
+
+describe('every starter a machine offers', () => {
+  /*
+   * A starter is the first thing somebody sees of a machine, so it has to build
+   * on that machine and be right about it. The Atom's operating system is not
+   * the BBC's — its OSWRCH is at &FFF4 rather than &FFEE — and a template
+   * assembled against the wrong vocabulary either builds and calls the wrong
+   * address, or is rejected for restating a fact the assembler had no business
+   * assuming. This is the test that holds each one to its own machine.
+   */
+  it('names a machine, a firmware set and a toolchain this build has', () => {
+    for (const template of TEMPLATE_CATALOGUE) {
+      const machine = machineProfiles.find((candidate) => candidate.id === template.target.machineId);
+      expect(machine, `${template.id} names a machine`).toBeDefined();
+      expect(machine!.variants, `${template.id} names a variant of ${machine!.id}`).toContain(template.target.variant);
+      expect(romSetFor(template.target.machineId, template.target.romId), `${template.id} names a ROM set that resolves`).toBeDefined();
+      expect(TOOLCHAINS.some((toolchain) => toolchain.id === template.toolchainId), `${template.id} names a toolchain`).toBe(true);
+    }
+  });
+
+  it('assembles cleanly against its own machine, with no diagnostics above a note', () => {
+    for (const template of TEMPLATE_CATALOGUE.filter((candidate) => candidate.language === '6502')) {
+      const source = template.files.find((file) => file.name === template.entryFileName)!.content;
+      const toolchain = TOOLCHAINS.find((candidate) => candidate.id === template.toolchainId)!;
+      const artifact = assemble6502(source, toolchain.processor === '65c02' ? '65c02' : '6502', 0x1900, {}, template.target.machineId);
+      const problems = artifact.diagnostics.filter((item) => item.severity === 'error' || item.severity === 'warning');
+      expect(problems.map((item) => item.message), `${template.id} assembles`).toEqual([]);
+      expect(artifact.bytes.length, `${template.id} produces a program`).toBeGreaterThan(16);
+    }
+  });
+
+  it('calls its own machine\'s entry points and not another\'s', () => {
+    const atom = TEMPLATE_CATALOGUE.find((candidate) => candidate.id === 'atom-text-6502')!;
+    const source = atom.files[0]!.content;
+    /* The two addresses that were measured on the machine. */
+    expect(source).toContain('&FFF4');
+    expect(source).toContain('&FFE3');
+    /* And the BBC's, which would be silently wrong here. */
+    expect(source).not.toContain('&FFEE');
+    expect(source).not.toContain('&FFE0');
+    /* Assembled against the BBC's vocabulary the same source is refused, which
+     * is what makes the machine argument load-bearing rather than decorative. */
+    const asBbc = assemble6502(source, '6502', 0x2900, {}, 'bbc-b');
+    expect(asBbc.diagnostics.some((item) => item.severity === 'error')).toBe(true);
+  });
+
+  it('gives each of the machines this build can run one to start from', () => {
+    const withStarters = new Set(TEMPLATE_CATALOGUE.filter((candidate) => candidate.language === '6502').map((candidate) => candidate.target.machineId));
+    expect([...withStarters].sort()).toEqual(['atom', 'bbc-b', 'bbc-bplus', 'electron', 'master']);
   });
 });

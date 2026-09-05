@@ -2,6 +2,37 @@ declare module 'jsbeeb/src/fake6502.js' {
   export function fake6502(model: JsBeebModel, options?: Record<string, unknown>): JsBeebCpu;
 }
 
+/* The silent parts the engine's own factory fits to every machine: a CMOS
+ * clock, the two noise generators for the disc drive and the relay, and the
+ * Music 5000 stand-in. Nothing reads them here; they are constructor furniture,
+ * and describing them further would be a second account of somebody else's
+ * classes. */
+declare module 'jsbeeb/src/cmos.js' { export class Cmos { constructor(persistence?: unknown); } }
+declare module 'jsbeeb/src/ddnoise.js' { export class FakeDdNoise {} }
+declare module 'jsbeeb/src/relaynoise.js' { export class FakeRelayNoise {} }
+declare module 'jsbeeb/src/music5000.js' { export class FakeMusic5000 {} }
+
+declare module 'jsbeeb/src/6502.js' {
+  /*
+   * Only what the B+ built on top of this needs to see. jsbeeb's processor
+   * carries far more than this; naming the rest here would be a second,
+   * unchecked description of somebody else's class.
+   */
+  export class Cpu6502 {
+    constructor(model: JsBeebModel, options: Record<string, unknown>);
+    romSelect(value: number): void;
+    writeDevice(address: number, value: number): void;
+    memLook: Int32Array;
+    memStat: Uint8Array;
+    romsel: number;
+    romOffset: number;
+    osOffset: number;
+    videoDisplayPage: number;
+    model: JsBeebModel;
+  }
+  export class AtomCpu6502 extends Cpu6502 {}
+}
+
 declare module 'jsbeeb/src/models.js' {
   export function findModel(name: string): JsBeebModel | null;
   /** Every model the pinned engine publishes, with its selectable synonyms. */
@@ -130,8 +161,15 @@ interface JsBeebCpu {
   hasTube?: boolean;
   tube?: {
     snapshotState(options?: Record<string, unknown>): Record<string, unknown>;
+    restoreState(state: unknown): void;
+    /* The parasite's own bus. `writemem` reaches its RAM and, at &FEF8 to
+     * &FEFF, the ULA — so a loader has to keep out of that window. */
+    readmem(address: number): number;
+    writemem(address: number, value: number): void;
+    memory?: Uint8Array;
     resetHeldLow?: boolean;
-    pc?: number;
+    romPaged?: boolean;
+    pc: number;
     cycles?: number;
     tube?: {
       hostRead(address: number): number;

@@ -1,8 +1,23 @@
 import { sha256Hex } from '../build/digest';
-import { packBbcMode5Pixels, packOpaqueMask, packTwoBitPixels } from './pixelPacking';
+import { fitsScreenBlocks, packBbcMode5Pixels, packBbcScreenBlocks, packOpaqueMask, packTwoBitPixels } from './pixelPacking';
 
 export type PixelAssetKind = 'character' | 'sprite' | 'tile';
-export type PixelPacking = 'logical-2bpp-msb-groups' | 'bbc-mode-5-hardware-interleaved-2bpp';
+/*
+ * How a picture becomes bytes.
+ *
+ * The first two say how four pixels sit inside one byte and leave the bytes in
+ * row order. The third is the order the machine itself stores a picture in:
+ * eight-scanline blocks, four pixels wide, columns across before rows down. It
+ * is what every generator that targets the BBC emits, and reading such data as
+ * rows gives a recognisable picture cut into strips.
+ */
+export type PixelPacking =
+  | 'logical-2bpp-msb-groups'
+  | 'bbc-mode-5-hardware-interleaved-2bpp'
+  | 'bbc-screen-2bpp-eight-line-blocks';
+
+/* The one schema every character, sprite and tile document carries. */
+export const PIXEL_ASSET_SCHEMA = '8bit-net.pixel-asset' as const;
 
 export interface PixelSpriteFrame {
   id: string;
@@ -14,7 +29,7 @@ export interface PixelSpriteFrame {
 }
 
 export interface PixelAssetDocument {
-  schema: '8bit-net.pixel-asset';
+  schema: typeof PIXEL_ASSET_SCHEMA;
   version: 1;
   name: string;
   kind: PixelAssetKind;
@@ -49,7 +64,7 @@ const SIZES = new Set([8, 16, 24, 32]);
 
 export function createPixelAssetDocument(kind: PixelAssetKind, width = kind === 'sprite' ? 16 : 8, height = kind === 'sprite' ? 16 : 8): PixelAssetDocument {
   return {
-    schema: '8bit-net.pixel-asset', version: 1, name: `untitled-${kind}`, kind, width, height,
+    schema: PIXEL_ASSET_SCHEMA, version: 1, name: `untitled-${kind}`, kind, width, height,
     pixels: Array(width * height).fill(0),
     palette: { indices: [0, 1, 2, 3], interpretation: 'logical-acorn-colours' },
     target: { family: 'acorn-8-bit', packing: 'logical-2bpp-msb-groups', previewPixelAspect: 'square-editor-preview' },
@@ -100,7 +115,7 @@ export function parsePixelAssetDocument(value: string | unknown, fallbackKind: P
     migrated.pixels = parsed.pixels.map(pixelIndex);
     return migrated;
   }
-  if (parsed.schema !== '8bit-net.pixel-asset' || parsed.version !== 1) throw new Error('Unsupported pixel asset schema or version');
+  if (parsed.schema !== PIXEL_ASSET_SCHEMA || parsed.version !== 1) throw new Error('Unsupported pixel asset schema or version');
   if (!['character', 'sprite', 'tile'].includes(String(parsed.kind))) throw new Error('Pixel asset kind must be character, sprite or tile');
   validateDimensions(parsed.width, parsed.height);
   if (typeof parsed.name !== 'string' || !parsed.name.trim() || parsed.name.length > 80) throw new Error('Pixel asset name must contain 1–80 characters');
@@ -110,7 +125,15 @@ export function parsePixelAssetDocument(value: string | unknown, fallbackKind: P
   const target = parsed.target as Partial<PixelAssetDocument['target']> | undefined;
   const packing = target?.packing;
   const pixelCount = parsed.width * (parsed.height as number);
-  if (packing !== undefined && packing !== 'logical-2bpp-msb-groups' && packing !== 'bbc-mode-5-hardware-interleaved-2bpp') throw new Error('Pixel asset target packing is not supported');
+  const PACKINGS: readonly string[] = ['logical-2bpp-msb-groups', 'bbc-mode-5-hardware-interleaved-2bpp', 'bbc-screen-2bpp-eight-line-blocks'];
+  if (packing !== undefined && !PACKINGS.includes(packing)) throw new Error('Pixel asset target packing is not supported');
+  /* The machine's own layout only describes a picture whose width is a whole
+   * number of four-pixel groups and whose height is a whole number of
+   * eight-scanline bands. A document claiming it at another shape could not be
+   * generated, so it is refused here rather than at generation time. */
+  if (packing === 'bbc-screen-2bpp-eight-line-blocks' && !fitsScreenBlocks(parsed.width as number, parsed.height as number)) {
+    throw new Error('BBC screen order needs a width that is a multiple of 4 pixels and a height that is a multiple of 8 rows');
+  }
   let sprite = expected.sprite;
   if (parsed.kind === 'sprite' && parsed.sprite !== undefined) {
     const imported = parsed.sprite as Partial<NonNullable<PixelAssetDocument['sprite']>>;
@@ -149,7 +172,12 @@ export function serializePixelAssetDocument(document: PixelAssetDocument): strin
 export function generatePixelAssetOutput(document: PixelAssetDocument): PixelAssetOutput {
   const validated = parsePixelAssetDocument(document, document.kind);
   const frames = pixelAssetFrames(validated);
-  const pack = (pixels: number[]) => validated.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? packBbcMode5Pixels(pixels) : packTwoBitPixels(pixels);
+  const pack = (pixels: number[]) => {
+    if (validated.target.packing === 'bbc-screen-2bpp-eight-line-blocks') {
+      return packBbcScreenBlocks(pixels, validated.width, validated.height) ?? packBbcMode5Pixels(pixels);
+    }
+    return validated.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? packBbcMode5Pixels(pixels) : packTwoBitPixels(pixels);
+  };
   const packedFrames = frames.map((frame) => pack(frame.pixels));
   const bytes = Uint8Array.from(packedFrames.flatMap((frame) => Array.from(frame)));
   const packedMasks = validated.sprite ? frames.map((frame) => packOpaqueMask(frame.mask!)) : [];

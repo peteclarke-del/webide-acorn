@@ -3,6 +3,8 @@ import type { LanguageItem, LanguageItemDocumentation } from './languageService'
 import { bbcBasicDialect, isBbcMosTarget, type LanguageTargetContext } from './languageTarget';
 import { atomBasicLanguageItem, atomBasicLanguageItems } from './atomBasicReference';
 
+import { basicKeywordAvailability } from '../analysis/basicKeywordAvailability';
+
 const BASIC_REFERENCE_VERSION = 'acorn-bbc-user-guide-1984+ide-1';
 const MOS_REFERENCE_VERSION = 'acorn-bbc-aug+mos-table-1';
 const BASIC_GUIDE = 'https://bbc.nvg.org/doc/BBCUserGuide-1.00.pdf';
@@ -47,8 +49,49 @@ export function basicLanguageItems(target?: LanguageTargetContext) {
 }
 
 export function basicLanguageItem(token: string, target?: LanguageTargetContext): LanguageItem | undefined {
-  if (target?.machineId === 'atom') return atomBasicLanguageItem(token, target) ?? bbcBasicLanguageItem(token, target);
-  return bbcBasicLanguageItem(token, target) ?? atomBasicLanguageItem(token, target);
+  const written = target?.machineId === 'atom'
+    ? atomBasicLanguageItem(token, target) ?? bbcBasicLanguageItem(token, target)
+    : bbcBasicLanguageItem(token, target) ?? atomBasicLanguageItem(token, target);
+
+  return written ?? romOnlyBasicItem(token);
+}
+
+/*
+ * A keyword the ROMs have and nobody has written up.
+ *
+ * Eighteen BBC BASIC keywords have cited prose here and there are a hundred and
+ * twenty-one in BASIC II alone. Writing the rest would mean citing sections of
+ * a manual this build does not have, which is inventing a citation rather than
+ * writing documentation.
+ *
+ * What can be said exactly is what the ROM tables say: which machines have the
+ * keyword and what token each uses. That is the difference between a hover
+ * that says nothing at all and one that says this exists, here is where, and
+ * nobody has described it yet — and the last part is said rather than left for
+ * somebody to conclude from an empty panel.
+ */
+function romOnlyBasicItem(token: string): LanguageItem | undefined {
+  const availability = basicKeywordAvailability(token);
+  if (!availability) return undefined;
+
+  return {
+    token: availability.keyword,
+    kind: 'command',
+    detail: `${availability.summary} No description of what it does is documented in this build yet.`,
+    languages: ['bbc-basic'],
+    documentation: {
+      category: 'BBC BASIC keyword',
+      compatibility: {
+        supported: true,
+        appliesTo: availability.dialects.map((entry) => entry.label),
+      },
+      citations: [{
+        title: 'Read from the language ROM keyword tables',
+        section: availability.dialects.map((entry) => `${entry.label} ${entry.tokens.map((value) => `&${value.toString(16).toUpperCase().padStart(2, '0')}`).join('/')}`).join(', '),
+      }],
+    },
+    source: { kind: 'builtin', label: 'Language ROM keyword table', version: BASIC_REFERENCE_VERSION },
+  };
 }
 
 function bbcBasicLanguageItem(token: string, target?: LanguageTargetContext): LanguageItem | undefined {

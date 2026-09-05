@@ -152,8 +152,19 @@ export function ProfileComparisonPanel() {
         <div>
           <h3>What this build had to change to resolve these</h3>
           <ul className="profile-warnings">
-            {[...from.diagnostics, ...to.diagnostics].map((diagnostic) => (
-              <li key={`${diagnostic.kind}-${diagnostic.requested}`}>{diagnostic.reason}</li>
+            {/*
+              * Both sides of the comparison are listed together, and the two
+              * configurations frequently have the same thing to say — the same
+              * capability needing the same variant. Keying by what was said
+              * gave two children the same key, which React warns about because
+              * it can drop or duplicate one of them. The side is part of the
+              * identity, so it is part of the key.
+              */}
+            {[
+              ...from.diagnostics.map((diagnostic) => ({ diagnostic, side: 'from' })),
+              ...to.diagnostics.map((diagnostic) => ({ diagnostic, side: 'to' })),
+            ].map(({ diagnostic, side }, index) => (
+              <li key={`${side}-${index}-${diagnostic.kind}-${diagnostic.requested}`}>{diagnostic.reason}</li>
             ))}
           </ul>
         </div>

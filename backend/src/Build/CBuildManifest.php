@@ -40,7 +40,7 @@ final class CBuildManifest
             'processors' => ['6502', '65c02'], 'profiles' => ['debug', 'size', 'speed', 'custom'],
             'machines' => ['bbc-b', 'bbc-b-plus', 'master'],
             'deterministic' => true,
-            'packageVersion' => $_SERVER['TOOLCHAIN_PACKAGE_VERSION'] ?? $_ENV['TOOLCHAIN_PACKAGE_VERSION'] ?? 'host-development',
+            'packageVersion' => ToolLocator::configured('TOOLCHAIN_PACKAGE_VERSION') ?? 'host-development',
             'compiler' => ['version' => $versions['cc65'], 'sha256' => $this->digest($cc65)],
             'assembler' => ['version' => $versions['ca65'], 'sha256' => $this->digest($ca65)],
             'linker' => ['version' => $versions['ld65'], 'sha256' => $this->digest($ld65)],
@@ -60,7 +60,7 @@ final class CBuildManifest
 
     private function environment(string $name, string $fallback): string
     {
-        return (string) ($_SERVER[$name] ?? $_ENV[$name] ?? $fallback);
+        return ToolLocator::locate($name, basename($fallback), $fallback);
     }
 
     private function digest(string $path): ?string

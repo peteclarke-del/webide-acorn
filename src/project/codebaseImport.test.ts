@@ -22,7 +22,7 @@ describe('planning a codebase import', () => {
   const plan = planCodebaseImport(SIMPLE, 'My Game');
 
   it('imports editable source and reports everything it left out', () => {
-    expect(plan.files.map((file) => file.name).sort()).toEqual(['README.md', 'design.txt', 'gfx.asm', 'main.asm']);
+    expect(plan.files.map((file) => file.name).sort()).toEqual(['README.md', 'notes/design.txt', 'src/gfx.asm', 'src/main.asm']);
     const excluded = Object.fromEntries(plan.exclusions.map((exclusion) => [exclusion.path, exclusion.reason]));
     expect(excluded['.git/config']).toBe('ignored-directory');
     expect(excluded['build/out.bin']).toBe('ignored-directory');
@@ -31,13 +31,13 @@ describe('planning a codebase import', () => {
   });
 
   it('classifies each file by the language the project parser will give it', () => {
-    expect(plan.files.find((file) => file.name === 'main.asm')).toMatchObject({ language: '6502', role: 'source' });
+    expect(plan.files.find((file) => file.name === 'src/main.asm')).toMatchObject({ language: '6502', role: 'source' });
     expect(plan.files.find((file) => file.name === 'README.md')).toMatchObject({ language: 'text', role: 'text' });
   });
 
   it('proposes the entry file that is not included by another, and says why', () => {
     expect(plan.targets).toHaveLength(1);
-    expect(plan.targets[0]).toMatchObject({ entryName: 'main.asm', toolchainId: '8bit-net.asm.6502', language: '6502' });
+    expect(plan.targets[0]).toMatchObject({ entryName: 'src/main.asm', toolchainId: '8bit-net.asm.6502', language: '6502' });
     expect(plan.targets[0]!.reason).toMatch(/sets an origin/);
     expect(plan.targets[0]!.reason).toMatch(/is not included by another file/);
   });
@@ -47,7 +47,10 @@ describe('planning a codebase import', () => {
     expect(project.name).toBe('My Game');
     expect(project.files).toHaveLength(4);
     expect(project.buildTargets).toHaveLength(1);
-    expect(project.buildTargets[0]!.entryFileId).toBe('main.asm');
+    /* An identifier, not a path: a file id with a slash in it is refused by
+     * the native build service, so an imported project could not be built. */
+    expect(project.buildTargets[0]!.entryFileId).toBe('src-main.asm');
+    expect(project.files.find((file) => file.id === 'src-main.asm')?.name).toBe('src/main.asm');
     expect(project.activeBuildTargetId).toBe(project.buildTargets[0]!.id);
     // Fields the importer does not write must be filled in by the migration.
     expect(project.buildTargets[0]).toMatchObject({ buildPolicy: 'manual', machineProfile: 'project', language: '6502' });
@@ -56,7 +59,7 @@ describe('planning a codebase import', () => {
   });
 });
 
-describe('flattening folder paths', () => {
+describe('keeping the folders a codebase arrived in', () => {
   const nested: CodebaseFileInput[] = [
     { path: 'a/util.asm', content: '.one\nRTS\n' },
     { path: 'b/util.asm', content: '.two\nRTS\n' },
@@ -65,18 +68,140 @@ describe('flattening folder paths', () => {
   ];
   const plan = planCodebaseImport(nested, 'Nested');
 
-  it('keeps the first basename and disambiguates the rest with their folder', () => {
-    const names = plan.files.map((file) => file.name);
-    expect(names).toContain('util.asm');
-    expect(names).toContain('b-util.asm');
-    expect(names).toContain('c-util.asm');
-    expect(new Set(names).size).toBe(names.length);
+  it('keeps three files of the same name apart by the folders they came from', () => {
+    /* These used to be flattened to util.asm, b-util.asm and c-util.asm, which
+     * broke every INCLUDE that named them and lost the shape of the checkout. */
+    expect(plan.files.map((file) => file.name).sort()).toEqual(['a/util.asm', 'b/util.asm', 'c/util.asm', 'main.asm']);
+    expect(plan.files.every((file) => !file.renamedFrom)).toBe(true);
+    expect(plan.warnings.join(' ')).not.toMatch(/renamed/);
   });
 
-  it('records every rename and warns that INCLUDE directives may need updating', () => {
-    expect(plan.files.filter((file) => file.renamedFrom).map((file) => file.renamedFrom)).toEqual(['util.asm', 'util.asm']);
-    expect(plan.warnings.join(' ')).toMatch(/renamed/);
-    expect(plan.warnings.join(' ')).toMatch(/INCLUDE/);
+  it('drops only the folder that was opened, so its contents sit at the top', () => {
+    const checkout = planCodebaseImport([
+      { path: 'MyGame/main.asm', content: 'ORG &1900\n.start\nRTS\n' },
+      { path: 'MyGame/src/util.asm', content: '.one\nRTS\n' },
+    ], 'MyGame', { pathsIncludeChosenFolder: true });
+    expect(checkout.files.map((file) => file.name).sort()).toEqual(['main.asm', 'src/util.asm']);
+  });
+
+  it('keeps a directory that only looks like the folder that was opened', () => {
+    /* The two folder routes disagree about whether the chosen folder is in the
+     * paths: a directory input reports MyGame/src/main.asm, while the File
+     * System Access API walks from the handle and reports src/main.asm for the
+     * same folder. Guessing from the paths alone flattened a project whose
+     * sources all lived under src, and its build stopped finding them. */
+    const walked = planCodebaseImport([
+      { path: 'src/main.asm', content: 'ORG &1900\n.start\nINCLUDE "src/util.asm"\nRTS\n' },
+      { path: 'src/util.asm', content: '.one\nRTS\n' },
+    ], 'MyGame', { pathsIncludeChosenFolder: false });
+    expect(walked.files.map((file) => file.name).sort()).toEqual(['src/main.asm', 'src/util.asm']);
+  });
+
+  it('reads an archive by the evidence in it, because a zip may hold either', () => {
+    const wrapped = planCodebaseImport([
+      { path: 'MyGame/main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'MyGame/src/util.asm', content: '.one\nRTS\n' },
+    ], 'MyGame');
+    expect(wrapped.files.map((file) => file.name).sort()).toEqual(['main.asm', 'src/util.asm']);
+
+    const bare = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'src/util.asm', content: '.one\nRTS\n' },
+    ], 'MyGame');
+    expect(bare.files.map((file) => file.name).sort()).toEqual(['main.asm', 'src/util.asm']);
+  });
+
+  it('repairs a path segment a filesystem would refuse, and says what it changed', () => {
+    const awkward = planCodebaseImport([
+      { path: 'src?bad/main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'README.md', content: '# notes\n' },
+    ], 'Awkward');
+    expect(awkward.files.map((file) => file.name).sort()).toEqual(['README.md', 'srcbad/main.asm']);
+    expect(awkward.warnings.join(' ')).toMatch(/characters that a filesystem will not accept/);
+  });
+
+  it('places a file at the top rather than nesting it beyond what it will hold', () => {
+    const deep = 'a/'.repeat(20);
+    const buried = planCodebaseImport([{ path: `${deep}main.asm`, content: 'ORG &1900\nRTS\n' }], 'Deep');
+    expect(buried.files[0]!.name).toBe('main.asm');
+    expect(buried.warnings.join(' ')).toMatch(/folders are kept to/);
+  });
+});
+
+describe('the files a codebase is built with', () => {
+  /* A project that loses its build script loses the record of how its author
+   * built it, which is the one thing nobody can reconstruct from the source. */
+  const built: CodebaseFileInput[] = [
+    { path: 'main.asm', content: 'ORG &1900\n.start\nRTS\n' },
+    { path: 'Makefile', content: 'all:\n\tbeebasm -i main.asm -o game\n' },
+    { path: 'make/rules.mk', content: 'ASM := beebasm\n' },
+    /* Still ignored, because a build directory holds output rather than source. */
+    { path: 'build/generated.mk', content: 'GENERATED := 1\n' },
+    { path: 'scripts/package.sh', content: '#!/bin/sh\nexit 0\n' },
+    { path: 'LICENSE', content: 'GPL-3.0\n' },
+    { path: 'link.ld', content: 'SECTIONS { }\n' },
+  ];
+
+  it('keeps a makefile, which has no extension at all', () => {
+    const plan = planCodebaseImport(built, 'Built');
+    expect(plan.files.map((file) => file.name).sort()).toEqual([
+      'LICENSE', 'Makefile', 'link.ld', 'main.asm', 'make/rules.mk', 'scripts/package.sh',
+    ]);
+    expect(plan.exclusions.map((exclusion) => exclusion.path)).toEqual(['build/generated.mk']);
+  });
+
+  it('treats them as text rather than as something to compile', () => {
+    const plan = planCodebaseImport(built, 'Built');
+    const makefile = plan.files.find((file) => file.name === 'Makefile')!;
+    expect(makefile).toMatchObject({ language: 'text', role: 'text' });
+    /* And so none of them can be proposed as the program's entry file. */
+    expect(plan.targets.map((target) => target.entryName)).toEqual(['main.asm']);
+  });
+
+  it('still says no to a name it does not recognise, and says why', () => {
+    const plan = planCodebaseImport([{ path: 'mystery', content: 'who knows\n' }], 'Odd');
+    expect(plan.files).toEqual([]);
+    expect(plan.exclusions[0]).toMatchObject({ path: 'mystery', reason: 'unsupported-file-type' });
+    expect(plan.exclusions[0]!.detail).toMatch(/no extension and is not a name this product recognises/);
+  });
+});
+
+describe('a checkout opened through the folder picker, end to end', () => {
+  /* The shape the File System Access API produces: paths relative to the folder
+   * that was chosen, so its name is not among them. A project whose sources all
+   * live under src used to have src taken off it, and what built on disk did
+   * not build here. */
+  const checkout: CodebaseFileInput[] = [
+    { path: 'Makefile', content: 'all:\n\tbeebasm -i src/main.asm -o game\n' },
+    { path: 'src/main.asm', content: 'ORG &1900\n.start\nINCLUDE "sprites.asm"\nINCLUDE "../lib/maths.asm"\nRTS\n' },
+    { path: 'src/sprites.asm', content: '.hero\nEQUB 1, 2, 3, 4\n' },
+    { path: 'lib/maths.asm', content: '.double\nASL A\nRTS\n' },
+  ];
+
+  it('keeps every folder and assembles what the Makefile says it builds', () => {
+    const plan = planCodebaseImport(checkout, 'MyGame', { pathsIncludeChosenFolder: false });
+    expect(plan.files.map((file) => file.name).sort()).toEqual(['Makefile', 'lib/maths.asm', 'src/main.asm', 'src/sprites.asm']);
+    expect(plan.exclusions).toEqual([]);
+
+    const project = projectFromCodebaseImport(plan, contentsOf(checkout, plan));
+    const artifact = assembleProject6502(project.buildTargets[0]!.entryFileId, project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
+    expect(artifact.diagnostics).toEqual([]);
+    /* Four bytes of artwork, ASL, and two RTS. */
+    expect(artifact.bytes.length).toBe(7);
+  });
+
+  it('would have lost the folders, and the build with them, without being told', () => {
+    /* The same checkout planned as though the chosen folder were in the paths.
+     * Nothing shares a first segment here, so nothing is stripped either way;
+     * the case that broke is the one below, where everything is under src. */
+    const allUnderOne: CodebaseFileInput[] = [
+      { path: 'src/main.asm', content: 'ORG &1900\n.start\nINCLUDE "src/util.asm"\nRTS\n' },
+      { path: 'src/util.asm', content: '.one\nRTS\n' },
+    ];
+    expect(planCodebaseImport(allUnderOne, 'MyGame', { pathsIncludeChosenFolder: false }).files.map((file) => file.name).sort())
+      .toEqual(['src/main.asm', 'src/util.asm']);
+    expect(planCodebaseImport(allUnderOne, 'MyGame', { pathsIncludeChosenFolder: true }).files.map((file) => file.name).sort())
+      .toEqual(['main.asm', 'util.asm']);
   });
 });
 
@@ -142,6 +267,79 @@ describe('recovering assets from an imported codebase', () => {
     expect(plan.derivedAssets.find((entry) => entry.sourceLabel === 'level_map')!.alsoLooksLikeMapData).toBe(true);
   });
 
+  it('recovers a room somebody drew as characters, which no byte run holds', () => {
+    /* The rooms of a real forty-level game are text files like this one, read
+     * by the generator that packs them. Before this they arrived as plain text
+     * and nothing else, so a project whose maps were all in this form imported
+     * with no maps at all. */
+    const drawn = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'rooms/room01.txt', content: [
+        '; NAME: Sub-Basement',
+        '; SHIFTS: 5',
+        '',
+        '################',
+        '#......F.......#',
+        '#..............#',
+        '#...====.......#',
+        '#............F.#',
+        '#......##......#',
+        '#...........#..#',
+        '#P.........E...#',
+        '################',
+      ].join('\n') },
+    ], 'Drawn');
+    const room = drawn.mapCandidates.find((candidate) => candidate.sourceLabel === 'room01');
+    expect(room, 'the room is offered as a map').toBeTruthy();
+    expect(room!.shapes).toEqual([{ width: 16, height: 9 }]);
+    /* The floor is what most of the room is, so it is the map's empty cell. */
+    expect(room!.legend?.[0]).toMatchObject({ character: '.', index: 0 });
+    /* And the file it was drawn in is still imported as itself. */
+    expect(drawn.files.map((file) => file.name)).toContain('rooms/room01.txt');
+  });
+
+  it('offers the loading screen a game opens on, which is not text and was skipped', () => {
+    /* Twenty kilobytes of frame buffer, exactly as the machine reads it. This
+     * is how a loading screen reaches a project: converted by a tool, saved as
+     * the bytes the video hardware wants, loaded by the game's own loader. */
+    const bytes = new Uint8Array(20_480);
+    bytes[0] = 0x0f;
+    const plan = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'assets/loading/loading_acorn_mode2_selected.scr', content: '', bytes },
+    ], 'Loading');
+    expect(plan.screenCandidates).toHaveLength(1);
+    const offered = plan.screenCandidates[0]!;
+    /* The filename names the mode, and three modes share that length, so the
+     * named one leads and the other two remain available. */
+    expect(offered.modes).toEqual(['bbc-mode-2', 'bbc-mode-0', 'bbc-mode-1']);
+    expect(offered.namedByFilename).toBe(true);
+
+    const contents = contentsOf([], plan);
+    const without = projectFromCodebaseImport(plan, contents);
+    expect(without.files.some((file) => file.name.endsWith('.screen.json')), 'nothing is recovered unasked').toBe(false);
+
+    const project = projectFromCodebaseImport(plan, contents, { derivedScreens: [{ id: offered.id, mode: 'bbc-mode-2' }] });
+    const screen = project.files.find((file) => file.name === 'loading_acorn_mode2_selected.screen.json');
+    expect(screen, 'the screen becomes an editable document').toBeTruthy();
+    const document = JSON.parse(screen!.content) as { mode: string; framebufferBase64: string };
+    expect(document.mode).toBe('bbc-mode-2');
+    /* And it is the picture that was saved, byte for byte. */
+    const recovered = Uint8Array.from(atob(document.framebufferBase64), (character) => character.charCodeAt(0));
+    expect(recovered.length).toBe(20_480);
+    expect(recovered[0]).toBe(0x0f);
+  });
+
+  it('does not read an assembler include as a drawn map, because the run already reads it', () => {
+    /* Eight EQUB lines of the same length are a rectangle too. Reading them
+     * twice would offer the same artwork as a map beside itself as a sprite. */
+    const include = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'sprites.inc', content: Array.from({ length: 8 }, () => '    EQUB &00,&0F,&F0,&FF,&00,&0F,&F0,&FF').join('\n') },
+    ], 'Include');
+    expect(include.mapCandidates.filter((candidate) => candidate.id.endsWith(':drawn'))).toEqual([]);
+  });
+
   it('reports map-shaped data without inventing a document for it', () => {
     expect(plan.mapCandidates.map((candidate) => candidate.sourceLabel)).toEqual(['level_map']);
     expect(plan.mapCandidates[0]!.shapes.length).toBeGreaterThan(0);
@@ -162,10 +360,10 @@ describe('importing a real multi-file codebase', () => {
 
     expect(plan.files).toHaveLength(inputs.length);
     expect(plan.files.every((file) => !file.renamedFrom)).toBe(true);
-    expect(plan.targets.map((target) => target.entryName)).toContain('main.asm');
+    expect(plan.targets.map((target) => target.entryName)).toContain('src/main.asm');
 
     const project = projectFromCodebaseImport(plan, contentsOf(inputs, plan));
-    const artifact = assembleProject6502('main.asm', project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
+    const artifact = assembleProject6502(project.buildTargets[0]!.entryFileId, project.files, '6502', { defaultOrigin: 0x1900, maximumAddress: 0x57ff });
     expect(artifact.diagnostics).toEqual([]);
     expect(artifact.bytes.length).toBeGreaterThan(0);
   });

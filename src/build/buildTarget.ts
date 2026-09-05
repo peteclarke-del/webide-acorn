@@ -121,7 +121,7 @@ export function createBuildTarget(file: Pick<ProjectFile, 'id' | 'name' | 'langu
   };
 }
 
-export function validateBuildTarget(target: BuildTarget, files: ProjectFile[], machine: { cpu: string; id?: string }, targets: BuildTarget[] = [target], nativeReady = true): string[] {
+export function validateBuildTarget(target: BuildTarget, files: ProjectFile[], machine: { cpu: string; id?: string }, targets: BuildTarget[] = [target], nativeReady = true, nativeUnavailableReason?: string): string[] {
   const errors: string[] = [];
   const entry = files.find((file) => file.id === target.entryFileId);
   const toolchain = toolchainFor(target.toolchainId);
@@ -129,7 +129,12 @@ export function validateBuildTarget(target: BuildTarget, files: ProjectFile[], m
   if (!target.name.trim()) errors.push('Build target name is required');
   if (!entry) errors.push('The entry file is missing from this project');
   if (!toolchain) errors.push(`Unknown toolchain ${target.toolchainId}`);
-  if (toolchain?.execution === 'server-native' && !nativeReady) errors.push(`${toolchain.label} is unavailable because the isolated native builder is not ready`);
+  /* Saying only that the builder is not ready sent somebody looking for an
+   * assembler that was installed and working, when what was actually wrong was
+   * that nothing was routing the workbench's requests to the build service. */
+  if (toolchain?.execution === 'server-native' && !nativeReady) errors.push(nativeUnavailableReason
+    ? `${toolchain.label} is unavailable: ${nativeUnavailableReason}`
+    : `${toolchain.label} is unavailable because the isolated native builder is not ready`);
   if (target.toolchainId === 'stardot.beebasm' && target.sourceFileIds.length !== 1) errors.push('BeebAsm requires one root source unit; use INCLUDE for subordinate files');
   if (target.toolchainId === 'cc65.c-bbc' && target.sourceFileIds.some((id) => !/\.c$/i.test(files.find((file) => file.id === id)?.name ?? ''))) errors.push('cc65 translation units must be .c files; headers are discovered through #include');
   if (target.toolchainId === 'cc65.c-bbc' && machine.id && !['bbc-b', 'bbc-b-plus', 'master'].includes(machine.id)) errors.push('The current cc65 runtime is validated for BBC B, B+ and Master targets only');

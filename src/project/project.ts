@@ -99,7 +99,7 @@ import { validateDiskSet, type DiskSet } from '../media/diskSet';
 import { settingDescriptor } from '../settings/settings';
 import { validateTrash, type TrashedFile } from './projectTrash';
 import { buildToolchainUpdate, createBuildTarget, defaultToolchainId, migrateBuildTarget, toolchainFor, type BuildTarget } from '../build/buildTarget';
-import { normalizeProjectFilename } from './safeNames';
+import { normalizeProjectPath } from './safeNames';
 
 export interface LocalProject {
   format: '8bit-net-dev-project-21';
@@ -173,7 +173,13 @@ export const DEFAULT_TARGET: ProjectTarget = { platformClass: '8-16-bit', machin
 
 export function languageForFilename(name: string): SourceLanguage {
   if (/\.(?:bas|basic)$/i.test(name)) return 'bbc-basic';
-  if (/\.(?:6502|s|asm|a65)$/i.test(name)) return '6502';
+  /* .inc is the conventional extension for an assembler include, and in an
+   * Acorn project that is what it always is. Treating it as plain text left
+   * every generated sprite table unreadable to the language service and
+   * invisible to the asset recovery, which found four lookup tables in the
+   * hand-written sources and none of the artwork sitting in the .inc files
+   * beside them. */
+  if (/\.(?:6502|s|asm|a65|inc)$/i.test(name)) return '6502';
   if (/\.(?:arm|sarm)$/i.test(name)) return 'arm';
   if (/\.(?:c|h)$/i.test(name)) return 'c';
   return 'text';
@@ -267,20 +273,27 @@ export function reorderProjectFiles(
  * applied to the name that will actually be written.
  */
 export function namedForProject(requested: string, files: ProjectFile[]): { name: string; reason: string | null } {
-  const normalized = normalizeProjectFilename(requested);
+  const normalized = normalizeProjectPath(requested);
   return { name: uniqueFilename(normalized.name, files), reason: normalized.reason };
 }
 
 export function uniqueFilename(requested: string, files: ProjectFile[]): string {
-  const clean = normalizeProjectFilename(requested).name;
+  /* A name may carry folders, because a project keeps the ones an imported
+   * codebase arrived in and typing a path is how a new file joins them. The
+   * numbering that resolves a collision is applied to the filename, so
+   * `src/main.s` becomes `src/main-2.s` rather than mangling the folder. */
+  const clean = normalizeProjectPath(requested).name;
   const used = new Set(files.map((file) => file.name.toLowerCase()));
   if (!used.has(clean.toLowerCase())) return clean;
-  const dot = clean.lastIndexOf('.');
-  const stem = dot > 0 ? clean.slice(0, dot) : clean;
-  const extension = dot > 0 ? clean.slice(dot) : '';
+  const slash = clean.lastIndexOf('/');
+  const directory = slash < 0 ? '' : clean.slice(0, slash + 1);
+  const base = slash < 0 ? clean : clean.slice(slash + 1);
+  const dot = base.lastIndexOf('.');
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  const extension = dot > 0 ? base.slice(dot) : '';
   let number = 2;
-  while (used.has(`${stem}-${number}${extension}`.toLowerCase())) number += 1;
-  return `${stem}-${number}${extension}`;
+  while (used.has(`${directory}${stem}-${number}${extension}`.toLowerCase())) number += 1;
+  return `${directory}${stem}-${number}${extension}`;
 }
 
 export function parseProject(value: string): LocalProject {

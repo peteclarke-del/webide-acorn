@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { ProjectTree, nextTreeIndex, sourceGroupOf } from './ProjectTree';
+import { ProjectTree, foldersAndFiles, nextTreeIndex, sourceGroupOf } from './ProjectTree';
 import type { ProjectFile } from '../project/project';
 import type { TrashedFile } from '../project/projectTrash';
 
@@ -281,5 +281,120 @@ describe('reordering files in the tree', () => {
     rowFor('cpu').focus();
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp', altKey: true });
     expect(props.onReorder).not.toHaveBeenCalled();
+  });
+});
+
+describe('showing the folders a project keeps', () => {
+  const file = (id: string, name: string): ProjectFile => ({ id, name, content: '', language: '6502', modified: false, kind: 'imported' });
+
+  it('announces each folder once and names files by their basename', () => {
+    const rows = foldersAndFiles([
+      file('a', 'src/game/main.asm'),
+      file('b', 'src/game/sprites.asm'),
+      file('c', 'src/lib/maths.asm'),
+      file('d', 'readme.md'),
+    ]);
+    expect(rows.map((row) => `${row.kind}:${row.label}:${row.depth}`)).toEqual([
+      'folder:src:0',
+      'folder:game:1',
+      'file:main.asm:2',
+      'file:sprites.asm:2',
+      'folder:lib:1',
+      'file:maths.asm:2',
+      'file:readme.md:0',
+    ]);
+  });
+
+  it('announces a folder again when the order leaves and returns to it', () => {
+    /* Files can be reordered by hand, so a folder's files need not be
+     * contiguous; repeating the heading is truthful about where each file is. */
+    const rows = foldersAndFiles([file('a', 'src/main.asm'), file('b', 'top.asm'), file('c', 'src/other.asm')]);
+    expect(rows.filter((row) => row.kind === 'folder')).toHaveLength(2);
+  });
+
+  it('leaves a project without folders looking exactly as it did', () => {
+    const rows = foldersAndFiles([file('a', 'main.asm'), file('b', 'gfx.asm')]);
+    expect(rows.every((row) => row.kind === 'file' && row.depth === 0)).toBe(true);
+  });
+
+  const NESTED = [
+    file('a', 'src/game/main.asm'),
+    file('b', 'src/game/sprites.asm'),
+    file('c', 'src/lib/maths.asm'),
+    file('d', 'readme.md'),
+  ];
+
+  it('hides what a shut folder holds, and keeps the folder itself', () => {
+    const rows = foldersAndFiles(NESTED, new Set(['src/game']));
+    expect(rows.map((row) => `${row.kind}:${row.label}`)).toEqual([
+      'folder:src', 'folder:game', 'folder:lib', 'file:maths.asm', 'file:readme.md',
+    ]);
+    expect(rows.find((row) => row.label === 'game')).toMatchObject({ collapsed: true, holds: 2 });
+  });
+
+  it('hides a folder inside a shut one entirely, rather than leaving it stranded', () => {
+    const rows = foldersAndFiles(NESTED, new Set(['src']));
+    expect(rows.map((row) => `${row.kind}:${row.label}`)).toEqual(['folder:src', 'file:readme.md']);
+    /* And says how much is behind it, so shutting it does not simply lose three files. */
+    expect(rows[0]).toMatchObject({ collapsed: true, holds: 3 });
+  });
+
+  it('counts what a folder holds before anything is hidden', () => {
+    /* The count has to be of everything inside, or a folder shut inside another
+     * would make the outer one appear to hold less than it does. */
+    const outer = foldersAndFiles(NESTED, new Set(['src', 'src/game']))[0];
+    expect(outer).toMatchObject({ label: 'src', holds: 3 });
+  });
+});
+
+describe('opening and shutting the folders', () => {
+  const file = (id: string, name: string): ProjectFile => ({ id, name, content: '', language: '6502', modified: false, kind: 'imported' });
+  const NESTED = [file('a', 'src/game/main.asm'), file('b', 'src/game/sprites.asm'), file('c', 'top.asm')];
+  const draw = () => render(
+    <ProjectTree
+      files={NESTED}
+      buildTargets={[]}
+      activeFileId="a"
+      activeBuildTargetId=""
+      trash={[] as readonly TrashedFile[]}
+      onOpenFile={() => {}}
+      onSelectBuildTarget={() => {}}
+      onRestore={() => {}}
+      onPurge={() => {}}
+    />,
+  );
+
+  it('shuts a folder when it is chosen, and opens it again', () => {
+    draw();
+    const folder = screen.getByRole('treeitem', { name: /^src\/game, 2 files/ });
+    expect(folder).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('treeitem', { name: /main\.asm/ })).toBeTruthy();
+
+    fireEvent.click(folder);
+    expect(screen.getByRole('treeitem', { name: /^src\/game, 2 files/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('treeitem', { name: /main\.asm/ }), 'its files are put away').toBeNull();
+    /* And the file outside it is untouched. */
+    expect(screen.queryByRole('treeitem', { name: /top\.asm/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('treeitem', { name: /^src\/game, 2 files/ }));
+    expect(screen.queryByRole('treeitem', { name: /main\.asm/ })).toBeTruthy();
+  });
+
+  it('opens and shuts with the arrow keys, the way a tree does', () => {
+    draw();
+    const folder = screen.getByRole('treeitem', { name: /^src\/game, 2 files/ });
+    fireEvent.keyDown(folder, { key: 'ArrowLeft' });
+    expect(screen.getByRole('treeitem', { name: /^src\/game, 2 files/ })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.keyDown(screen.getByRole('treeitem', { name: /^src\/game, 2 files/ }), { key: 'ArrowRight' });
+    expect(screen.getByRole('treeitem', { name: /^src\/game, 2 files/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('remembers what was shut, so a visit does not reopen everything', () => {
+    draw();
+    fireEvent.click(screen.getByRole('treeitem', { name: /^src\/game, 2 files/ }));
+    cleanup();
+    draw();
+    expect(screen.getByRole('treeitem', { name: /^src\/game, 2 files/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('treeitem', { name: /main\.asm/ })).toBeNull();
   });
 });

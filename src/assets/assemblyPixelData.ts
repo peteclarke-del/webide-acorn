@@ -8,7 +8,7 @@
  * reported with their possible grid shapes and nothing is created for them,
  * because this build has no map document to create. */
 import { createPixelAssetDocument, serializePixelAssetDocument, type PixelAssetDocument, type PixelAssetKind, type PixelPacking } from './pixelAssetDocument';
-import { packBbcMode5Pixels, packTwoBitPixels, unpackBbcMode5Pixels, unpackTwoBitPixels } from './pixelPacking';
+import { fitsScreenBlocks, packBbcScreenBlocks, unpackBbcScreenBlocks, packBbcMode5Pixels, packTwoBitPixels, unpackBbcMode5Pixels, unpackTwoBitPixels } from './pixelPacking';
 import { createTileMapDocument, parseTileMapDocument, type TileMapDocument } from './tileMapDocument';
 
 /** A labelled run of byte data found in assembler source. */
@@ -50,6 +50,12 @@ export interface TileMapCandidate {
   values: number[];
   /** Grid shapes the byte count allows, widest first. */
   shapes: Array<{ width: number; height: number }>;
+  /**
+   * What each tile index was drawn as, when the map was recovered from text
+   * somebody wrote rather than from assembled bytes. A byte run carries no
+   * such thing, so it is absent there.
+   */
+  legend?: Array<{ character: string; index: number; count: number }>;
 }
 
 const PIXEL_SIZES = [8, 16, 24, 32] as const;
@@ -121,9 +127,13 @@ export function pixelGeometriesFor(byteLength: number): Array<{ width: number; h
 }
 
 function documentFor(name: string, kind: PixelAssetKind, width: number, height: number, packing: PixelPacking, bytes: number[]): PixelAssetDocument | null {
-  const pixels = packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? unpackBbcMode5Pixels(bytes) : unpackTwoBitPixels(bytes);
-  if (pixels.length !== width * height) return null;
-  const repacked = Array.from(packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? packBbcMode5Pixels(pixels) : packTwoBitPixels(pixels));
+  const pixels = packing === 'bbc-screen-2bpp-eight-line-blocks'
+    ? unpackBbcScreenBlocks(bytes, width, height)
+    : packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? unpackBbcMode5Pixels(bytes) : unpackTwoBitPixels(bytes);
+  if (!pixels || pixels.length !== width * height) return null;
+  const repacked = Array.from((packing === 'bbc-screen-2bpp-eight-line-blocks'
+    ? packBbcScreenBlocks(pixels, width, height)
+    : packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? packBbcMode5Pixels(pixels) : packTwoBitPixels(pixels)) ?? []);
   /* Refuse anything that does not reproduce the original bytes exactly. */
   if (repacked.length !== bytes.length || repacked.some((byte, index) => byte !== bytes[index])) return null;
   const document = createPixelAssetDocument(kind, width, height);
@@ -137,6 +147,23 @@ function documentFor(name: string, kind: PixelAssetKind, width: number, height: 
 function assetName(label: string): string {
   const cleaned = label.replace(/^(?:asset_)?/i, '').replace(/_(?:pixels|data|sprite|tile|gfx)$/i, '').replace(/[^A-Za-z0-9_]/g, '_');
   return (cleaned || label).slice(0, 60);
+}
+
+/**
+ * What a run is, taken from what its author called it.
+ *
+ * Everything used to come back a tile, so a project whose sprites are all
+ * labelled sprite_player_walk_1_down had twenty-seven of them recovered into
+ * the tile editor and none into the sprite editor, where anybody would go
+ * looking. The label is the author's own statement about the data rather than a
+ * guess about its shape, so it is what decides; a run named nothing in
+ * particular is still a tile.
+ */
+export function kindFromLabel(label: string, fallback: PixelAssetKind): PixelAssetKind {
+  const name = label.replace(/^\./, '').toLowerCase();
+  if (/(^|_)(sprite|mask|actor|player|enemy|zombie)($|_)/.test(name)) return 'sprite';
+  if (/(^|_)(char|character|font|glyph|letter|digit)($|_)/.test(name)) return 'character';
+  return fallback;
 }
 
 export interface PixelAssetCandidateOptions {
@@ -154,16 +181,33 @@ export function pixelAssetCandidates(
   existingFileNames: ReadonlySet<string> = new Set(),
   options: PixelAssetCandidateOptions = {},
 ): DerivedPixelAsset[] {
-  const packing = options.packing ?? 'bbc-mode-5-hardware-interleaved-2bpp';
-  const kind = options.kind ?? 'tile';
+  /*
+   * The machine's own layout, because that is what the data is.
+   *
+   * Recovered runs were read as rows of pixels, which is how a drawing program
+   * stores a picture and not how a BBC one does. A real game's sprites came in
+   * as recognisable figures cut into vertical strips and shuffled. Where the
+   * shape cannot be expressed in eight-scanline blocks the byte-order question
+   * does not arise, and the caller's choice or the bit-order default stands.
+   */
+  const packing = options.packing ?? 'bbc-screen-2bpp-eight-line-blocks';
+  const fallbackKind = options.kind ?? 'tile';
   const used = new Set(existingFileNames);
   const mapLike = new Set(tileMapCandidates(runs).map((candidate) => candidate.id));
   const candidates: DerivedPixelAsset[] = [];
   for (const run of runs) {
-    const geometry = pixelGeometriesFor(run.bytes.length)[0];
+    const shapes = pixelGeometriesFor(run.bytes.length);
+    /* Prefer a shape the chosen layout can actually express. */
+    const geometry = (packing === 'bbc-screen-2bpp-eight-line-blocks'
+      ? shapes.find((shape) => fitsScreenBlocks(shape.width, shape.height))
+      : undefined) ?? shapes[0];
     if (!geometry) continue;
+    const layout = packing === 'bbc-screen-2bpp-eight-line-blocks' && !fitsScreenBlocks(geometry.width, geometry.height)
+      ? 'bbc-mode-5-hardware-interleaved-2bpp'
+      : packing;
     const name = assetName(run.label);
-    const document = documentFor(name, kind, geometry.width, geometry.height, packing, run.bytes);
+    const kind = kindFromLabel(run.label, fallbackKind);
+    const document = documentFor(name, kind, geometry.width, geometry.height, layout, run.bytes);
     if (!document) continue;
     let fileName = `${name}.asset.json`;
     let counter = 2;
@@ -179,7 +223,7 @@ export function pixelAssetCandidates(
       kind,
       width: geometry.width,
       height: geometry.height,
-      packing,
+      packing: layout,
       byteLength: run.bytes.length,
       alsoLooksLikeMapData: mapLike.has(`${run.fileName}:${run.label}`),
       document: serializePixelAssetDocument(document),

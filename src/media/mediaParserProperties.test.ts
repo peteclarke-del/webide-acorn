@@ -11,6 +11,7 @@
  * Inputs come from a seeded generator, so a failure names a reproducible case.
  */
 import { describe, expect, it } from 'vitest';
+import { breathe } from '../test/breathe';
 import { parseDfsCatalogue, extractDfsFile } from './dfsCatalogue';
 import { parseAdfsCatalogue, extractAdfsFile } from './adfsCatalogue';
 import { parseAtomAtm, createAtomAtm } from './atomAtm';
@@ -84,9 +85,10 @@ const PARSERS: Parser[] = [
 const CASES = 120;
 
 describe.each(PARSERS)('$name parser', (parser) => {
-  it('either parses or refuses random bytes, and never returns something malformed', () => {
+  it('either parses or refuses random bytes, and never returns something malformed', async () => {
     const next = random(0x9e37);
     for (let index = 0; index < CASES; index += 1) {
+      await breathe(index);
       const size = INTERESTING_SIZES[Math.floor(next() * INTERESTING_SIZES.length)]!;
       const bytes = noise(next, size);
       try {
@@ -107,10 +109,11 @@ describe.each(PARSERS)('$name parser', (parser) => {
     }
   });
 
-  it('is not disturbed by a single flipped bit in an otherwise valid image', () => {
+  it('is not disturbed by a single flipped bit in an otherwise valid image', async () => {
     const next = random(0x1234);
     const valid = createDfsImageFromFiles({ title: 'FUZZ', bootOption: 0, cycle: 0, files: [{ name: 'DATA', directory: '$', loadAddress: 0x1900, executionAddress: 0x1900, locked: false, bytes: noise(next, 512) }] }).image;
     for (let index = 0; index < 40; index += 1) {
+      await breathe(index);
       const mutated = valid.slice();
       const position = Math.floor(next() * mutated.length);
       mutated[position] = mutated[position]! ^ (1 << Math.floor(next() * 8));
@@ -216,9 +219,10 @@ describe('ADFS catalogue invariants', () => {
     }
   });
 
-  it('never extracts beyond the image it was given', () => {
+  it('never extracts beyond the image it was given', async () => {
     const next = random(0x3141);
     for (let index = 0; index < 20; index += 1) {
+      await breathe(index, 4);
       const bytes = noise(next, 640 * 1024);
       try {
         const catalogue = parseAdfsCatalogue(bytes);

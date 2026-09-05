@@ -38,7 +38,26 @@ function decodeLineReference(control: number, byte2: number, byte3: number): num
   return low | (high << 8);
 }
 
-function decodeBody(body: Uint8Array): { source: string; warnings: string[] } {
+/*
+ * The table a decode runs against.
+ *
+ * Which BASIC wrote a file is almost never in the file, so it is the caller's
+ * to say: it comes from the machine somebody selected. BASIC II remains the
+ * default because it is the one every 6502 Acorn shares and the one this
+ * product could always read.
+ */
+export interface BasicDecodeTables {
+  label: 'BBC BASIC II' | 'BBC BASIC V';
+  tokens: Record<number, string>;
+  /** Keywords written as two bytes, by the prefix that introduces them. */
+  extended?: Record<number, Record<number, string>>;
+  /** Tokens carrying a keyword's other form, absent from the keyword table. */
+  statementForms?: Record<number, string>;
+}
+
+const BASIC_II_TABLES: BasicDecodeTables = { label: 'BBC BASIC II', tokens: BBC_BASIC_II_TOKENS };
+
+function decodeBody(body: Uint8Array, tables: BasicDecodeTables): { source: string; warnings: string[] } {
   let source = '';
   const warnings: string[] = [];
   let quoted = false;
@@ -57,10 +76,25 @@ function decodeBody(body: Uint8Array): { source: string; warnings: string[] } {
         source += String(decodeLineReference(body[index + 1]!, body[index + 2]!, body[index + 3]!));
         index += 3;
       }
-    } else if (!quoted && !literalTail && BBC_BASIC_II_TOKENS[value]) {
-      source += BBC_BASIC_II_TOKENS[value];
-      // BASIC II's tokeniser stops at REM and DATA. High bytes in the
-      // remainder are literal program content, not more keyword tokens.
+    } else if (!quoted && !literalTail && tables.extended?.[value]) {
+      /* A prefix byte: the keyword is this byte and the next one together, and
+       * reading the next one as a token of its own would produce a different
+       * keyword rather than a wrong-looking one. */
+      const second = body[index + 1];
+      const keyword = second === undefined ? undefined : tables.extended[value]![second];
+      if (keyword === undefined) {
+        warnings.push(`A two-byte keyword beginning &${value.toString(16).toUpperCase()} is truncated or unknown; its raw bytes were preserved visibly.`);
+        source += `[&${value.toString(16).toUpperCase()}]`;
+      } else {
+        source += keyword;
+        index += 1;
+      }
+    } else if (!quoted && !literalTail && tables.statementForms?.[value]) {
+      source += tables.statementForms[value]!;
+    } else if (!quoted && !literalTail && tables.tokens[value]) {
+      source += tables.tokens[value];
+      // The tokeniser stops at REM and DATA. High bytes in the remainder are
+      // literal program content, not more keyword tokens.
       if (value === 0xf4 || value === 0xdc) literalTail = true;
     } else if (value === 0x0d) {
       source += '[CR]';
@@ -73,7 +107,7 @@ function decodeBody(body: Uint8Array): { source: string; warnings: string[] } {
   return { source, warnings };
 }
 
-export function decodeTokenizedBasic(bytes: Uint8Array): BasicListing | null {
+export function decodeTokenizedBasic(bytes: Uint8Array, tables: BasicDecodeTables = BASIC_II_TABLES): BasicListing | null {
   const lines: BasicLine[] = [];
   const warnings: string[] = [];
   let offset = 0;
@@ -84,7 +118,7 @@ export function decodeTokenizedBasic(bytes: Uint8Array): BasicListing | null {
       if (!lines.length) return null;
       return {
         kind: 'bbc-basic',
-        dialect: 'BBC BASIC II',
+        dialect: tables.label,
         encoding: 'tokenized',
         lines,
         programLength: offset + 2,
@@ -100,7 +134,7 @@ export function decodeTokenizedBasic(bytes: Uint8Array): BasicListing | null {
     if (lineNumber <= previousLine) {
       warnings.push(`Line ${lineNumber} is duplicate or out of order.`);
     }
-    const decoded = decodeBody(bytes.slice(offset + 4, offset + length));
+    const decoded = decodeBody(bytes.slice(offset + 4, offset + length), tables);
     warnings.push(...decoded.warnings.map((warning) => `Line ${lineNumber}: ${warning}`));
     lines.push({ lineNumber, source: decoded.source, offset, byteLength: length });
     previousLine = lineNumber;

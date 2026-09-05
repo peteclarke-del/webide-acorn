@@ -35,8 +35,31 @@ export type MachineAssertion =
   | { kind: 'cycles'; operator: 'eq' | 'lte' | 'gte'; expected: number; source: string }
   | { kind: 'cycles'; operator: 'range'; expected: number; expectedMaximum: number; source: string };
 
+/**
+ * Which processor a plan is about.
+ *
+ * A machine with a second processor fitted has two, and almost nothing a test
+ * can observe means the same thing on both: the MOS entry points, the screen
+ * and the sound chip are all the host's. So the plan names the processor and
+ * the assertions available follow from it, rather than a parasite test quietly
+ * asserting host state and passing for the wrong reason.
+ */
+export type TestProcessor = 'host' | 'parasite';
+
+/** Assertions whose subject is host hardware or the host's operating system. */
+const HOST_ONLY_ASSERTIONS: Readonly<Record<string, string>> = {
+  output: 'OUTPUT captures the host MOS OSWRCH entry, which the parasite does not execute',
+  event: 'EVENT[MOS_CALL] counts entries to the host MOS, which the parasite does not execute',
+  'event-address': 'EVENT[address] counts host program counter values, and the parasite has its own',
+  screen: 'SCREEN reads the host video hardware, which the parasite does not have',
+  'screen-golden': 'SCREEN_IMAGE reads the host video hardware, which the parasite does not have',
+  audio: 'AUDIO[WRITES] counts writes to the host sound chip, which the parasite does not have',
+  'audio-speaker': 'AUDIO[SPEAKER] counts transitions of a host speaker, which the parasite does not have',
+};
+
 export interface ParsedTestPlan {
   stopAddress: number | null;
+  processor: TestProcessor;
   assertions: MachineAssertion[];
   errors: string[];
 }
@@ -67,10 +90,19 @@ export function parseTestPlan(stop: string, source: string, symbols: Record<stri
   const stopAddress = resolveTestValue(stop, symbols);
   if (stopAddress === null || !Number.isInteger(stopAddress) || stopAddress < 0 || stopAddress > 0xffff) errors.push('Stop address must be a 16-bit address or a symbol from the current build');
   const assertions: MachineAssertion[] = [];
+  let processor = 'host' as TestProcessor;
+  let processorLine: number | null = null;
   let memoryBytes = 0;
   source.split(/\r?\n/).forEach((rawLine, index) => {
     const text = rawLine.replace(/\s*(?:;|#).*$/, '').trim();
     if (!text) return;
+    const declared = /^PROCESSOR\s*(?:==|=)?\s*(HOST|PARASITE)$/i.exec(text);
+    if (declared) {
+      /* Once, or two lines disagree and nothing says which won. */
+      if (processorLine !== null) errors.push(`Line ${index + 1}: PROCESSOR is already declared on line ${processorLine}`);
+      else { processor = declared[1]!.toLowerCase() as TestProcessor; processorLine = index + 1; }
+      return;
+    }
     if (assertions.length >= 64) { errors.push('Assertion plans are limited to 64 assertions'); return; }
     const register = /^(A|X|Y|S|P|PC)\s*(?:==|=)\s*(.+)$/i.exec(text);
     if (register) {
@@ -166,9 +198,18 @@ export function parseTestPlan(stop: string, source: string, symbols: Record<stri
       }
       return;
     }
-    errors.push(`Line ${index + 1}: use REGISTER, MEM[address], OUTPUT, AUDIO[WRITES], AUDIO[SPEAKER], SCREEN[x,y,width,height], SCREEN_IMAGE[id,x,y] TOLERANCE[channel,pixels], EVENT[MOS_CALL], EVENT[address], CYCLES or CYCLES IN low..high assertions`);
+    errors.push(`Line ${index + 1}: use PROCESSOR, REGISTER, MEM[address], OUTPUT, AUDIO[WRITES], AUDIO[SPEAKER], SCREEN[x,y,width,height], SCREEN_IMAGE[id,x,y] TOLERANCE[channel,pixels], EVENT[MOS_CALL], EVENT[address], CYCLES or CYCLES IN low..high assertions`);
   });
   if (!assertions.length) errors.push('Add at least one register, memory, output, screen, event or cycle assertion');
   if (memoryBytes > 1024) errors.push('Memory assertions are limited to 1,024 bytes per test');
-  return { stopAddress: stopAddress !== null && stopAddress >= 0 && stopAddress <= 0xffff ? stopAddress : null, assertions, errors };
+  if (processor === 'parasite') {
+    /* Refused here rather than at the machine, so an author sees why while
+     * writing the plan instead of after a run that could not have meant
+     * anything. Registers, memory and cycles are what the parasite has. */
+    for (const assertion of assertions) {
+      const reason = HOST_ONLY_ASSERTIONS[assertion.kind];
+      if (reason) errors.push(`${assertion.source}: ${reason}. A PROCESSOR = PARASITE plan can assert registers, memory and cycles.`);
+    }
+  }
+  return { stopAddress: stopAddress !== null && stopAddress >= 0 && stopAddress <= 0xffff ? stopAddress : null, processor, assertions, errors };
 }

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import {
-  browserReservedNote, chordAssignmentError, chordFromEvent, formatChord,
+  browserReservedNote, chordAssignmentError, chordFromEvent, chordSteps, emulatedKeyboardConflict,
+  formatChord, parseChordSequence,
   type KeyBindingOverrides, type ResolvedKeyBinding,
 } from '../commands/keyBindings';
 
@@ -112,6 +113,10 @@ export function KeyboardShortcutsPanel({ bindings, overrides, onChangeOverrides,
                 {rows.map((binding) => {
                   const recording = recordingId === binding.id;
                   const reservedNote = browserReservedNote(binding.chord);
+                  /* Every chord is taken by a running machine, so this is
+                   * shown on demand rather than as a warning on all sixty-four
+                   * rows, which would say nothing by saying it everywhere. */
+                  const machineNote = emulatedKeyboardConflict(binding.chord);
                   const pendingError = recording && recordedChord ? chordAssignmentError(recordedChord) : null;
                   return (
                     <tr key={binding.id} className={binding.conflicts.length ? 'binding-conflict' : undefined}>
@@ -121,6 +126,12 @@ export function KeyboardShortcutsPanel({ bindings, overrides, onChangeOverrides,
                         {!!binding.conflicts.length && <small className="binding-warning">Also claimed by {binding.conflicts.map((id) => bindings.find((other) => other.id === id)?.label ?? id).join(', ')}. The first declared binding wins.</small>}
                         {!!binding.shadows.length && <small className="binding-note">Hides the workbench chord while the editor has focus.</small>}
                         {reservedNote && <small className="binding-warning">{reservedNote}</small>}
+                        {machineNote && (
+                          <details className="binding-machine">
+                            <summary>While the machine is running{machineNote.machineKey ? ` this types ${machineNote.machineKey}` : ''}</summary>
+                            <small>{machineNote.note}</small>
+                          </details>
+                        )}
                       </th>
                       <td>
                         {recording
@@ -135,7 +146,18 @@ export function KeyboardShortcutsPanel({ bindings, overrides, onChangeOverrides,
                                   if (event.key === 'Escape') { event.preventDefault(); stopRecording(); return; }
                                   event.preventDefault();
                                   const chord = chordFromEvent(event.nativeEvent);
-                                  if (chord) setRecordedChord(chord);
+                                  if (!chord) return;
+                                  /* A second press extends the recording into a
+                                   * two-stroke sequence, which is the only way
+                                   * to enter one: typing a comma into a field
+                                   * that is capturing key presses is not
+                                   * something a person can do. Pressing again
+                                   * after two starts over, so a mistake is one
+                                   * key away from being fixed. */
+                                  setRecordedChord((current) => {
+                                    const steps = chordSteps(current ?? null);
+                                    return steps.length === 1 ? parseChordSequence(`${steps[0]}, ${chord}`) ?? chord : chord;
+                                  });
                                 }}
                               />
                               <button type="button" disabled={!recordedChord || !!pendingError} onClick={() => recordedChord && assign(binding, recordedChord)}>Apply</button>

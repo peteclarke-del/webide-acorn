@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Build;
 
-use App\Observability\StructuredLogger;
-
 use App\Http\ApiProblem;
+
+use App\Observability\StructuredLogger;
 
 final class ArmBuildService
 {
@@ -16,6 +16,8 @@ final class ArmBuildService
         private readonly NativeProcessRunner $runner,
         private readonly ArmOutputParser $parser,
         private readonly StructuredLogger $logger,
+        private readonly JobWorkspace $workspace,
+        private readonly BuildCache $cache,
     ) {
     }
 
@@ -25,8 +27,20 @@ final class ArmBuildService
         $started = hrtime(true); $manifest = $this->toolchain->detect();
         if (!$manifest['ready']) throw new ApiProblem(503, 'TOOLCHAIN_UNAVAILABLE', 'The pinned GNU ARM2 assembler/linker toolchain is not ready.', true);
         $this->sourcePolicy->validate($request);
-        $job = '/tmp/native-builds/'.bin2hex(random_bytes(16));
-        if (!mkdir($job, 0700, true)) throw new \RuntimeException('Unable to allocate ARM build workspace.');
+        /*
+         * Answered from the cache when the same inputs, toolchain and target
+         * have been built before. The key is checked against the entry's own
+         * record of those inputs on the way out, so a hit is a hit because the
+         * build matches and not because a hash did.
+         */
+        $cacheKey = BuildCache::key(BuildCache::LOCAL_OWNER, ArmBuildManifest::ADAPTER_ID, ArmBuildManifest::ADAPTER_VERSION, (string) $manifest['digest'], $request);
+        if (!$request->cacheBypass) {
+            $cached = $this->cache->read(BuildCache::LOCAL_OWNER, $cacheKey, $request->files);
+            if ($cached !== null) {
+                return $this->cache->hitEnvelope($cached, BuildCache::LOCAL_OWNER, $cacheKey, max(0.0, (hrtime(true) - $started) / 1_000_000.0));
+            }
+        }
+        $job = $this->workspace->allocate();
         $documents = []; $documentBytes = 0; $invocations = []; $diagnostics = []; $logs = []; $terminal = null; $outputBytes = '';
         try {
             $this->materialize($job, $request->files);
@@ -122,8 +136,11 @@ final class ArmBuildService
             ];
             if ($artifact !== null) $artifact['provenance'] = $provenance;
             $this->logger->info('native-build-completed', ['adapter' => ArmBuildManifest::ADAPTER_ID, 'outcome' => $exitReason, 'durationMs' => round($duration, 2), 'outputByteCount' => strlen($outputBytes), 'errors' => $errors, 'warnings' => $warnings]);
-            return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
-        } finally { $this->removeTree($job); }
+            $response = ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
+            $this->cache->write(BuildCache::LOCAL_OWNER, $cacheKey, $request->files, $response);
+
+            return $this->cache->storedEnvelope($response, BuildCache::LOCAL_OWNER, $cacheKey, $request->cacheBypass);
+        } finally { $this->workspace->remove($job); }
     }
 
     private function linkerScript(NativeBuildRequest $request): string
@@ -138,9 +155,11 @@ final class ArmBuildService
     /** @param list<array<string, mixed>> $documents */ private function collectDocument(string $job, string $relative, array &$documents, int &$total, string $id, string $label, string $filename): void { if (!file_exists($job.'/'.$relative)) return; $this->requireRegularOutput($job.'/'.$relative, $label); $content = str_replace([$job.'/', $job], ['', '<job>'], $this->read($job.'/'.$relative)); $this->addDocument($documents, $total, $id, $label, $filename, $content); }
     private function requireRegularOutput(string $path, string $label): void { if (is_link($path) || !is_file($path) || filetype($path) !== 'file') throw new ApiProblem(400, 'BUILD_OUTPUT_INVALID', "$label was not a regular generated file."); $size = filesize($path); if ($size === false || $size > BuildLimits::FILE_BYTES) throw new ApiProblem(400, 'BUILD_OUTPUT_INVALID', "$label exceeded the generated-file limit."); }
     private function read(string $path): string { return is_file($path) && !is_link($path) ? (string) file_get_contents($path) : ''; }
-    /** @param array<int, array{fileId: string, fileName: string, line: int}> $locations @return list<string> */ private function listingRows(string $bytes, int $origin, array $locations, string $disassembly): array { $instructions = []; foreach (preg_split('/\R/', $disassembly) ?: [] as $row) if (preg_match('/^([0-9a-f]{8})\s+<[^>]+>\s+(.+)$/i', trim($row), $match)) $instructions[intval($match[1], 16)] = trim($match[2]); $rows = []; for ($offset = 0; $offset < strlen($bytes); $offset += 4) { $address = $origin + $offset; $hex = strtoupper(implode(' ', str_split(bin2hex(substr($bytes, $offset, 4)), 2))); $location = $locations[$address] ?? null; $rows[] = sprintf('[%s] &%08X  %-11s %s', $location === null ? 'unmapped' : $location['fileName'].':'.$location['line'], $address, $hex, $instructions[$address] ?? ''); } return $rows; }
+    /**
+     * @param array<int, array{fileId: string, fileName: string, line: int}> $locations
+     * @return list<string>
+     */ private function listingRows(string $bytes, int $origin, array $locations, string $disassembly): array { $instructions = []; foreach (preg_split('/\R/', $disassembly) ?: [] as $row) if (preg_match('/^([0-9a-f]{8})\s+<[^>]+>\s+(.+)$/i', trim($row), $match)) $instructions[intval($match[1], 16)] = trim($match[2]); $rows = []; for ($offset = 0; $offset < strlen($bytes); $offset += 4) { $address = $origin + $offset; $hex = strtoupper(implode(' ', str_split(bin2hex(substr($bytes, $offset, 4)), 2))); $location = $locations[$address] ?? null; $rows[] = sprintf('[%s] &%08X  %-11s %s', $location === null ? 'unmapped' : $location['fileName'].':'.$location['line'], $address, $hex, $instructions[$address] ?? ''); } return $rows; }
     private function address(string $value): int { return str_starts_with(strtolower($value), '0x') ? intval(substr($value, 2), 16) : ((str_starts_with($value, '$') || str_starts_with($value, '&')) ? intval(substr($value, 1), 16) : intval($value, 10)); }
     private function terminalMessage(string $reason): string { return match ($reason) { 'timeout' => 'GNU ARM toolchain stage exceeded its wall-clock limit.', 'output-limit' => 'GNU ARM toolchain stage exceeded its captured-output limit.', default => 'GNU ARM toolchain exited without a normalized diagnostic.' }; }
     private function fingerprint(string $bytes): string { $hash = 0x811c9dc5; for ($index = 0; $index < strlen($bytes); ++$index) { $hash ^= ord($bytes[$index]); $hash = ($hash * 0x01000193) & 0xffffffff; } return str_pad(dechex($hash), 8, '0', STR_PAD_LEFT); }
-    private function removeTree(string $path): void { if (!file_exists($path) && !is_link($path)) return; if (is_link($path) || !is_dir($path)) { @unlink($path); return; } foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $item) $this->removeTree($item->getPathname()); @rmdir($path); }
 }

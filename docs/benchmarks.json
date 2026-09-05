@@ -1,0 +1,112 @@
+{
+  "schema": "8bit-net.benchmark-report",
+  "version": 1,
+  "browsers": [
+    {
+      "id": "chromium",
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+      "version": "152.0.0.0",
+      "hardwareClass": "workstation",
+      "cores": 8,
+      "measurements": [
+        {
+          "id": "startup-first-render",
+          "iterations": 1,
+          "produced": 170,
+          "millisecondsPerIteration": 792
+        },
+        {
+          "id": "edit-latency-large-source",
+          "iterations": 200,
+          "produced": 634725,
+          "millisecondsPerIteration": 0.4585000002384186
+        },
+        {
+          "id": "diagnostics-large-source",
+          "iterations": 20,
+          "produced": 40040,
+          "millisecondsPerIteration": 21.05499999523163
+        },
+        {
+          "id": "build-large-source",
+          "iterations": 10,
+          "produced": 108590,
+          "millisecondsPerIteration": 592.3700000047684
+        },
+        {
+          "id": "trace-filter-large-window",
+          "iterations": 5,
+          "produced": 58030,
+          "millisecondsPerIteration": 1.4199999809265136
+        },
+        {
+          "id": "asset-canvas-tilemap",
+          "iterations": 20,
+          "produced": 82380,
+          "millisecondsPerIteration": 5.894999998807907
+        }
+      ]
+    },
+    {
+      "id": "firefox",
+      "userAgent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0",
+      "version": "154.0",
+      "hardwareClass": "workstation",
+      "cores": 8,
+      "measurements": [
+        {
+          "id": "startup-first-render",
+          "iterations": 1,
+          "produced": 170,
+          "millisecondsPerIteration": 1139
+        },
+        {
+          "id": "edit-latency-large-source",
+          "iterations": 200,
+          "produced": 634725,
+          "millisecondsPerIteration": 0.745
+        },
+        {
+          "id": "diagnostics-large-source",
+          "iterations": 20,
+          "produced": 40040,
+          "millisecondsPerIteration": 43.95
+        },
+        {
+          "id": "build-large-source",
+          "iterations": 10,
+          "produced": 108590,
+          "millisecondsPerIteration": 448.6
+        },
+        {
+          "id": "trace-filter-large-window",
+          "iterations": 5,
+          "produced": 58030,
+          "millisecondsPerIteration": 1.4
+        },
+        {
+          "id": "asset-canvas-tilemap",
+          "iterations": 20,
+          "produced": 82380,
+          "millisecondsPerIteration": 6.45
+        }
+      ]
+    }
+  ],
+  "unmeasuredBrowsers": [
+    {
+      "id": "safari",
+      "reason": "Safari was not found on this machine. Not obtainable here. Safari does not run on Linux, and another WebKit reported under its name would be a different measurement wearing the same label."
+    }
+  ],
+  "unmeasuredAreas": [
+    {
+      "area": "emulator",
+      "reason": "Every emulator measurement needs a booted machine, which needs firmware, and no firmware may enter this repository or the built image. These are measured with the conformance suite, where firmware has been supplied."
+    },
+    {
+      "area": "debugger",
+      "reason": "A debugger acknowledgement is a round trip to a running machine, so it has the same firmware dependency as the emulator itself."
+    }
+  ]
+}

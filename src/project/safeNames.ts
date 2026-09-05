@@ -89,6 +89,47 @@ export function normalizeProjectFilename(requested: string): NormalizedName {
   return { name, reason: changes.length ? changes.join('; ') : null };
 }
 
+/** Longest project path, folders included, well inside every filesystem. */
+export const MAX_PROJECT_PATH_LENGTH = 240;
+
+/** Deepest folder nesting a project will keep from an imported codebase. */
+export const MAX_PROJECT_PATH_DEPTH = 12;
+
+/**
+ * The path this product will use for a file that arrived inside folders.
+ *
+ * A project keeps the shape an imported codebase had on disk, because that
+ * shape is what its INCLUDE directives, its build scripts and its author all
+ * assume. Every segment still has to pass the filename rule above, since each
+ * one becomes a real directory when the project is written back out. A path
+ * too long or too deeply nested keeps its filename and loses its folders,
+ * which is reported rather than done quietly.
+ */
+export function normalizeProjectPath(requested: string): NormalizedName {
+  const changes: string[] = [];
+  const segments = requested.replaceAll('\\', '/').split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment && segment !== '.');
+  if (segments.some((segment) => segment === '..')) changes.push('a path may not climb above the project');
+  const kept = segments.filter((segment) => segment !== '..');
+  if (!kept.length) return { name: normalizeProjectFilename('').name, reason: [...changes, 'the path was empty'].join('; ') };
+
+  const normalized = kept.map((segment) => normalizeProjectFilename(segment));
+  for (const segment of normalized) if (segment.reason) changes.push(segment.reason);
+  let parts = normalized.map((segment) => segment.name);
+
+  if (parts.length > MAX_PROJECT_PATH_DEPTH + 1) {
+    parts = [parts[parts.length - 1]!];
+    changes.push(`folders are kept to ${MAX_PROJECT_PATH_DEPTH} deep, so this file was placed at the top of the project`);
+  }
+  if (parts.join('/').length > MAX_PROJECT_PATH_LENGTH) {
+    parts = [parts[parts.length - 1]!];
+    changes.push(`paths are limited to ${MAX_PROJECT_PATH_LENGTH} characters, so this file was placed at the top of the project`);
+  }
+
+  return { name: parts.join('/'), reason: changes.length ? [...new Set(changes)].join('; ') : null };
+}
+
 /**
  * Why a path may not be written into a chosen folder, or null if it may be.
  *

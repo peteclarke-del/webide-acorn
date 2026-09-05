@@ -1,4 +1,4 @@
-import { MOS_CALLS, opcodeTable, type AddressMode } from '../analysis/disassembler6502';
+import { osCallsFor, opcodeTable, type AddressMode } from '../analysis/disassembler6502';
 import type { Processor } from '../analysis/types';
 import type { BuildProvenance } from './buildTarget';
 
@@ -46,10 +46,18 @@ interface ParsedLine {
 
 const BRANCHES = new Set(['BCC', 'BCS', 'BEQ', 'BMI', 'BNE', 'BPL', 'BRA', 'BVC', 'BVS']);
 
-export function assemble6502(source: string, processor: Processor = '6502', defaultOrigin = 0x1900, initialSymbols: Record<string, number> = {}): AssemblyArtifact {
+/*
+ * `machineId` chooses the operating-system vocabulary a program is written
+ * against, and it is not decoration. The BBC's OSWRCH is at &FFEE and the
+ * Atom's is at &FFF4; assembling an Atom program against the BBC's table gives
+ * a program that builds cleanly and calls the wrong address, and rejects the
+ * `OSWRCH = &FFF4` an Atom listing would open with as a contradiction of a fact
+ * it had no business assuming.
+ */
+export function assemble6502(source: string, processor: Processor = '6502', defaultOrigin = 0x1900, initialSymbols: Record<string, number> = {}, machineId = 'bbc-b'): AssemblyArtifact {
   const diagnostics: BuildDiagnostic[] = [];
   const symbols: Record<string, number> = {
-    ...Object.fromEntries(Object.entries(MOS_CALLS).map(([address, name]) => [name, Number(address)])),
+    ...Object.fromEntries(Object.entries(osCallsFor(machineId)).map(([address, name]) => [name, Number(address)])),
     ...Object.fromEntries(Object.entries(initialSymbols).map(([name, value]) => [name.toUpperCase(), value])),
   };
   const parsed: ParsedLine[] = [];

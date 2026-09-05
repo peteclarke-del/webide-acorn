@@ -4,6 +4,9 @@ import '@testing-library/jest-dom/vitest';
 import { StartProjectDialog } from './StartProjectDialog';
 import type { LocalProject } from '../project/project';
 import { parseTileMapDocument } from '../assets/tileMapDocument';
+import { ProjectStoreClient, encodeContent } from '../cloud/projectStoreClient';
+import { storedFilesFor } from '../cloud/storedProject';
+import { newProject } from '../project/project';
 
 /* The sample catalogue is a dynamic import of a large generated module. Under a
  * loaded machine that can take longer than the one-second default wait, which
@@ -62,12 +65,17 @@ describe('StartProjectDialog', () => {
     expect(summary).toHaveTextContent('2 files');
     expect(summary).toHaveTextContent('1 proposed build target');
     expect(summary).toHaveTextContent('2 excluded');
-    expect(screen.getByText('main.asm', { selector: 'th' })).toBeInTheDocument();
+    /* The folder that was opened is dropped; the folders inside it are kept. */
+    expect(screen.getByText('src/main.asm', { selector: 'th' })).toBeInTheDocument();
     expect(screen.getByText(/Proposed because it/)).toBeInTheDocument();
     expect(screen.getByLabelText('Imported project name')).toHaveValue('game');
   });
 
-  it('creates the project only from the files and assets that were chosen', async () => {
+  it('brings the artwork it recovered in with the codebase, and lets it be left out', async () => {
+    /* This asserted the opposite until somebody imported a real game and got a
+     * project with none of its twenty-seven sprites and sixty-one rooms in it.
+     * Everything recoverable without a guess arrives selected; unticking it is
+     * the deliberate act, not ticking it. */
     const onOpenProject = vi.fn();
     render(<StartProjectDialog machineId="bbc-b" onOpenProject={onOpenProject} onClose={() => {}} onNotice={() => {}} />);
     fireEvent.click(screen.getByRole('tab', { name: 'From an existing codebase' }));
@@ -78,15 +86,37 @@ describe('StartProjectDialog', () => {
     await screen.findByRole('status');
 
     fireEvent.click(screen.getByRole('button', { name: /Create project from 2 files/ }));
-    const [withoutAsset] = onOpenProject.mock.calls[0] as [LocalProject];
-    expect(withoutAsset.files.map((file) => file.name).sort()).toEqual(['gfx.asm', 'main.asm']);
+    const [withAsset] = onOpenProject.mock.calls[0] as [LocalProject];
+    expect(withAsset.files.map((file) => file.name).sort()).toEqual(['gfx.asm', 'hero.asset.json', 'main.asm']);
+    /* And the source it was recovered from is untouched. */
+    expect(withAsset.files.find((file) => file.name === 'gfx.asm')!.content).toContain('EQUB 0, 1, 2');
 
     fireEvent.click(screen.getByText(/Editable assets that can be recovered/));
-    fireEvent.click(await screen.findByRole('checkbox'));
+    const offered = await screen.findByRole('checkbox');
+    expect(offered, 'what was found is already chosen').toBeChecked();
+    fireEvent.click(offered);
     fireEvent.click(screen.getByRole('button', { name: /Create project from 2 files/ }));
-    const [withAsset] = onOpenProject.mock.calls[1] as [LocalProject];
-    expect(withAsset.files.map((file) => file.name).sort()).toEqual(['gfx.asm', 'hero.asset.json', 'main.asm']);
-    expect(withAsset.files.find((file) => file.name === 'gfx.asm')!.content).toContain('EQUB 0, 1, 2');
+    const [withoutAsset] = onOpenProject.mock.calls[1] as [LocalProject];
+    expect(withoutAsset.files.map((file) => file.name).sort()).toEqual(['gfx.asm', 'main.asm']);
+  });
+
+  it('leaves what would need a guess to be chosen, rather than guessing it', async () => {
+    /* A byte run whose length allows several grid shapes is offered and not
+     * selected: picking one would produce a plausible, wrong map. */
+    const onOpenProject = vi.fn();
+    render(<StartProjectDialog machineId="bbc-b" onOpenProject={onOpenProject} onClose={() => {}} onNotice={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'From an existing codebase' }));
+    chooseFolder([
+      fileFrom('game/main.asm', 'ORG &1900\n.start\nRTS\n'),
+      fileFrom('game/level.asm', `.level_map\nEQUB ${Array.from({ length: 96 }, (_, index) => index % 5).join(', ')}\n`),
+    ]);
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByText(/Tile maps that can be recovered/));
+    const map = await screen.findByRole('checkbox', { name: /Promote level_map/ });
+    expect(map, 'a map whose shape is a guess waits to be chosen').not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /Create project from 2 files/ }));
+    const [project] = onOpenProject.mock.calls[0] as [LocalProject];
+    expect(project.files.some((file) => file.name.endsWith('.map.json'))).toBe(false);
   });
 
   it('reports every excluded path with the reason it was left out', async () => {
@@ -386,5 +416,62 @@ describe('starting from a template', () => {
     render(<StartProjectDialog machineId="archimedes-a3000" onOpenProject={() => {}} onClose={() => {}} onNotice={() => {}} />);
     fireEvent.click(await screen.findByRole('tab', { name: 'Templates' }, { timeout: SAMPLE_LOAD_TIMEOUT }));
     expect(screen.getByText('No template ships for this machine yet.')).toBeInTheDocument();
+  });
+});
+
+describe('opening a project the store holds', () => {
+  const answer = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+  /* A store with one project, one revision, and a real project bundle inside
+   * it, so what the dialog opens is what the workbench would have stored. */
+  const storeWith = (files: Record<string, string>) => new ProjectStoreClient(vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    if (path.endsWith('/store/projects')) {
+      return answer({ schema: '8bit-net.project-store-projects', version: 1, projects: [{ id: 'harvest', revisions: 1 }] });
+    }
+    if (path.endsWith('/revisions')) {
+      return answer({ schema: '8bit-net.project-revisions', version: 1, revisions: [{ id: '000001-abc', parent: null, writtenAt: '2026-09-02T00:00:00Z', note: 'first', files: Object.keys(files).length }] });
+    }
+    return answer({
+      schema: '8bit-net.project-revision', version: 1, id: '000001-abc',
+      files: Object.fromEntries(Object.entries(files).map(([name, text]) => [name, encodeContent(text)])),
+    });
+  }) as unknown as typeof fetch);
+
+  it('opens a stored revision with the build targets it was stored with', async () => {
+    const project = { ...newProject(), name: 'Harvest' };
+    const onOpenProject = vi.fn();
+    render(<StartProjectDialog machineId="bbc-b" onOpenProject={onOpenProject} onClose={() => {}} onNotice={() => {}} storeClient={storeWith(storedFilesFor(project, '2026-09-02T00:00:00Z'))} initialTab="store" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Show revisions' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open this revision' }));
+
+    await waitFor(() => expect(onOpenProject).toHaveBeenCalled());
+    const [opened, description, folder] = onOpenProject.mock.calls[0]!;
+    expect(opened.name).toBe('Harvest');
+    expect(opened.buildTargets).toHaveLength(project.buildTargets.length);
+    expect(description).toContain('From the project store');
+    /* No folder handle: it came from the store, and offering a write-back that
+     * could not happen would be a lie about where the project lives. */
+    expect(folder).toBeNull();
+  });
+
+  it('says a revision without a manifest cannot be opened as a project', async () => {
+    const onOpenProject = vi.fn();
+    const onNotice = vi.fn();
+    render(<StartProjectDialog machineId="bbc-b" onOpenProject={onOpenProject} onClose={() => {}} onNotice={onNotice} storeClient={storeWith({ 'main.asm': 'RTS\n' })} initialTab="store" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Show revisions' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open this revision' }));
+
+    await waitFor(() => expect(onNotice).toHaveBeenCalled());
+    expect(onNotice.mock.calls[0]![0]).toContain('no project manifest');
+    expect(onOpenProject).not.toHaveBeenCalled();
+  });
+
+  it('says so when no store is running, rather than showing an empty list', async () => {
+    const unreachable = new ProjectStoreClient(vi.fn(async () => { throw new TypeError('Failed to fetch'); }) as unknown as typeof fetch);
+    render(<StartProjectDialog machineId="bbc-b" onOpenProject={vi.fn()} onClose={() => {}} onNotice={() => {}} storeClient={unreachable} initialTab="store" />);
+    expect(await screen.findByText(/No project store is running/)).toBeInTheDocument();
   });
 });

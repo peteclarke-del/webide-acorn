@@ -2,6 +2,7 @@ import type { BuildRequest, BuildResponse } from './buildService';
 import { tileMapAssetReferences } from '../assets/tileMapDocument';
 import { sha256Hex } from './digest';
 import { toolchainManifestDigest } from './buildTarget';
+import { resolveIncluded } from '../project/includeResolution';
 
 const MAX_ENTRIES = 24;
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -76,7 +77,7 @@ function declaredInputFiles(request: BuildRequest) {
     if (!file) return;
     if (/\.map\.json$/i.test(file.name)) {
       for (const assetFile of tileMapAssetReferences(file.content)) {
-        const asset = byName.get(assetFile.toLowerCase());
+        const asset = resolveIncluded(byName, assetFile, file.name);
         if (asset) addFile(asset.id);
       }
       return;
@@ -86,7 +87,7 @@ function declaredInputFiles(request: BuildRequest) {
       const include = /^\s*INCLUDE\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(line);
       const assetInclude = /^\s*INCLUDE(?:ASSET|MAP|PALETTE|FONT|SCREEN|SONG)\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(line);
       const matched = include ?? assetInclude;
-      const included = matched && byName.get((matched[1] ?? matched[2] ?? matched[3])!.trim().toLowerCase());
+      const included = matched && resolveIncluded(byName, (matched[1] ?? matched[2] ?? matched[3])!, file.name);
       if (included) addFile(included.id);
     }
   };

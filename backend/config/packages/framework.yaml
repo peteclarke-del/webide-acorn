@@ -7,3 +7,10 @@ framework:
   router:
     utf8: true
   session: false
+
+# The test client, which is how the API description is checked against the real
+# routes and the real answers rather than against a reading of them. Confined to
+# the test environment: it is a way in that production has no use for.
+when@test:
+  framework:
+    test: true

@@ -45,3 +45,37 @@ describe('Acorn language reference', () => {
     expect(call?.documentation?.citations?.[0]).toMatchObject({ title: expect.stringMatching(/Advanced User Guide/), section: expect.stringMatching(/OSWRCH.*&FFEE/) });
   });
 });
+
+describe('keywords the ROMs have and nobody has written up', () => {
+  it('answers with what the ROM tables say rather than with nothing', () => {
+    /* An empty panel reads as "this is not a keyword". It is one — it is just
+     * undocumented, and those are different things. */
+    const item = basicLanguageItem('ADVAL')!;
+    expect(item.token).toBe('ADVAL');
+    expect(item.detail).toMatch(/No description of what it does is documented in this build yet/);
+    expect(item.documentation?.compatibility?.appliesTo).toContain('BBC BASIC II');
+  });
+
+  it('cites the ROM table it came from, without a link it does not have', () => {
+    /* Inventing a URL so the shape fits would be a fabricated citation. */
+    const citation = basicLanguageItem('ADVAL')!.documentation!.citations![0]!;
+    expect(citation.title).toMatch(/language ROM keyword tables/);
+    expect(citation.url).toBeUndefined();
+    expect(citation.section).toMatch(/BBC BASIC II &96/);
+  });
+
+  it('does not displace a keyword somebody has written up', () => {
+    const written = basicLanguageItem('PRINT')!;
+    expect(written.detail).not.toMatch(/No description/);
+    expect(written.documentation?.citations?.[0]?.title).toBe('BBC Microcomputer System User Guide');
+  });
+
+  it('still says nothing for a word no ROM has', () => {
+    expect(basicLanguageItem('NOTAKEYWORD')).toBeUndefined();
+  });
+
+  it('says which machines have a keyword only some of them have', () => {
+    const item = basicLanguageItem('EDIT')!;
+    expect(item.documentation?.compatibility?.appliesTo).toEqual(['BBC BASIC IV']);
+  });
+});

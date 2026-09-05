@@ -21,7 +21,7 @@ function renderWorkspace(overrides: Partial<AnalysisWorkspaceProps> = {}) {
     origin: '&1900', entryPoint: '&1900', processor: '6502',
     activity: { status: 'idle', message: '' },
     onOriginChange: vi.fn(), onEntryChange: vi.fn(), onProcessorChange: vi.fn(),
-    onOpen: vi.fn(), onReanalyse: vi.fn(), onCancel: vi.fn(), onAddSource: vi.fn(), onResearch: vi.fn(),
+    onOpen: vi.fn(), candidates: [], onChooseCandidate: vi.fn(), onReanalyse: vi.fn(), onCancel: vi.fn(), onAddSource: vi.fn(), onResearch: vi.fn(),
     debugAvailable: false, onDebugAddress: vi.fn(), onNotice: vi.fn(),
     annotations: emptyAnalysisAnnotations(DIGEST),
     history: createAnnotationHistory(emptyAnalysisAnnotations(DIGEST)),
@@ -132,5 +132,44 @@ describe('analysis listing accessibility', () => {
     expect(within(inspector).getByRole('button', { name: 'Mark data' })).toBeInTheDocument();
     expect(within(inspector).getByRole('button', { name: 'Record flow' })).toBeInTheDocument();
     expect(within(inspector).getByText('Observed execution')).toBeInTheDocument();
+  });
+});
+
+describe('reaching the analyser from the project', () => {
+  const candidates = [
+    { id: 'artifact:t1', name: 'GAME', origin: 'artifact' as const, detail: 'built by Tape build · 432 bytes', byteLength: 432 },
+    { id: 'file:f1', name: 'main.s', origin: 'file' as const, detail: '6502 assembly · 7 bytes', byteLength: 7 },
+  ];
+
+  it('offers what the project holds beside the host file picker', () => {
+    renderWorkspace({ candidates });
+    const picker = screen.getByRole('combobox', { name: 'Analyse a file from this project' });
+    expect(within(picker).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Choose a file…',
+      'GAME · built by Tape build · 432 bytes',
+      'main.s · 6502 assembly · 7 bytes',
+    ]);
+    expect(screen.getByRole('button', { name: /Open/ })).toBeInTheDocument();
+  });
+
+  it('analyses what was chosen, and stays choosable afterwards', () => {
+    const onChooseCandidate = vi.fn();
+    renderWorkspace({ candidates, onChooseCandidate });
+    const picker = screen.getByRole('combobox', { name: 'Analyse a file from this project' });
+    fireEvent.change(picker, { target: { value: 'file:f1' } });
+    expect(onChooseCandidate).toHaveBeenCalledWith('file:f1');
+    /* The control returns to its prompt so the same file can be chosen again
+     * after somebody has changed the load address and wants a fresh read. */
+    expect((picker as HTMLSelectElement).value).toBe('');
+  });
+
+  it('says nothing at all when the project has nothing to offer', () => {
+    renderWorkspace({ candidates: [] });
+    expect(screen.queryByRole('combobox', { name: 'Analyse a file from this project' })).toBeNull();
+  });
+
+  it('offers the project from the empty state too, so a first read needs no disk', () => {
+    renderWorkspace({ candidates, file: null });
+    expect(screen.getByRole('combobox', { name: 'Analyse a file from this project' })).toBeInTheDocument();
   });
 });

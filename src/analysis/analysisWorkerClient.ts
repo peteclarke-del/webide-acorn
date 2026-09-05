@@ -1,4 +1,5 @@
 import type { AnalysisOptions } from './fileAnalysis';
+import type { AnalysisProgress } from './analysisProgress';
 import type { FileAnalysis } from './types';
 
 export interface AnalysisTask {
@@ -9,7 +10,7 @@ export interface AnalysisTask {
 
 const ANALYSIS_TIMEOUT_MS = 20_000;
 
-export function startAnalysisTask(bytes: Uint8Array, name: string, options: AnalysisOptions): AnalysisTask {
+export function startAnalysisTask(bytes: Uint8Array, name: string, options: AnalysisOptions, onProgress?: (progress: AnalysisProgress) => void): AnalysisTask {
   const requestId = crypto.randomUUID();
   const worker = new Worker(new URL('./analysis.worker.ts', import.meta.url), { type: 'module', name: `acorn-analysis-${requestId}` });
   let settled = false;
@@ -17,8 +18,15 @@ export function startAnalysisTask(bytes: Uint8Array, name: string, options: Anal
   const finish = () => { if (!settled) { settled = true; window.clearTimeout(timeout); worker.terminate(); } };
   const promise = new Promise<FileAnalysis>((resolve, reject) => {
     rejectTask = reject;
-    worker.onmessage = (event: MessageEvent<{ type: 'started' | 'result' | 'error'; requestId: string; analysis?: FileAnalysis; message?: string }>) => {
+    worker.onmessage = (event: MessageEvent<{ type: 'started' | 'progress' | 'result' | 'error'; requestId: string; analysis?: FileAnalysis; progress?: AnalysisProgress; message?: string }>) => {
       if (event.data.requestId !== requestId || settled || event.data.type === 'started') return;
+      if (event.data.type === 'progress') {
+        /* Progress from a request that has been superseded is dropped by the
+         * identity check above, so a stale worker cannot move a bar that
+         * belongs to the run after it. */
+        if (event.data.progress) onProgress?.(event.data.progress);
+        return;
+      }
       if (event.data.type === 'result' && event.data.analysis) { finish(); resolve(event.data.analysis); }
       else { finish(); reject(new Error(event.data.message ?? 'Analysis worker failed without a diagnostic')); }
     };

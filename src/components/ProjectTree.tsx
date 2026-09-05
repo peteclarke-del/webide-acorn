@@ -15,7 +15,7 @@
  * The trash sits at the bottom, because a deletion that can be undone is only
  * useful if the undo is somewhere you can see.
  */
-import { useRef, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useRef, useState, type CSSProperties, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Icon, type IconName } from './Icon';
 import type { ProjectFile } from '../project/project';
 import { trashEntrySummary, type TrashedFile } from '../project/projectTrash';
@@ -52,6 +52,65 @@ export function nextTreeIndex(key: string, index: number, length: number): numbe
   return Math.max(0, Math.min(length - 1, next));
 }
 
+export type TreeRow =
+  | { kind: 'folder'; key: string; label: string; depth: number; collapsed: boolean; holds: number }
+  | { kind: 'file'; key: string; file: ProjectFile; label: string; depth: number };
+
+/**
+ * A group's files laid out as folders and files, in the order they are shown.
+ *
+ * A project keeps the folders an imported codebase arrived in, so the explorer
+ * has to show them: a flat list of `src/game/main.asm` beside `src/lib/maths.s`
+ * reads as noise, and hides which files sit together. Folder rows are headings
+ * rather than tree items, so the arrow keys still move file to file and the
+ * number of tab stops does not change.
+ *
+ * Pure, so what the tree shows can be checked without rendering one.
+ */
+export function foldersAndFiles(files: readonly ProjectFile[], collapsed: ReadonlySet<string> = new Set()): TreeRow[] {
+  /* What each folder holds, counted before anything is hidden, so a shut folder
+   * can say how much is inside it rather than just disappearing. */
+  const holds = new Map<string, number>();
+  for (const file of files) {
+    const folders = file.name.split('/').slice(0, -1);
+    for (let depth = 0; depth < folders.length; depth += 1) {
+      const key = folders.slice(0, depth + 1).join('/');
+      holds.set(key, (holds.get(key) ?? 0) + 1);
+    }
+  }
+
+  const rows: TreeRow[] = [];
+  let open: string[] = [];
+  for (const file of files) {
+    const segments = file.name.split('/');
+    const folders = segments.slice(0, -1);
+    /* Only announce the folders that changed since the previous file, so a run
+     * of files in one folder is listed under one heading. */
+    let shared = 0;
+    while (shared < folders.length && shared < open.length && folders[shared] === open[shared]) shared += 1;
+    let hidden = false;
+    for (let depth = 0; depth < folders.length; depth += 1) {
+      const key = folders.slice(0, depth + 1).join('/');
+      /* A folder inside a shut one is not drawn at all; the shut folder is,
+       * because it is the way back to what it holds. */
+      if (depth >= shared && !hidden) {
+        rows.push({ kind: 'folder', key, label: folders[depth]!, depth, collapsed: collapsed.has(key), holds: holds.get(key) ?? 0 });
+      }
+      if (collapsed.has(key)) hidden = true;
+    }
+    open = folders;
+    if (!hidden) rows.push({ kind: 'file', key: file.id, file, label: segments[segments.length - 1]!, depth: folders.length });
+  }
+  return rows;
+}
+
+/** The folder a row sits in, for the arrow key that moves out to the parent. */
+export function parentFolderOf(row: TreeRow): string | null {
+  const segments = row.kind === 'folder' ? row.key.split('/') : row.file.name.split('/').slice(0, -1);
+  const parent = row.kind === 'folder' ? segments.slice(0, -1) : segments;
+  return parent.length ? parent.join('/') : null;
+}
+
 export interface ProjectTreeProps {
   files: ProjectFile[];
   /** Move one file before or after another. Refusals are reported, not silent. */
@@ -68,6 +127,8 @@ export interface ProjectTreeProps {
   artifacts?: React.ReactNode;
 }
 
+const COLLAPSED_KEY = '8bit-net-dev:tree-collapsed';
+
 export function ProjectTree({
   files, buildTargets, activeFileId, activeBuildTargetId, trash,
   onOpenFile, onSelectBuildTarget, onRestore, onPurge, onReorder, artifacts,
@@ -77,6 +138,26 @@ export function ProjectTree({
    * here instead. It is kept in a ref as well as state because a drag that
    * reaches its first dragover before React has re-rendered would otherwise
    * find no drag in progress and refuse the drop. */
+  /*
+   * Which folders are shut.
+   *
+   * Remembered in this browser, because a project that arrives with sixty rooms
+   * under one folder is unusable if every visit reopens all of it, and because
+   * the arrangement of the workbench is already remembered this way.
+   */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(COLLAPSED_KEY) ?? '[]') as unknown;
+      return new Set(Array.isArray(saved) ? saved.filter((entry): entry is string => typeof entry === 'string') : []);
+    } catch { return new Set(); }
+  });
+  const toggleFolder = (key: string) => setCollapsed((current) => {
+    const next = new Set(current);
+    if (!next.delete(key)) next.add(key);
+    try { window.localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])); } catch { /* a browser that refuses storage still opens and shuts folders */ }
+    return next;
+  });
+
   const draggingRef = useRef<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null);
@@ -135,6 +216,23 @@ export function ProjectTree({
 
   const move = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (reorderByKeyboard(event)) return;
+    /* Right and left open and shut a folder, which is what they do in every
+     * tree. On a file, left goes out to the folder it sits in. */
+    const row = (event.target as HTMLElement).closest<HTMLElement>('[data-tree-item]');
+    const folderKey = row?.dataset.treeFolder;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      const shutting = event.key === 'ArrowLeft';
+      if (folderKey && collapsed.has(folderKey) !== shutting) { event.preventDefault(); toggleFolder(folderKey); return; }
+      if (shutting) {
+        const parent = row?.dataset.treeParent;
+        if (parent) {
+          event.preventDefault();
+          event.currentTarget.querySelector<HTMLElement>(`[data-tree-folder="${CSS.escape(parent)}"]`)?.focus();
+          return;
+        }
+      }
+      if (!folderKey && !shutting) return;
+    }
     const container = event.currentTarget;
     const items = Array.from(container.querySelectorAll<HTMLElement>('[data-tree-item]'));
     const current = (event.target as HTMLElement).closest<HTMLElement>('[data-tree-item]');
@@ -162,29 +260,51 @@ export function ProjectTree({
         return (
           <div key={group.id} role="group" aria-label={group.label}>
             <div className="tree-section"><Icon name="chevron" size={13} /><Icon name={group.icon} size={15} /><strong>{group.label}</strong><small>{grouped.length}</small></div>
-            {grouped.map((file) => (
+            {foldersAndFiles(grouped, collapsed).map((row) => row.kind === 'folder' ? (
+              <button
+                className={row.collapsed ? 'tree-folder collapsed' : 'tree-folder'}
+                type="button"
+                role="treeitem"
+                aria-expanded={!row.collapsed}
+                aria-label={`${row.key}, ${row.holds} file${row.holds === 1 ? '' : 's'}`}
+                tabIndex={-1}
+                data-tree-item={`folder:${row.key}`}
+                data-tree-folder={row.key}
+                {...(parentFolderOf(row) ? { 'data-tree-parent': parentFolderOf(row)! } : {})}
+                key={`folder:${row.key}`}
+                title={`${row.key} · ${row.holds} file${row.holds === 1 ? '' : 's'}`}
+                style={{ '--tree-depth': row.depth } as CSSProperties}
+                onClick={() => toggleFolder(row.key)}
+              >
+                <Icon name="chevron" size={12} /><Icon name="folder" size={14} /><span>{row.label}</span>
+                {row.collapsed && <small>{row.holds}</small>}
+              </button>
+            ) : (
               <button
                 className={[
-                  activeFileId === file.id ? 'tree-item active' : 'tree-item',
-                  dragging === file.id ? 'dragging' : '',
-                  dropTarget?.id === file.id ? `drop-${dropTarget.position}` : '',
+                  activeFileId === row.file.id ? 'tree-item active' : 'tree-item',
+                  dragging === row.file.id ? 'dragging' : '',
+                  dropTarget?.id === row.file.id ? `drop-${dropTarget.position}` : '',
                 ].filter(Boolean).join(' ')}
                 type="button"
                 role="treeitem"
-                aria-selected={activeFileId === file.id}
-                tabIndex={tabIndexFor(file.id)}
-                data-tree-item={file.id}
-                key={file.id}
+                aria-selected={activeFileId === row.file.id}
+                tabIndex={tabIndexFor(row.file.id)}
+                data-tree-item={row.file.id}
+                {...(parentFolderOf(row) ? { 'data-tree-parent': parentFolderOf(row)! } : {})}
+                key={row.file.id}
+                title={row.file.name}
+                style={{ '--tree-depth': row.depth } as CSSProperties}
                 draggable={!!onReorder}
-                onDragStart={(event) => beginDrag(event, file.id)}
-                onDragOver={(event) => overRow(event, file.id)}
-                onDragLeave={() => setDropTarget((current) => current?.id === file.id ? null : current)}
-                onDrop={(event) => dropOnRow(event, file.id)}
+                onDragStart={(event) => beginDrag(event, row.file.id)}
+                onDragOver={(event) => overRow(event, row.file.id)}
+                onDragLeave={() => setDropTarget((current) => current?.id === row.file.id ? null : current)}
+                onDrop={(event) => dropOnRow(event, row.file.id)}
                 onDragEnd={endDrag}
-                onClick={() => onOpenFile(file.id)}
+                onClick={() => onOpenFile(row.file.id)}
               >
-                <Icon name="file" size={15} /> <span>{file.name}</span>
-                <small>{file.kind === 'generated' ? 'GEN RO' : file.access === 'read-only' ? 'RO' : file.modified ? 'M' : ''}</small>
+                <Icon name="file" size={15} /> <span>{row.label}</span>
+                <small>{row.file.kind === 'generated' ? 'GEN RO' : row.file.access === 'read-only' ? 'RO' : row.file.modified ? 'M' : ''}</small>
               </button>
             ))}
           </div>

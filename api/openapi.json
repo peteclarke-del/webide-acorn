@@ -1,0 +1,2188 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "WebIDE Acorn native builder and project store",
+    "version": "1.0.0",
+    "summary": "The one accepted description of this API. Both sides are checked against it.",
+    "description": "This document is the contract, not a description written after the fact. The TypeScript clients are generated from it and the server is tested against it, so a change to either that this document does not describe fails the release gate.\n\nWhat is declared here is what a client may rely on. The server may answer with more than this \u2014 it does \u2014 and those extra fields are not part of the contract and may change. What is declared must be present, and a client reading a field this document does not declare is a defect, because nothing then stops the server from removing it.\n\nThere is one identity and nothing proves it. Every route answers for the owner `local`. This is storage and compute on a machine somebody already controls, not an account, and no route should be exposed to a network on the assumption that it is one.",
+    "license": {
+      "name": "See repository licensing and third-party notices",
+      "identifier": "LicenseRef-see-repository"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "The native-builder container, reached through the IDE's own origin."
+    }
+  ],
+  "paths": {
+    "/api/health/live": {
+      "get": {
+        "operationId": "healthLive",
+        "summary": "Is the process running",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthLive"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health/ready": {
+      "get": {
+        "operationId": "healthReady",
+        "summary": "Could a build run now",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReady"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Not ready. The body says every reason, not the first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReady"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/toolchains/ca65": {
+      "get": {
+        "operationId": "toolchainCa65",
+        "summary": "What the ca65 toolchain is and whether it can run",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolchainManifest"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The toolchain is present but not usable. The manifest says which check failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolchainManifest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/toolchains/beebasm": {
+      "get": {
+        "operationId": "toolchainBeebAsm",
+        "summary": "What the beebasm toolchain is and whether it can run",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolchainManifest"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The toolchain is present but not usable. The manifest says which check failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolchainManifest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/toolchains/cc65-c": {
+      "get": {
+        "operationId": "toolchainCc65C",
+        "summary": "What the cc65-c toolchain is and whether it can run",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolchainManifest"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The toolchain is present but not usable. The manifest says which check failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolchainManifest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/toolchains/arm-binutils": {
+      "get": {
+        "operationId": "toolchainArmBinutils",
+        "summary": "What the arm-binutils toolchain is and whether it can run",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolchainManifest"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The toolchain is present but not usable. The manifest says which check failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolchainManifest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/toolchains/cc65-c/sdk": {
+      "get": {
+        "operationId": "sdkDocument",
+        "summary": "Read one SDK header or source file",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Relative to an SDK root. A path that leaves the root is refused rather than resolved."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SdkDocument"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused as cross-site or cross-origin. Not retryable: the same request from the same place will be refused again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/builds/ca65": {
+      "post": {
+        "operationId": "buildCa65",
+        "summary": "Build with ca65",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeBuildRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The build ran. A build that failed to assemble is still a 200 with its diagnostics: failing to assemble is an answer, not a transport error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NativeBuildResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused as cross-site or cross-origin. Not retryable: the same request from the same place will be refused again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-8bit-Net-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "native-build"
+            },
+            "description": "A request without it is refused with 403. A form or an image tag cannot set a header, so requiring one is what makes a cross-site request unable to start a build in somebody's browser."
+          }
+        ]
+      }
+    },
+    "/api/v1/builds/beebasm": {
+      "post": {
+        "operationId": "buildBeebAsm",
+        "summary": "Build with beebasm",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeBuildRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The build ran. A build that failed to assemble is still a 200 with its diagnostics: failing to assemble is an answer, not a transport error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NativeBuildResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused as cross-site or cross-origin. Not retryable: the same request from the same place will be refused again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-8bit-Net-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "native-build"
+            },
+            "description": "A request without it is refused with 403. A form or an image tag cannot set a header, so requiring one is what makes a cross-site request unable to start a build in somebody's browser."
+          }
+        ]
+      }
+    },
+    "/api/v1/builds/cc65-c": {
+      "post": {
+        "operationId": "buildCc65C",
+        "summary": "Build with cc65-c",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeBuildRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The build ran. A build that failed to assemble is still a 200 with its diagnostics: failing to assemble is an answer, not a transport error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NativeBuildResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused as cross-site or cross-origin. Not retryable: the same request from the same place will be refused again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-8bit-Net-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "native-build"
+            },
+            "description": "A request without it is refused with 403. A form or an image tag cannot set a header, so requiring one is what makes a cross-site request unable to start a build in somebody's browser."
+          }
+        ]
+      }
+    },
+    "/api/v1/builds/arm-binutils": {
+      "post": {
+        "operationId": "buildArmBinutils",
+        "summary": "Build with arm-binutils",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeBuildRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The build ran. A build that failed to assemble is still a 200 with its diagnostics: failing to assemble is an answer, not a transport error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NativeBuildResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused as cross-site or cross-origin. Not retryable: the same request from the same place will be refused again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-8bit-Net-Request",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "native-build"
+            },
+            "description": "A request without it is refused with 403. A form or an image tag cannot set a header, so requiring one is what makes a cross-site request unable to start a build in somebody's browser."
+          }
+        ]
+      }
+    },
+    "/api/v1/store": {
+      "get": {
+        "operationId": "storeUsage",
+        "summary": "What the store is and how much of it is used",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreUsage"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/store/projects": {
+      "get": {
+        "operationId": "storeProjects",
+        "summary": "Every project this owner holds",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreProjects"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/store/projects/{projectId}/revisions": {
+      "get": {
+        "operationId": "storeRevisions",
+        "summary": "The history of one project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Letters, digits or hyphens. Anything else is refused rather than sanitised."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreRevisions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "storeCommit",
+        "summary": "Write a revision",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Letters, digits or hyphens. Anything else is refused rather than sanitised."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreCommitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreCommitted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/store/projects/{projectId}/revisions/{revisionId}": {
+      "get": {
+        "operationId": "storeRead",
+        "summary": "The files one revision holds",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Letters, digits or hyphens. Anything else is refused rather than sanitised."
+          },
+          {
+            "name": "revisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreRevisionContent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/store/projects/{projectId}": {
+      "delete": {
+        "operationId": "storeDelete",
+        "summary": "Delete a project and every revision of it",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Letters, digits or hyphens. Anything else is refused rather than sanitised."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreDeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deleted, and a tombstone left.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreTombstone"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/store/export": {
+      "get": {
+        "operationId": "storeExport",
+        "summary": "Everything this owner holds, history included",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreExport"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/store/tombstones": {
+      "get": {
+        "operationId": "storeTombstones",
+        "summary": "What has been deleted, and when",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreTombstones"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/store/collect": {
+      "post": {
+        "operationId": "storeCollect",
+        "summary": "Reclaim space no revision names",
+        "responses": {
+          "200": {
+            "description": "The answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreCollection"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A refusal, in the one shape every route uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "A stable identifier for the refusal. Clients branch on this, never on the message."
+              },
+              "correlationId": {
+                "type": "string",
+                "description": "Ties this refusal to the server's log line for it."
+              },
+              "message": {
+                "type": "string",
+                "description": "What went wrong and what would fix it, in words meant for a person."
+              },
+              "retryable": {
+                "type": "boolean",
+                "description": "Whether sending the same request again could succeed. False means it never will."
+              },
+              "fields": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Per-field detail where the refusal was about the request body."
+              }
+            },
+            "required": [
+              "code",
+              "correlationId",
+              "message",
+              "retryable",
+              "fields"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": true,
+        "description": "The one shape every refusal takes, on every route. A client cannot parse two error formats and should not have to discover which it got."
+      },
+      "Readiness": {
+        "type": "object",
+        "properties": {
+          "check": {
+            "type": "string",
+            "description": "What had to be true."
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string",
+            "description": "What was found, so a failure names its own remedy."
+          }
+        },
+        "required": [
+          "check",
+          "ok",
+          "detail"
+        ],
+        "additionalProperties": true,
+        "description": "One thing that had to be true for a toolchain to be usable, and whether it was."
+      },
+      "ToolchainManifest": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.toolchain-manifest"
+          },
+          "version": {
+            "const": 1
+          },
+          "id": {
+            "type": "string",
+            "description": "The adapter this manifest describes."
+          },
+          "adapterVersion": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "execution": {
+            "const": "server-native"
+          },
+          "language": {
+            "type": "string"
+          },
+          "artifactKind": {
+            "type": "string"
+          },
+          "processors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deterministic": {
+            "type": "boolean"
+          },
+          "packageVersion": {
+            "type": "string"
+          },
+          "limits": {
+            "type": "object"
+          },
+          "sandbox": {
+            "type": "object",
+            "properties": {
+              "network": {
+                "type": "string"
+              },
+              "filesystem": {
+                "type": "string"
+              },
+              "identity": {
+                "type": "string"
+              },
+              "shell": {
+                "type": "boolean"
+              },
+              "persistence": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "network",
+              "filesystem",
+              "identity",
+              "shell",
+              "persistence"
+            ],
+            "additionalProperties": true,
+            "description": "What the build is confined to. Declared so a caller can see it rather than trust it."
+          },
+          "ready": {
+            "type": "boolean",
+            "description": "Whether a build sent now could run. False is answered with 503, not 200."
+          },
+          "readiness": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Readiness"
+            }
+          },
+          "digestAlgorithm": {
+            "const": "sha256"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "Of the manifest itself, so a client can tell one toolchain from another."
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "id",
+          "adapterVersion",
+          "label",
+          "execution",
+          "language",
+          "artifactKind",
+          "processors",
+          "profiles",
+          "deterministic",
+          "packageVersion",
+          "limits",
+          "sandbox",
+          "ready",
+          "readiness",
+          "digestAlgorithm",
+          "digest"
+        ],
+        "additionalProperties": true,
+        "description": "What a server-side toolchain is and whether it can run. Answered with 503 when it cannot, so a client that ignores the body still learns the truth from the status."
+      },
+      "HealthLive": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "const": "live"
+          },
+          "service": {
+            "type": "string"
+          },
+          "apiVersion": {
+            "const": 1
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "apiVersion"
+        ],
+        "additionalProperties": true,
+        "description": "The process is running. It says nothing about whether a build would succeed."
+      },
+      "HealthReady": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "ready",
+              "not-ready"
+            ]
+          },
+          "service": {
+            "type": "string"
+          },
+          "unmet": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnmetCheck"
+            },
+            "description": "Every check that failed, across every toolchain, not the first."
+          },
+          "toolchain": {
+            "$ref": "#/components/schemas/ToolchainManifest"
+          },
+          "toolchains": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolchainManifest"
+            },
+            "description": "Every toolchain, in the order they are checked."
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "unmet",
+          "toolchain",
+          "toolchains"
+        ],
+        "additionalProperties": true,
+        "description": "Whether the service can do its job. 200 when ready, 503 when not."
+      },
+      "SdkDocument": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.sdk-document"
+          },
+          "version": {
+            "const": 1
+          },
+          "toolchainId": {
+            "type": "string"
+          },
+          "toolchainVersion": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "Echoed back, so a client can refuse an answer to a question it did not ask."
+          },
+          "source": {
+            "type": "string"
+          },
+          "licence": {
+            "type": "string",
+            "description": "Carried with the text, because a header copied into a project brings its terms with it."
+          },
+          "readOnly": {
+            "const": true
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 262144
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "toolchainId",
+          "toolchainVersion",
+          "path",
+          "source",
+          "licence",
+          "readOnly",
+          "bytes",
+          "sha256",
+          "content"
+        ],
+        "additionalProperties": true,
+        "description": "One header or source file from a server-side SDK, read-only."
+      },
+      "BuildDiagnostic": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "message"
+        ],
+        "additionalProperties": true,
+        "description": "One thing the toolchain said about the source."
+      },
+      "BuildArtifact": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "bytesBase64": {
+            "type": "string",
+            "description": "The built bytes, encoded so that a binary survives JSON."
+          },
+          "origin": {
+            "type": "integer"
+          },
+          "entryPoint": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "processor": {
+            "type": "string"
+          },
+          "symbols": {
+            "type": "object"
+          },
+          "sourceMap": {
+            "type": "object"
+          },
+          "listing": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "diagnostics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuildDiagnostic"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "bytesBase64",
+          "origin",
+          "processor",
+          "symbols",
+          "diagnostics"
+        ],
+        "additionalProperties": true,
+        "description": "What the build produced, or absent when it produced nothing. A build that failed answers 200 with a null artifact and its diagnostics, because failing to assemble is an answer and not a transport error."
+      },
+      "BuildResult": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.build-result"
+          },
+          "version": {
+            "const": 1
+          },
+          "invocation": {
+            "type": "object",
+            "properties": {
+              "adapterId": {
+                "type": "string"
+              },
+              "adapterVersion": {
+                "type": "string"
+              },
+              "toolchainDigest": {
+                "type": "string"
+              },
+              "engine": {
+                "type": "string"
+              },
+              "profile": {
+                "type": "string"
+              },
+              "machineId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "adapterId",
+              "adapterVersion",
+              "toolchainDigest",
+              "engine"
+            ],
+            "additionalProperties": true
+          },
+          "exit": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "enum": [
+                  "succeeded",
+                  "diagnostics",
+                  "timeout",
+                  "output-limit"
+                ]
+              },
+              "errors": {
+                "type": "integer"
+              },
+              "warnings": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "reason",
+              "errors",
+              "warnings"
+            ],
+            "additionalProperties": true
+          },
+          "timing": {
+            "type": "object",
+            "properties": {
+              "durationMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "durationMs"
+            ],
+            "additionalProperties": true
+          },
+          "cache": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "size": {
+            "type": "object"
+          },
+          "diagnostics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuildDiagnostic"
+            }
+          },
+          "logs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "invocation",
+          "exit",
+          "timing",
+          "diagnostics"
+        ],
+        "additionalProperties": true,
+        "description": "What happened during the build, whether or not it produced anything."
+      },
+      "BuildProvenance": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.build-provenance"
+          },
+          "version": {
+            "const": 2
+          },
+          "fingerprintAlgorithm": {
+            "type": "string"
+          },
+          "digestAlgorithm": {
+            "const": "sha256"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
+          "toolchain": {
+            "type": "object"
+          },
+          "toolchainDigest": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "output": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "fingerprint",
+          "toolchainDigest",
+          "inputs"
+        ],
+        "additionalProperties": true,
+        "description": "What went in, what came out and what built it, so a rebuild can be compared rather than trusted."
+      },
+      "NativeBuildRequest": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.native-build-request"
+          },
+          "version": {
+            "const": 1
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "machineId": {
+            "type": "string"
+          },
+          "processor": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "integer"
+          },
+          "outputName": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "content"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "requestId",
+          "files"
+        ],
+        "additionalProperties": true,
+        "description": "A build to run. The schema and version are checked before anything else, so a client from another release is refused rather than half-understood."
+      },
+      "NativeBuildResponse": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.native-build-response"
+          },
+          "version": {
+            "const": 1
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Echoed, so a client with several builds in flight can tell them apart."
+          },
+          "result": {
+            "$ref": "#/components/schemas/BuildResult"
+          },
+          "artifact": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BuildArtifact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "invocations": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/BuildProvenance"
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "requestId",
+          "result",
+          "artifact",
+          "documents",
+          "invocations",
+          "provenance"
+        ],
+        "additionalProperties": true,
+        "description": "The answer to a build, successful or not."
+      },
+      "StoreIdentity": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string"
+          },
+          "authenticated": {
+            "type": "boolean",
+            "description": "Always false in this build. Said in the response rather than left to be inferred, because a client that thought this was an account would be wrong about who can read it."
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "owner",
+          "authenticated",
+          "detail"
+        ],
+        "additionalProperties": true
+      },
+      "StoreUsage": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-store"
+          },
+          "version": {
+            "const": 1
+          },
+          "identity": {
+            "$ref": "#/components/schemas/StoreIdentity"
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "projects": {
+                "type": "integer"
+              },
+              "revisions": {
+                "type": "integer"
+              },
+              "bytes": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "projects",
+              "revisions",
+              "bytes"
+            ],
+            "additionalProperties": true
+          },
+          "limits": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "identity",
+          "usage",
+          "limits"
+        ],
+        "additionalProperties": true,
+        "description": "What the store is, who it thinks you are, and how much of it is used."
+      },
+      "StoredProject": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "revisions": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revisions"
+        ],
+        "additionalProperties": true
+      },
+      "StoreProjects": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-store-projects"
+          },
+          "version": {
+            "const": 1
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredProject"
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "projects"
+        ],
+        "additionalProperties": true
+      },
+      "StoredRevision": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The revision this was written against. Null for the first."
+          },
+          "writtenAt": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "files": {
+            "type": "integer",
+            "description": "How many files the revision holds. The manifest, not the content: a timeline is read far more often than a revision is restored."
+          }
+        },
+        "required": [
+          "id",
+          "parent",
+          "writtenAt",
+          "note",
+          "files"
+        ],
+        "additionalProperties": true
+      },
+      "StoreRevisions": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-store-revisions"
+          },
+          "version": {
+            "const": 1
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoredRevision"
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "projectId",
+          "revisions"
+        ],
+        "additionalProperties": true
+      },
+      "StoreCommitRequest": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Filename to base64 content. Encoded so a binary asset survives the journey."
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The revision this one was written against. A stale parent is refused rather than resolved, so two workbenches collide instead of one overwriting the other."
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "additionalProperties": true
+      },
+      "StoreCommitted": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-revision"
+          },
+          "version": {
+            "const": 1
+          },
+          "revision": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "parent": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "writtenAt": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "files": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "id",
+              "parent",
+              "writtenAt",
+              "note",
+              "files"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "revision"
+        ],
+        "additionalProperties": true
+      },
+      "StoreRevisionContent": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-store-revision-content"
+          },
+          "version": {
+            "const": 1
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revisionId": {
+            "type": "string"
+          },
+          "files": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Filename to base64 content."
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "projectId",
+          "revisionId",
+          "files"
+        ],
+        "additionalProperties": true
+      },
+      "StoreDeleteRequest": {
+        "type": "object",
+        "properties": {
+          "confirmProjectId": {
+            "type": "string",
+            "description": "The project being deleted, named again. A deletion that does not say what it means is refused, so a stray request cannot remove somebody's history."
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmProjectId"
+        ],
+        "additionalProperties": true
+      },
+      "Tombstone": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "revisions": {
+            "type": "integer"
+          },
+          "deletedAt": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "revisions",
+          "deletedAt"
+        ],
+        "additionalProperties": true
+      },
+      "StoreTombstone": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-tombstone"
+          },
+          "version": {
+            "const": 1
+          },
+          "tombstone": {
+            "$ref": "#/components/schemas/Tombstone"
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "tombstone"
+        ],
+        "additionalProperties": true
+      },
+      "StoreTombstones": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-store-tombstones"
+          },
+          "version": {
+            "const": 1
+          },
+          "tombstones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tombstone"
+            }
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "tombstones",
+          "detail"
+        ],
+        "additionalProperties": true,
+        "description": "What has been deleted, and when. Deleting without a trace is indistinguishable from a project that was never there."
+      },
+      "StoreCollection": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-store-collection"
+          },
+          "version": {
+            "const": 1
+          },
+          "collected": {
+            "type": "object"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "collected",
+          "detail"
+        ],
+        "additionalProperties": true,
+        "description": "What reclaiming space removed. Only content no revision names."
+      },
+      "StoreExport": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "8bit-net.project-store-export"
+          },
+          "version": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schema",
+          "version"
+        ],
+        "additionalProperties": true,
+        "description": "Everything one owner holds, history included. Work somebody cannot get out is work the store has taken."
+      },
+      "UnmetCheck": {
+        "type": "object",
+        "properties": {
+          "toolchain": {
+            "type": "string"
+          },
+          "check": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "toolchain",
+          "check",
+          "detail"
+        ],
+        "additionalProperties": true,
+        "description": "One check that failed, named with the toolchain it belongs to, so whoever is looking at a not-ready service is told what to fix rather than only that something is wrong somewhere."
+      }
+    }
+  }
+}

@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace App\Tests\Build;
 
-use App\Tests\LogRecorder;
 use App\Build\BeebAsmBuildService;
 use App\Build\BeebAsmManifest;
 use App\Build\BeebAsmOutputParser;
 use App\Build\BeebAsmSourcePolicy;
+use App\Build\BuildCache;
+use App\Build\JobWorkspace;
 use App\Build\NativeBuildRequest;
 use App\Build\NativeProcessRunner;
+use App\Tests\LogRecorder;
 use App\Tests\ToolchainEnvironment;
 use PHPUnit\Framework\TestCase;
 
 final class BeebAsmBuildServiceTest extends TestCase
 {
     private LogRecorder $log;
+
+    private BuildCache $cache;
+
+    private string $cacheRoot;
 
     private BeebAsmBuildService $service;
 
@@ -38,7 +44,16 @@ final class BeebAsmBuildServiceTest extends TestCase
         ));
         if (!is_dir('/tmp/native-builds')) mkdir('/tmp/native-builds', 0700, true);
         $this->log = new LogRecorder();
-        $this->service = new BeebAsmBuildService($manifest, new BeebAsmSourcePolicy(), new BeebAsmOutputParser(), new NativeProcessRunner(), $this->log->logger);
+        /* Its own root per test, so one test's stored builds cannot answer
+         * another's and make a failure look like a pass. */
+        $this->cacheRoot = sys_get_temp_dir().'/build-cache-'.bin2hex(random_bytes(8));
+        $this->cache = new BuildCache($this->cacheRoot, $this->log->logger);
+        $this->service = new BeebAsmBuildService($manifest, new BeebAsmSourcePolicy(), new BeebAsmOutputParser(), new NativeProcessRunner(), $this->log->logger, new JobWorkspace($this->log->logger), $this->cache);
+    }
+
+    protected function tearDown(): void
+    {
+        exec('rm -rf '.escapeshellarg($this->cacheRoot));
     }
 
     public function testTheRecordOfARealBuildHoldsItsCostAndNotItsSource(): void

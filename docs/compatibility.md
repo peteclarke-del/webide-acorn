@@ -19,14 +19,14 @@ ROM images you own and supply.
 
 ## Machines
 
-5 of 11 registered machine profiles are runnable in this build.
+6 of 11 registered machine profiles are runnable in this build.
 
 | Machine | CPU | RAM | Tier | Emulator core | Variants | ROM sets |
 | --- | --- | --- | --- | --- | --- | --- |
 | Acorn Atom | MOS 6502 @ 1 MHz | 2–12 KB base RAM | Runnable | jsbeeb 1.19.1 | 3 | 2 |
 | Acorn BBC Model A | MOS 6502A @ 2 MHz | 16 KB RAM | Described | no ROM manifest registered here | 2 | 2 |
 | Acorn BBC Model B | MOS 6502A @ 2 MHz | 32 KB RAM | Runnable | jsbeeb 1.19.1 | 3 | 3 |
-| Acorn BBC B+ | MOS 6502A @ 2 MHz | 64 or 128 KB RAM | Described | no model in any core here | 2 | 2 |
+| Acorn BBC B+ | MOS 6502A @ 2 MHz | 64 or 128 KB RAM | Runnable | jsbeeb 1.19.1 | 2 | 2 |
 | Acorn Electron | MOS 6502A @ 2 MHz variable | 32 KB shared RAM | Runnable | elkjs ff123355 | 3 | 2 |
 | BBC Master Series | WDC 65C12 @ 2 MHz | 128 KB base RAM | Runnable | jsbeeb 1.19.1 | 4 | 3 |
 | Acorn Archimedes A300 | ARM2 @ 8 MHz | 512 KB–1 MB RAM | Runnable | arculator webide-1 | 2 | 6 |
@@ -43,10 +43,10 @@ A planned capability is an absence. It appears here so that it can be read as on
 | --- | --- | --- | --- |
 | Acorn Atom | Cassette interface, Floating-point ROM | AtomDOS, AtoMMC storage | Colour board |
 | Acorn BBC Model A | Cassette interface | Model B interfaces | Econet, Tube interface |
-| Acorn BBC Model B | DFS disk system, Cassette interface, Sideways RAM | 1MHzPi WiFi ROM, Tube second processor | Econet, Speech system |
-| Acorn BBC B+ | Shadow screen RAM, Sideways RAM, 1770 DFS | ADFS, Tube second processor, 1MHzPi WiFi ROM | Econet |
-| Acorn Electron | — | — | Cassette interface, Plus 1 expansion, Plus 3 expansion, Sideways RAM, Joystick interface, 1MHzPi / ElkWiFi |
-| BBC Master Series | Shadow & Hazel RAM, Sideways RAM, ADFS, DFS | Tube / Turbo, 1MHzPi WiFi ROM | Econet |
+| Acorn BBC Model B | DFS disk system, Cassette interface, Sideways RAM | 1MHzPi WiFi ROM | Tube second processor, Econet, Speech system |
+| Acorn BBC B+ | Shadow screen RAM, Paged RAM at &8000, Cassette interface, 1770 DFS, ADFS | 1MHzPi WiFi ROM | Tube second processor, Econet |
+| Acorn Electron | Cassette interface | — | Plus 1 expansion, Plus 3 expansion, Sideways RAM, Joystick interface, 1MHzPi / ElkWiFi |
+| BBC Master Series | Cassette interface, Shadow & Hazel RAM, Sideways RAM, ADFS, DFS, Tube / Turbo | 1MHzPi WiFi ROM | Econet |
 | Acorn Archimedes A300 | ADFS floppy | Podule expansion, ST-506 hard disk | Econet, Floating-point accelerator |
 | Acorn Archimedes A400/1 | ADFS, Hard disk | ARM3 upgrade, Podule expansion | FPA10 |
 | BBC Acorn A3000 | ADFS floppy | Internal expansion, External hard disk | Econet |
@@ -57,10 +57,10 @@ A planned capability is an absence. It appears here so that it can be read as on
 
 - **Acorn Atom** — The tape and tape-with-floating-point models run here. The MMC and DOS models exist in the engine but need firmware images this build does not register a manifest for.
 - **Acorn BBC Model A** — jsbeeb models the BBC B; a Model A differs in fitted RAM and interfaces, and this build registers no separate Model A manifest, so it is described but not run.
-- **Acorn BBC Model B** — The 8271 DFS and 1770 DFS or ADFS models all run here. A 6502 second processor can be fitted through the Tube capability.
-- **Acorn BBC B+** — jsbeeb 1.19.1 has no BBC B+ model, so the B+ shadow and sideways memory behaviour cannot be executed here. Supplying B+ firmware would not change that; the profile is listed because the product models the machine, not because this build can emulate it.
-- **Acorn Electron** — The Electron runs on the vendored ElkJS core, which models a base 32 KB machine with an operating system and BASIC only. It has no Plus 1, Plus 3, AP5 or AP6, no ADFS, no cartridge and no usable expansion ROM slot, and it offers no instruction stepping, breakpoints or hardware test execution because that core exposes no per-instruction hook. Those expansions need the Elkulator port recorded in the backlog, not more firmware.
-- **BBC Master Series** — The Master 128 runs here with its combined MOS 3.20 image, selecting DFS, ADFS or ANFS. A 65C102 Turbo second processor can be fitted through the Tube capability. Master Turbo, 512 and Compact are separate machines with no model in this engine.
+- **Acorn BBC Model B** — The 8271 DFS and 1770 DFS or ADFS models all run here. A second processor is not offered: the interface is fitted and answers, but this core never hands the language over on a BBC-family host — the parasite runs its own ROM and waits, and its RAM is never written. It does boot on the Master.
+- **Acorn BBC B+** — The B+ runs here on a machine this build adds, because jsbeeb publishes none — not in the pinned 1.19.1 and not in the current 1.22.4. It is the engine's Model B with the two things that make a B+ a B+: the twelve kilobytes of paged RAM at &8000 that ROMSEL bit 7 brings in, and the twenty kilobytes of shadow screen selected through &FE34. Both were checked by asking the machine rather than by reading about it — it introduces itself as Acorn OS 64K, a shadow mode leaves HIMEM at &8000 where a Model B would drop it to &3000, and a write to &AFFF with ANDY paged comes back while the ROM underneath is untouched. What is not offered is the B+ 128: its extra sideways RAM makes this operating system report a size no B+ was sold with, so it is not claimed. A second processor is not offered either, for the same reason as on the Model B.
+- **Acorn Electron** — The Electron has two cores here and the ROM set chooses between them. The Electron OS + BASIC set runs on the vendored ElkJS core, which models a base 32 KB machine with an operating system and BASIC only, and offers no instruction stepping, breakpoints or hardware test execution because it exposes no per-instruction hook. The Electron + Plus 1 expansions set runs on the Elkulator core built for WebAssembly, which has that hook, so stepping, breakpoints, register writing and key injection are available there; running a test plan is not, because the stop is real but its assertions, captures and teardown are not written yet. Cassette media works and is proved: a tape written here was mounted on that core, the machine was typed *LOAD at, it turned its own cassette motor on and the whole file arrived. Disc media is implemented on the same path and unproved, because an Electron reads discs through a Plus 3 and no ADFS or DFS firmware is registered for one. The remaining expansions are declared and their firmware checkable, but none has been exercised through that core, so each stays marked planned until it has been.
+- **BBC Master Series** — The Master 128 runs here with either its MOS 3.20 or its MOS 3.50 combined image, selecting DFS, ADFS or ANFS. The Master Compact cannot be selected: it is a different machine rather than a Master 128 with later firmware, and this engine models no Compact. A 65C102 Turbo second processor can be fitted through the Tube capability, and is the one machine here where the Tube boot completes: the host records it, the language reaches the parasite, and a conformance case asserting it passes on real hardware. Master Turbo, 512 and Compact are separate machines with no model in this engine.
 - **Acorn Archimedes A300** — The qualified A310 slice runs on the pinned Arculator build. Machine state save and restore stay disabled because that core exposes no complete deterministic serializer.
 - **Acorn Archimedes A400/1** — This build qualifies the A310 class only. Later Archimedes and Risc PC profiles are described but have no qualified adapter here, and no other machine is substituted for them.
 - **BBC Acorn A3000** — This build qualifies the A310 class only. Later Archimedes and Risc PC profiles are described but have no qualified adapter here, and no other machine is substituted for them.
@@ -91,6 +91,7 @@ native toolchains run in the service container.
 | jsbeeb | 1.19.1 | — | — |
 | arculator-wasm | 579ac437b9a4 | serialize-state, restore-state | Core-native state serialization is unavailable. |
 | elkjs | ff123355 | 24 of 36 declared capabilities | The Acorn Electron runs on the vendored ElkJS core: execution, reset, register and memory reading, memory writing, machine-code loading, the real keyboard over the live display, screen capture and a sound toggle. Instruction stepping, breakpoints, watchpoints, tracing, disassembly, profiling, hardware inspection, media and machine-state save are not offered, because that core exposes no per-instruction hook and models no expansions. |
+| elkulator | allegro5-6785521 | 20 of 37 declared capabilities | The Acorn Electron also runs on the Elkulator core built for WebAssembly, which adds what ElkJS cannot do: instruction stepping and execution breakpoints against a real per-instruction hook, register writing and key injection, alongside execution, reset, memory reading and writing, machine-code loading, cassette and disc media, hardware test plans over registers, memory and the machine's own contended cycles, the real keyboard over the live display and screen capture. Watchpoints, tracing, disassembly, profiling, replay, hardware inspection, reading a disc back out, sound and machine-state save are not offered: some because the core provides no hook for them, and the rest because the bridge this build exposes deliberately does not carry them. Two things are worth knowing before reading a test result from this core. A stop address is exact, because the instruction hook halts the machine on it; a cycle budget is not, because this core runs a whole field per animation frame and cannot be interrupted inside one, so a test that never reaches its stop can overrun its budget by up to a field before the overrun is noticed — and the result reports the cycles that actually elapsed rather than the budget. And the cycles are the Electron's real contended ones: the ULA stretches the processor when it touches shared RAM, so a program a datasheet would call eight cycles is measured at twelve, which is the number it actually has to live within. |
 
 ## Portability guarantees
 

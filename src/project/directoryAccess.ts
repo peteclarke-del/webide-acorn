@@ -16,12 +16,23 @@
  * at the point of importing is what a person expects.
  */
 
+import { PALETTE_MODES } from '../assets/paletteDocument';
+import { screenGeometry } from '../assets/screenDocument';
 import { unsafeWritePath } from './safeNames';
 
 export interface DirectoryEntry {
   /** Path relative to the chosen folder, using forward slashes. */
   path: string;
   content: string;
+  /**
+   * The raw bytes, kept only for a file that is not text but is exactly the
+   * length of a display mode's frame buffer. A loading screen is saved as the
+   * bytes the video hardware reads, so it is not text and was skipped, and the
+   * project arrived without the artwork it opens on. Nothing else keeps its
+   * bytes, because everything else that is not text is not something this
+   * product can do anything with.
+   */
+  bytes?: Uint8Array;
 }
 
 export interface DirectorySupport {
@@ -66,6 +77,10 @@ export function directorySupport(target: Pick<PickerWindow, 'showDirectoryPicker
   return { available: true, reason: 'This browser can open a folder and write the project back to it.' };
 }
 
+/* Every length a BBC frame buffer takes, so a screen saved out of the machine
+ * can be told apart from any other file that will not decode as text. */
+const SCREEN_BUFFER_LENGTHS = new Set(PALETTE_MODES.map((profile) => screenGeometry(profile.id).byteLength));
+
 export const MAX_DIRECTORY_FILES = 512;
 export const MAX_DIRECTORY_BYTES = 8 * 1024 * 1024;
 
@@ -107,6 +122,11 @@ export async function readDirectory(handle: FileSystemDirectoryHandleLike): Prom
         /* The same test the importer uses: a control character that is not
          * whitespace means this is not text, whatever its extension says. */
         if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(content)) {
+          if (SCREEN_BUFFER_LENGTHS.has(file.size)) {
+            bytes += file.size;
+            entries.push({ path, content: '', bytes: new Uint8Array(await file.arrayBuffer()) });
+            continue;
+          }
           skipped.push({ path, reason: 'not readable as text' });
           continue;
         }

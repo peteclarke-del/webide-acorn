@@ -15,7 +15,10 @@ final class Cc65OutputParserTest extends TestCase
         $parser = new Cc65OutputParser();
         $diagnostics = $parser->diagnostics("src/main.s(4): Error: Range error\nld65: Warning: test warning\n", $files, 'assemble');
         self::assertSame(['error', 'warning'], array_column($diagnostics, 'severity'));
-        self::assertSame('main', $diagnostics[0]['fileId']);
+        /* The identifier is optional in the shape, because a diagnostic that
+         * names no project file has none, so it is asserted present before it
+         * is read rather than assumed. */
+        self::assertSame(['fileId' => 'main', 'fileName' => 'src/main.s'], array_intersect_key($diagnostics[0], ['fileId' => null, 'fileName' => null]));
         self::assertSame(4, $diagnostics[0]['line']);
 
         $debug = implode("\n", [
@@ -28,6 +31,8 @@ final class Cc65OutputParserTest extends TestCase
         $parsed = $parser->debugFile($debug, $files);
         self::assertSame(0x1900, $parsed['symbols']['_start']);
         self::assertSame(['fileId' => 'main', 'fileName' => 'src/main.s', 'line' => 4], $parsed['sourceLocations'][0x1901]);
-        self::assertSame(0, $parsed['segments'][0]['outputOffset']);
+        /* Optional for the same reason: a segment that never reaches the
+         * output has no offset in it. */
+        self::assertSame(['outputOffset' => 0], array_intersect_key($parsed['segments'][0], ['outputOffset' => null]));
     }
 }

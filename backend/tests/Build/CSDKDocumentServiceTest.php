@@ -6,6 +6,7 @@ namespace App\Tests\Build;
 
 use App\Build\CSDKDocumentService;
 use App\Http\ApiProblem;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class CSDKDocumentServiceTest extends TestCase
@@ -36,7 +37,7 @@ final class CSDKDocumentServiceTest extends TestCase
         self::assertSame(hash('sha256', (string) $document['content']), $document['sha256']);
     }
 
-    /** @dataProvider unsafePaths */
+    #[DataProvider('unsafePaths')]
     public function testRejectsTraversalAbsoluteAndMalformedPaths(string $path): void
     {
         $service = new CSDKDocumentService([['root' => $this->root, 'source' => 'test SDK', 'licence' => 'test licence']]);

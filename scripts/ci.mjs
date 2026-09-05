@@ -16,6 +16,7 @@
  * skipped stage fails it too unless `--allow-skips` is given, so a pipeline
  * cannot drift into checking less than it thinks it does.
  */
+import { readComposerAudit, readNpmAudit, scanFindings, scanSummary } from './securityScan.mjs';
 import { spawn } from 'node:child_process';
 import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -24,6 +25,9 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argv, env, exit } from 'node:process';
 import { cpus } from 'node:os';
+import { namesInBuild, readLockfile } from './sbom.mjs';
+import { COPYLEFT_COMPONENTS, licenceComplianceFindings } from './licenceCompliance.mjs';
+
 
 /* The browser smoke drives Chrome over a WebSocket, which Node 20 only exposes
  * behind a flag. Rather than fail with `WebSocket is not defined` when someone
@@ -43,6 +47,33 @@ const only = argv.slice(2).find((value) => !value.startsWith('--'));
  * space arrives percent-encoded otherwise, and every spawned command then
  * fails with ENOENT on a directory that does not exist. */
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+
+/* Three stages drive the built workbench out of dist rather than the sources,
+ * which is right — that is what ships. But run one of them on its own and it
+ * will happily walk whatever was built last, so a change under src looks like
+ * it made no difference, or an old defect looks like it is still there. In a
+ * whole gate the build stage runs first and this never fires; on its own it
+ * says what to do instead of quietly measuring yesterday. */
+async function assertBuiltFromCurrentSources(what) {
+  const { stat, readdir } = await import('node:fs/promises');
+  const newest = async (directory, ignore = new Set()) => {
+    let latest = 0;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (ignore.has(entry.name)) continue;
+      const path = join(directory, entry.name);
+      latest = Math.max(latest, entry.isDirectory() ? await newest(path, ignore) : (await stat(path)).mtimeMs);
+    }
+    return latest;
+  };
+  let built = 0;
+  try { built = await newest(join(root, 'dist')); } catch (reason) { throw new Error(`There is no build for ${what} to walk (${reason.message}). Run npm run build first.`); }
+  const authored = Math.max(
+    await newest(join(root, 'src')),
+    await newest(join(root, 'public'), new Set()).catch(() => 0),
+    (await stat(join(root, 'index.html'))).mtimeMs,
+  );
+  if (authored > built) throw new Error(`The build in dist is older than the sources, so ${what} would walk code that is no longer written. Run npm run build first.`);
+}
 
 /* A named browser is authoritative: a pipeline that sets CHROMIUM_PATH expects
  * that binary, and quietly falling back to another one would hide a broken
@@ -101,8 +132,27 @@ await stage('types', async () => {
   expectSuccess(await run('npx', ['tsc', '-b', '--pretty', 'false']), 'TypeScript project build');
 });
 
+await stage('contracts', async () => {
+  /* The API description is the contract, and both sides are checked against it:
+   * the generated TypeScript here, and the real routes and real answers in the
+   * backend stage's conformance tests. This compares rather than regenerates,
+   * for the same reason the guides do — a stage that writes the file it then
+   * inspects passes by definition. */
+  const contracts = await run('node', ['scripts/generateApiTypes.mjs', '--check']);
+  expectSuccess(contracts, 'Typed client contracts');
+  return { detail: contracts.output.trim().split('\n').pop() };
+});
+
 await stage('help', async () => {
   expectSuccess(await run('node', ['scripts/verify-help.mjs']), 'Help verification');
+  /* The standalone guides are rendered from the same topics the IDE reads, so
+   * this compares rather than regenerates: generating into the working tree
+   * during a release would make the comparison pass by definition. A topic
+   * edited without regenerating fails here rather than shipping a book that
+   * describes an older product. */
+  const guides = await run('node', ['scripts/generateGuides.mjs', '--check']);
+  expectSuccess(guides, 'Standalone user guides');
+  return { detail: guides.output.trim().split('\n').pop() };
 });
 
 await stage('tests', async () => {
@@ -144,8 +194,77 @@ await stage('tests', async () => {
 await stage('backend', async () => {
   const result = await run('node', ['scripts/backend-tests.mjs']);
   expectSuccess(result, 'Backend test suite');
-  const summary = /Tests:\s*(\d+), Assertions:\s*(\d+)/.exec(result.output);
-  return { detail: summary ? `${summary[1]} tests, ${summary[2]} assertions, none skipped` : undefined };
+  /* A deprecation is a failure that has not happened yet, and the count is at
+   * zero, so holding it there costs nothing and keeps the suite from quietly
+   * accumulating work for the next major version of its own test runner. */
+  const deprecated = /PHPUnit Deprecations:\s*(\d+)/.exec(result.output);
+  if (deprecated && Number(deprecated[1]) > 0) {
+    throw new Error(`${deprecated[1]} PHPUnit deprecation(s) were reported. Run the suite with --display-phpunit-deprecations to see them.`);
+  }
+  /* Two forms, because the runner prints a clean run differently from one with
+   * anything to report, and reading only one of them silently loses the
+   * summary on exactly the runs that are fine. */
+  const summary = /OK \((\d+) tests?, (\d+) assertions?\)/.exec(result.output)
+    ?? /Tests:\s*(\d+), Assertions:\s*(\d+)/.exec(result.output);
+  if (!summary) throw new Error('The backend suite reported no test count, so nothing says how much of it ran');
+  return { detail: `${summary[1]} tests, ${summary[2]} assertions, none skipped, no deprecations` };
+});
+
+/* Static analysis and formatting for the backend.
+ *
+ * The TypeScript side has strict mode with unused locals and parameters treated
+ * as errors, which is a compiler doing part of what a linter would. The PHP had
+ * nothing of the sort, and the first run of this stage found a check that could
+ * never fire, a null reaching str_contains, a float used as an array key, an
+ * unused closure capture and six docblocks whose `@return` was never read
+ * because it shared a line with an `@param`.
+ *
+ * The formatter runs in check mode here. A gate that rewrote files would report
+ * a pass on a working tree it had just changed, which is a different tree from
+ * the one that was committed.
+ */
+await stage('analysis', async () => {
+  const analyse = await run('backend/vendor/bin/phpstan', ['analyse', '--no-progress', '--error-format=raw', '--configuration=backend/phpstan.neon']);
+  expectSuccess(analyse, 'PHP static analysis');
+  const format = await run('backend/vendor/bin/php-cs-fixer', ['check', '--config=backend/.php-cs-fixer.dist.php', '--show-progress=none'], {
+    env: { ...process.env, PHP_CS_FIXER_IGNORE_ENV: '1' },
+  });
+  expectSuccess(format, 'PHP formatting');
+  const files = /Found 0 of (\d+) files/.exec(format.output);
+  if (!files) throw new Error('The formatter did not report how many files it checked, so nothing says it checked any');
+  return { detail: `PHPStan level ${await phpstanLevel()} clean, ${files[1]} files formatted as declared` };
+});
+
+async function phpstanLevel() {
+  /* Read from the configuration rather than repeated here: two declarations of
+   * one number are two numbers waiting to disagree. */
+  const configuration = await readFile(join(root, 'backend', 'phpstan.neon'), 'utf8');
+  const level = /^\s*level:\s*(\d+)\s*$/m.exec(configuration);
+  if (!level) throw new Error('backend/phpstan.neon declares no analysis level, so nothing says how strictly it was checked');
+  return level[1];
+}
+
+/* Dependencies checked against what is known about them today.
+ *
+ * Unlike every other stage, this one fails because the world changed rather
+ * than because this repository did: a package that was clean this morning can
+ * carry a critical advisory this afternoon with nothing here having moved. So
+ * the threshold sits where somebody would actually act — high and critical
+ * fail, moderate and low are reported — and the summary always names the scans
+ * that did not run, because a security stage reporting only its own scope
+ * would read as a clean bill of health for all of SEC-901.
+ */
+await stage('security', async () => {
+  const npmAudit = await run('npm', ['audit', '--json']);
+  /* npm exits non-zero when it finds anything at all, including the low
+   * findings this stage deliberately does not fail on, so the document is what
+   * is read rather than the exit code. */
+  const npm = readNpmAudit(npmAudit.output);
+  const composerAudit = await run('composer', ['audit', '--format=json'], { cwd: join(root, 'backend') });
+  const composer = readComposerAudit(composerAudit.output);
+  const findings = scanFindings(npm, composer);
+  if (findings.length) throw new Error(findings.join(' '));
+  return { detail: scanSummary(npm, composer) };
 });
 
 await stage('build', async () => {
@@ -173,7 +292,23 @@ await stage('provenance', async () => {
   const provenance = await readFile(join(root, 'public/electron/elkjs/PROVENANCE.md'), 'utf8');
   const checksums = [...provenance.matchAll(/`([0-9a-f]{64})`/g)].length;
   if (checksums < 6) throw new Error(`Only ${checksums} vendored-file checksums are recorded; every vendored file needs one`);
-  return { detail: `${checksums} vendored-file checksums recorded` };
+
+  /*
+   * Naming an obligation is not meeting it. The inventory says which shipped
+   * packages are copyleft; this says whether the image carries their licence
+   * and their corresponding source. The two were not connected, and jsbeeb and
+   * ElkJS shipped a licence file and no source for exactly that reason.
+   */
+  const dockerfile = await readFile(join(root, 'Dockerfile'), 'utf8');
+  const lockfile = JSON.parse(await readFile(join(root, 'package-lock.json'), 'utf8'));
+  const shipped = readLockfile(lockfile, await namesInBuild(lockfile, root));
+  const shippedCopyleft = shipped
+    .filter((entry) => entry.shipped && entry.licenceClass === 'copyleft')
+    .map((entry) => entry.name);
+  const findings = licenceComplianceFindings(dockerfile, shippedCopyleft);
+  if (findings.length) throw new Error(findings.join(' · '));
+
+  return { detail: `${checksums} vendored-file checksums recorded, ${COPYLEFT_COMPONENTS.length} copyleft components shipping licence and source` };
 });
 
 /* No ROM, no commercial program and no proprietary manual may enter the image.
@@ -233,6 +368,7 @@ await stage('smoke', async () => {
   const chromium = await firstExisting(CHROMIUM_CANDIDATES);
   if (!chromium) return { skipped: true, reason: env.CHROMIUM_PATH ? `CHROMIUM_PATH names ${env.CHROMIUM_PATH}, which is not there` : 'no Chromium binary found; set CHROMIUM_PATH to include the browser smoke' };
 
+  await assertBuiltFromCurrentSources('the smoke scan');
   const port = Number(env.CI_SMOKE_PORT ?? 8137);
   const devtoolsPort = Number(env.CI_SMOKE_DEVTOOLS_PORT ?? 9137);
   const dist = join(root, 'dist');
@@ -436,7 +572,7 @@ await stage('smoke', async () => {
      * a name is meaningful or whether a reading order makes sense; what it can
      * decide is checked here, and what it cannot stays in the manual matrix.
      * The rules are shared with the test suite rather than restated. */
-    const { SCAN, TEXT_SPACING, FOCUS_VISIBILITY, REDUCED_MOTION, FORCED_COLOURS, REDUCED_TRANSPARENCY, KEYBOARD_REACHABILITY, POINTER_ALTERNATIVES, VISUAL_ALTERNATIVES, summarise } = await import('./accessibilityRules.mjs');
+    const { CONTROL_HEIGHTS, CONTROL_SIZES, SCAN, TEXT_SPACING, FOCUS_VISIBILITY, REDUCED_MOTION, FORCED_COLOURS, REDUCED_TRANSPARENCY, KEYBOARD_REACHABILITY, POINTER_ALTERNATIVES, SCROLLABLE_OVERFLOW, VISUAL_ALTERNATIVES, summarise } = await import('./accessibilityRules.mjs');
     /* Every workspace the tab strip actually offers, read from the page rather
      * than listed here, so a new one is scanned the day it is added. Search
      * opens a modal over whatever is behind it and is scanned in place. */
@@ -475,6 +611,60 @@ await stage('smoke', async () => {
     await until(() => evaluate(`!document.querySelector('.start-project-dialog')`), 'the start dialog to close', 20_000);
     await delay(600);
 
+    /* The project is built before anything is scanned.
+     *
+     * Half the surfaces that carry the most information do not exist until a
+     * build has produced something to show: the disassembly, the memory and
+     * size maps, the artifact documents and the symbol list are all rendered
+     * from a build result, and scanning before one exists reports a clean page
+     * while leaving them unmeasured. That was the whole of what kept A11Y-902
+     * open — coverage, not conformance.
+     *
+     * The build is driven through the real command rather than by seeding a
+     * result, so the path a person takes is the path that is scanned. */
+    await evaluate(`(() => {
+      const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === 'Build targets');
+      if (tab) tab.click();
+      return true;
+    })()`);
+    await delay(500);
+    const built = await evaluate(`(() => {
+      /* Inside the workspace, because the workbench's own menu bar carries a
+       * Build menu whose button reads the same word and sits earlier in the
+       * page: an unscoped search opened that menu and assembled nothing. */
+      const workspace = document.querySelector('.build-workspace');
+      if (!workspace) return 'the Build targets workspace did not open';
+      const build = [...workspace.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Build');
+      if (!build) return 'no build control on the Build targets workspace';
+      if (build.disabled) return 'the build control is disabled';
+      build.click();
+      return true;
+    })()`);
+    if (built !== true) {
+      /* Named rather than skipped. A scan that quietly did not build would go
+       * on reporting the smaller surface count as though it were everything. */
+      throw new Error(`The scan could not start a build, so the surfaces that only exist after one would not have been measured: ${built}`);
+    }
+    /* Waited for the artifact itself rather than for words on the page. A
+     * regular expression over the body text matches the button that started
+     * the build, so it would report success the instant it was clicked. */
+    const buildFinished = await until(async () => evaluate(`(() => {
+      /* The byte inspector and the generated documents exist only once a build
+       * has produced something, so either one is proof there is an artifact. */
+      return Boolean(document.querySelector('[aria-label="Build artifact byte inspector"], [aria-label="Generated artifact documents"]'));
+    })()`), 'the sample project to build', 60_000).catch(() => false);
+    if (!buildFinished) throw new Error('The sample project produced no artifact within a minute, so the surfaces that only exist after a build were not scanned');
+    await delay(500);
+
+    /* Headless Chromium opens at 800 by 600, which is narrow enough that the
+     * workbench lays its panels over the editor and hides the inspector
+     * altogether. Scanning only that left the desktop layout — the one almost
+     * everybody uses — unscanned, and a contrast failure in the inspector's
+     * problem badge sat there unreported. The scan runs at a desktop size for
+     * the same reason the explorer is opened below. */
+    await call('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 0, mobile: false });
+    await delay(500);
+
     /* The project explorer holds the only draggable surface, so it is opened
      * before scanning. A panel that is closed while the page is measured takes
      * everything inside it out of the scan without saying so. */
@@ -494,6 +684,7 @@ await stage('smoke', async () => {
     let draggableSeen = 0;
     let drawingSeen = 0;
     const visited = [];
+    const mismatched = [];
     for (const workspace of offered) {
       const opened = await evaluate(`(() => {
         const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === ${JSON.stringify(workspace)});
@@ -505,6 +696,7 @@ await stage('smoke', async () => {
       await delay(500);
       visited.push(workspace);
       for (const finding of await evaluate(SCAN)) accessibility.push({ ...finding, detail: `${finding.detail} (in ${workspace})` });
+      for (const odd of await evaluate(CONTROL_SIZES)) mismatched.push({ ...odd, workspace });
       /* Operating the workspace without a pointer, in the workspace itself
        * rather than only on whichever one happens to be showing. */
       draggableSeen = Math.max(draggableSeen, await evaluate(`document.querySelectorAll('[draggable="true"]').length`));
@@ -514,9 +706,16 @@ await stage('smoke', async () => {
           accessibility.push({ rule: 'keyboard', criterion: '2.1.1', element: finding.element, detail: `${finding.detail} (in ${workspace})` });
         }
       }
+      /* Content that does not fit and cannot be scrolled to is not reachable by
+       * any means at all, which is a stronger failure than a keyboard one. */
+      for (const finding of await evaluate(SCROLLABLE_OVERFLOW)) {
+        accessibility.push({ rule: 'reflow', criterion: '1.4.10', element: finding.element, detail: `${finding.detail} (in ${workspace})` });
+      }
       /* A workspace that opened a dialog must not hide the next one. */
       await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
     }
+
+    await call('Emulation.clearDeviceMetricsOverride');
 
     if (!draggableSeen) throw new Error('No draggable element was on screen during the scan, so the keyboard-alternative rule checked nothing');
     if (!drawingSeen) throw new Error('No canvas or image role was on screen during the scan, so the visual-alternative rule checked nothing');
@@ -553,8 +752,70 @@ await stage('smoke', async () => {
     }
     await call('Emulation.setEmulatedMedia', { features: [] });
 
+    /*
+     * And the dialogs, which is where the mismatch was actually reported.
+     *
+     * The scan above walks workspaces, so a control that only exists while a
+     * dialog is open was never measured: the close-project dialog stood a
+     * 46-pixel button beside a 28-pixel one and this passed. Each of these is
+     * opened, measured and dismissed. A dialog that will not open fails rather
+     * than being quietly skipped, because a skipped surface is how the first
+     * one was missed.
+     */
+    const DIALOGS = [
+      { name: 'close project', menu: 'Project', item: 'menu-project-close', root: '.close-project-dialog' },
+      { name: 'start a project', menu: 'Project', item: 'menu-project-import-codebase', root: '.start-project-dialog' },
+      { name: 'export project', menu: 'Project', item: 'menu-project-export', root: '[role=dialog]' },
+      { name: 'command palette', menu: null, item: null, root: '.command-palette' },
+    ];
+    for (const dialog of DIALOGS) {
+      if (dialog.menu) {
+        /* Opened a step at a time, because the items of a menu do not exist
+         * until it has been drawn and a single expression cannot wait for
+         * that. Reading one synchronously found an empty menu and reported
+         * that nothing opens the dialog. */
+        const barOpened = await evaluate(`(() => {
+          const bar = document.querySelector('[role="menubar"][aria-label="Workbench menu"]');
+          if (!bar) return 'no workbench menu bar';
+          const button = [...bar.querySelectorAll('.panel-actions-button')].find((entry) => entry.textContent.trim() === ${JSON.stringify(dialog.menu)});
+          if (!button) return 'no ${dialog.menu} menu';
+          button.click();
+          return true;
+        })()`);
+        if (barOpened !== true) throw new Error(`The ${dialog.name} dialog could not be reached: ${barOpened}`);
+        await delay(400);
+        const chosen = await evaluate(`(() => {
+          const item = document.querySelector('.panel-menu-items [data-menu-item="${dialog.item}"]');
+          if (!item) return 'the ${dialog.menu} menu has no ${dialog.item} entry';
+          if (item.disabled) return 'the ${dialog.item} entry is disabled';
+          item.click();
+          return true;
+        })()`);
+        if (chosen !== true) throw new Error(`The ${dialog.name} dialog could not be opened to measure it: ${chosen}`);
+      } else {
+        await evaluate(`(() => { document.querySelector('button[aria-label="Open command palette"]').click(); return true; })()`);
+      }
+      await delay(700);
+      const present = await evaluate(`!!document.querySelector(${JSON.stringify(dialog.root)})`);
+      if (!present) throw new Error(`The ${dialog.name} dialog did not appear, so its controls were not measured`);
+      for (const odd of await evaluate(CONTROL_SIZES)) mismatched.push({ ...odd, workspace: `${dialog.name} dialog` });
+      await evaluate(`(() => {
+        const close = [...document.querySelectorAll('button')].find((b) => /^(Keep working on it|Cancel|Choose a different folder)$/.test(b.textContent.trim()));
+        if (close) { close.click(); return true; }
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        for (const backdrop of document.querySelectorAll('.command-palette-backdrop, .modal-backdrop')) backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        return true;
+      })()`);
+      await delay(500);
+    }
+
+    if (mismatched.length) {
+      const shown = mismatched.slice(0, 6).map((odd) => `${odd.height}px .${odd.klass} "${odd.text}" in ${odd.workspace}`);
+      throw new Error(`${mismatched.length} control(s) are not one of the ${CONTROL_HEIGHTS.join(', ')} pixel sizes the product declares: ${shown.join(' | ')}`);
+    }
+
     if (errors.length) throw new Error(`The workbench reported ${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`);
-    return { detail: `${workspaces} controls under the shipped security headers, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
+    return { detail: `${workspaces} controls under the shipped security headers, every one at one of ${CONTROL_HEIGHTS.length} declared sizes, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
   } finally {
     /* Every handle opened here is closed here. A gate that printed its verdict
      * and then sat with an open socket would hang a pipeline until its timeout
@@ -578,10 +839,312 @@ await stage('smoke', async () => {
   }
 });
 
-/* ---- verdict -------------------------------------------------------------- */
+await stage('browsers', async () => {
+  /*
+   * The workbench, started in every browser the gate can start.
+   *
+   * The smoke stage above drives one browser deeply. This one drives every
+   * available engine shallowly, because those are different questions: the
+   * first asks whether the product works, and this asks whether "works" is
+   * true anywhere other than where it was developed. The answers are compared,
+   * so a capability one browser lacks is recorded as a fact about the web
+   * rather than reported as a defect in this build.
+   *
+   * Safari is not measured and no engine is substituted for it. It does not run
+   * on this platform, and reporting Chromium's answers under Safari's name is
+   * exactly the claim this product refuses to make.
+   */
+  const { COLLECTOR_SOURCE, PAGE_PROBE, RUNTIME_PAGES, RUNTIME_HOST_HTML, RUNTIME_HOST_SOURCE, matrixFindings, matrixSummary, runtimeFindings, runtimeProbe, runtimeSummary } = await import('./browserMatrix.mjs');
+  const chromium = await firstExisting(CHROMIUM_CANDIDATES);
+  const geckodriver = await firstExisting(env.GECKODRIVER_PATH ? [env.GECKODRIVER_PATH] : ['/usr/bin/geckodriver', '/snap/bin/geckodriver', '/usr/local/bin/geckodriver']);
+  /* Which binary was driven, named in the stage detail. A Firefox installed as
+   * a snap is confined and cannot see a graphics library installed on the host,
+   * which is one of the things that would explain a browser reporting no WebGL
+   * on a machine that has just been given some. Guessing at that from here cost
+   * three runs of the gate; the run says it now. */
+  const firefoxSource = geckodriver
+    ? `${env.FIREFOX_BINARY ?? geckodriver}${(env.FIREFOX_BINARY ?? geckodriver).startsWith('/snap/') ? ' (snap-confined)' : ''}`
+    : '';
+  if (!chromium && !geckodriver) return { skipped: true, reason: 'no browser could be started; set CHROMIUM_PATH or GECKODRIVER_PATH' };
 
-/* A filter that matches nothing must not read as a pass. */
-if (!results.length) { console.error(only ? `No gate stage matches "${only}".` : 'The gate ran no stages.'); exit(2); }
+  await assertBuiltFromCurrentSources('the browser matrix');
+  const port = Number(env.CI_MATRIX_PORT ?? 8139);
+  const dist = join(root, 'dist');
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.wasm': 'application/wasm' };
+  const { headerPairs } = await import('./securityHeaders.mjs');
+  const securityHeaders = headerPairs(await readFile(join(root, 'docker', 'security-headers.conf'), 'utf8'));
+  /* The runtime documents are served under the embedded policy in the
+   * container, so they are served under it here. Measuring them under the
+   * workbench's stricter policy would test something the product never does. */
+  const embeddedHeaders = headerPairs(await readFile(join(root, 'docker', 'security-headers-embedded.conf'), 'utf8'));
+  const RUNTIME_PATHS = new Set(RUNTIME_PAGES.map((page) => page.path));
+
+  /*
+   * The collector is served as a file and injected as a `<script src>` rather
+   * than inline, because the shipped policy forbids inline script and this run
+   * is under that policy. That constraint is the point: a collector the policy
+   * would have blocked could not report the policy blocking anything else.
+   */
+  const indexHtml = await readFile(join(dist, 'index.html'), 'utf8');
+
+  /* Injected into every document that is measured, not only the workbench. */
+  const withCollector = (html) => html.replace('</head>', '<script src="/ci-collector.js"></script></head>');
+
+  const server = createServer(async (request, response) => {
+    const url = new URL(request.url ?? '/', 'http://x');
+    const embedded = RUNTIME_PATHS.has(url.pathname);
+    for (const [name, value] of (embedded ? embeddedHeaders : securityHeaders)) response.setHeader(name, value);
+    if (embedded) {
+      response.setHeader('Content-Type', 'text/html');
+      response.end(withCollector(await readFile(join(dist, url.pathname.slice(1)), 'utf8')));
+      return;
+    }
+    if (url.pathname === '/ci-collector.js' || url.pathname === '/ci-runtime-host.js') {
+      response.setHeader('Content-Type', 'text/javascript');
+      response.end(url.pathname === '/ci-collector.js' ? COLLECTOR_SOURCE : `${COLLECTOR_SOURCE}\n${RUNTIME_HOST_SOURCE}`);
+      return;
+    }
+    if (url.pathname === '/ci-runtime-host.html') {
+      response.setHeader('Content-Type', 'text/html');
+      response.end(RUNTIME_HOST_HTML);
+      return;
+    }
+    const sendIndex = () => { response.setHeader('Content-Type', 'text/html'); response.end(withCollector(indexHtml)); };
+    if (url.pathname === '/' || url.pathname === '/index.html') { sendIndex(); return; }
+    const path = join(dist, normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, ''));
+    const stream = createReadStream(path);
+    stream.once('open', () => {
+      response.setHeader('Content-Type', types[extname(path)] ?? 'application/octet-stream');
+      response.setHeader('Service-Worker-Allowed', '/');
+      stream.pipe(response);
+    });
+    stream.once('error', sendIndex);
+  });
+  await new Promise((ready, failed) => { server.once('error', failed); server.listen(port, '127.0.0.1', ready); });
+  const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const results = [];
+  const started = [];
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    if (geckodriver) results.push(await measureFirefox(geckodriver, base, PAGE_PROBE, RUNTIME_PAGES, runtimeProbe, started, delay));
+    if (chromium) results.push(await measureChromium(chromium, base, PAGE_PROBE, RUNTIME_PAGES, runtimeProbe, started, delay));
+    const findings = [
+      ...matrixFindings(results),
+      ...results.flatMap((result) => runtimeFindings(result.browser, result.runtimes ?? [])),
+    ];
+    if (findings.length) throw new Error(`${findings.length} browser finding(s): ${findings.slice(0, 4).join(' | ')}`);
+    /* Every engine that was not measured is named with the reason, so a run on
+     * a machine with one browser reads as a run that checked one browser rather
+     * than as a clean cross-browser result. */
+    const absent = [
+      ...(geckodriver ? [] : ['Firefox (no geckodriver; set GECKODRIVER_PATH)']),
+      ...(chromium ? [] : ['Chromium (no binary; set CHROMIUM_PATH)']),
+      'Safari (no engine for it on this platform, and none is substituted)',
+    ];
+    const runtimes = results[0]?.runtimes?.length ?? 0;
+    return { detail: `${results.length} engine${results.length === 1 ? '' : 's'} started the workbench and its ${runtimes} runtime documents · ${matrixSummary(results).join(' · ')} · ${runtimeSummary(results)} · not measured: ${absent.join(', ')}${firefoxSource ? ` · Firefox driven through ${firefoxSource}` : ''}` };
+  } finally {
+    for (const stop of started.reverse()) await stop().catch(() => undefined);
+    await new Promise((closed) => server.close(closed));
+  }
+});
+
+/** Firefox, over WebDriver, which is the protocol geckodriver speaks. */
+async function measureFirefox(geckodriver, base, probe, runtimePages, runtimeProbe, started, delay) {
+  const port = Number(env.CI_MATRIX_GECKO_PORT ?? 4546);
+  const driver = spawn(geckodriver, ['--host', '127.0.0.1', '--port', String(port)], { stdio: ['ignore', 'ignore', 'ignore'] });
+  started.push(async () => { if (driver.exitCode === null) driver.kill('SIGTERM'); });
+  const driverBase = `http://127.0.0.1:${port}`;
+  const ready = await waitFor(async () => (await fetch(`${driverBase}/status`).then((r) => r.json())).value?.ready, 'geckodriver', 20_000, delay);
+  if (!ready) throw new Error('geckodriver never became ready');
+  const call = async (method, path, body) => {
+    const response = await fetch(`${driverBase}${path}`, { method, ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
+    const json = await response.json();
+    if (json.value?.error) throw new Error(`Firefox ${json.value.error}: ${String(json.value.message).split('\n')[0]}`);
+    return json.value;
+  };
+  /* Firefox headless on a machine with no GPU decides for itself whether to
+   * offer WebGL, and a runner image that stops offering it turns a stage about
+   * this product into a stage about that machine. The emulator cores this
+   * product ships are Emscripten SDL builds that draw through GL, so WebGL is
+   * genuinely required; these preferences ask Firefox to provide it in
+   * software rather than to go without. They change nothing on a machine that
+   * already had it. */
+  const session = await call('POST', '/session', {
+    capabilities: {
+      alwaysMatch: {
+        browserName: 'firefox',
+        'moz:firefoxOptions': {
+          /* Which Firefox, when the machine has more than one. A snap-confined
+           * build cannot see a graphics library installed on the host, so a
+           * deployment that has installed one names the binary that can. */
+          ...(env.FIREFOX_BINARY ? { binary: env.FIREFOX_BINARY } : {}),
+          /* Headless when there is no display, and on the display when there is
+           * one. Headless Firefox on a machine with no GPU tries native GL,
+           * finds none and stops — it reported exactly that on a runner even
+           * after Mesa was installed for it. Given a display it takes the
+           * ordinary path and software Mesa answers. */
+          args: env.DISPLAY ? [] : ['-headless'],
+          prefs: {
+            'webgl.force-enabled': true,
+            'webgl.disabled': false,
+            'webgl.forbid-software': false,
+            'gfx.webrender.software': true,
+            'layers.acceleration.force-enabled': true,
+          },
+        },
+      },
+    },
+  });
+  const id = session.sessionId;
+  started.push(async () => { await call('DELETE', `/session/${id}`).catch(() => undefined); });
+  await call('POST', `/session/${id}/url`, { url: `${base}/` });
+  const page = await waitFor(async () => {
+    const answer = JSON.parse(await call('POST', `/session/${id}/execute/sync`, { script: `return ${probe}`, args: [] }));
+    return answer.rootChildren > 0 ? answer : null;
+  }, 'the workbench in Firefox', 60_000, delay);
+  const runtimes = [];
+  for (const runtime of runtimePages) {
+    await call('POST', `/session/${id}/url`, { url: `${base}/ci-runtime-host.html?page=${encodeURIComponent(runtime.path)}` });
+    /* Given a moment to fail, then asked until it answers. A WebAssembly core
+     * takes as long as the machine makes it take: two seconds is plenty on an
+     * idle box and not enough on one running the rest of the gate, where the
+     * Arculator core read as never having announced itself twice on a tree
+     * whose runtimes were fine. The deadline is what fails now, and a page that
+     * throws on load still gets its moment before anything is read. */
+    await delay(2_000);
+    const read = async () => JSON.parse(await call('POST', `/session/${id}/execute/sync`, { script: `return ${runtimeProbe(runtime.status, runtime.channel)}`, args: [] }));
+    const settled = (value) => value && (runtime.expectsAnnouncement === false ? value.statusPresent === true : (value.announced ?? []).length > 0);
+    const answer = await waitFor(async () => { const value = await read(); return settled(value) ? value : null; }, `${runtime.label} in Firefox`, 30_000, delay)
+      .catch(() => read());
+    runtimes.push({ label: runtime.label, expectsAnnouncement: runtime.expectsAnnouncement !== false, page: answer });
+  }
+  return { browser: 'Firefox', version: session.capabilities?.browserVersion ?? 'unknown', page, runtimes };
+}
+
+/** Chromium, over the DevTools protocol, which is what it speaks. */
+async function measureChromium(chromium, base, probe, runtimePages, runtimeProbe, started, delay) {
+  const port = Number(env.CI_MATRIX_DEVTOOLS_PORT ?? 9139);
+  const userDataDir = join(root, `.ci-matrix-${port}`);
+  await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
+  const browser = spawn(chromium, [
+    '--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu',
+    '--remote-allow-origins=*', '--remote-debugging-address=127.0.0.1',
+    `--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`, 'about:blank',
+  ], { stdio: ['ignore', 'ignore', 'ignore'] });
+  let socket = null;
+  started.push(async () => {
+    socket?.close();
+    if (browser.exitCode === null) {
+      await new Promise((exited) => {
+        const escalate = setTimeout(() => browser.kill('SIGKILL'), 5_000);
+        browser.once('exit', () => { clearTimeout(escalate); exited(); });
+        browser.kill('SIGTERM');
+      });
+    }
+    await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
+  });
+  const endpoint = await waitFor(async () => (await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json())).webSocketDebuggerUrl, 'Chromium DevTools', 30_000, delay);
+  socket = new WebSocket(endpoint);
+  await new Promise((open, failed) => { socket.addEventListener('open', open); socket.addEventListener('error', failed); });
+  let nextId = 0;
+  const pending = new Map();
+  socket.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data);
+    if (message.id !== undefined) { pending.get(message.id)?.(message); pending.delete(message.id); }
+  });
+  /* Resolves with the command's own result, and turns a protocol error into an
+   * exception rather than an undefined the caller trips over later. */
+  const call = (method, params = {}, sessionId) => new Promise((done, failed) => {
+    const id = ++nextId;
+    pending.set(id, (message) => {
+      if (message.error) { failed(new Error(`${method}: ${message.error.message}`)); return; }
+      done(message.result ?? {});
+    });
+    socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+  });
+  const { targetInfos } = await call('Target.getTargets');
+  const page = targetInfos.find((info) => info.type === 'page');
+  const { sessionId } = await call('Target.attachToTarget', { targetId: page.targetId, flatten: true });
+  await call('Page.enable', {}, sessionId);
+  await call('Runtime.enable', {}, sessionId);
+  const evaluate = async (expression) => {
+    const result = await call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
+    return result.result?.value ?? null;
+  };
+  await call('Page.navigate', { url: `${base}/` }, sessionId);
+  const answer = await waitFor(async () => {
+    const value = await evaluate(probe);
+    if (!value) return null;
+    const parsed = JSON.parse(value);
+    return parsed.rootChildren > 0 ? parsed : null;
+  }, 'the workbench in Chromium', 60_000, delay);
+  const runtimes = [];
+  for (const runtime of runtimePages) {
+    await call('Page.navigate', { url: `${base}/ci-runtime-host.html?page=${encodeURIComponent(runtime.path)}` }, sessionId);
+    /* Given a moment to fail, then asked until it answers. A WebAssembly core
+     * takes as long as the machine makes it take: two seconds is plenty on an
+     * idle box and not enough on one running the rest of the gate, where the
+     * Arculator core read as never having announced itself twice on a tree
+     * whose runtimes were fine. The deadline is what fails now, and a page that
+     * throws on load still gets its moment before anything is read. */
+    await delay(2_000);
+    const read = async () => { const value = await evaluate(runtimeProbe(runtime.status, runtime.channel)); return value ? JSON.parse(value) : null; };
+    const settled = (value) => value && (runtime.expectsAnnouncement === false ? value.statusPresent === true : (value.announced ?? []).length > 0);
+    const answer = await waitFor(async () => { const value = await read(); return settled(value) ? value : null; }, `${runtime.label} in Chromium`, 30_000, delay)
+      .catch(() => read());
+    runtimes.push({ label: runtime.label, expectsAnnouncement: runtime.expectsAnnouncement !== false, page: answer });
+  }
+  const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
+  return { browser: 'Chromium', version: (version.Browser ?? 'unknown').replace(/^.*\//, ''), page: answer, runtimes };
+}
+
+async function waitFor(op, what, limit, delay) {
+  const deadline = Date.now() + limit;
+  let last;
+  while (Date.now() < deadline) {
+    try { const value = await op(); if (value) return value; } catch (error) { last = error; }
+    await delay(250);
+  }
+  throw new Error(`${what} timed out${last ? `: ${last.message}` : ''}`);
+}
+
+await stage('journey', async () => {
+  /*
+   * The whole authoring line, once per machine, in the built workbench.
+   *
+   * Every other stage asks whether a part works. This asks the only question
+   * the product is actually for: can a person go from an empty workbench to a
+   * game for one of these machines without being stopped by something this
+   * build should have handled. Those are different questions, and the second
+   * one is the one somebody writing a game cares about.
+   *
+   * Walking it by hand first found an assembler that gave every machine the
+   * BBC's operating-system vocabulary, four machines with no starter project at
+   * all, and an Electron whose Run printed nothing and reported no error.
+   * All three passed the entire suite. None of them survives this.
+   *
+   * No firmware is involved, because none can be committed: this covers
+   * choosing a machine, starting from its template, building, and packaging to
+   * the medium the machine shipped with. Running and booting the packaged media
+   * are measured against a real vault by the scripts beside this one, and
+   * frozen where the always-running tests hold the product to them.
+   */
+  const chromium = await firstExisting(CHROMIUM_CANDIDATES);
+  if (!chromium) return { skipped: true, reason: env.CHROMIUM_PATH ? `CHROMIUM_PATH names ${env.CHROMIUM_PATH}, which is not there` : 'no Chromium binary found; set CHROMIUM_PATH to include the authoring journey' };
+  await assertBuiltFromCurrentSources('the journey');
+  const { walkJourneys, JOURNEYS } = await import('./journey.mjs');
+  const results = await walkJourneys(join(root, 'dist'), { chromium, port: Number(env.CI_JOURNEY_PORT ?? 8139) });
+  const stopped = results.filter((result) => !result.ok);
+  if (stopped.length) {
+    throw new Error(stopped.map((result) => `${result.label}: ${result.failure}${result.complaints?.length ? ` · ${result.complaints.join(' · ')}` : ''}`).join('; '));
+  }
+  if (results.length !== JOURNEYS.length) throw new Error(`${JOURNEYS.length} machines were to be walked and ${results.length} were`);
+  const packaged = results.filter((result) => result.runnable).length;
+  const refused = results.length - packaged;
+  return { detail: `${packaged} machines walked from an empty workbench to a cassette, ${refused} refused for a stated reason, no console or policy error on any of them` };
+});
 
 const failed = results.filter((result) => result.status === 'failed');
 const skipped = results.filter((result) => result.status === 'skipped');
@@ -592,6 +1155,14 @@ const report = {
   failed: failed.length,
   skipped: skipped.length,
 };
+/* ---- verdict -------------------------------------------------------------- */
+
+/* After every stage, not before the last one: this sat above the journey stage,
+ * so `npm run ci journey` reported that no stage matched a stage that was about
+ * to run, and the check that a filter matched something was reading a list that
+ * was not finished yet. */
+if (!results.length) { console.error(only ? `No gate stage matches "${only}".` : 'The gate ran no stages.'); exit(2); }
+
 await mkdir(join(root, 'ci'), { recursive: true });
 await writeFile(join(root, 'ci', 'gate-report.json'), `${JSON.stringify(report, null, 2)}\n`);
 

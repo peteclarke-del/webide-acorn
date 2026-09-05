@@ -60,7 +60,13 @@ describe('a whole disc of files', () => {
     const forwards = createAdfsEDisc({ title: 'WEBIDE', files });
     const backwards = createAdfsEDisc({ title: 'WEBIDE', files: [...files].reverse() });
     expect(forwards.catalogue.entries.map((entry) => entry.name)).toEqual(['apple', 'Mango', 'Zebra']);
-    expect(Array.from(forwards.image)).toEqual(Array.from(backwards.image));
+    /* Both images are a whole 800K disc. Comparing them as JavaScript arrays
+     * allocates 1.6 million elements and takes long enough that the test can
+     * pass alone and time out when the suite is busy, so the bytes are walked
+     * instead and the first difference is what the failure names. */
+    expect(forwards.image.length).toBe(backwards.image.length);
+    const differsAt = forwards.image.findIndex((byte, offset) => byte !== backwards.image[offset]);
+    expect(differsAt, 'the two discs differ at this byte offset').toBe(-1);
   });
 
   it('gives every file its own fragment, so no two files share storage', () => {

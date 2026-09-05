@@ -36,6 +36,8 @@ export const FORCED_COLOURS: string;
 export const REDUCED_TRANSPARENCY: string;
 export const KEYBOARD_REACHABILITY: string;
 export const POINTER_ALTERNATIVES: string;
+/** Content that does not fit and that nothing can be scrolled to reach. */
+export const SCROLLABLE_OVERFLOW: string;
 export const VISUAL_ALTERNATIVES: string;
 
 export function summarise(findings: readonly AccessibilityFinding[]): string[];

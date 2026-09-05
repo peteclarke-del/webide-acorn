@@ -1,3 +1,4 @@
+import { apiPath } from '../api/contracts';
 import type { BuildDiagnostic } from '../build/assembler6502';
 import type { Disassembly, DisassemblyRow } from './types';
 
@@ -99,7 +100,7 @@ export async function verifyArmAssemblySource(
   const alignedEnd = (disassembly.origin + Math.max(4, originalBytes.length) + 3) & ~3;
   const maximumAddress = Math.min(0x03ffffff, alignedEnd - 1);
   const requestId = crypto.randomUUID();
-  const response = await fetch('/api/v1/builds/arm-binutils', {
+  const response = await fetch(apiPath('buildArmBinutils'), {
     method: 'POST', signal, cache: 'no-store',
     headers: { 'Content-Type': 'application/json', 'X-8bit-Net-Request': 'native-build', 'X-Correlation-ID': requestId },
     body: JSON.stringify({

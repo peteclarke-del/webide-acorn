@@ -17,7 +17,11 @@ export interface LanguageItemDocumentation {
   compatibility?: { supported: boolean; appliesTo: string[]; warning?: string };
   deprecation?: { message: string; replacement?: string };
   related?: string[];
-  citations?: Array<{ title: string; url: string; section?: string; version?: string }>;
+  /* A citation names where something was established. `url` is optional
+   * because not every authoritative source is a web page: a keyword table read
+   * out of a language ROM has no address to link to, and inventing one so the
+   * shape fits would be a fabricated citation. */
+  citations?: Array<{ title: string; url?: string; section?: string; version?: string }>;
 }
 
 export interface LanguageItem {

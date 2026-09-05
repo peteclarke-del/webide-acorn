@@ -1,6 +1,7 @@
 import type { BuildTarget } from './buildTarget';
 import { tileMapAssetReferences } from '../assets/tileMapDocument';
 import type { ProjectFile } from '../project/project';
+import { resolveIncluded } from '../project/includeResolution';
 
 export interface BuildGraphNode {
   target: BuildTarget;
@@ -67,7 +68,7 @@ export function sourceInputsForTarget(target: BuildTarget, files: Pick<ProjectFi
     if (inputs.has(id)) return; const file = byId.get(id); if (!file) return; inputs.add(id);
     if (/\.map\.json$/i.test(file.name)) {
       for (const assetFile of tileMapAssetReferences(file.content)) {
-        const asset = byName.get(assetFile.toLowerCase());
+        const asset = resolveIncluded(byName, assetFile, file.name);
         if (asset) visit(asset.id);
       }
       return;
@@ -77,8 +78,7 @@ export function sourceInputsForTarget(target: BuildTarget, files: Pick<ProjectFi
       const include = /^\s*\.?INCLUDE\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(line);
       const assetInclude = /^\s*INCLUDE(?:ASSET|MAP|PALETTE|FONT|SCREEN|SONG)\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(line);
       const requested = (cInclude?.[1] ?? include?.[1] ?? include?.[2] ?? include?.[3] ?? assetInclude?.[1] ?? assetInclude?.[2] ?? assetInclude?.[3] ?? '').trim();
-      const directory = file.name.includes('/') ? file.name.slice(0, file.name.lastIndexOf('/') + 1) : '';
-      const dependency = include || cInclude || assetInclude ? byName.get(requested.toLowerCase()) ?? byName.get(`${directory}${requested}`.toLowerCase()) : undefined;
+      const dependency = include || cInclude || assetInclude ? resolveIncluded(byName, requested, file.name) : undefined;
       if (dependency) visit(dependency.id);
     }
   };

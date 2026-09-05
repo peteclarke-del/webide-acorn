@@ -85,7 +85,7 @@ not source, ROMs, artifacts or user filenames.
 | Source units | 32 |
 | Defines | 64 |
 | Filename/path | 160 bytes, 16 segments |
-| Native stage wall clock | 5 seconds |
+| Native stage wall clock | 5 seconds by default; a deployment may set `NATIVE_STAGE_SECONDS` between 1 and 60 |
 | Captured log per stage | 256 KiB |
 | Generated documents | 32 files / 2 MiB total |
 | Executable artifact | 1 MiB |
@@ -94,6 +94,19 @@ not source, ROMs, artifacts or user filenames.
 
 Limits are part of the adapter manifest and cache/provenance policy. Increasing
 them requires adversarial tests and an operations review.
+
+The stage wall clock is the one limit a deployment may move, because it is the
+only one that measures the machine rather than the work. Five seconds is a
+thousand times what any of these tools needs, so it guards against a tool that
+will never finish rather than budgeting an honest build — and on a host that
+cannot promise wall clock, a process stalled by an unrelated neighbour fails a
+build that was never slow. `NATIVE_STAGE_SECONDS` moves it within one to sixty
+seconds; a value outside that range, or one that is not a number, is ignored in
+favour of the default rather than clamped, because silently adjusting an
+impossible request would hide what the deployment asked for. The value actually
+in force is published in the adapter manifest, so raising it is never invisible,
+and the adversarial test that a tool past the limit is stopped and reported as a
+timeout runs whatever the limit is set to.
 
 ## Persistence decision
 

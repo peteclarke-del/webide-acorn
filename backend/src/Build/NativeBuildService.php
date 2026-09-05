@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Build;
 
-use App\Observability\StructuredLogger;
-
 use App\Http\ApiProblem;
+
+use App\Observability\StructuredLogger;
 
 final class NativeBuildService
 {
@@ -16,6 +16,8 @@ final class NativeBuildService
         private readonly NativeProcessRunner $runner,
         private readonly Cc65OutputParser $parser,
         private readonly StructuredLogger $logger,
+        private readonly JobWorkspace $workspace,
+        private readonly BuildCache $cache,
     ) {
     }
 
@@ -28,10 +30,20 @@ final class NativeBuildService
             throw new ApiProblem(503, 'TOOLCHAIN_UNAVAILABLE', 'The pinned ca65/ld65 toolchain is not ready.', true);
         }
         $this->sourcePolicy->validate($request);
-        $job = '/tmp/native-builds/'.bin2hex(random_bytes(16));
-        if (!mkdir($job, 0700, true)) {
-            throw new \RuntimeException('Unable to allocate native build workspace.');
+        /*
+         * Answered from the cache when the same inputs, toolchain and target
+         * have been built before. The key is checked against the entry's own
+         * record of those inputs on the way out, so a hit is a hit because the
+         * build matches and not because a hash did.
+         */
+        $cacheKey = BuildCache::key(BuildCache::LOCAL_OWNER, ToolchainManifest::ADAPTER_ID, ToolchainManifest::ADAPTER_VERSION, (string) $manifest['digest'], $request);
+        if (!$request->cacheBypass) {
+            $cached = $this->cache->read(BuildCache::LOCAL_OWNER, $cacheKey, $request->files);
+            if ($cached !== null) {
+                return $this->cache->hitEnvelope($cached, BuildCache::LOCAL_OWNER, $cacheKey, max(0.0, (hrtime(true) - $started) / 1_000_000.0));
+            }
         }
+        $job = $this->workspace->allocate();
 
         $documents = [];
         $documentBytes = 0;
@@ -69,7 +81,7 @@ final class NativeBuildService
                 $listing = ".build/unit-$index.lst";
                 $dependency = ".build/unit-$index.d";
                 $argv = [
-                    (string) ($_SERVER['CA65_PATH'] ?? $_ENV['CA65_PATH'] ?? '/usr/bin/ca65'),
+                    ToolLocator::locate('CA65_PATH', 'ca65', '/usr/bin/ca65'),
                     '--cpu', $request->processor,
                     '--debug-info',
                     '--include-dir', $job,
@@ -100,7 +112,7 @@ final class NativeBuildService
             $outputPath = '.build/output.bin';
             if ($stageTerminal === null) {
                 $argv = [
-                    (string) ($_SERVER['LD65_PATH'] ?? $_ENV['LD65_PATH'] ?? '/usr/bin/ld65'),
+                    ToolLocator::locate('LD65_PATH', 'ld65', '/usr/bin/ld65'),
                     '--config', '.build/linker.cfg',
                     '--mapfile', '.build/output.map',
                     '--dbgfile', '.build/output.dbg',
@@ -189,9 +201,12 @@ final class NativeBuildService
 
             $this->structuredLog($request, $exitReason, $durationMs, strlen($outputBytes), $errors, $warnings);
 
-            return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
+            $response = ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => $invocations, 'provenance' => $provenance];
+            $this->cache->write(BuildCache::LOCAL_OWNER, $cacheKey, $request->files, $response);
+
+            return $this->cache->storedEnvelope($response, BuildCache::LOCAL_OWNER, $cacheKey, $request->cacheBypass);
         } finally {
-            $this->removeTree($job);
+            $this->workspace->remove($job);
         }
     }
 
@@ -343,21 +358,5 @@ CFG;
     private function structuredLog(NativeBuildRequest $request, string $outcome, float $durationMs, int $outputBytes, int $errors, int $warnings): void
     {
         $this->logger->info('native-build-completed', ['targetIdHash' => substr(hash('sha256', $request->targetId), 0, 16), 'adapter' => ToolchainManifest::ADAPTER_ID, 'outcome' => $outcome, 'durationMs' => round($durationMs, 2), 'outputByteCount' => $outputBytes, 'errors' => $errors, 'warnings' => $warnings]);
-    }
-
-    private function removeTree(string $path): void
-    {
-        if (!file_exists($path) && !is_link($path)) {
-            return;
-        }
-        if (is_link($path) || !is_dir($path)) {
-            @unlink($path);
-
-            return;
-        }
-        foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $item) {
-            $this->removeTree($item->getPathname());
-        }
-        @rmdir($path);
     }
 }

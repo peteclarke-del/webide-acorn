@@ -14,11 +14,11 @@ has four.
 
 | Measure | Count |
 | --- | --- |
-| Packages installed | 546 |
-| Of those, distributed with the product | 75 |
-| Development only | 195 |
-| Installed but not distributed, with the reason recorded | 276 |
-| Shipped under a permissive licence | 74 |
+| Packages installed | 583 |
+| Of those, distributed with the product | 91 |
+| Development only | 232 |
+| Installed but not distributed, with the reason recorded | 260 |
+| Shipped under a permissive licence | 90 |
 | Shipped under a copyleft licence | 1 |
 | Shipped with an unrecognised licence expression | 0 |
 | Shipped with no licence recorded | 0 |
@@ -41,6 +41,83 @@ has four.
 | --- | --- | --- | --- |
 | jsbeeb | 1.19.1 | GPL-3.0-or-later | Copyleft: conditions apply to distributing a built artifact |
 
+## Backend dependencies
+
+The PHP service is distributed as its own image, so its dependencies are
+conveyed with it and their licences constrain that distribution.
+
+| Measure | Count |
+| --- | --- |
+| Packages | 62 |
+| Permissive | 62 |
+| Copyleft | 0 |
+| Unrecognised or unrecorded | 0 |
+
+| Package | Licence |
+| --- | --- |
+| masterminds/html5 | MIT |
+| myclabs/deep-copy | MIT |
+| nikic/php-parser | BSD-3-Clause |
+| phar-io/manifest | BSD-3-Clause |
+| phar-io/version | BSD-3-Clause |
+| phpunit/php-code-coverage | BSD-3-Clause |
+| phpunit/php-file-iterator | BSD-3-Clause |
+| phpunit/php-invoker | BSD-3-Clause |
+| phpunit/php-text-template | BSD-3-Clause |
+| phpunit/php-timer | BSD-3-Clause |
+| phpunit/phpunit | BSD-3-Clause |
+| psr/cache | MIT |
+| psr/container | MIT |
+| psr/event-dispatcher | MIT |
+| psr/log | MIT |
+| sebastian/cli-parser | BSD-3-Clause |
+| sebastian/code-unit | BSD-3-Clause |
+| sebastian/code-unit-reverse-lookup | BSD-3-Clause |
+| sebastian/comparator | BSD-3-Clause |
+| sebastian/complexity | BSD-3-Clause |
+| sebastian/diff | BSD-3-Clause |
+| sebastian/environment | BSD-3-Clause |
+| sebastian/exporter | BSD-3-Clause |
+| sebastian/global-state | BSD-3-Clause |
+| sebastian/lines-of-code | BSD-3-Clause |
+| sebastian/object-enumerator | BSD-3-Clause |
+| sebastian/object-reflector | BSD-3-Clause |
+| sebastian/recursion-context | BSD-3-Clause |
+| sebastian/type | BSD-3-Clause |
+| sebastian/version | BSD-3-Clause |
+| staabm/side-effects-detector | MIT |
+| symfony/browser-kit | MIT |
+| symfony/cache | MIT |
+| symfony/cache-contracts | MIT |
+| symfony/config | MIT |
+| symfony/console | MIT |
+| symfony/css-selector | MIT |
+| symfony/dependency-injection | MIT |
+| symfony/deprecation-contracts | MIT |
+| symfony/dom-crawler | MIT |
+| symfony/error-handler | MIT |
+| symfony/event-dispatcher | MIT |
+| symfony/event-dispatcher-contracts | MIT |
+| symfony/filesystem | MIT |
+| symfony/finder | MIT |
+| symfony/framework-bundle | MIT |
+| symfony/http-foundation | MIT |
+| symfony/http-kernel | MIT |
+| symfony/polyfill-ctype | MIT |
+| symfony/polyfill-intl-grapheme | MIT |
+| symfony/polyfill-intl-normalizer | MIT |
+| symfony/polyfill-mbstring | MIT |
+| symfony/polyfill-php85 | MIT |
+| symfony/process | MIT |
+| symfony/routing | MIT |
+| symfony/runtime | MIT |
+| symfony/service-contracts | MIT |
+| symfony/string | MIT |
+| symfony/var-dumper | MIT |
+| symfony/var-exporter | MIT |
+| symfony/yaml | MIT |
+| theseer/tokenizer | BSD-3-Clause |
+
 ## Everything distributed with the product
 
 | Package | Version | Licence |
@@ -55,9 +132,11 @@ has four.
 | async | 3.2.6 | MIT |
 | asynckit | 0.4.0 | MIT |
 | atomically | 2.1.1 | MIT |
+| balanced-match | 4.0.4 | MIT |
 | boolean | 3.2.0 | MIT |
 | bootstrap | 5.3.8 | MIT |
 | bootswatch | 5.3.8 | MIT |
+| brace-expansion | 5.0.9 | MIT |
 | call-bind-apply-helpers | 1.0.2 | MIT |
 | color-convert | 2.0.1 | MIT |
 | color-name | 1.1.4 | MIT |
@@ -65,11 +144,14 @@ has four.
 | commander | 5.1.0 | MIT |
 | commander | 9.5.0 | MIT |
 | conf | 15.1.0 | MIT |
+| cross-spawn | 7.0.6 | MIT |
 | debug | 4.4.3 | MIT |
 | delayed-stream | 1.0.0 | MIT |
 | detect-libc | 2.1.2 | Apache-2.0 |
 | dunder-proto | 1.0.1 | MIT |
+| ejs | 3.1.10 | Apache-2.0 |
 | electron | 43.4.1 | MIT |
+| emoji-regex | 8.0.0 | MIT |
 | es-define-property | 1.0.1 | MIT |
 | es-errors | 1.3.0 | MIT |
 | es-object-atoms | 1.1.2 | MIT |
@@ -90,16 +172,22 @@ has four.
 | hasown | 2.0.4 | MIT |
 | http-proxy-agent | 7.0.2 | MIT |
 | https-proxy-agent | 7.0.6 | MIT |
+| is-fullwidth-code-point | 3.0.0 | MIT |
+| isexe | 2.0.0 | ISC |
 | jsbeeb | 1.19.1 | GPL-3.0-or-later |
 | json5 | 2.2.3 | MIT |
 | lodash | 4.18.1 | MIT |
 | math-intrinsics | 1.1.0 | MIT |
+| mime | 2.6.0 | MIT |
 | mime-db | 1.52.0 | MIT |
 | mime-types | 2.1.35 | MIT |
+| minimatch | 10.2.6 | BlueOak-1.0.0 |
+| minipass | 7.1.3 | BlueOak-1.0.0 |
 | ms | 2.1.3 | MIT |
 | nopt | 9.0.0 | ISC |
 | once | 1.4.0 | ISC |
 | pako | 3.0.1 | (MIT AND Zlib) |
+| path-key | 3.1.1 | MIT |
 | picocolors | 1.1.1 | ISC |
 | picomatch | 4.0.5 | MIT |
 | progress | 2.0.3 | MIT |
@@ -110,12 +198,17 @@ has four.
 | scheduler | 0.25.0 | MIT |
 | semver | 7.8.5 | ISC |
 | sharp | 0.35.3 | Apache-2.0 |
+| shebang-command | 2.0.0 | MIT |
+| shebang-regex | 3.0.0 | MIT |
 | smoothie | 1.36.1 | MIT |
 | source-map | 0.6.1 | BSD-3-Clause |
+| string-width | 4.2.3 | MIT |
+| strip-ansi | 6.0.1 | MIT |
 | supports-color | 7.2.0 | MIT |
 | tar | 7.5.22 | BlueOak-1.0.0 |
 | temp | 0.9.4 | MIT |
 | tinyglobby | 0.2.17 | MIT |
+| tmp | 0.2.7 | MIT |
 | undici-types | 6.21.0 | MIT |
 | which | 2.0.2 | ISC |
 | which | 5.0.0 | ISC |
@@ -200,7 +293,6 @@ exclusion nobody should trust.
 | balanced-match | 1.0.2 | MIT | an optional dependency that is absent from the built output |
 | balanced-match | 1.0.2 | MIT | an optional dependency that is absent from the built output |
 | balanced-match | 1.0.2 | MIT | an optional dependency that is absent from the built output |
-| balanced-match | 4.0.4 | MIT | an optional dependency that is absent from the built output |
 | base64-js | 1.5.1 | MIT | an optional dependency that is absent from the built output |
 | bluebird | 3.7.2 | MIT | an optional dependency that is absent from the built output |
 | brace-expansion | 1.1.18 | MIT | an optional dependency that is absent from the built output |
@@ -208,7 +300,6 @@ exclusion nobody should trust.
 | brace-expansion | 1.1.18 | MIT | an optional dependency that is absent from the built output |
 | brace-expansion | 2.1.4 | MIT | an optional dependency that is absent from the built output |
 | brace-expansion | 2.1.4 | MIT | an optional dependency that is absent from the built output |
-| brace-expansion | 5.0.9 | MIT | an optional dependency that is absent from the built output |
 | buffer-from | 1.1.2 | MIT | an optional dependency that is absent from the built output |
 | builder-util | 26.15.3 | MIT | an optional dependency that is absent from the built output |
 | builder-util-runtime | 9.7.0 | MIT | an optional dependency that is absent from the built output |
@@ -229,7 +320,6 @@ exclusion nobody should trust.
 | concat-map | 0.0.1 | MIT | an optional dependency that is absent from the built output |
 | core-util-is | 1.0.3 | MIT | an optional dependency that is absent from the built output |
 | cross-dirname | 0.1.0 | MIT | an optional dependency that is absent from the built output |
-| cross-spawn | 7.0.6 | MIT | an optional dependency that is absent from the built output |
 | debounce-fn | 6.0.0 | MIT | an optional dependency that is absent from the built output |
 | decompress-response | 6.0.0 | MIT | an optional dependency that is absent from the built output |
 | defer-to-connect | 2.0.1 | MIT | an optional dependency that is absent from the built output |
@@ -242,13 +332,11 @@ exclusion nobody should trust.
 | dotenv | 16.6.1 | BSD-2-Clause | an optional dependency that is absent from the built output |
 | dotenv-expand | 11.0.7 | BSD-2-Clause | an optional dependency that is absent from the built output |
 | duplexer2 | 0.1.4 | BSD-3-Clause | an optional dependency that is absent from the built output |
-| ejs | 3.1.10 | Apache-2.0 | an optional dependency that is absent from the built output |
 | electron-builder | 26.15.3 | MIT | an optional dependency that is absent from the built output |
 | electron-builder-squirrel-windows | 26.15.3 | MIT | an optional dependency that is absent from the built output |
 | electron-publish | 26.15.3 | MIT | an optional dependency that is absent from the built output |
 | electron-store | 11.0.2 | MIT | an optional dependency that is absent from the built output |
 | electron-winstaller | 5.4.0 | MIT | a native module built at install time, which a browser bundle cannot contain, and it is absent from the built output |
-| emoji-regex | 8.0.0 | MIT | an optional dependency that is absent from the built output |
 | end-of-stream | 1.4.5 | MIT | an optional dependency that is absent from the built output |
 | env-paths | 2.2.1 | MIT | an optional dependency that is absent from the built output |
 | env-paths | 2.2.1 | MIT | an optional dependency that is absent from the built output |
@@ -281,11 +369,9 @@ exclusion nobody should trust.
 | http2-wrapper | 1.0.3 | MIT | an optional dependency that is absent from the built output |
 | inflight | 1.0.6 | ISC | an optional dependency that is absent from the built output |
 | inherits | 2.0.4 | ISC | an optional dependency that is absent from the built output |
-| is-fullwidth-code-point | 3.0.0 | MIT | an optional dependency that is absent from the built output |
 | isarray | 1.0.0 | MIT | an optional dependency that is absent from the built output |
 | isbinaryfile | 4.0.10 | MIT | an optional dependency that is absent from the built output |
 | isbinaryfile | 5.0.7 | MIT | an optional dependency that is absent from the built output |
-| isexe | 2.0.0 | ISC | an optional dependency that is absent from the built output |
 | isexe | 3.1.5 | BlueOak-1.0.0 | an optional dependency that is absent from the built output |
 | isexe | 4.0.0 | BlueOak-1.0.0 | an optional dependency that is absent from the built output |
 | jake | 10.9.4 | Apache-2.0 | an optional dependency that is absent from the built output |
@@ -303,18 +389,15 @@ exclusion nobody should trust.
 | lowercase-keys | 2.0.0 | MIT | an optional dependency that is absent from the built output |
 | lru-cache | 6.0.0 | ISC | an optional dependency that is absent from the built output |
 | matcher | 3.0.0 | MIT | an optional dependency that is absent from the built output |
-| mime | 2.6.0 | MIT | an optional dependency that is absent from the built output |
 | mimic-function | 5.0.1 | MIT | an optional dependency that is absent from the built output |
 | mimic-response | 1.0.1 | MIT | an optional dependency that is absent from the built output |
 | mimic-response | 3.1.0 | MIT | an optional dependency that is absent from the built output |
-| minimatch | 10.2.6 | BlueOak-1.0.0 | an optional dependency that is absent from the built output |
 | minimatch | 3.1.5 | ISC | an optional dependency that is absent from the built output |
 | minimatch | 3.1.5 | ISC | an optional dependency that is absent from the built output |
 | minimatch | 3.1.5 | ISC | an optional dependency that is absent from the built output |
 | minimatch | 5.1.9 | ISC | an optional dependency that is absent from the built output |
 | minimatch | 9.0.9 | ISC | an optional dependency that is absent from the built output |
 | minimist | 1.2.8 | MIT | an optional dependency that is absent from the built output |
-| minipass | 7.1.3 | BlueOak-1.0.0 | an optional dependency that is absent from the built output |
 | minizlib | 3.1.0 | MIT | an optional dependency that is absent from the built output |
 | mkdirp | 0.5.6 | MIT | an optional dependency that is absent from the built output |
 | node-abi | 4.33.0 | MIT | an optional dependency that is absent from the built output |
@@ -326,7 +409,6 @@ exclusion nobody should trust.
 | p-cancelable | 2.1.1 | MIT | an optional dependency that is absent from the built output |
 | p-limit | 3.1.0 | MIT | an optional dependency that is absent from the built output |
 | path-is-absolute | 1.0.1 | MIT | an optional dependency that is absent from the built output |
-| path-key | 3.1.1 | MIT | an optional dependency that is absent from the built output |
 | pe-library | 0.4.1 | MIT | an optional dependency that is absent from the built output |
 | pkijs | 3.4.0 | BSD-3-Clause | an optional dependency that is absent from the built output |
 | plist | 3.1.0 | MIT | an optional dependency that is absent from the built output |
@@ -362,23 +444,18 @@ exclusion nobody should trust.
 | semver | 7.8.5 | ISC | an optional dependency that is absent from the built output |
 | semver-compare | 1.0.0 | MIT | an optional dependency that is absent from the built output |
 | serialize-error | 7.0.1 | MIT | an optional dependency that is absent from the built output |
-| shebang-command | 2.0.0 | MIT | an optional dependency that is absent from the built output |
-| shebang-regex | 3.0.0 | MIT | an optional dependency that is absent from the built output |
 | signal-exit | 3.0.7 | ISC | an optional dependency that is absent from the built output |
 | simple-update-notifier | 2.0.0 | MIT | an optional dependency that is absent from the built output |
 | source-map-support | 0.5.21 | MIT | an optional dependency that is absent from the built output |
 | sprintf-js | 1.1.3 | BSD-3-Clause | an optional dependency that is absent from the built output |
 | stat-mode | 1.0.0 | MIT | an optional dependency that is absent from the built output |
 | string_decoder | 1.1.1 | MIT | an optional dependency that is absent from the built output |
-| string-width | 4.2.3 | MIT | an optional dependency that is absent from the built output |
-| strip-ansi | 6.0.1 | MIT | an optional dependency that is absent from the built output |
 | stubborn-fs | 2.0.0 | MIT | an optional dependency that is absent from the built output |
 | stubborn-utils | 1.0.2 | MIT | an optional dependency that is absent from the built output |
 | sumchecker | 3.0.1 | Apache-2.0 | an optional dependency that is absent from the built output |
 | tagged-tag | 1.0.0 | MIT | an optional dependency that is absent from the built output |
 | temp-file | 3.4.0 | MIT | an optional dependency that is absent from the built output |
 | tiny-async-pool | 1.3.0 | MIT | an optional dependency that is absent from the built output |
-| tmp | 0.2.7 | MIT | an optional dependency that is absent from the built output |
 | tmp-promise | 3.0.3 | MIT | an optional dependency that is absent from the built output |
 | truncate-utf8-bytes | 1.0.2 | WTFPL | an optional dependency that is absent from the built output |
 | tslib | 2.8.1 | 0BSD | an optional dependency that is absent from the built output |
