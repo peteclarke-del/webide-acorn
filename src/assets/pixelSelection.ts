@@ -1,46 +1,67 @@
-export interface PixelPoint { x: number; y: number }
-export interface PixelSelection { start: PixelPoint; end: PixelPoint }
-export interface PixelClipboard { schema: '8bit-net.pixel-selection'; version: 1; width: number; height: number; pixels: number[] }
+/* The pixel editor's view of the shared selection machinery.
+ *
+ * The rectangle arithmetic, the clipboard and its refusals all live in
+ * `gridSelection`, which the map and screen editors use too. What remains here
+ * is the part that is genuinely about pixels: the flip transforms, and a
+ * clipboard that still reads the schema this editor wrote before the machinery
+ * was shared, so artwork somebody copied yesterday still pastes today.
+ */
+import {
+  GRID_CLIPBOARD_SCHEMA,
+  copySelection,
+  fillSelection,
+  parseGridClipboard,
+  pasteSelection,
+  selectionBounds as gridSelectionBounds,
+  selectionContains as gridSelectionContains,
+  type GridClipboard,
+  type GridPoint,
+  type GridSelection,
+} from './gridSelection';
 
-export function selectionBounds(selection: PixelSelection) {
-  return {
-    left: Math.min(selection.start.x, selection.end.x), top: Math.min(selection.start.y, selection.end.y),
-    right: Math.max(selection.start.x, selection.end.x), bottom: Math.max(selection.start.y, selection.end.y),
-  };
-}
+export type PixelPoint = GridPoint;
+export type PixelSelection = GridSelection;
+export type PixelClipboard = GridClipboard;
 
-export function selectionContains(selection: PixelSelection, x: number, y: number): boolean {
-  const bounds = selectionBounds(selection);
-  return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
-}
+/** The schema this editor wrote before the selection machinery was shared. */
+const LEGACY_SCHEMA = '8bit-net.pixel-selection';
+
+/* Four, because that is what the previous clipboard enforced and what a pixel
+ * asset in this build holds; the shared module carries the bound rather than
+ * assuming it, so a wider mode is a matter of passing a larger number. */
+const PIXEL_VALUE_LIMIT = 4;
+
+export const selectionBounds = gridSelectionBounds;
+export const selectionContains = gridSelectionContains;
 
 export function copyPixelSelection(pixels: number[], canvasWidth: number, canvasHeight: number, selection: PixelSelection): PixelClipboard {
-  const bounds = selectionBounds(selection);
-  if (bounds.left < 0 || bounds.top < 0 || bounds.right >= canvasWidth || bounds.bottom >= canvasHeight) throw new Error('Selection lies outside the pixel asset');
-  const width = bounds.right - bounds.left + 1; const height = bounds.bottom - bounds.top + 1;
-  const copied = Array.from({ length: width * height }, (_, index) => pixels[(bounds.top + Math.floor(index / width)) * canvasWidth + bounds.left + index % width]!);
-  return { schema: '8bit-net.pixel-selection', version: 1, width, height, pixels: copied };
+  return copySelection(pixels, { width: canvasWidth, height: canvasHeight, kind: 'pixels', valueLimit: PIXEL_VALUE_LIMIT }, selection);
 }
 
+/**
+ * Read a clipboard, accepting the older pixel-only shape as well as the shared
+ * one.
+ *
+ * The old schema is converted rather than refused, because refusing it would
+ * throw away artwork somebody copied before this build changed underneath them.
+ */
 export function parsePixelClipboard(value: string | unknown): PixelClipboard {
-  const parsed = typeof value === 'string' ? JSON.parse(value) as Partial<PixelClipboard> : value as Partial<PixelClipboard>;
-  if (!parsed || parsed.schema !== '8bit-net.pixel-selection' || parsed.version !== 1 || !Number.isInteger(parsed.width) || !Number.isInteger(parsed.height)
-    || parsed.width! < 1 || parsed.height! < 1 || !Array.isArray(parsed.pixels) || parsed.pixels.length !== parsed.width! * parsed.height!
-    || parsed.pixels.some((pixel) => !Number.isInteger(pixel) || pixel < 0 || pixel > 3)) throw new Error('Clipboard does not contain a valid schema-1 pixel selection');
-  return { schema: parsed.schema, version: parsed.version, width: parsed.width!, height: parsed.height!, pixels: [...parsed.pixels] };
+  const parsed = typeof value === 'string' ? JSON.parse(value) as Record<string, unknown> : value as Record<string, unknown>;
+  if (parsed && parsed.schema === LEGACY_SCHEMA) {
+    return parseGridClipboard({
+      schema: GRID_CLIPBOARD_SCHEMA, version: 1, kind: 'pixels',
+      width: parsed.width, height: parsed.height, values: parsed.pixels, valueLimit: PIXEL_VALUE_LIMIT,
+    });
+  }
+  return parseGridClipboard(parsed);
 }
 
 export function pastePixelSelection(pixels: number[], canvasWidth: number, canvasHeight: number, clipboard: PixelClipboard, destination: PixelPoint): number[] {
-  const parsed = parsePixelClipboard(clipboard); const result = [...pixels];
-  for (let y = 0; y < parsed.height; y += 1) for (let x = 0; x < parsed.width; x += 1) {
-    const targetX = destination.x + x; const targetY = destination.y + y;
-    if (targetX >= 0 && targetY >= 0 && targetX < canvasWidth && targetY < canvasHeight) result[targetY * canvasWidth + targetX] = parsed.pixels[y * parsed.width + x]!;
-  }
-  return result;
+  return pasteSelection(pixels, { width: canvasWidth, height: canvasHeight, kind: 'pixels', valueLimit: PIXEL_VALUE_LIMIT }, clipboard, destination);
 }
 
 export function fillPixelSelection(pixels: number[], canvasWidth: number, selection: PixelSelection, colour: number): number[] {
-  return pixels.map((pixel, index) => selectionContains(selection, index % canvasWidth, Math.floor(index / canvasWidth)) ? colour : pixel);
+  return fillSelection(pixels, canvasWidth, selection, colour);
 }
 
 export function transformPixelSelection(pixels: number[], canvasWidth: number, selection: PixelSelection, transform: 'flip-horizontal' | 'flip-vertical'): number[] {

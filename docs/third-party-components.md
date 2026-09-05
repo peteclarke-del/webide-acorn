@@ -78,3 +78,34 @@ verified during the build by SHA-256
 `c181c7fbbd0f0038f6adf2976a9cd03cb4ad58be3bd32074719fd516d1ddae98`.
 That GPL source-built extension provides the RISC OS 3 HostFS module; it is not
 an Acorn OS ROM and is enabled only for the qualified RISC OS 3 profiles.
+
+## The accepted position
+
+Shipping code under GPL-3.0-or-later is accepted for this product. The three
+copyleft cores stay, and what that acceptance requires is built and enforced
+rather than intended — see below.
+
+## Meeting the copyleft obligations, not just naming them
+
+Three components ship under a copyleft licence: jsbeeb (GPL-3.0-or-later),
+the vendored ElkJS (GPL-2.0) and the Arculator WASM core (GPL-2.0). Each is
+conveyed in what this product distributes, so each has to travel with its
+licence *and* its corresponding source.
+
+Arculator did. jsbeeb and ElkJS shipped a licence file and nothing else, which
+is an obligation named and not met, and nothing would have caught the next one
+either. The image now carries, for all three, the licence, an archive of the
+exact source the image was built from, and a digest of each archive.
+
+The archives are what upstream ships minus the emulator core's own ROM
+directory, which is excluded and then proved absent during the build. Those
+ROMs are not source this image is built from — the workbench serves firmware
+the person running it supplied — and archiving the package wholesale would have
+put fifty-two Acorn ROM files into the image, which is the one thing that must
+never happen.
+
+The check is derived from the inventory rather than from a list somebody
+remembers to update: `npm run ci` reads which shipped packages the bill of
+materials classifies as copyleft, and fails if any of them — or any component
+recorded here — lacks its licence or its source in the image. A shipped
+copyleft package that nothing accounts for is a failure, not a silence.

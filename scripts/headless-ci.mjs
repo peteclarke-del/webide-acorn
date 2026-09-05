@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, stat, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
+import { unrunnablePlanRefusal } from './headlessPlanRefusal.mjs';
 import { join, resolve } from 'node:path';
 
 const argv = new Map();
@@ -21,6 +22,15 @@ const port = (flag, fallback) => {
   if (!Number.isInteger(value) || value < 1024 || value > 65_535) throw new Error(`${flag} must be a port between 1024 and 65535`);
   return value;
 };
+/* Disks to mount before the run, as drive number to file. A test that needs
+ * media cannot supply it from inside the project: a portable project carries
+ * no disk payload on purpose. */
+const discs = [];
+for (const drive of [0, 1]) {
+  const value = argv.get(`--disc-${drive}`);
+  if (value === undefined) continue;
+  discs.push([drive, resolve(value)]);
+}
 const proxyPort = port('--proxy-port', 8081);
 const devtoolsPort = port('--devtools-port', 9222);
 if (proxyPort === devtoolsPort) throw new Error('--proxy-port and --devtools-port must differ');
@@ -117,11 +127,40 @@ try {
   await cdp.call('Page.reload', { ignoreCache: true });
   await until(() => cdp.evaluate('document.readyState === "complete" && [...document.querySelectorAll("button")].some(button => button.textContent.trim() === "Tests")'), 'Project reload');
   const click = (label) => cdp.evaluate(`(() => { const button = [...document.querySelectorAll('button')].find(item => item.textContent.trim() === ${JSON.stringify(label)}); if (!button || button.disabled) return false; button.click(); return true; })()`);
+
+  /*
+   * Disks are mounted through the workbench's own import and mount controls
+   * rather than written into storage. A test that asserts what a filing system
+   * read has to have gone through the path a person's disk goes through, or it
+   * proves something about a fixture instead of about the product.
+   */
+  for (const [drive, discPath] of discs) {
+    await until(() => click('Media'), 'Media workspace availability');
+    /* The workspace paints after the click, so the control is waited for
+     * rather than looked for once; a single look reported the target as having
+     * no disk support at all, which was not true and would have sent somebody
+     * to change the project. */
+    await until(() => cdp.evaluate('Boolean(document.querySelector(\'input[aria-label="Disk image file"]\'))'),
+      `Disk image control for drive ${drive} — if this target has no DFS or ADFS enabled there is none`, 30_000);
+    const node = await cdp.call('DOM.getDocument', { depth: -1 });
+    const input = await cdp.call('DOM.querySelector', { nodeId: node.root.nodeId, selector: 'input[aria-label="Disk image file"]' });
+    if (!input?.nodeId) throw new Error(`This target has no disk image control, so drive ${drive} could not be filled: enable DFS or ADFS in the project target`);
+    await cdp.call('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [discPath] });
+    await cdp.evaluate(`(() => { const select = document.querySelector('select[aria-label="Disk drive"]'); if (!select) return false; Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(select, ${JSON.stringify(String(drive))}); select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await until(() => click('Mount disk'), `Drive ${drive} mount of ${discPath}`, 60_000);
+    /* The catalogue the workbench read, so a disk that mounted as something
+     * other than what was handed to it is visible rather than assumed. */
+    const mounted = await cdp.evaluate(`document.querySelector('.dfs-preview-status')?.textContent?.trim() ?? null`);
+    process.stderr.write(`Mounted ${discPath} in drive ${drive}: ${mounted ?? 'no catalogue reported'}\n`);
+  }
+
   await until(() => click('Tests'), 'Tests workspace availability');
   await cdp.evaluate(`(() => { globalThis.__headlessTestResults = []; addEventListener('message', event => { if (event.data?.type === 'test-result') globalThis.__headlessTestResults.push(structuredClone(event.data)); }); return true; })()`);
   await until(() => click('Test all'), 'Test-all availability');
   const terminal = await until(() => cdp.evaluate(`(() => { const rows = [...document.querySelectorAll('.test-all-results [role="listitem"]')].map(row => ({ status: row.querySelector('strong')?.textContent.trim().toLowerCase(), name: row.querySelector('span')?.textContent.trim(), message: row.querySelector('small')?.textContent.trim() })); return rows.length > 0 && rows.every(row => !['queued','running'].includes(row.status)) ? rows : null; })()`), 'Test-all completion');
   const adapterResults = await cdp.evaluate(`globalThis.__headlessTestResults ?? []`);
+  const refusal = unrunnablePlanRefusal(terminal);
+  if (refusal) throw new Error(refusal);
   await until(() => click('Export native JSON'), 'Native report export');
   await until(async () => { try { return (await stat(join(outputDirectory, 'acorn-test-report.json'))).size > 0; } catch { return false; } }, 'Native report download', 30_000);
   await until(() => click('Export JUnit XML'), 'JUnit report export');

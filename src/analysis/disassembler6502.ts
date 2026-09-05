@@ -1,3 +1,4 @@
+import { throttleProgress, type AnalysisProgressReporter } from './analysisProgress';
 import {
   commentLookup, indirectTargetLookup, labelLookup, regionAt,
   type AnalysisAnnotations, type AnalysisRegion,
@@ -63,6 +64,16 @@ export function opcodeTable(processor: Processor): Array<Opcode | undefined> {
   return table;
 }
 
+/*
+ * The BBC MOS entry points.
+ *
+ * These are the BBC's and not every Acorn machine's, which matters more than it
+ * looks. The Atom is a different operating system at different addresses: what
+ * a BBC calls OSWRCH at &FFEE is nothing in particular on an Atom, and &FFF4 —
+ * OSBYTE on a BBC — is the Atom's own character writer. Assembling or
+ * disassembling an Atom program against this table gives confident, wrong
+ * answers, so the machine's own table is chosen by the caller. See ATOM_OS_CALLS.
+ */
 export const MOS_CALLS: Record<number, string> = {
   0xffb9: 'OSRDRM', 0xffbc: 'VDUCHR', 0xffbf: 'OSEVEN', 0xffc2: 'GSINIT',
   0xffc5: 'GSREAD', 0xffc8: 'NVRDCH', 0xffcb: 'NVWRCH', 0xffce: 'OSFIND',
@@ -70,6 +81,35 @@ export const MOS_CALLS: Record<number, string> = {
   0xffdd: 'OSFILE', 0xffe0: 'OSRDCH', 0xffe3: 'OSASCI', 0xffe7: 'OSNEWL',
   0xffee: 'OSWRCH', 0xfff1: 'OSWORD', 0xfff4: 'OSBYTE', 0xfff7: 'OSCLI',
 };
+
+/*
+ * The Acorn Atom's operating-system entry points, as far as they have been
+ * measured.
+ *
+ * This is deliberately short. Every entry here was established by running a
+ * program on a real Atom under this build's own pinned jsbeeb core and watching
+ * what the machine did with it — writing a character and seeing it reach the
+ * screen, reading a key and seeing it echoed back. A longer table copied from
+ * elsewhere would look more useful and would be worth less, because nothing
+ * here would have checked it.
+ */
+export const ATOM_OS_CALLS: Record<number, string> = {
+  0xffe3: 'OSRDCH', 0xfff4: 'OSWRCH',
+};
+
+export const ATOM_OS_PURPOSES: Record<number, string> = {
+  0xffe3: 'Wait for a key and return it, echoing it to the screen',
+  0xfff4: 'Write one character to the screen',
+};
+
+/** The operating-system vocabulary a machine's programs are written against. */
+export function osCallsFor(machineId: string): Record<number, string> {
+  return machineId === 'atom' ? ATOM_OS_CALLS : MOS_CALLS;
+}
+
+export function osPurposesFor(machineId: string): Record<number, string> {
+  return machineId === 'atom' ? ATOM_OS_PURPOSES : MOS_PURPOSES;
+}
 
 export const MOS_PURPOSES: Record<number, string> = {
   0xffb9: 'Read a byte from sideways ROM', 0xffbc: 'Send a byte through the VDU system',
@@ -200,7 +240,10 @@ export function disassemble6502(
    * find an entry the loader calls from outside the file, or the destination of
    * a jump through a pointer, so those are supplied rather than guessed. */
   annotations?: AnalysisAnnotations,
+  /* Called with bytes actually settled, never with an invented percentage. */
+  onProgress?: AnalysisProgressReporter,
 ): Disassembly {
+  const report = throttleProgress(onProgress);
   const warnings: string[] = [];
   const capacity = Math.max(0, 0x10000 - origin);
   const bytes = source.length > capacity ? source.slice(0, capacity) : source;
@@ -278,6 +321,10 @@ export function disassemble6502(
       };
       decoded.set(address, row);
       for (let index = 0; index < opcode.size; index += 1) occupied.add(offset + index);
+      /* The count of occupied bytes, which is what the walk has actually
+       * decided about — not the queue length, which grows and shrinks for
+       * reasons that have nothing to do with progress through the file. */
+      report({ stage: 'decoding', bytesDone: occupied.size, bytesTotal: bytes.length });
 
       /* A recorded hint replaces the guess the bytes cannot make. It applies to
        * whatever instruction is at that address, so it also covers a computed
@@ -299,6 +346,11 @@ export function disassemble6502(
       address += opcode.size;
     }
   }
+
+  /* The walk is over, so whatever it did not reach it never will. Reported at
+   * full rather than at the occupied count, because the stage is finished and a
+   * stage that stops short reads as one that stalled. */
+  report({ stage: 'decoding', bytesDone: bytes.length, bytesTotal: bytes.length });
 
   const rows: DisassemblyRow[] = [];
   const decodedAddresses = Array.from(decoded.keys()).sort((left, right) => left - right);
@@ -351,7 +403,10 @@ export function disassemble6502(
       references: [], reachable: false,
     });
     offset += count;
+    report({ stage: 'listing', bytesDone: offset, bytesTotal: bytes.length });
   }
+  report({ stage: 'listing', bytesDone: bytes.length, bytesTotal: bytes.length });
+  report({ stage: 'labelling', bytesDone: 0, bytesTotal: bytes.length });
 
   const labels: Record<number, string> = { [entryPoint]: `program_entry_${hex(entryPoint).slice(1)}` };
   /* Indexed once rather than searched per target. Every branch in a listing
@@ -410,6 +465,7 @@ export function disassemble6502(
     if (recorded) row.comment = row.comment ? `${recorded} · ${row.comment}` : recorded;
   }
 
+  report({ stage: 'labelling', bytesDone: bytes.length, bytesTotal: bytes.length });
   const codeByteCount = rows.filter((row) => row.kind === 'instruction').reduce((sum, row) => sum + row.bytes.length, 0);
   return {
     kind: 'machine-code', processor, origin, entryPoint, rows, labels,

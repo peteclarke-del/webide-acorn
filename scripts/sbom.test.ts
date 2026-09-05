@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { classifyLicence, licencesNeedingReview, readLockfile, renderSbom, sbomSummary } from './sbom.mjs';
+import { classifyLicence, licencesNeedingReview, readLockfile, renderBackendSection, renderSbom, sbomSummary } from './sbom.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 let lockfile: { packages?: Record<string, Record<string, unknown>> } = {};
@@ -128,5 +128,37 @@ describe('the report on this project', () => {
   it('produces the same bytes every time', () => {
     const entries = readLockfile(lockfile, new Set());
     expect(renderSbom(entries, null)).toBe(renderSbom(entries, null));
+  });
+});
+
+describe('the backend half of the inventory', () => {
+  it('lists the backend packages and classifies their licences', () => {
+    const section = renderBackendSection({
+      'a/one': { version: '1.0', license: ['MIT'] },
+      'b/two': { version: '2.0', license: ['BSD-3-Clause'] },
+    });
+    expect(section).toContain('| Packages | 2 |');
+    expect(section).toContain('| Permissive | 2 |');
+    expect(section).toContain('| a/one | MIT |');
+  });
+
+  it('reads a package that records no licence rather than dropping it', () => {
+    /* A package missing from the list looks like a product with fewer
+     * obligations than it has. */
+    const section = renderBackendSection({ 'c/three': { version: '1.0' } });
+    expect(section).toContain('| c/three | none recorded |');
+    expect(section).toContain('| Unrecognised or unrecorded | 1 |');
+  });
+
+  it('counts a copyleft backend dependency as one, so it cannot pass unseen', () => {
+    expect(renderBackendSection({ 'd/four': { license: ['GPL-3.0-or-later'] } })).toContain('| Copyleft | 1 |');
+  });
+
+  it('says the inventory is missing rather than implying there is nothing to inventory', () => {
+    /* Generated without PHP available, an omitted section would read as a
+     * backend with no dependencies at all. */
+    const section = renderBackendSection(null);
+    expect(section).toContain('Not inventoried when this was generated');
+    expect(section).toContain('rather than a statement');
   });
 });

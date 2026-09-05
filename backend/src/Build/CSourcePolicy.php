@@ -104,7 +104,7 @@ final class CSourcePolicy
 
     private function systemHeaderExists(string $include): bool
     {
-        $sdk = (string) ($_SERVER['CC65_BBC_INCLUDE'] ?? $_ENV['CC65_BBC_INCLUDE'] ?? '/usr/local/share/8bit-net/cc65-bbc/include');
+        $sdk = (string) (ToolLocator::configured('CC65_BBC_INCLUDE') ?? '/usr/local/share/8bit-net/cc65-bbc/include');
         foreach ([$sdk, '/usr/share/cc65/include'] as $root) {
             $rootPath = realpath($root);
             $candidate = realpath($root.'/'.$include);

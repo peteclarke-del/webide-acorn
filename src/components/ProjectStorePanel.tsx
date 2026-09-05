@@ -1,0 +1,335 @@
+/*
+ * Keeping a project on the server, and being plain about what that is.
+ *
+ * Local mode is the product. This is an addition somebody may use, and the
+ * panel is written so that not using it costs nothing and using it loses
+ * nothing: copying a project to the store leaves the local one exactly as it
+ * was, and taking a revision back is offered as source to open rather than
+ * applied over what somebody is working on.
+ *
+ * The identity comes from the server's own answer. There is one, nothing
+ * proves it, and saying so is the difference between "your projects are
+ * backed up" and "these are on a machine you already control".
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Icon } from './Icon';
+import {
+  ProjectStoreClient,
+  type StoreIdentity,
+  type StoreUsage,
+  type StoredProject,
+  type StoredRevision,
+} from '../cloud/projectStoreClient';
+import { compareRevisions, forkProjectId, planMerge, quotaWarnings, syncActions, syncState, type MergePlan, type RevisionComparison, type SyncState } from '../cloud/syncModel';
+
+interface ProjectStorePanelProps {
+  /** The project as it is now: filename to content. */
+  files: Array<{ name: string; content: string }>;
+  projectName: string;
+  onNotice: (message: string) => void;
+  /** Offered a revision's files to open. Never called without being asked. */
+  onOpenFiles?: (files: Array<{ name: string; content: string }>) => void;
+  /** Offered the export to save. Without it the export is not shown at all. */
+  onDownload?: (filename: string, text: string) => void;
+  client?: ProjectStoreClient;
+}
+
+/** A project name as the store will accept it, or the reason it will not. */
+export function storeProjectId(name: string): { id: string; adjusted: boolean } {
+  const id = name.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
+  return { id, adjusted: id !== name };
+}
+
+export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, onDownload, client }: ProjectStorePanelProps) {
+  const store = useMemo(() => client ?? new ProjectStoreClient(), [client]);
+  const [identity, setIdentity] = useState<StoreIdentity>();
+  const [usage, setUsage] = useState<StoreUsage>();
+  const [projects, setProjects] = useState<StoredProject[]>([]);
+  const [revisions, setRevisions] = useState<StoredRevision[]>([]);
+  const [selected, setSelected] = useState<string>();
+  const [unreachable, setUnreachable] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  /* What this workbench last wrote or read, and what it held at that moment.
+   * The state is derived from these rather than remembered as a flag, because
+   * a flag is wrong exactly when it matters — after a reload, or when a second
+   * workbench has been at the same project. */
+  const [syncedAt, setSyncedAt] = useState<string | null>(null);
+  const [syncedFiles, setSyncedFiles] = useState<Record<string, string> | null>(null);
+  const [merge, setMerge] = useState<MergePlan>();
+  const [comparison, setComparison] = useState<{ from: string; to: string; result: RevisionComparison }>();
+  const [ownRevisions, setOwnRevisions] = useState<StoredRevision[]>([]);
+
+  const { id: projectId, adjusted } = storeProjectId(projectName);
+
+  const refresh = useCallback(async () => {
+    const described = await store.describe();
+    if (!described.ok) {
+      setIdentity(undefined);
+      setUnreachable(described.reason);
+      return;
+    }
+    setUnreachable(undefined);
+    setIdentity(described.value.identity);
+    setUsage(described.value.usage);
+    const listed = await store.projects();
+    if (listed.ok) setProjects(listed.value);
+  }, [store]);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  const openRevisions = async (id: string) => {
+    setSelected(id);
+    const listed = await store.revisions(id);
+    if (listed.ok) setRevisions(listed.value);
+    else { setRevisions([]); onNotice(listed.reason); }
+  };
+
+  const current = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const file of files) map[file.name] = file.content;
+    return map;
+  }, [files]);
+
+  const locallyChanged = useMemo(
+    () => syncedFiles === null || JSON.stringify(syncedFiles) !== JSON.stringify(current),
+    [syncedFiles, current],
+  );
+
+  const storeHead = ownRevisions.length ? ownRevisions[ownRevisions.length - 1]!.id : null;
+  const state: SyncState = syncState({ storeHead, syncedAt, locallyChanged, reachable: !unreachable });
+  const offered = syncActions(state);
+
+  const loadOwnRevisions = useCallback(async () => {
+    if (!projectId) return [] as StoredRevision[];
+    const listed = await store.revisions(projectId);
+    const revisions = listed.ok ? listed.value : [];
+    setOwnRevisions(revisions);
+    return revisions;
+  }, [projectId, store]);
+
+  useEffect(() => { void loadOwnRevisions(); }, [loadOwnRevisions, projects]);
+
+  const copyUp = async () => {
+    if (!projectId) { onNotice('This project has no name the store can use. Rename it using letters, digits or hyphens.'); return; }
+    setBusy(true);
+    try {
+      const revisions = await loadOwnRevisions();
+      /* Written against the head the store reports, so two workbenches editing
+       * the same project collide here rather than one silently overwriting the
+       * other. */
+      const head = revisions.length ? revisions[revisions.length - 1]!.id : null;
+      const written = await store.commit(projectId, current, head, `Copied from the workbench as ${projectName}`);
+      if (!written.ok) { onNotice(written.reason); return; }
+      setSyncedAt(written.value.id);
+      setSyncedFiles({ ...current });
+      setMerge(undefined);
+      onNotice(`Copied ${files.length} file${files.length === 1 ? '' : 's'} to the store as revision ${written.value.id}. The local project is unchanged.`);
+      await refresh();
+      await loadOwnRevisions();
+      await openRevisions(projectId);
+    } finally { setBusy(false); }
+  };
+
+  /*
+   * Forking, which is the honest answer where merging would have to guess. The
+   * name says where it came from, because a fork nobody can trace back is two
+   * projects and a mystery.
+   */
+  const fork = async () => {
+    if (!projectId) return;
+    setBusy(true);
+    try {
+      const name = forkProjectId(projectId, projects.map((project) => project.id));
+      const written = await store.commit(name, current, null, `Forked from ${projectId} because the two versions could not be merged`);
+      if (!written.ok) { onNotice(written.reason); return; }
+      onNotice(`Forked to ${name} as revision ${written.value.id}. ${projectId} is untouched and this workbench still holds what it held.`);
+      await refresh();
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : String(error));
+    } finally { setBusy(false); }
+  };
+
+  /* What changed between the two newest revisions, which is the comparison
+   * somebody asks for first. */
+  const compare = async () => {
+    if (!selected || revisions.length < 2) return;
+    setBusy(true);
+    try {
+      const to = revisions[revisions.length - 1]!.id;
+      const from = revisions[revisions.length - 2]!.id;
+      const [before, after] = await Promise.all([store.read(selected, from), store.read(selected, to)]);
+      if (!before.ok) { onNotice(before.reason); return; }
+      if (!after.ok) { onNotice(after.reason); return; }
+      setComparison({ from, to, result: compareRevisions(before.value, after.value) });
+    } finally { setBusy(false); }
+  };
+
+  /* What a merge would produce, shown before anything is written. Nothing is
+   * sent or overwritten until somebody has read it. */
+  const previewMerge = async () => {
+    if (!projectId || !storeHead) return;
+    setBusy(true);
+    try {
+      const theirs = await store.read(projectId, storeHead);
+      if (!theirs.ok) { onNotice(theirs.reason); return; }
+      const base = syncedAt ? await store.read(projectId, syncedAt) : null;
+      setMerge(planMerge(base && base.ok ? base.value : null, current, theirs.value));
+    } finally { setBusy(false); }
+  };
+
+  /*
+   * Getting everything out. Offered next to the store's own numbers rather
+   * than hidden in a menu, because the moment somebody wonders whether to
+   * trust a store with their work is the moment they should see they can take
+   * it back.
+   */
+  const exportAll = async () => {
+    setBusy(true);
+    try {
+      const exported = await store.exportAll();
+      if (!exported.ok) { onNotice(exported.reason); return; }
+      onDownload?.('project-store-export.json', `${JSON.stringify(exported.value, null, 2)}\n`);
+      onNotice('Everything in the store, history included, was exported. Nothing was removed.');
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (id: string) => {
+    /* Confirmed here as well as by the store, because the store's confirmation
+     * exists to stop a stray request and this one exists to stop a stray
+     * click. */
+    if (!window.confirm(`Delete ${id} and every revision of it? This cannot be undone here.`)) return;
+    setBusy(true);
+    try {
+      const deleted = await store.deleteProject(id, 'Deleted from the workbench');
+      if (!deleted.ok) { onNotice(deleted.reason); return; }
+      onNotice(`${deleted.value.projectId || id} and its ${deleted.value.revisions} revision${deleted.value.revisions === 1 ? '' : 's'} were deleted. A record of the deletion was kept. Content other projects still use was not removed.`);
+      if (selected === id) { setSelected(undefined); setRevisions([]); }
+      await refresh();
+    } finally { setBusy(false); }
+  };
+
+  const copyDown = async (revisionId: string) => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const read = await store.read(selected, revisionId);
+      if (!read.ok) { onNotice(read.reason); return; }
+      const opened = Object.entries(read.value).map(([name, content]) => ({ name, content }));
+      onOpenFiles?.(opened);
+      /* Reading is synchronising: this workbench now knows what the store held
+       * at that revision, which is what a later merge needs as its base. */
+      setSyncedAt(revisionId);
+      setSyncedFiles(read.value);
+      onNotice(`${opened.length} file${opened.length === 1 ? '' : 's'} from revision ${revisionId} were offered to open. Nothing in the project was replaced.`);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <section className="project-store-panel panel-surface" aria-label="Project store">
+      <div className="panel-heading">
+        <div><span className="eyebrow">KEEPING WORK BEYOND THIS BROWSER</span><h2>Project store</h2></div>
+        <small>{identity ? `${usage?.projects ?? 0} project${(usage?.projects ?? 0) === 1 ? '' : 's'}` : 'local only'}</small>
+      </div>
+
+      {unreachable ? (
+        <p className="binding-note" role="status">
+          No project store is running, so everything stays in this browser. {unreachable}
+        </p>
+      ) : (
+        <>
+          <p className={identity?.authenticated ? 'binding-note' : 'dfs-warning'} role="status">
+            {identity ? identity.detail : 'Asking the store who it thinks you are.'}
+          </p>
+          {quotaWarnings({ bytes: usage?.bytes ?? 0, projects: usage?.projects ?? 0 }, usage?.limits ?? {}).map((warning) => (
+            <p key={warning.measure} className="binding-warning" role="status">{warning.message}</p>
+          ))}
+          <dl className="project-store-usage">
+            <div><dt>Projects</dt><dd>{usage?.projects ?? 0}</dd></div>
+            <div><dt>Revisions</dt><dd>{usage?.revisions ?? 0}</dd></div>
+            <div><dt>Bytes</dt><dd>{(usage?.bytes ?? 0).toLocaleString()}</dd></div>
+          </dl>
+
+          <p className="binding-note" role="status">
+            <strong>{state.replace('-', ' ')}</strong> · {offered.detail}
+          </p>
+          {onDownload && (
+            <button type="button" disabled={busy} onClick={() => void exportAll()}>Export everything, history included</button>
+          )}
+          <p className="binding-note">
+            Copying puts a revision in the store and changes nothing here. Taking one back offers its
+            files to open; it never writes over what you are working on.
+          </p>
+          {state === 'diverged' && (
+            <div className="project-store-actions">
+              <button type="button" disabled={busy} onClick={() => void previewMerge()}>Show what a merge would produce</button>
+              <button type="button" disabled={busy} onClick={() => void fork()}>Fork instead, keeping both</button>
+            </div>
+          )}
+          {merge && (
+            <div className="project-store-merge" aria-label="Merge preview">
+              <p className={merge.clean ? 'binding-note' : 'binding-warning'}>
+                {merge.clean
+                  ? 'Every file merges without anything having to be decided.'
+                  : merge.forkAdvice}
+              </p>
+              <ul className="project-store-revisions">
+                {merge.files.filter((file) => file.outcome !== 'merged').map((file) => (
+                  <li key={file.name}>
+                    <span><strong>{file.name}</strong><small>{file.outcome === 'conflict' ? `${file.conflicts.length} conflict${file.conflicts.length === 1 ? '' : 's'} to review` : file.outcome === 'not-text' ? 'not text, so neither version was chosen' : `only ${file.outcome === 'ours' ? 'here' : 'in the store'}`}</small></span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {adjusted && projectId && <p className="binding-note">This project will be stored as <code>{projectId}</code>, because a store name is lower-case letters, digits and hyphens.</p>}
+          <button type="button" disabled={busy || !projectId} onClick={() => void copyUp()}>
+            <Icon name="cloud" size={13} /> Copy this project to the store
+          </button>
+
+          <h3>Stored projects</h3>
+          {projects.length ? (
+            <ul className="project-store-projects">
+              {projects.map((project) => (
+                <li key={project.id}>
+                  <button type="button" aria-label={`Show revisions of ${project.id}`} onClick={() => void openRevisions(project.id)}>
+                    <strong>{project.id}</strong><small>{project.revisions} revision{project.revisions === 1 ? '' : 's'}</small>
+                  </button>
+                  <button type="button" disabled={busy} aria-label={`Delete ${project.id} and every revision of it`} onClick={() => void remove(project.id)}>Delete</button>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="binding-note">Nothing is stored yet.</p>}
+
+          {selected && (
+            <>
+              <h3>Revisions of {selected}</h3>
+              <button type="button" disabled={busy || revisions.length < 2} onClick={() => void compare()}>Compare the two newest</button>
+              {comparison && (
+                <div className="project-store-merge" aria-label="Revision comparison">
+                  <p className="binding-note">{comparison.from} to {comparison.to}: {comparison.result.summary}</p>
+                  <ul className="project-store-revisions">
+                    {comparison.result.files.filter((file) => file.change !== 'unchanged').map((file) => (
+                      <li key={file.name}>
+                        <span><strong>{file.name}</strong><small>{file.change}{file.addedLines === null ? ' · not text, so no line count is offered' : ` · +${file.addedLines} −${file.removedLines}`}</small></span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {revisions.length ? (
+                <ul className="project-store-revisions">
+                  {[...revisions].reverse().map((revision) => (
+                    <li key={revision.id}>
+                      <span><strong>{revision.id}</strong><small>{revision.writtenAt} · {revision.files} file{revision.files === 1 ? '' : 's'}{revision.note ? ` · ${revision.note}` : ''}</small></span>
+                      <button type="button" disabled={busy} aria-label={`Open the files of revision ${revision.id}`} onClick={() => void copyDown(revision.id)}>Open its files</button>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="binding-note">That project has no revisions.</p>}
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+}

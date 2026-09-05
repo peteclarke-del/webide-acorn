@@ -1,3 +1,4 @@
+import { apiPath } from '../api/contracts';
 export interface SdkDocument {
   schema: '8bit-net.sdk-document';
   version: 1;
@@ -15,7 +16,7 @@ export interface SdkDocument {
 const MAXIMUM_DOCUMENT_BYTES = 262_144;
 
 export async function loadSdkDocument(path: string, signal?: AbortSignal): Promise<SdkDocument> {
-  const response = await fetch(`/api/v1/toolchains/cc65-c/sdk?${new URLSearchParams({ path })}`, {
+  const response = await fetch(`${apiPath('sdkDocument')}?${new URLSearchParams({ path })}`, {
     method: 'GET', credentials: 'same-origin', cache: 'no-store', signal,
     headers: { Accept: 'application/json' },
   });

@@ -109,8 +109,8 @@ final class ObservabilityTest extends TestCase
          * end a JSON string or start a line that reads like another record is
          * replaced rather than escaped. */
         $injected = new RequestContext();
-        $adopted = $injected->adopt(Request::create('/api/health/live', 'GET', [], [], [], ['HTTP_X_CORRELATION_ID' => "abc\",\"event\":\"forged"]));
-        self::assertNotSame("abc\",\"event\":\"forged", $adopted);
+        $adopted = $injected->adopt(Request::create('/api/health/live', 'GET', [], [], [], ['HTTP_X_CORRELATION_ID' => 'abc","event":"forged']));
+        self::assertNotSame('abc","event":"forged', $adopted);
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $adopted);
 
         $empty = new RequestContext();

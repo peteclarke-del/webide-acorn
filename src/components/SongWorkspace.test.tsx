@@ -2,14 +2,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { SongWorkspace } from './SongWorkspace';
-import { parseSongDocument } from '../assets/songDocument';
+import { createSongDocument, parseSongDocument, serializeSongDocument } from '../assets/songDocument';
 
 afterEach(() => { cleanup(); localStorage.clear(); });
 
-function renderWorkspace() {
-  const props = { onAddSource: vi.fn(), onAddLiveSong: vi.fn(), onNotice: vi.fn() };
+function renderWorkspace(projectFiles: ReturnType<typeof projectHolding> = []) {
+  const props = { projectFiles, onAddSource: vi.fn(), onAddLiveSong: vi.fn(), onNotice: vi.fn() };
   render(<SongWorkspace {...props} />);
   return props;
+}
+
+/* A project holding one of these documents, so the editor can be asked whether
+ * it offers what the person already has. */
+function projectHolding(name: string, content: string) {
+  return [{
+    id: name, name, content, language: 'text' as const, encoding: 'utf-8' as const, lineEnding: 'lf' as const,
+    modified: false, saved: true, savedName: name, savedContent: content,
+    savedEncoding: 'utf-8' as const, savedLineEnding: 'lf' as const, kind: 'authored' as const, access: 'editable' as const,
+  }];
 }
 const stored = () => parseSongDocument(localStorage.getItem('8bit-net-dev:song')!);
 
@@ -65,7 +75,8 @@ describe('SongWorkspace', () => {
 
   it('says it does not synthesise the machine sound in the browser', () => {
     renderWorkspace();
-    expect(screen.getByText(/no verified pitch-to-frequency table/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is synthesised here/)).toBeInTheDocument();
+    expect(screen.getByText(/run it to hear the real hardware play it/)).toBeInTheDocument();
   });
 
   it('offers generated source and a live build target', () => {
@@ -104,5 +115,19 @@ describe('SongWorkspace sound hardware', () => {
     const generated = screen.getByLabelText('Generated song data and player');
     expect(generated).toHaveTextContent('STA &B003');
     expect(generated).not.toHaveTextContent('JSR &FFF1');
+  });
+});
+
+describe('a song the project already holds', () => {
+  it('is offered beside the file dialog, and opening one loads it', () => {
+    const props = renderWorkspace(projectHolding('theme.song.json', serializeSongDocument(createSongDocument('theme'))));
+    fireEvent.change(screen.getByLabelText('Open a song from this project'), { target: { value: 'theme.song.json' } });
+    expect(props.onNotice).toHaveBeenCalledWith(expect.stringContaining('opened from this project'));
+    expect(screen.getByLabelText('Song name')).toHaveValue('theme');
+  });
+
+  it('does not offer a picker when the project holds no song', () => {
+    renderWorkspace();
+    expect(screen.queryByLabelText('Open a song from this project')).toBeNull();
   });
 });

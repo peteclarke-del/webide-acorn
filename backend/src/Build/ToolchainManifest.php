@@ -14,8 +14,8 @@ final class ToolchainManifest
     /** @return array<string, mixed> */
     public function detect(): array
     {
-        $ca65 = $_SERVER['CA65_PATH'] ?? $_ENV['CA65_PATH'] ?? '/usr/bin/ca65';
-        $ld65 = $_SERVER['LD65_PATH'] ?? $_ENV['LD65_PATH'] ?? '/usr/bin/ld65';
+        $ca65 = ToolLocator::locate('CA65_PATH', 'ca65', '/usr/bin/ca65');
+        $ld65 = ToolLocator::locate('LD65_PATH', 'ld65', '/usr/bin/ld65');
         $caVersion = $this->version($ca65);
         $ldVersion = $this->version($ld65);
         $readiness = (new Readiness())
@@ -35,7 +35,7 @@ final class ToolchainManifest
             'processors' => ['6502', '65sc02', '65c02', 'w65c02'],
             'profiles' => ['debug', 'size', 'speed', 'custom'],
             'deterministic' => true,
-            'packageVersion' => $_SERVER['TOOLCHAIN_PACKAGE_VERSION'] ?? $_ENV['TOOLCHAIN_PACKAGE_VERSION'] ?? 'host-development',
+            'packageVersion' => ToolLocator::configured('TOOLCHAIN_PACKAGE_VERSION') ?? 'host-development',
             'ca65' => ['version' => $caVersion, 'sha256' => is_file($ca65) ? hash_file('sha256', $ca65) : null],
             'ld65' => ['version' => $ldVersion, 'sha256' => is_file($ld65) ? hash_file('sha256', $ld65) : null],
             'limits' => BuildLimits::manifest(),

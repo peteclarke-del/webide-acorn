@@ -9,8 +9,14 @@
 import { MAX_PROJECT_SOURCE_BYTES, MAX_SOURCE_FILE_BYTES, sourceUtf8ByteLength } from '../editor/sourceTextFormat';
 import { languageForFilename, parseProject, PROJECT_FORMAT, type LocalProject, type ProjectFile, type SourceLanguage } from './project';
 import { BUILD_TARGET_SCHEMA, defaultToolchainId, toolchainFor, type ToolchainId } from '../build/buildTarget';
+import { asciiMapGrid } from '../assets/asciiTileMap';
+import { screenDocumentFromBytes, serializeScreenDocument } from '../assets/screenDocument';
+import { screenDumpCandidate, type ScreenDumpCandidate } from '../assets/screenDump';
+import type { PaletteModeId } from '../assets/paletteDocument';
 import { assemblyByteRuns, pixelAssetCandidates, tileMapCandidates, tileMapFromCandidate, type DerivedPixelAsset, type TileMapCandidate } from '../assets/assemblyPixelData';
 import { serializeTileMapDocument } from '../assets/tileMapDocument';
+import { normalizeProjectPath } from './safeNames';
+import { basenameOf, directoryOf } from './includeResolution';
 
 export const MAX_IMPORT_FILES = 512;
 
@@ -19,7 +25,27 @@ const IGNORED_SEGMENTS = new Set(['.git', '.hg', '.svn', 'node_modules', 'dist',
 
 /* Only text this workbench can genuinely edit is imported. Everything else is
  * reported rather than dropped in silence. */
-const TEXT_EXTENSIONS = new Set(['asm', 's', 'a65', '6502', 'inc', 'arm', 'sarm', 'c', 'h', 'bas', 'basic', 'txt', 'md', 'json', 'inf', 'cfg', 'lst', 'def']);
+const TEXT_EXTENSIONS = new Set([
+  /* Source the workbench can compile or assemble. */
+  'asm', 's', 'a65', '6502', 'inc', 'arm', 'sarm', 'c', 'h', 'bas', 'basic',
+  /* Things a project carries alongside its source: metadata, notes, output the
+   * toolchain wrote, and the linker and configuration files a build needs. */
+  'txt', 'md', 'json', 'inf', 'cfg', 'lst', 'def', 'ld', 'cmd', 'map', 'sym',
+  /* How the codebase was built before it arrived here. A project that loses its
+   * build script loses the record of how its author built it, which is the one
+   * thing nobody can reconstruct from the source. */
+  'mk', 'mak', 'make', 'am', 'ac', 'sh', 'bat', 'ps1', 'py', 'pl', 'awk',
+  'yml', 'yaml', 'toml', 'ini', 'conf', 'cmake',
+]);
+
+/* Files whose whole name is their type. A makefile is the obvious one, and the
+ * reason this set exists: an imported codebase arrived without its Makefile
+ * because the importer asked for an extension and a makefile has none. */
+const EXTENSIONLESS_NAMES = new Set([
+  'makefile', 'gnumakefile', 'rakefile', 'justfile', 'dockerfile', 'containerfile',
+  'readme', 'license', 'licence', 'copying', 'copyright', 'notice', 'authors',
+  'contributors', 'changelog', 'changes', 'news', 'install', 'todo', 'version',
+]);
 
 /* A NUL or C0 control run means the file did not decode as text, whatever its
  * extension claims. Tab, newline and carriage return are of course allowed. */
@@ -33,6 +59,12 @@ export interface CodebaseFileInput {
   /** Path relative to the chosen folder, using forward slashes. */
   path: string;
   content: string;
+  /**
+   * The raw bytes, where the caller kept them. Only a file that is exactly the
+   * length of a display mode's frame buffer arrives with these, and it is
+   * offered as a screen rather than imported as a source file.
+   */
+  bytes?: Uint8Array;
 }
 
 export interface PlannedImportFile {
@@ -75,6 +107,8 @@ export interface CodebaseImportPlan {
   exclusions: ImportExclusion[];
   targets: ProposedBuildTarget[];
   derivedAssets: DerivedPixelAsset[];
+  /** Files that are exactly a frame buffer, offered as screens to recover. */
+  screenCandidates: ScreenDumpCandidate[];
   mapCandidates: TileMapCandidate[];
   totalBytes: number;
   warnings: string[];
@@ -115,10 +149,10 @@ function scoreEntry(file: PlannedImportFile, content: string, included: Set<stri
   let score = 0;
   if (/^\s*(?:ORG\b|\*\s*=)/im.test(content)) { score += 40; reasons.push('sets an origin'); }
   if (/^\s*(?:int|void)\s+main\s*\(/im.test(content)) { score += 40; reasons.push('defines main()'); }
-  if (/^main\.[^.]+$/i.test(file.name)) { score += 30; reasons.push('is named main'); }
+  if (/^main\.[^.]+$/i.test(basenameOf(file.name))) { score += 30; reasons.push('is named main'); }
   if (/^\s*INCLUDE(?:ASSET)?\s/im.test(content)) { score += 15; reasons.push('includes other files'); }
   if (/^\s*\.(?:start|main|init|entry)\b/im.test(content)) { score += 10; reasons.push('declares a start label'); }
-  if (!included.has(file.name.toLowerCase())) { score += 25; reasons.push('is not included by another file'); }
+  if (!included.has(file.name.toLowerCase()) && !included.has(basenameOf(file.name).toLowerCase())) { score += 25; reasons.push('is not included by another file'); }
   return { file, score, reasons };
 }
 
@@ -137,7 +171,7 @@ function proposeTargets(files: PlannedImportFile[], contents: Map<string, string
     if (best.score <= 0) { warnings.push(`No ${language} file looked like a build entry, so no ${language} target was proposed.`); continue; }
     const tied = scored.filter((entry) => entry.score === best.score);
     if (tied.length > 1) warnings.push(`${tied.map((entry) => entry.file.name).join(' and ')} scored equally as the ${language} entry file. ${best.file.name} was proposed and can be changed before the project is created.`);
-    const stem = best.file.name.replace(/\.[^.]+$/, '') || 'program';
+    const stem = basenameOf(best.file.name).replace(/\.[^.]+$/, '') || 'program';
     targets.push({
       id: `import-${language}`,
       name: `${stem} build`,
@@ -155,9 +189,9 @@ function proposeTargets(files: PlannedImportFile[], contents: Map<string, string
     const numbered = basic
       .map((file) => ({ file, lines: (contents.get(file.name) ?? '').split('\n').filter((line) => /^\s*\d{1,5}(?:\s|$)/.test(line)).length }))
       .sort((left, right) => right.lines - left.lines || left.file.name.localeCompare(right.file.name));
-    const preferred = numbered.find((entry) => /^main\./i.test(entry.file.name)) ?? numbered[0]!;
+    const preferred = numbered.find((entry) => /^main\./i.test(basenameOf(entry.file.name))) ?? numbered[0]!;
     if (preferred.lines === 0) warnings.push(`${preferred.file.name} has no numbered BASIC lines, so building it will report line-number diagnostics.`);
-    const stem = preferred.file.name.replace(/\.[^.]+$/, '') || 'program';
+    const stem = basenameOf(preferred.file.name).replace(/\.[^.]+$/, '') || 'program';
     targets.push({
       id: 'import-bbc-basic',
       name: `${stem} build`,
@@ -165,22 +199,58 @@ function proposeTargets(files: PlannedImportFile[], contents: Map<string, string
       toolchainId: '8bit-net.basic.bbc2',
       outputName: `${stem}.bbc`,
       language: 'bbc-basic',
-      reason: /^main\./i.test(preferred.file.name) ? 'Proposed because it is named main.' : `Proposed because it carries the most numbered lines (${preferred.lines}).`,
+      reason: /^main\./i.test(basenameOf(preferred.file.name)) ? 'Proposed because it is named main.' : `Proposed because it carries the most numbered lines (${preferred.lines}).`,
       candidates: numbered.map((entry) => ({ name: entry.file.name, reason: entry.lines ? `Carries ${entry.lines} numbered line${entry.lines === 1 ? '' : 's'}.` : 'Has no numbered BASIC lines.' })),
     });
   }
   return { targets, warnings };
 }
 
-export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderName = 'Imported project'): CodebaseImportPlan {
+export interface CodebaseImportOptions {
+  /**
+   * Whether the paths carry the name of the folder that was chosen as their
+   * first segment.
+   *
+   * The two folder routes disagree about this, which is why it is stated rather
+   * than guessed. A directory input reports `MyGame/src/main.asm`; the File
+   * System Access API reports `src/main.asm` for the same folder, because it
+   * walks from the handle. Working it out from the paths alone cannot tell a
+   * chosen folder from a project whose files all happen to live under one
+   * directory — and getting that wrong throws away a real directory, which is
+   * exactly what it did to a project whose sources were all under `src`.
+   *
+   * Left undefined for an archive, where it genuinely varies: a zip may hold a
+   * top-level folder or may not, and the only evidence is the paths.
+   */
+  pathsIncludeChosenFolder?: boolean;
+}
+
+export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderName = 'Imported project', options: CodebaseImportOptions = {}): CodebaseImportPlan {
   const exclusions: ImportExclusion[] = [];
   const files: PlannedImportFile[] = [];
   const contents = new Map<string, string>();
   const usedNames = new Set<string>();
   const warnings: string[] = [];
+  const pathWarnings: string[] = [];
   let totalBytes = 0;
 
   const ordered = [...inputs].sort((left, right) => left.path.localeCompare(right.path));
+  /* Where the paths carry the chosen folder's own name, dropping it keeps the
+   * project's top level looking like the folder somebody opened rather than a
+   * single directory holding everything. Whether they do is the caller's to
+   * say; only an archive is left to the evidence in the paths. */
+  const normalizedPaths = ordered.map((input) => input.path.replace(/\\/g, '/').replace(/^\.\//, ''));
+  const firstSegments = new Set(normalizedPaths.filter((path) => path.includes('/')).map((path) => path.split('/')[0]!));
+  const sharesOneFirstSegment = firstSegments.size === 1 && normalizedPaths.every((path) => path.includes('/'));
+  const stripFirstSegment = options.pathsIncludeChosenFolder ?? sharesOneFirstSegment;
+  const sharedRoot = stripFirstSegment && sharesOneFirstSegment ? `${[...firstSegments][0]!}/` : '';
+  /* The screen the game opens on, which is not text and never was. It is
+   * offered rather than imported: nothing in a frame buffer says which display
+   * mode it is for, so this only gets as far as saying what it could be. */
+  const screenCandidates = ordered
+    .flatMap((input) => input.bytes ? [screenDumpCandidate(input.path.replace(/\\/g, '/').replace(/^\.\//, ''), input.bytes) ?? []] : [])
+    .flat();
+
   for (const input of ordered) {
     const path = input.path.replace(/\\/g, '/').replace(/^\.\//, '');
     const segments = path.split('/').filter((segment) => segment && segment !== '.' && segment !== '..');
@@ -190,43 +260,79 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
     if (ignored) { exclusions.push({ path, reason: 'ignored-directory', detail: `Inside ${ignored}.` }); continue; }
     if (base.startsWith('.')) { exclusions.push({ path, reason: 'unsupported-file-type', detail: 'Dot files are not imported.' }); continue; }
     const extension = extensionOf(base);
-    if (!TEXT_EXTENSIONS.has(extension)) { exclusions.push({ path, reason: 'unsupported-file-type', detail: extension ? `.${extension} is not an editable source type.` : 'The file has no extension.' }); continue; }
-    if (!isProbablyText(input.content)) { exclusions.push({ path, reason: 'not-text', detail: 'The contents did not decode as text.' }); continue; }
+    const offeredAsScreen = screenCandidates.some((candidate) => candidate.sourceFile === path);
+    if (!TEXT_EXTENSIONS.has(extension) && !EXTENSIONLESS_NAMES.has(base.toLowerCase())) { exclusions.push({ path, reason: 'unsupported-file-type', detail: offeredAsScreen ? 'Offered above as a screen to recover, rather than imported as a source file.' : extension ? `.${extension} is not an editable source type.` : 'The file has no extension and is not a name this product recognises, such as Makefile.' }); continue; }
+    if (!isProbablyText(input.content)) { exclusions.push({ path, reason: 'not-text', detail: offeredAsScreen ? 'Offered above as a screen to recover, rather than imported as a source file.' : 'The contents did not decode as text.' }); continue; }
     const content = input.content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
     const bytes = sourceUtf8ByteLength(content);
     if (bytes > MAX_SOURCE_FILE_BYTES) { exclusions.push({ path, reason: 'file-too-large', detail: `${bytes.toLocaleString()} bytes exceeds the 1 MiB per-file limit.` }); continue; }
     if (files.length >= MAX_IMPORT_FILES) { exclusions.push({ path, reason: 'file-count-limit', detail: `More than ${MAX_IMPORT_FILES} importable files were offered.` }); continue; }
     if (totalBytes + bytes > MAX_PROJECT_SOURCE_BYTES) { exclusions.push({ path, reason: 'project-size-limit', detail: 'Adding this file would exceed the 8 MiB project total.' }); continue; }
 
-    /* Project filenames are flat. Keep the basename wherever it is unique so
-     * existing INCLUDE directives keep resolving, and disambiguate with the
-     * containing folder only when two files genuinely collide. */
-    let name = base;
+    /* The project keeps the folders the codebase arrived in, because that is
+     * what its INCLUDE directives, its build scripts and its author assume.
+     * Only the folder that was opened is dropped, and a path the filesystem
+     * rule had to change is reported rather than silently altered. */
+    const relative = sharedRoot && path.startsWith(sharedRoot) ? path.slice(sharedRoot.length) : path;
+    const normalized = normalizeProjectPath(relative);
+    let name = normalized.name;
+    if (normalized.reason) pathWarnings.push(`${path}: ${normalized.reason}.`);
+    let renamed = basenameOf(name) !== base;
     if (usedNames.has(name.toLowerCase())) {
-      const parent = segments.length > 1 ? segments[segments.length - 2]! : 'file';
-      name = `${parent}-${base}`;
+      /* Two files at the same path can only come from an archive, since a
+       * filesystem cannot hold them, but the project cannot hold them either. */
+      const folder = directoryOf(name);
       let counter = 2;
-      while (usedNames.has(name.toLowerCase())) { name = `${parent}-${counter}-${base}`; counter += 1; }
+      do { name = `${folder}${counter}-${basenameOf(normalized.name)}`; counter += 1; } while (usedNames.has(name.toLowerCase()));
+      renamed = true;
     }
     usedNames.add(name.toLowerCase());
     const language = languageForFilename(name);
-    files.push({ path, name, language, bytes, role: roleFor(name, language), ...(name === base ? {} : { renamedFrom: base }) });
+    files.push({ path, name, language, bytes, role: roleFor(name, language), ...(renamed ? { renamedFrom: base } : {}) });
     contents.set(name, content);
     totalBytes += bytes;
   }
 
   const renamed = files.filter((file) => file.renamedFrom);
   if (renamed.length) warnings.push(`${renamed.length} file${renamed.length === 1 ? '' : 's'} shared a name with another file and ${renamed.length === 1 ? 'was' : 'were'} renamed. Any INCLUDE directive that named ${renamed.length === 1 ? 'it' : 'them'} needs updating.`);
+  warnings.push(...pathWarnings);
 
   const { targets, warnings: targetWarnings } = proposeTargets(files, contents);
   const runs = files
     .filter((file) => file.language === '6502')
     .flatMap((file) => assemblyByteRuns(file.name, contents.get(file.name) ?? ''));
   const derivedAssets = pixelAssetCandidates(runs, new Set(files.map((file) => file.name.toLowerCase())));
-  const mapCandidates = tileMapCandidates(runs);
+  /* And the maps somebody drew as characters instead of assembling. The path
+   * above only ever sees a map once it has been packed into a byte run, so a
+   * project that keeps its rooms as text files — which is how most people
+   * write one, and how the generator that produced the binary read them — had
+   * no maps recovered at all. Only plain text is read this way: an assembler
+   * include of EQUB lines is also a rectangle of equal-length lines, and the
+   * run above already reads that properly as artwork. */
+
+  const asciiMaps: TileMapCandidate[] = files
+    .filter((file) => file.language === 'text')
+    .flatMap((file) => {
+      const grid = asciiMapGrid(contents.get(file.name) ?? '');
+      if (!grid) return [];
+      return [{
+        id: `${file.name}:drawn`,
+        sourceFile: file.name,
+        sourceLabel: (file.name.split('/').pop() ?? file.name).replace(/\.[^.]+$/, ''),
+        sourceLine: grid.line,
+        byteLength: grid.values.length,
+        distinctValues: grid.legend.length,
+        values: grid.values,
+        /* One shape, because the text says how wide the map is rather than
+         * leaving it to be guessed from a byte count. */
+        shapes: [{ width: grid.width, height: grid.height }],
+        legend: grid.legend,
+      }];
+    });
+  const mapCandidates = [...tileMapCandidates(runs), ...asciiMaps];
 
   if (!files.length) warnings.push('No editable source file was found in that folder.');
-  return { name: folderName.trim() || 'Imported project', files, exclusions, targets, derivedAssets, mapCandidates, totalBytes, warnings: [...warnings, ...targetWarnings] };
+  return { name: folderName.trim() || 'Imported project', files, exclusions, targets, derivedAssets, screenCandidates, mapCandidates, totalBytes, warnings: [...warnings, ...targetWarnings] };
 }
 
 /**
@@ -266,6 +372,8 @@ export interface CodebaseImportSelection {
   derivedAssetIds?: readonly string[];
   /** Map candidates to promote, each with a grid shape its length allows. */
   derivedMaps?: ReadonlyArray<{ id: string; width: number; height: number }>;
+  /** Screens to recover, each with the display mode to read the bytes as. */
+  derivedScreens?: ReadonlyArray<{ id: string; mode: PaletteModeId }>;
   projectName?: string;
 }
 
@@ -279,10 +387,13 @@ export function codebaseImportDocument(
   selection: CodebaseImportSelection = {},
 ) {
   const chosen = new Set(selection.derivedAssetIds ?? []);
-  const files: ProjectFile[] = plan.files.map((planned) => savedFile(planned.name, contents.get(planned.name) ?? '', planned.language));
+  const identifiers = new Set<string>();
+  const idFor = new Map<string, string>();
+  const identify = (name: string) => { const id = fileIdentifier(name, identifiers); idFor.set(name, id); return id; };
+  const files: ProjectFile[] = plan.files.map((planned) => savedFile(identify(planned.name), planned.name, contents.get(planned.name) ?? '', planned.language));
   const used = new Set(files.map((file) => file.name.toLowerCase()));
   for (const asset of plan.derivedAssets.filter((candidate) => chosen.has(candidate.id))) {
-    files.push(savedFile(asset.fileName, asset.document, 'text'));
+    files.push(savedFile(identify(asset.fileName), asset.fileName, asset.document, 'text'));
     used.add(asset.fileName.toLowerCase());
   }
   /* A promoted map keeps the exact layout that was found and declares every
@@ -296,14 +407,28 @@ export function codebaseImportDocument(
     let counter = 2;
     while (used.has(fileName.toLowerCase())) { fileName = `${document.name}-${counter}.map.json`; counter += 1; }
     used.add(fileName.toLowerCase());
-    files.push(savedFile(fileName, serializeTileMapDocument(document), 'text'));
+    files.push(savedFile(identify(fileName), fileName, serializeTileMapDocument(document), 'text'));
+  }
+  /* A recovered screen is the bytes that were saved, read as the mode that was
+   * chosen. Nothing is converted and nothing is guessed: choosing the wrong
+   * mode gives a wrong picture rather than a wrong file, and it can be opened
+   * again as the other one. */
+  for (const request of selection.derivedScreens ?? []) {
+    const candidate = plan.screenCandidates.find((entry) => entry.id === request.id);
+    if (!candidate || !candidate.modes.includes(request.mode)) continue;
+    const document = screenDocumentFromBytes(candidate.sourceLabel.slice(0, 80), request.mode, candidate.bytes);
+    let fileName = `${candidate.sourceLabel}.screen.json`;
+    let counter = 2;
+    while (used.has(fileName.toLowerCase())) { fileName = `${candidate.sourceLabel}-${counter}.screen.json`; counter += 1; }
+    used.add(fileName.toLowerCase());
+    files.push(savedFile(identify(fileName), fileName, serializeScreenDocument(document), 'text'));
   }
   const buildTargets = plan.targets.map((target) => ({
     schemaVersion: BUILD_TARGET_SCHEMA,
     id: target.id,
     name: target.name,
-    entryFileId: target.entryName,
-    sourceFileIds: [target.entryName],
+    entryFileId: idFor.get(target.entryName) ?? target.entryName,
+    sourceFileIds: [idFor.get(target.entryName) ?? target.entryName],
     toolchainId: target.toolchainId,
     outputName: target.outputName,
   }));
@@ -311,7 +436,7 @@ export function codebaseImportDocument(
     const first = files.find((file) => file.language !== 'text') ?? files[0]!;
     const language = first.language === 'text' ? '6502' : first.language;
     const toolchainId = defaultToolchainId(language);
-    const stem = first.name.replace(/\.[^.]+$/, '') || 'program';
+    const stem = basenameOf(first.name).replace(/\.[^.]+$/, '') || 'program';
     buildTargets.push({ schemaVersion: BUILD_TARGET_SCHEMA, id: 'import-default', name: `${stem} build`, entryFileId: first.id, sourceFileIds: [first.id], toolchainId, outputName: `${stem}.${toolchainFor(toolchainId)?.language === 'bbc-basic' ? 'bbc' : 'bin'}` });
   }
   return {
@@ -341,9 +466,29 @@ export function projectFromCodebaseImport(
   return parseProject(JSON.stringify(codebaseImportDocument(plan, contents, selection)));
 }
 
-function savedFile(name: string, content: string, language: SourceLanguage): ProjectFile {
+/**
+ * A file's identity, which is not its path.
+ *
+ * An imported file used to be identified by its name, which was harmless while
+ * names were flat and stopped being so when they kept their folders: the native
+ * build service takes a file id as a bounded identifier and refuses a slash, so
+ * a project imported with its directories intact could not be built at all. The
+ * id is derived from the name so it stays readable and stable, with anything a
+ * path may contain and an identifier may not replaced, and a counter where two
+ * names would otherwise derive the same one.
+ */
+export function fileIdentifier(name: string, used: Set<string>): string {
+  const base = name.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'file';
+  let id = base.slice(0, 80);
+  let counter = 2;
+  while (used.has(id.toLowerCase())) { id = `${base.slice(0, 74)}-${counter}`; counter += 1; }
+  used.add(id.toLowerCase());
+  return id;
+}
+
+function savedFile(id: string, name: string, content: string, language: SourceLanguage): ProjectFile {
   return {
-    id: name, name, content, language,
+    id, name, content, language,
     encoding: 'utf-8', lineEnding: 'lf', modified: false, saved: true,
     savedName: name, savedContent: content, savedEncoding: 'utf-8', savedLineEnding: 'lf',
     kind: 'authored', access: 'editable',

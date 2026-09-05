@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { projectDocuments } from '../project/projectDocuments';
+import type { ProjectFile } from '../project/project';
 import { Icon } from './Icon';
 import {
   clearSongRow, createSongDocument, emptyRow, generateSongOutput, MAX_ROW_DURATION, maximumPitch,
@@ -7,6 +9,8 @@ import {
 } from '../assets/songDocument';
 
 interface SongWorkspaceProps {
+  /** Everything the project holds, so a song already in it can be opened. */
+  projectFiles?: readonly ProjectFile[];
   onAddSource: (name: string, content: string) => void;
   onAddLiveSong: (stem: string, content: string) => void;
   onNotice: (message: string) => void;
@@ -14,7 +18,11 @@ interface SongWorkspaceProps {
 
 const STORAGE_KEY = '8bit-net-dev:song';
 
-export function SongWorkspace({ onAddSource, onAddLiveSong, onNotice }: SongWorkspaceProps) {
+export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, onNotice }: SongWorkspaceProps) {
+  /* A song document the project already holds. Sending somebody to a file
+   * dialog to fetch what the product is sitting on is busy work, and after an
+   * import it is the only thing they want. */
+  const openable = useMemo(() => projectDocuments(projectFiles, ['song']), [projectFiles]);
   const recovered = useMemo(() => {
     try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) return parseSongDocument(saved); }
     catch { /* an invalid recovery starts a new validated document */ }
@@ -52,6 +60,18 @@ export function SongWorkspace({ onAddSource, onAddLiveSong, onNotice }: SongWork
   return (
     <section className="song-workspace" aria-label="Song editor">
       <header className="song-toolbar">
+        {!!openable.length && (
+          <label className="project-source-picker"><span>From this project</span>
+            <select aria-label="Open a song from this project" value="" onChange={(event) => {
+              const held = projectFiles.find((file) => file.id === event.target.value);
+              if (!held) return;
+              guard(() => parseSongDocument(held.content), `${held.name} opened from this project`);
+            }}>
+              <option value="">Choose a song…</option>
+              {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
+            </select>
+          </label>
+        )}
         <label><span>Name</span><input aria-label="Song name" value={document.name} onChange={(event) => guard(() => parseSongDocument({ ...document, name: event.target.value || 'untitled-song' }))} /></label>
         <label>
           <span>Sound hardware</span>
@@ -71,9 +91,10 @@ export function SongWorkspace({ onAddSource, onAddLiveSong, onNotice }: SongWork
           <p className="binding-note">
             {profile.detail}. {document.target === 'atom-speaker'
               ? 'The pitch number is the speaker half-period delay count, not a musical pitch, and volume is only on or off because a one-bit speaker has no volume.'
-              : 'Pitch and volume are the numbers OSWORD 7 takes: volume 0 is silence and 1 to 15 become amplitudes −1 to −15, and channel 0 takes pitches 0 to 7.'}
-            {' '}This build ships no verified pitch-to-frequency table for either machine, so nothing is synthesised
-            here; build the song and run it to hear the real hardware play it.
+              : document.target === 'electron-ula'
+                ? 'Pitch is the number OSWORD 7 takes, on the machine\u2019s own scale of forty-eight units to the octave, and volume is only on or off: a real Electron was measured playing every amplitude from \u22121 to \u22125 at exactly the same divider. There is one generator, so a note sent anywhere else would replace this one rather than sound beside it.'
+                : 'Pitch and volume are the numbers OSWORD 7 takes: volume 0 is silence and 1 to 15 become amplitudes \u22121 to \u221215, and channel 0 takes pitches 0 to 7.'}
+            {' '}Nothing is synthesised here; build the song and run it to hear the real hardware play it.
           </p>
           <div className="song-grid-scroll">
             <table className="song-grid">

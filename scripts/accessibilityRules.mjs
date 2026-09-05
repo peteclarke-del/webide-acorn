@@ -489,13 +489,25 @@ export const KEYBOARD_REACHABILITY = `(() => {
   const stops = [...document.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')].filter(focusable);
   if (!stops.length) return [{ element: 'document', detail: 'offers no keyboard tab stop at all' }];
 
+  /* A composite widget — a tree, a grid, a tab strip — is entered once and
+   * moved through with the arrow keys, so its one tab stop serves every part of
+   * it. A group inside such a widget is a subdivision of it rather than a
+   * separate destination, and requiring each subdivision to hold its own stop
+   * reports the prescribed pattern as broken: the project tree groups its files
+   * by origin, and only the group holding the current item would have passed. */
+  const COMPOSITE = '[role="tree"], [role="grid"], [role="tablist"], [role="listbox"], [role="radiogroup"], [role="menu"], [role="menubar"], [role="toolbar"]';
+  const reachedByItsWidget = (region) => {
+    const widget = region.parentElement && region.parentElement.closest(COMPOSITE);
+    return !!widget && [...widget.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')].some(focusable);
+  };
+
   /* Every region that holds something focusable must itself contain a tab
    * stop, or nothing in it can be reached. */
   for (const region of document.querySelectorAll('[role="group"], [role="tablist"], [role="listbox"], [role="tree"], [role="grid"], [role="radiogroup"], [role="region"], aside[aria-label], section[aria-label]')) {
     if (!shown(region)) continue;
     const inside = [...region.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')];
     if (!inside.length) continue;
-    if (!inside.some(focusable)) {
+    if (!inside.some(focusable) && !reachedByItsWidget(region)) {
       problems.push({ element: identity(region), detail: 'holds ' + inside.length + ' controls and no keyboard tab stop, so none of them can be reached' });
     }
   }
@@ -572,6 +584,90 @@ export const POINTER_ALTERNATIVES = `(() => {
  * live region that says what it currently shows. Anything else is a picture
  * with nothing behind it.
  */
+/*
+ * Content that does not fit and cannot be scrolled to.
+ *
+ * A panel taller than the space it is given is not a cosmetic problem: the
+ * entries past the fold cannot be read, reached or operated by anyone, with a
+ * pointer or without. The settings column did this — ten panels stacked in a
+ * pane with `overflow: hidden` and no scroller — and the list simply ended
+ * partway down with no indication that there was more.
+ *
+ * An element is reported when its own content overflows it and neither it nor
+ * anything between it and the page can scroll in that direction. Clipping is
+ * only a fault when something is being clipped: a container with
+ * `overflow: hidden` whose content fits is doing its job.
+ */
+export const SCROLLABLE_OVERFLOW = `(() => {
+  const scrolls = (node, axis) => {
+    const style = getComputedStyle(node);
+    /* The shorthand is the fallback: an engine that does not expand the
+     * overflow shorthand into its two axes would otherwise report every
+     * scroller as a trap. */
+    const overflow = (axis === 'y' ? style.overflowY : style.overflowX) || style.overflow || '';
+    return overflow === 'auto' || overflow === 'scroll';
+  };
+  const shown = (node) => {
+    const style = getComputedStyle(node);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  };
+  const identity = (node) => node.tagName.toLowerCase()
+    + (node.className && node.className.toString ? '.' + node.className.toString().trim().split(/\\s+/).slice(0, 2).join('.') : '')
+    + (node.getAttribute('aria-label') ? ' [' + node.getAttribute('aria-label') + ']' : '');
+
+  const problems = [];
+  for (const node of document.querySelectorAll('body *')) {
+    /* A box a few pixels across shows nothing whatever it contains. That is
+     * how a file input is hidden while keeping its accessible name, and
+     * reporting those would bury the panels that are genuinely cut off. */
+    if (!shown(node) || node.clientHeight <= 4 || node.clientWidth <= 4) continue;
+    for (const axis of ['y', 'x']) {
+      /* Two pixels of tolerance: sub-pixel rounding is not lost content. */
+      const beyond = axis === 'y' ? node.scrollHeight - node.clientHeight : node.scrollWidth - node.clientWidth;
+      if (beyond <= 2) continue;
+      if (scrolls(node, axis)) continue;
+      /* Content that spills out of a box with overflow visible is still on the
+       * screen and still readable; it is a layout untidiness rather than
+       * something lost, and the reflow check is what has an opinion about it.
+       * Only a box that clips actually takes content away. */
+      const clip = axis === 'y' ? (getComputedStyle(node).overflowY || getComputedStyle(node).overflow) : (getComputedStyle(node).overflowX || getComputedStyle(node).overflow);
+      if (clip !== 'hidden' && clip !== 'clip') continue;
+      let reachable = false;
+      for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        if (scrolls(parent, axis)) { reachable = true; break; }
+      }
+      if (reachable) continue;
+      /* An element kept in step with another one's scrolling says so, and the
+       * element it names has to be able to scroll for the claim to hold. The
+       * editor gutter is the case: taller than its box for any file of length,
+       * moved by the text beside it rather than by a scrollbar of its own. */
+      const follows = node.getAttribute('data-scroll-follows');
+      if (follows) {
+        const partner = document.querySelector(follows);
+        if (partner && scrolls(partner, axis)) continue;
+      }
+      /* Overflow reported for a box whose own children all fit belongs to
+       * something deeper that scrolls for itself, and the browser counts it
+       * here anyway. What matters is a child that is actually outside its
+       * parent with no way to bring it in. */
+      const box = node.getBoundingClientRect();
+      const escaping = [...node.children].some((child) => {
+        const childBox = child.getBoundingClientRect();
+        if (childBox.height === 0 && childBox.width === 0) return false;
+        return axis === 'y' ? childBox.bottom > box.bottom + 2 : childBox.right > box.right + 2;
+      });
+      if (!escaping) continue;
+      problems.push({
+        element: identity(node),
+        detail: identity(node) + ' is ' + beyond + 'px larger than the room it has '
+          + (axis === 'y' ? 'vertically' : 'horizontally')
+          + ', and neither it nor anything around it can be scrolled, so that much of it cannot be reached',
+      });
+    }
+  }
+  return problems;
+})()`;
+
 export const VISUAL_ALTERNATIVES = `(() => {
   const problems = [];
   const shown = (node) => typeof node.checkVisibility === 'function'
@@ -598,4 +694,50 @@ export const VISUAL_ALTERNATIVES = `(() => {
     if (!named) problems.push({ element: identity(node), detail: 'draws information and has no accessible name' });
   }
   return problems;
+})()`;
+
+/*
+ * The sizes a control is allowed to be, and a check that every one of them is.
+ *
+ * The workbench had eleven button heights across fifty-one rules — three of
+ * them inside a single dialog, so two buttons side by side were different
+ * sizes. Nothing noticed, because no rule was wrong on its own; the product
+ * simply had no shared answer to how large a control is. It has three now, and
+ * this is what keeps it at three.
+ *
+ * Only controls that are drawn as controls count: a thing with a border or a
+ * background of its own, holding one line. A file in a tree and a line of an
+ * outline are buttons too, and nobody looks at those and sees a button; a card
+ * that stacks a name over a detail is as tall as what it holds, in this product
+ * and in every other.
+ */
+export const CONTROL_HEIGHTS = [28, 34, 36];
+
+export const CONTROL_SIZES = `(() => {
+  const allowed = ${JSON.stringify([28, 34, 36])};
+  const odd = [];
+  for (const node of document.querySelectorAll('button, select, input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range])')) {
+    const box = node.getBoundingClientRect();
+    if (!box.height || !box.width) continue;
+    /* A cell of artwork is not a control: enlarging it past the artwork would
+     * change what the editor edits, which is 2.5.8's essential exception. */
+    if (node.closest('.pixel-grid, .tile-grid, .map-grid, .glyph-grid, .screen-grid, .song-grid, .font-grid, .font-preview-glyph, .pixel-palette, .help-navigation, .research-results')) continue;
+    const style = getComputedStyle(node);
+    const bordered = style.borderTopStyle !== 'none' && style.borderTopWidth !== '0px';
+    const filled = !/^(transparent|rgba\\(0, 0, 0, 0\\))$/.test(style.backgroundColor);
+    if (!bordered && !filled) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const lines = range.getClientRects().length;
+    range.detach();
+    if (lines > 1 || node.querySelectorAll('*').length > 2) continue;
+    const height = Math.round(box.height);
+    if (allowed.includes(height)) continue;
+    odd.push({
+      height,
+      klass: (node.className && node.className.toString().split(' ')[0]) || node.tagName.toLowerCase(),
+      text: (node.textContent || node.getAttribute('aria-label') || '').trim().slice(0, 24),
+    });
+  }
+  return odd;
 })()`;

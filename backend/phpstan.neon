@@ -1,0 +1,21 @@
+# Static analysis for the native build adapter.
+#
+# Level 8 is the highest level this code passes clean, and it is set there for
+# the same reason the coverage floors are set at what the suite already
+# achieves: a floor is a guard against regression, not a number to chase. It
+# checks types, nullability and the shape of every array that crosses a
+# boundary. Level 9 additionally forbids every `mixed`, which for code whose
+# job is to decode arbitrary JSON would mean annotating the decoded value at
+# every step; that is a change worth making deliberately rather than by
+# raising a number.
+#
+# Raising this is a normal thing to do once the findings at the next level are
+# fixed. Lowering it is not: it would hide what is already known to be clean.
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests
+    # PHPUnit's own attributes and the framework's container are analysed from
+    # the real autoloader, so nothing here is stubbed.
+    treatPhpDocTypesAsCertain: false

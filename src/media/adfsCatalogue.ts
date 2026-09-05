@@ -1,3 +1,9 @@
+import { ADFS_GEOMETRIES } from './adfsGeometry';
+import {
+  OLD_DIRECTORY_SECTORS, OLD_ROOT_SECTOR,
+  oldDiscName, parseOldDirectory, readOldSectors, type OldDiscGeometry,
+} from './adfsOldDirectory';
+
 export interface AdfsFileEntry {
   name: string;
   path: string;
@@ -13,7 +19,7 @@ export interface AdfsFileEntry {
 }
 
 export interface AdfsCatalogue {
-  format: 'ADFS D' | 'ADFS E';
+  format: 'ADFS D' | 'ADFS E' | 'ADFS S' | 'ADFS M' | 'ADFS L';
   title: string;
   name: string;
   sequence: number;
@@ -246,8 +252,81 @@ function parseDirectory(directory: Uint8Array, format: AdfsCatalogue['format'], 
   return { title: text(directory.subarray(tailOffset + 0x06, tailOffset + 0x19)), name: text(directory.subarray(tailOffset + 0x19, tailOffset + 0x23)), sequence, entries };
 }
 
+/*
+ * The discs that carry an old map and an old directory.
+ *
+ * S, M and L share one structure and differ only in how much disc there is and
+ * whether it has two sides. The directory format is measured — see
+ * `adfsOldDirectory.ts` — and read there rather than here, because it has
+ * nothing in common with the 77-entry directory below beyond being a catalogue.
+ */
+const OLD_FORMATS: Readonly<Record<string, { format: AdfsCatalogue['format']; geometry: OldDiscGeometry }>> = Object.freeze({
+  'adfs-s': { format: 'ADFS S', geometry: { sectorsPerTrack: 16, tracks: 40, sides: 1 } },
+  'adfs-m': { format: 'ADFS M', geometry: { sectorsPerTrack: 16, tracks: 80, sides: 1 } },
+  'adfs-l': { format: 'ADFS L', geometry: { sectorsPerTrack: 16, tracks: 80, sides: 2 } },
+});
+
+function parseOldCatalogue(image: Uint8Array, format: AdfsCatalogue['format'], geometry: OldDiscGeometry): AdfsCatalogue {
+  const warnings: string[] = [];
+  if (oldMapChecksum(image, 0) !== image[0xff] || oldMapChecksum(image, 0x100) !== image[0x1ff]) {
+    throw new Error(`${format} free-space map checksum is invalid, so this disc has been damaged or is not the format its length says.`);
+  }
+  const declared = u24(image, 0xfc) * 256;
+  if (declared !== image.length) {
+    throw new Error(`${format} says it holds ${declared.toLocaleString()} bytes and this image is ${image.length.toLocaleString()}, so one of them is wrong and neither can be trusted.`);
+  }
+  const freeEnd = image[0x1fe]!;
+  if (freeEnd % 3 !== 0 || freeEnd > 82 * 3) throw new Error(`${format} free-space table length is invalid`);
+
+  const seen = new Set<number>();
+  const read = (sector: number, path: string): { title: string; name: string; sequence: number; entries: AdfsFileEntry[] } => {
+    const directory = parseOldDirectory(readOldSectors(image, sector, OLD_DIRECTORY_SECTORS, geometry), path);
+    const entries: AdfsFileEntry[] = [];
+    for (const entry of directory.entries) {
+      const attributes = (entry.readable ? 0x01 : 0) | (entry.writable ? 0x02 : 0) | (entry.locked ? 0x04 : 0) | (entry.directory ? 0x08 : 0);
+      const record: AdfsFileEntry = {
+        name: entry.name, path: `${path}.${entry.name}`,
+        loadAddress: entry.loadAddress, executionAddress: entry.executionAddress,
+        length: entry.length, discAddress: entry.startSector, attributes,
+        directory: entry.directory, locked: entry.locked,
+        ...(entry.filetype === undefined ? {} : { filetype: entry.filetype }),
+      };
+      if (entry.directory) {
+        /* A directory that claims itself, or one already walked, is a loop. It
+         * has to be refused rather than followed: a damaged disc can point a
+         * subdirectory at its own parent and a reader that trusted it would not
+         * stop. */
+        if (seen.has(entry.startSector)) warnings.push(`${record.path} points at a directory already listed, so it was not followed again`);
+        else {
+          seen.add(entry.startSector);
+          try { record.children = read(entry.startSector, record.path).entries; }
+          catch (error) { warnings.push(`${record.path} could not be read: ${error instanceof Error ? error.message : String(error)}`); }
+        }
+      }
+      entries.push(record);
+    }
+    return { title: directory.title, name: directory.name, sequence: directory.sequence, entries };
+  };
+
+  seen.add(OLD_ROOT_SECTOR);
+  const root = read(OLD_ROOT_SECTOR, '$');
+  const discName = oldDiscName(image);
+  if (discName && root.name && discName !== root.name) warnings.push(`The map names this disc ${discName} and its root names it ${root.name}`);
+  return { format, title: root.title, name: root.name || discName, sequence: root.sequence, entries: root.entries, warnings };
+}
+
 export function parseAdfsCatalogue(image: Uint8Array): AdfsCatalogue {
-  if (image.length !== D_IMAGE_SIZE) throw new Error('An ADFS D/E image must be exactly 800 KiB');
+  const geometry = ADFS_GEOMETRIES.find((candidate) => candidate.bytes === image.length);
+  const old = geometry ? OLD_FORMATS[geometry.id] : undefined;
+  if (old) return parseOldCatalogue(image, old.format, old.geometry);
+  if (image.length !== D_IMAGE_SIZE) {
+    /* Named rather than dismissed by size. Somebody holding a perfectly good
+     * 640 KiB L disc is owed what it is and why this reader cannot list it,
+     * not the arithmetic of what it is not. */
+    throw new Error(geometry && !geometry.catalogue.readable
+      ? `This is a ${geometry.label} image. ${geometry.catalogue.reason}`
+      : `An ADFS D or E catalogue is read from an exactly 800 KiB image, and this is ${image.length.toLocaleString()} bytes.`);
+  }
   const warnings: string[] = [];
   let format: AdfsCatalogue['format']; let rootOffset: number;
   if (u24(image, 0xfc) * 256 === D_IMAGE_SIZE) {

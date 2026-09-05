@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Build\BuildLimits;
 use App\Build\ArmBuildManifest;
 use App\Build\ArmBuildService;
+use App\Build\BeebAsmBuildService;
+use App\Build\BeebAsmManifest;
+use App\Build\BuildLimits;
 use App\Build\CBuildManifest;
 use App\Build\CBuildService;
 use App\Build\CSDKDocumentService;
-use App\Build\BeebAsmBuildService;
-use App\Build\BeebAsmManifest;
 use App\Build\NativeBuildRequest;
 use App\Build\NativeBuildService;
 use App\Build\ToolchainManifest;
 use App\Http\ApiProblem;
+use App\Http\ApiProblemResponse;
 use App\Observability\RequestContext;
 use App\Observability\StructuredLogger;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -253,17 +254,12 @@ final class NativeBuildController
 
     private function problem(ApiProblem $problem, string $correlationId): JsonResponse
     {
-        return $this->json(['error' => ['code' => $problem->errorCode, 'correlationId' => $correlationId, 'message' => $problem->getMessage(), 'retryable' => $problem->retryable, 'fields' => $problem->fields]], $problem->status, $correlationId);
+        return ApiProblemResponse::from($problem, $correlationId);
     }
 
     /** @param array<string, mixed> $payload */
     private function json(array $payload, int $status = 200, ?string $correlationId = null): JsonResponse
     {
-        $response = new JsonResponse($payload, $status, ['Cache-Control' => 'no-store', 'X-Content-Type-Options' => 'nosniff']);
-        if ($correlationId !== null) {
-            $response->headers->set(RequestContext::HEADER, $correlationId);
-        }
-
-        return $response;
+        return ApiProblemResponse::json($payload, $status, $correlationId);
     }
 }

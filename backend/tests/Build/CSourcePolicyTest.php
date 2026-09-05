@@ -28,7 +28,7 @@ final class CSourcePolicyTest extends TestCase
         yield 'traversal include' => ['#include "../../etc/passwd"', 'BUILD_C_INCLUDE_PATH'];
         yield 'computed include' => ["#define HEADER \"game.h\"\n#include HEADER", 'BUILD_C_INCLUDE_DYNAMIC'];
         yield 'unknown SDK header' => ['#include <not-a-real-sdk-header.h>', 'BUILD_C_SYSTEM_INCLUDE'];
-        yield 'debug path spoof' => ["#line 1 \"/etc/passwd\"", 'BUILD_C_LINE_DIRECTIVE'];
+        yield 'debug path spoof' => ['#line 1 "/etc/passwd"', 'BUILD_C_LINE_DIRECTIVE'];
     }
 
     #[DataProvider('rejectedSources')]

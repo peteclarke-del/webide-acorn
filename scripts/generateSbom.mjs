@@ -8,36 +8,23 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLockfile, renderSbom, sbomSummary } from './sbom.mjs';
+import { namesInBuild, readLockfile, renderBackendSection, renderSbom, sbomSummary } from './sbom.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Package names referenced anywhere in the built output. */
-async function namesInBuild(lockfile) {
-  const names = new Set();
-  let text = '';
-  const walk = async (directory) => {
-    let entries = [];
-    try { entries = await readdir(directory, { withFileTypes: true }); } catch { return; }
-    for (const entry of entries) {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) { await walk(path); continue; }
-      if (!/\.(m?js|css|html|json|map)$/.test(entry.name)) continue;
-      try { text += await readFile(path, 'utf8'); } catch { /* a binary asset */ }
-    }
-  };
-  await walk(join(root, 'dist'));
-  for (const path of Object.keys(lockfile.packages ?? {})) {
-    if (!path) continue;
-    const name = path.replace(/^.*node_modules\//, '');
-    if (text.includes(name)) names.add(name);
-  }
-  return names;
-}
-
 const lockfile = JSON.parse(await readFile(join(root, 'package-lock.json'), 'utf8'));
-const built = await namesInBuild(lockfile);
+const built = await namesInBuild(lockfile, root);
 const entries = readLockfile(lockfile, built);
+
+/* The backend's dependencies ship with its own image, so they belong in this
+ * inventory. Absence is reported in the document rather than passed over, so a
+ * generation without PHP available cannot look like a backend with nothing in
+ * it. */
+let backend = null;
+try {
+  const { stdout } = await promisify(execFile)('composer', ['licenses', '--format=json', '--no-interaction'], { cwd: join(root, 'backend'), maxBuffer: 8 * 1024 * 1024 });
+  backend = JSON.parse(stdout).dependencies ?? null;
+} catch { backend = null; }
 
 let audit = null;
 try {
@@ -48,7 +35,7 @@ try {
   try { audit = JSON.parse(error.stdout ?? '{}').metadata?.vulnerabilities ?? null; } catch { audit = null; }
 }
 
-await writeFile(join(root, 'docs', 'sbom.md'), renderSbom(entries, audit), 'utf8');
+await writeFile(join(root, 'docs', 'sbom.md'), renderSbom(entries, audit, backend), 'utf8');
 const summary = sbomSummary(entries);
 console.log(`${summary.total} installed · ${summary.shipped} distributed · ${summary.development} development · ${summary.installedNotDistributed} installed but not distributed`);
 console.log(`licences needing a person: ${summary.shippedCopyleft + summary.shippedOther + summary.shippedUndetermined}`);

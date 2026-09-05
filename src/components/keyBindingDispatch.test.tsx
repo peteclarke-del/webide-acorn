@@ -75,3 +75,50 @@ describe('editor key binding dispatch', () => {
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('two-stroke sequences in the editor', () => {
+  it('runs the command only after the second stroke', () => {
+    /* The first stroke does nothing visible and, crucially, does not run the
+     * single-stroke command that shares its chord. */
+    render(<Harness overrides={{ 'editor.find': 'Ctrl+K, Ctrl+F' }} />);
+    fireEvent.keyDown(editor(), { key: 'k', code: 'KeyK', ctrlKey: true });
+    expect(findOpen()).toBe(false);
+    fireEvent.keyDown(editor(), { key: 'f', code: 'KeyF', ctrlKey: true });
+    expect(findOpen()).toBe(true);
+  });
+
+  it('abandons the prefix when the second stroke is not part of any sequence', () => {
+    /* And the abandoned prefix must not then be completed by a later key: a
+     * sequence that finished itself minutes afterwards is the failure that
+     * makes people stop trusting them. */
+    render(<Harness overrides={{ 'editor.find': 'Ctrl+K, Ctrl+F' }} />);
+    fireEvent.keyDown(editor(), { key: 'k', code: 'KeyK', ctrlKey: true });
+    fireEvent.keyDown(editor(), { key: 'x', code: 'KeyX', ctrlKey: true });
+    expect(findOpen()).toBe(false);
+    fireEvent.keyDown(editor(), { key: 'f', code: 'KeyF', ctrlKey: true });
+    expect(findOpen()).toBe(false);
+  });
+
+  it('leaves the replaced single-stroke default doing nothing', () => {
+    render(<Harness overrides={{ 'editor.find': 'Ctrl+K, Ctrl+F' }} />);
+    fireEvent.keyDown(editor(), { key: 'f', code: 'KeyF', ctrlKey: true });
+    expect(findOpen()).toBe(false);
+  });
+});
+
+describe('Command and Control as separate keys', () => {
+  it('answers a Command press with the shared binding, as it always has', () => {
+    render(<Harness />);
+    fireEvent.keyDown(editor(), { key: 'f', code: 'KeyF', metaKey: true });
+    expect(findOpen()).toBe(true);
+  });
+
+  it('runs the Command-specific binding in preference to the shared one', () => {
+    render(<Harness overrides={{ 'editor.find': 'Cmd+J' }} />);
+    /* Control does not reach a binding that named Command. */
+    fireEvent.keyDown(editor(), { key: 'j', code: 'KeyJ', ctrlKey: true });
+    expect(findOpen()).toBe(false);
+    fireEvent.keyDown(editor(), { key: 'j', code: 'KeyJ', metaKey: true });
+    expect(findOpen()).toBe(true);
+  });
+});

@@ -1,4 +1,13 @@
+/*
+ * This page is loaded on its own, not inside the workbench, so it carries its
+ * own copy of the type scale rather than reaching for one it cannot see. The
+ * numbers are the workbench's: keep them in step if that scale changes.
+ */
 :root {
+  --ui-scale: 1.3;
+  --fs-floor: 15px;
+  --fs-11: max(var(--fs-floor), calc(11px * var(--ui-scale)));
+  --fs-12: max(var(--fs-floor), calc(12px * var(--ui-scale)));
   color-scheme: dark;
   font-family: ui-monospace, "Cascadia Mono", "Liberation Mono", monospace;
   background: #030805;
@@ -10,8 +19,8 @@ html, body, .machine-runtime { width: 100%; height: 100%; margin: 0; overflow: h
 .machine-runtime { position: relative; display: grid; place-items: center; background: #020503; }
 #machine-screen { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; outline: none; }
 #machine-screen:focus-visible { box-shadow: inset 0 0 0 3px #9edb59; }
-#machine-status { position: absolute; left: .65rem; bottom: .55rem; padding: .25rem .45rem; border: 1px solid #385231; border-radius: 3px; background: rgba(3, 8, 5, .88); color: #b8ceaa; font-size: .65rem; letter-spacing: .06em; text-transform: uppercase; }
+#machine-status { position: absolute; left: .65rem; bottom: .55rem; padding: .25rem .45rem; border: 1px solid #385231; border-radius: 3px; background: rgba(3, 8, 5, .88); color: #b8ceaa; font-size: var(--fs-11); letter-spacing: .06em; text-transform: uppercase; }
 #machine-status.ready { color: #9edb59; }
 #machine-status.error { color: #ff8c78; border-color: #7d382f; }
-#audio-activation { position: absolute; z-index: 3; top: 50%; left: 50%; min-height: 2.5rem; padding: 0 1rem; border: 1px solid #79a94c; border-radius: 4px; background: #101b0c; color: #d4e7c5; font: 700 .75rem/1 ui-monospace, monospace; transform: translate(-50%, -50%); }
+#audio-activation { position: absolute; z-index: 3; top: 50%; left: 50%; min-height: 2.5rem; padding: 0 1rem; border: 1px solid #79a94c; border-radius: 4px; background: #101b0c; color: #d4e7c5; font: 700 var(--fs-12)/1 ui-monospace, monospace; transform: translate(-50%, -50%); }
 #audio-activation:focus-visible { outline: 3px solid #9edb59; outline-offset: 3px; }

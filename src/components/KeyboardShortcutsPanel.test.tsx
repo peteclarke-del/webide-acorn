@@ -5,6 +5,15 @@ import { useState } from 'react';
 import { KeyboardShortcutsPanel } from './KeyboardShortcutsPanel';
 import { resolveKeyBindings, type KeyBindingOverrides } from '../commands/keyBindings';
 
+/* This panel renders the whole shortcut inventory — every command in both
+ * dispatch scopes — and each of these tests renders it again and then queries
+ * it by role, which walks the rendered table computing roles as it goes. The
+ * file takes about nineteen seconds on an idle machine, with its slowest test
+ * around four; on a loaded one that test passed the ten-second default and
+ * failed the gate on a green tree. The work is real and none of it is skipped,
+ * so it is given room rather than trimmed. */
+vi.setConfig({ testTimeout: 30_000 });
+
 afterEach(cleanup);
 
 function Harness({ onNotice = () => {}, initial = {} as KeyBindingOverrides }) {
@@ -89,5 +98,53 @@ describe('KeyboardShortcutsPanel', () => {
   it('names the host that usually claims a browser-reserved chord', () => {
     render(<Harness />);
     expect(within(row('Close current source editor')).getByText(/Browsers may close the tab first/)).toBeInTheDocument();
+  });
+});
+
+describe('what the panel says about the emulated machine', () => {
+  it('says what a running machine types instead of running the command', () => {
+    /* The surprising part is not that a chord collides — while a machine is
+     * running they all do — but what the machine receives, which is the key
+     * without its modifiers. */
+    render(<Harness />);
+    const save = row('Save current source in browser');
+    const summary = within(save).getByText(/While the machine is running/, { selector: 'summary' });
+    expect(summary).toHaveTextContent('this types S');
+    fireEvent.click(summary);
+    expect(within(save).getByText(/The machine receives S instead/)).toBeInTheDocument();
+    expect(within(save).getByText(/never reaches the workbench/)).toBeInTheDocument();
+  });
+
+  it('says plainly when the Acorn keyboard has no such key', () => {
+    render(<Harness initial={{ 'workbench.build-active': 'Ctrl+PageUp' }} />);
+    const build = row('Build selected target');
+    expect(within(build).getByText(/the Acorn keyboard has no PageUp/)).toBeInTheDocument();
+  });
+});
+
+describe('recording a two-stroke sequence', () => {
+  it('extends the recording on a second press and applies the sequence', () => {
+    /* The only way to enter one: typing a comma into a field that is capturing
+     * key presses is not something a person can do. */
+    render(<Harness />);
+    fireEvent.click(within(row('Save current source in browser')).getByRole('button', { name: 'Change' }));
+    const field = screen.getByLabelText('Press the new chord for Save current source in browser');
+    fireEvent.keyDown(field, { key: 'k', code: 'KeyK', ctrlKey: true });
+    expect(field).toHaveValue('Ctrl+K');
+    fireEvent.keyDown(field, { key: 's', code: 'KeyS', ctrlKey: true });
+    expect(field).toHaveValue('Ctrl+K, Ctrl+S');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(chordOf('Save current source in browser')).toBe('Ctrl+K, Ctrl+S');
+  });
+
+  it('starts over on a third press, so a mistake is one key from being fixed', () => {
+    render(<Harness />);
+    fireEvent.click(within(row('Save current source in browser')).getByRole('button', { name: 'Change' }));
+    const field = screen.getByLabelText('Press the new chord for Save current source in browser');
+    fireEvent.keyDown(field, { key: 'k', code: 'KeyK', ctrlKey: true });
+    fireEvent.keyDown(field, { key: 's', code: 'KeyS', ctrlKey: true });
+    fireEvent.keyDown(field, { key: 'b', code: 'KeyB', ctrlKey: true });
+    expect(field).toHaveValue('Ctrl+B');
   });
 });

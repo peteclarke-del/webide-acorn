@@ -7,3 +7,32 @@ services:
     resource: '../src/'
     exclude:
       - '../src/Kernel.php'
+
+  # The store lives on a volume the deployment mounts, not in the image, so a
+  # container that is rebuilt does not take somebody's projects with it. The
+  # default is the path the Compose file mounts; a deployment that puts it
+  # elsewhere sets PROJECT_STORE_ROOT.
+  App\Storage\BlobStore:
+    arguments:
+      $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
+
+  App\Storage\ProjectStore:
+    arguments:
+      $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
+
+  # The build cache lives on the same volume, for the same reason: the builder
+  # is read-only apart from /tmp, and /tmp is a tmpfs that a container restart
+  # empties. A cache that vanished on every restart would report misses forever
+  # and be indistinguishable from one that was not working.
+  App\Build\BuildCache:
+    arguments:
+      $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
+
+  # The verifier reads the same root, because verifying a different directory
+  # from the one the service writes to would be a check that could never fail.
+  App\Storage\StoreIntegrity:
+    arguments:
+      $root: '%env(default:project_store_root_default:PROJECT_STORE_ROOT)%'
+
+parameters:
+  project_store_root_default: '/var/lib/webide-acorn/store'

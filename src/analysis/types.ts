@@ -13,7 +13,7 @@ export interface BasicLine {
 
 export interface BasicListing {
   kind: 'bbc-basic';
-  dialect: 'BBC BASIC II' | 'Atom BASIC';
+  dialect: 'BBC BASIC II' | 'BBC BASIC V' | 'Atom BASIC';
   encoding: 'tokenized' | 'plain-text' | 'atom-text';
   lines: BasicLine[];
   programLength: number;
@@ -67,7 +67,7 @@ export interface AcornFileMetadata {
   declaredLength?: number;
   locked?: boolean;
   sidecarName?: string;
-  containerFormat?: 'Atom ATM' | 'DFS SSD' | 'DFS DSD' | 'ADFS D' | 'ADFS E';
+  containerFormat?: 'Atom ATM' | 'DFS SSD' | 'DFS DSD' | 'ADFS D' | 'ADFS E' | 'ADFS S' | 'ADFS M' | 'ADFS L';
   containerByteLength?: number;
   filetype?: number;
   buildTargetId?: string;

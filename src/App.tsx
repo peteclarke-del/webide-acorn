@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
 import { createAnalysisDocument } from './analysis/analysisExport';
 import { createVerified6502AssemblySource } from './analysis/disassemblyAssemblyExport';
 import { createArmAssemblySource, verifyArmAssemblySource, type ArmAssemblyVerification } from './analysis/disassemblyArmAssemblyExport';
@@ -7,6 +7,12 @@ import { DiskSetWorkspace, type DiskSetSourceArtifact } from './components/DiskS
 import { SettingsLayersPanel } from './components/SettingsLayersPanel';
 import { LimitsPanel } from './components/LimitsPanel';
 import { SystemStatusPanel } from './components/SystemStatusPanel';
+import { ReferenceLibraryPanel } from './components/ReferenceLibraryPanel';
+import { ReferencePanel } from './components/ReferencePanel';
+import { TargetModePreview } from './components/TargetModePreview';
+import { ConformancePanel } from './components/ConformancePanel';
+import { loadPackLibrary, savePackLibrary } from './research/packStorage';
+import type { PackLibrary } from './research/packLibrary';
 import { ProfileComparisonPanel } from './components/ProfileComparisonPanel';
 import { SidewaysSlotPanel } from './components/SidewaysSlotPanel';
 import type { SidewaysAssignment } from './rom/sidewaysSlots';
@@ -38,9 +44,18 @@ import { artifactListingRows, artifactSymbolReferences, generatedArtifactDocumen
 import { executeBuildAll, type BuildAllRecord } from './build/buildAll';
 import { analyseBuildGraph, impactedBuildTargets, sourceInputsForTarget } from './build/buildGraph';
 import { BUILD_PROFILES, buildEntryUpdate, buildProfileDefines, buildProfileKeepsDebugMetadata, buildProfileManifest, buildToolchainUpdate, compatibleToolchains, createBuildTarget, provenanceMatches, shouldScheduleBackgroundBuild, toolchainFor, validateBuildTarget, type BuildTarget } from './build/buildTarget';
+import { analysisCandidates, candidateReference, projectFileBytes, type AnalysisCandidate } from './analysis/projectAnalysisCandidates';
+import { PanelSeparator } from './components/PanelSeparator';
+import { PanelMenuBar, type PanelMenu, type PanelMenuItem } from './components/PanelMenuBar';
+import { isStoreManifest, storedFilesFor } from './cloud/storedProject';
+import { closeOutcome, closeQuestion, type CloseChoice, type CloseQuestion } from './project/closeProject';
+import { projectDocuments } from './project/projectDocuments';
+import { ProjectStoreClient } from './cloud/projectStoreClient';
+import { useMediaQuery } from './layout/useMediaQuery';
+import { DEFAULT_PANEL_SIZES, readPanelSizes, resizePanel, workbenchColumns, workspaceRows, writePanelSizes, type PanelId, type PanelOpenState, type PanelSizes } from './layout/panelLayout';
 import { BuildExecutionError, buildExecutionError, executeBuild, type BuildArtifact, type BuildRequest, type BuildResponse, type BuildResultMetadata } from './build/buildService';
 import { sha256Hex } from './build/digest';
-import { detectNativeToolchains, invokeNativeToolchain, type NativeToolchainStatus } from './build/nativeToolchainAdapter';
+import { detectNativeToolchains, invokeNativeToolchain, type NativeToolchainProbe, type NativeToolchainStatus } from './build/nativeToolchainAdapter';
 import type { BuildWorkerMessage } from './build/build.worker';
 import { BrandMark } from './components/BrandMark';
 import { Icon, type IconName } from './components/Icon';
@@ -56,6 +71,8 @@ import { SdkDocumentView } from './components/SdkDocumentView';
 import { ProjectExportDialog } from './components/ProjectExportDialog';
 import { StartProjectDialog } from './components/StartProjectDialog';
 import { writeDirectory, type FileSystemDirectoryHandleLike } from './project/directoryAccess';
+import { ProjectStorePanel, storeProjectId } from './components/ProjectStorePanel';
+import { SampleWorkspace } from './components/SampleWorkspace';
 import { TileMapWorkspace } from './components/TileMapWorkspace';
 import { PaletteWorkspace } from './components/PaletteWorkspace';
 import { FontWorkspace } from './components/FontWorkspace';
@@ -66,6 +83,9 @@ import { readableInk } from './theme/readableInk';
 import { loadSdkDocument, type SdkDocument } from './language/sdkDocumentClient';
 import { ROM_SETS, requiredRomRequirements, romSetFor, romStorageKey, runtimeSidewaysRomPaths } from './rom/romProfiles';
 import { ELECTRON_ADAPTER_SUMMARY, ELECTRON_CAPABILITIES, ELECTRON_UNAVAILABLE, electronCommandRefusal } from './emulator/electronAdapter';
+import { ELKULATOR_ADAPTER_SUMMARY, ELKULATOR_CAPABILITIES, ELKULATOR_UNAVAILABLE, elkulatorCommandRefusal } from './emulator/elkulatorAdapter';
+import { electronRuntimeRoute, isElectronEngine } from './emulator/electronRuntimeRouting';
+import { machineHoldsArtifact } from './emulator/breakpointArming';
 import { listRoms, type StoredRom } from './rom/romStore';
 import { archimedesCmosKey, archimedesCombinedRomKey, archimedesRuntimeConfiguration, type ArchimedesRuntimeConfiguration } from './rom/archimedesRom';
 import {
@@ -84,6 +104,7 @@ import { createDfsImageFromFiles, openDfsImageProject, type CreatedDfsImage, typ
 import { parseDfsCatalogue, type DfsCatalogue } from './media/dfsCatalogue';
 import { createDfsDsdImage, openDfsDsdProject, splitDfsDsdImage, type CreatedDfsDsdImage, type DfsDsdProject } from './media/dfsDsdImage';
 import { createAtomAtm, parseAtomAtm, type AtomAtmFile } from './media/atomAtm';
+import { createTapeImage, createAtomTapeImage, encodeTapeFile, encodeAtomTapeFile, MAX_NAME_LENGTH, MAX_ATOM_NAME_LENGTH, type TapeFile } from './media/acornTape';
 import { extractAdfsFile, parseAdfsCatalogue, type AdfsCatalogue, type AdfsFileEntry } from './media/adfsCatalogue';
 import { createAdfsEImage, type CreatedAdfsEImage } from './media/adfsImage';
 import { AdfsEntryEditor } from './components/AdfsEntryEditor';
@@ -92,7 +113,7 @@ import { RiscOsResourcePanel } from './components/RiscOsResourcePanel';
 import { createRiscOsAbsoluteApplication, validateRiscOsApplication, type RiscOsApplicationPackage } from './media/riscOsApplication';
 import { parseTestPlan, resolveTestValue, type MachineAssertion } from './testing/testPlan';
 import { MAX_SCREEN_GOLDENS, base64ToBytes, bytesToBase64, validateScreenGolden, type ScreenGolden } from './testing/screenAssertion';
-import { createJUnitTestReport, createNativeTestReport, type ReportTestResult } from './testing/testReport';
+import { createJUnitTestReport, createNativeTestReport, renderAssertionValue, type ReportTestResult } from './testing/testReport';
 import { referenceItems, type LanguageItem } from './language/languageService';
 import type { LanguageTargetContext } from './language/languageTarget';
 import {
@@ -125,7 +146,7 @@ import { closeAllDocuments, closeDocument, closeOtherDocuments, initialDocuments
 import { createSourceBookmark, trackSourceBookmarks } from './editor/sourceBookmarks';
 import { decodeSourceText, encodeSourceText, MAX_PROJECT_SOURCE_BYTES, MAX_SOURCE_FILE_BYTES, sourceUtf8ByteLength, type SourceEncoding, type SourceLineEnding } from './editor/sourceTextFormat';
 import type { WorkbenchCommand } from './commands/commandModel';
-import { chordFromEvent, formatChord, keyBindingLookup, readKeyBindingOverrides, resolveKeyBindings, writeKeyBindingOverrides, type KeyBindingOverrides } from './commands/keyBindings';
+import { CHORD_SEQUENCE_TIMEOUT_MS, chordCandidates, chordPrefixes, formatChord, keyBindingLookup, matchKeyBinding, readKeyBindingOverrides, resolveKeyBindings, writeKeyBindingOverrides, type KeyBindingOverrides } from './commands/keyBindings';
 import {
   changedMemoryAddresses,
   formatMemoryRows,
@@ -171,12 +192,37 @@ import { createDebugSession, lifecycleForSnapshot, transitionDebugSession, type 
 import { validateArmRegisterEdit } from './emulator/armRegisterEditModel';
 import { parseArmMemoryEditBytes, validateArmMemoryEdit } from './emulator/armMemoryEditModel';
 import { compressArmMemoryMap, type ArmMappedPage, type ArmMappedRegion } from './emulator/armMemoryMapModel';
+import { describeProgress } from './analysis/analysisProgress';
+import { appendRecorded, gamepadTransitions, pointerSample, shouldSamplePointer } from './testing/inputRecording';
+import { adfsGeometryFor, adfsMountRefusal } from './media/adfsGeometry';
+import { capturedMemoryMetadata, capturedMemoryName, type CapturedMemoryContext } from './analysis/capturedMemoryContext';
 
+/* The context a capture carries into analysis, taken from the read that
+ * produced it rather than from the controls, which a person may have changed
+ * since. */
+function capturedMemoryFrom(memory: MachineMemory, space: { banked?: boolean }, machineLabel: string): CapturedMemoryContext {
+  return {
+    machineLabel,
+    spaceId: memory.addressSpace,
+    spaceLabel: memory.addressSpaceLabel,
+    banked: Boolean(space.banked),
+    ...(memory.bank === undefined ? {} : { bank: memory.bank }),
+    address: memory.address,
+    byteLength: memory.bytes.length,
+    capturedAtCycles: memory.capturedAtCycles,
+  };
+}
+
+/* The dead zone the live joystick path uses, so a recording and a live
+ * session agree about when a stick is held. */
+const GAMEPAD_RECORD_DEAD_ZONE = 0.35;
+/* What each recorder captures, in the words shown on its own control. */
+const RECORDER_LABELS = { keys: 'host keys', gamepad: 'gamepad', pointer: 'pointer' } as const;
 const workspaceTabs = ['Code', 'Search', 'Analyse', 'Build targets', 'Media', 'Debugger', 'Tests', 'Research', 'Settings', 'Help'];
 const workspaceHelpTopics: Record<string, string> = {
-  Code: 'editor', Search: 'projects', Analyse: 'analysis', 'Build targets': 'build-targets', Media: 'media', Tests: 'tests', Research: 'research', Settings: 'rom-import', Help: 'using-help', Characters: 'assets', Sprites: 'assets', Tiles: 'assets', Maps: 'assets', Sound: 'assets',
+  Code: 'editor', Search: 'projects', Analyse: 'analysis', 'Build targets': 'build-targets', Media: 'media', Tests: 'tests', Research: 'research', Settings: 'rom-import', Help: 'using-help', Characters: 'assets', Sprites: 'assets', Tiles: 'assets', Maps: 'assets', Sound: 'assets', Samples: 'assets',
 };
-const assetTabs = ['Characters', 'Sprites', 'Tiles', 'Fonts', 'Screens', 'Maps', 'Palettes', 'Sound'];
+const assetTabs = ['Characters', 'Sprites', 'Tiles', 'Fonts', 'Screens', 'Maps', 'Palettes', 'Sound', 'Samples'];
 const EMPTY_ARM_BREAKPOINTS: PersistedArmBreakpointIntent[] = [];
 const EMPTY_ARM_BREAKPOINT_GROUPS: ArmBreakpointGroup[] = [];
 const EMPTY_6502_BREAKPOINTS: Persisted6502BreakpointIntent[] = [];
@@ -235,7 +281,11 @@ interface MachineTestResult {
   appliedInputs?: number;
 }
 interface TestAllRecord { planId: string; targetId: string; name: string; status: 'queued' | 'running' | 'passed' | 'failed' | 'timeout' | 'error' | 'skipped' | 'cancelled'; message: string; result?: MachineTestResult }
-interface TestHistoryResult { name: string; status: Exclude<MachineTestResult['status'], 'running'>; reason: string; cycles: number; suite?: string; buildFingerprint?: string }
+/* The retained summary of one run. It now keeps each assertion's rendered
+ * expected and actual sides, because a history that says a test failed and not
+ * what it saw sends somebody back to run it again by hand. */
+interface TestHistoryAssertion { source: string; passed: boolean; expected: string; actual: string }
+interface TestHistoryResult { name: string; status: Exclude<MachineTestResult['status'], 'running'>; reason: string; cycles: number; suite?: string; buildFingerprint?: string; assertions?: TestHistoryAssertion[] }
 interface TestHistoryRecord { sequence: number; recordedAt: string; result: TestHistoryResult }
 
 async function importScreenGolden(file: File, existing: readonly ScreenGolden[]): Promise<ScreenGolden> {
@@ -267,7 +317,7 @@ function loadTestHistory(): TestHistoryRecord[] {
       const item = candidate as { sequence?: unknown; recordedAt?: unknown; result?: Record<string, unknown> };
       const result = item.result;
       if (!Number.isSafeInteger(item.sequence) || typeof item.recordedAt !== 'string' || !Number.isFinite(Date.parse(item.recordedAt)) || !result || typeof result.name !== 'string' || !result.name.trim() || result.name.length > 80 || typeof result.status !== 'string' || !statuses.has(result.status) || typeof result.reason !== 'string' || result.reason.length > 500 || !Number.isFinite(result.cycles) || Number(result.cycles) < 0) return [];
-      return [{ sequence: Number(item.sequence), recordedAt: item.recordedAt, result: { name: result.name, status: result.status as TestHistoryResult['status'], reason: result.reason, cycles: Number(result.cycles), ...(typeof result.suite === 'string' && result.suite.length <= 80 ? { suite: result.suite } : {}), ...(typeof result.buildFingerprint === 'string' && /^[a-f0-9]{64}$/i.test(result.buildFingerprint) ? { buildFingerprint: result.buildFingerprint.toLowerCase() } : {}) } }];
+      return [{ sequence: Number(item.sequence), recordedAt: item.recordedAt, result: { name: result.name, status: result.status as TestHistoryResult['status'], reason: result.reason, cycles: Number(result.cycles), ...(typeof result.suite === 'string' && result.suite.length <= 80 ? { suite: result.suite } : {}), ...(typeof result.buildFingerprint === 'string' && /^[a-f0-9]{64}$/i.test(result.buildFingerprint) ? { buildFingerprint: result.buildFingerprint.toLowerCase() } : {}), ...(Array.isArray(result.assertions) ? { assertions: result.assertions.slice(0, 64).filter((entry: unknown): entry is TestHistoryAssertion => !!entry && typeof entry === 'object' && typeof (entry as TestHistoryAssertion).source === 'string' && typeof (entry as TestHistoryAssertion).passed === 'boolean').map((entry) => ({ source: entry.source.slice(0, 200), passed: entry.passed, expected: String(entry.expected ?? '').slice(0, 200), actual: String(entry.actual ?? '').slice(0, 200) })) } : {}) } }];
     });
   } catch { return []; }
 }
@@ -323,6 +373,13 @@ function App() {
   const [workspaceTab, setWorkspaceTab] = useState('Code');
   const [projectExportOpen, setProjectExportOpen] = useState(false);
   const [startProjectOpen, setStartProjectOpen] = useState(false);
+  /* Closing states what it will do to the stored copy before it does it, so
+   * neither deleting somebody's history nor leaving it behind is a decision
+   * made silently on their behalf. */
+  const [closing, setClosing] = useState<CloseQuestion | null>(null);
+  /* Which source the Start dialog shows first, so a command that means "open
+   * one from the store" lands on the store rather than on the samples. */
+  const [startProjectTab, setStartProjectTab] = useState<'samples' | 'templates' | 'folder' | 'store'>('samples');
   const [caretLine, setCaretLine] = useState(1);
   const [caretColumn, setCaretColumn] = useState(1);
   const [caretSelectionLength, setCaretSelectionLength] = useState(0);
@@ -330,6 +387,16 @@ function App() {
   const [configOpen, setConfigOpen] = useState(true);
   const [explorerOpen, setExplorerOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  /* The machine runtime shares the workspace with the editor. It can be put
+   * away like any other panel, because somebody writing code who is not running
+   * anything should not have to give it a third of the window. */
+  const [runtimeOpen, setRuntimeOpen] = useState(true);
+  /* How wide, or for the runtime how tall, each panel is. Held here and written
+   * to browser storage, so the arrangement somebody chose survives a reload. */
+  const [panelSizes, setPanelSizes] = useState<PanelSizes>(() => {
+    try { return readPanelSizes(window.localStorage); } catch { return { ...DEFAULT_PANEL_SIZES }; }
+  });
+  const workbenchRef = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState('Local project ready · edits recover in this browser');
   const [analysisFile, setAnalysisFile] = useState<LoadedFile | null>(null);
   /* One annotation history per analysed binary, keyed by the digest of its
@@ -370,8 +437,16 @@ function App() {
   const [artifactDocumentId, setArtifactDocumentId] = useState<string>();
   const [artifactSymbolSelection, setArtifactSymbolSelection] = useState<string>();
   const [buildAllRecords, setBuildAllRecords] = useState<BuildAllRecord[]>([]);
-  const [nativeToolchains, setNativeToolchains] = useState<NativeToolchainStatus[]>([]);
+  /* Both halves of the probe are kept: which native toolchains can be used,
+   * and why each of the others cannot, so a build target can say what is wrong
+   * rather than only that something is. */
+  const [nativeProbe, setNativeProbe] = useState<NativeToolchainProbe>({ ready: [], unavailable: [] });
+  const nativeToolchains = nativeProbe.ready;
   const nativeToolchainIds = useMemo<Set<string>>(() => new Set(nativeToolchains.map((toolchain) => toolchain.id)), [nativeToolchains]);
+  const nativeUnavailableReasons = useMemo<Map<string, string>>(
+    () => new Map(nativeProbe.unavailable.map((entry) => [entry.id, entry.reason])),
+    [nativeProbe],
+  );
   const [runtimeState, setRuntimeState] = useState<CpuSnapshot | null>(null);
   const [romReady, setRomReady] = useState(false);
   const [resolvedRomRecords, setResolvedRomRecords] = useState<StoredRom[]>([]);
@@ -398,6 +473,9 @@ function App() {
   const [hardwareDisassembly, setHardwareDisassembly] = useState<MachineDisassembly | null>(null);
   const [hardwareInspection, setHardwareInspection] = useState<HardwareInspection | null>(null);
   const [researchRequest, setResearchRequest] = useState<ResearchRequest>();
+  /* Read once, and re-parsed on the way in rather than trusted: storage is
+   * editable by hand and a partial write leaves a partial record. */
+  const [packLibrary, setPackLibrary] = useState<PackLibrary>(() => loadPackLibrary().library);
   const [sdkDocument, setSdkDocument] = useState<{ path: string; token?: string; status: 'loading' | 'ready' | 'error'; document?: SdkDocument; error?: string }>();
   const sdkDocumentAbortRef = useRef<AbortController | undefined>(undefined);
   const [hardwareMedia, setHardwareMedia] = useState<MachineMedia[]>([]);
@@ -422,6 +500,11 @@ function App() {
    * shown is the machine's colours rather than the interface theme's. */
   const projectPalette = useMemo(() => resolveProjectPalette(project.files.map((file) => ({ name: file.name, content: file.content })), 4), [project.files]);
   const workbenchKeyLookup = useMemo(() => keyBindingLookup(resolvedKeyBindings, 'workbench'), [resolvedKeyBindings]);
+  const workbenchChordPrefixes = useMemo(() => chordPrefixes(resolvedKeyBindings, 'workbench'), [resolvedKeyBindings]);
+  /* The first stroke of a two-stroke sequence, and when it was pressed. Held
+   * in a ref rather than state because it must not re-render anything: it is
+   * consumed by the very next key press. */
+  const pendingChord = useRef<{ chord: string; at: number } | null>(null);
   /* Palette labels read the effective chord so a remapped shortcut is never
    * advertised with its replaced default. */
   const commandShortcuts = useMemo(() => {
@@ -446,7 +529,7 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void detectNativeToolchains(controller.signal).then(setNativeToolchains).catch(() => undefined);
+    void detectNativeToolchains(controller.signal).then(setNativeProbe).catch(() => undefined);
     return () => controller.abort();
   }, []);
 
@@ -482,6 +565,10 @@ function App() {
   );
   const resolved = resolution.target;
   const machineRomSet = romSetFor(machine.id, resolved.rom.id);
+  /* A firmware this build cannot run says why. Without this the run path
+   * reports it as firmware the person has not supplied, which sends them
+   * looking for a file that would not help. */
+  const romUnavailableReason = !machineRomSet ? machine.roms.find((entry) => entry.id === resolved.rom.id)?.unavailableReason : undefined;
   const archimedesRuntime = useMemo(() => archimedesRuntimeConfiguration(machine.id, resolved.variant, resolved.rom.id), [machine.id, resolved.variant, resolved.rom.id]);
   const languageBuildTarget = project.buildTargets.find((target) => target.id === project.activeBuildTargetId);
   const languageToolchainId = languageBuildTarget?.toolchainId;
@@ -910,7 +997,15 @@ function App() {
     if (!analysisHistories[digest]) {
       setAnalysisHistories((current) => current[digest] ? current : { ...current, [digest]: createAnnotationHistory(annotations, 'Analysis opened') });
     }
-    const task = startAnalysisTask(bytes, name, { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) });
+    const task = startAnalysisTask(
+      bytes,
+      name,
+      { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', tokenisedBasicDialect: processor === 'arm2' || processor === 'arm3' ? 'bbc-basic-5' : 'bbc-basic-2', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) },
+      /* Bytes the parser has settled, in its own words. A stale worker's
+       * progress cannot reach here: the client drops anything whose request
+       * identity is not the current one. */
+      (progress) => { if (analysisTaskRef.current === task) setAnalysisActivity({ status: 'running', message: describeProgress(progress) }); },
+    );
     analysisTaskRef.current = task; setAnalysisActivity({ status: 'running', message: `Analysing ${bytes.length.toLocaleString()} bytes in an isolated browser worker…` }); setWorkspaceTab('Analyse');
     void task.promise.then((analysis) => {
       if (analysisTaskRef.current !== task) return;
@@ -1039,6 +1134,61 @@ function App() {
     openAnalysisPayload(name, artifact.bytes, metadata, executable ? { processor: artifact.processor, origin: artifact.origin, entryPoint: artifact.entryPoint } : {});
   };
 
+  /* Everything the project can hand the analyser directly. Built output is
+   * named by the target that produced it, because that is how somebody who has
+   * several build targets tells one output from another. */
+  const analysisPickerCandidates = useMemo<AnalysisCandidate[]>(() => analysisCandidates(
+    project.files,
+    retainedArtifacts.map((record) => ({
+      targetId: record.targetId,
+      targetName: record.targetName,
+      outputName: record.artifact.provenance?.target.outputName
+        ?? project.buildTargets.find((target) => target.id === record.targetId)?.outputName
+        ?? record.targetName,
+      byteLength: record.artifact.bytes.length,
+    })),
+  ), [project.files, project.buildTargets, retainedArtifacts]);
+
+  const chooseAnalysisCandidate = (id: string) => {
+    const reference = candidateReference(id);
+    if (!reference) { setNotice('Analysis refused · that is not something this project holds'); return; }
+    if (reference.origin === 'artifact') {
+      const record = retainedArtifacts.find((candidate) => candidate.targetId === reference.key);
+      if (!record) { setNotice('Analysis refused · that build output is no longer held'); return; }
+      analyseBuildArtifact(record.artifact);
+      return;
+    }
+    const file = project.files.find((candidate) => candidate.id === reference.key);
+    if (!file) { setNotice('Analysis refused · that file is no longer in the project'); return; }
+    const bytes = projectFileBytes(file);
+    openAnalysisPayload(file.name, bytes, {
+      source: 'project-manifest', catalogueName: file.name, declaredLength: bytes.length,
+      addressSpace: 'Project source text', bank: 'Not applicable', warnings: [],
+    });
+  };
+
+  const beginCloseProject = async () => {
+    const listed = await storeClient.projects();
+    setClosing(closeQuestion(storeProjectId(project.name).id, listed.ok ? listed.value : null));
+  };
+
+  const finishCloseProject = async (choice: CloseChoice) => {
+    const question = closing;
+    setClosing(null);
+    if (!question) return;
+    const name = project.name;
+    let deleted: { revisions: number } | null = null;
+    let refusal: string | undefined;
+    if (choice === 'delete-stored' && question.stored) {
+      const removed = await storeClient.deleteProject(question.stored.id, `Deleted when ${name} was closed in the workbench`);
+      if (removed.ok) deleted = { revisions: removed.value.revisions };
+      else refusal = removed.reason;
+    }
+    /* A fresh project rather than an empty screen: the workbench always has one
+     * open, and adopting is the same path every other way in uses. */
+    adoptProject(newProject(), closeOutcome(name, choice, deleted, refusal), null);
+  };
+
   const toggleCapability = (id: string) => {
     setEnabledCapabilities((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
@@ -1065,7 +1215,7 @@ function App() {
     setHardwareTest(result);
     if (result && result.status !== 'running') {
       const status = result.status as TestHistoryResult['status'];
-      setTestHistory((current) => [{ sequence: ++testHistorySequenceRef.current, recordedAt: new Date().toISOString(), result: { name: result.name, status, reason: result.reason.slice(0, 500), cycles: result.cycles, ...(result.suite ? { suite: result.suite } : {}), ...(result.buildFingerprint ? { buildFingerprint: result.buildFingerprint } : {}) } }, ...current].slice(0, 100));
+      setTestHistory((current) => [{ sequence: ++testHistorySequenceRef.current, recordedAt: new Date().toISOString(), result: { name: result.name, status, reason: result.reason.slice(0, 500), cycles: result.cycles, assertions: result.assertions.slice(0, 64).map((assertion) => ({ source: String(assertion.source).slice(0, 200), passed: assertion.passed, expected: renderAssertionValue('expectedDigest' in assertion && assertion.expectedDigest !== undefined ? assertion.expectedDigest : (assertion as { expected?: unknown }).expected), actual: renderAssertionValue(assertion.actual) })), ...(result.suite ? { suite: result.suite } : {}), ...(result.buildFingerprint ? { buildFingerprint: result.buildFingerprint } : {}) } }, ...current].slice(0, 100));
     }
     const waiter = testResultWaiterRef.current;
     if (result && waiter && result.requestId === waiter.requestId && result.status !== 'running') { testResultWaiterRef.current = undefined; waiter.resolve(result); }
@@ -1255,7 +1405,7 @@ function App() {
     if (buildTimerRef.current?.requestId === requestId) buildTimerRef.current = undefined;
     const target = project.buildTargets.find((candidate) => candidate.id === project.activeBuildTargetId) ?? project.buildTargets[0]!;
     const file = project.files.find((candidate) => candidate.id === target.entryFileId);
-    const targetErrors = validateBuildTarget(target, project.files, machine, project.buildTargets, nativeToolchainIds.has(target.toolchainId));
+    const targetErrors = validateBuildTarget(target, project.files, machine, project.buildTargets, nativeToolchainIds.has(target.toolchainId), nativeUnavailableReasons.get(target.toolchainId));
     if (!file || targetErrors.length) {
       const finishedAt = Date.now(); const message = targetErrors[0] ?? 'The selected build target has no entry file';
       const activity: BuildActivity = { requestId, status: 'failed', trigger, targetName: target.name, message, startedAt: finishedAt, finishedAt };
@@ -1316,7 +1466,7 @@ function App() {
     cancelBackgroundBuild('Automatic build superseded by explicit command');
     const target = project.buildTargets.find((candidate) => candidate.id === project.activeBuildTargetId) ?? project.buildTargets[0]!;
     const file = project.files.find((candidate) => candidate.id === target.entryFileId);
-    const targetErrors = validateBuildTarget(target, project.files, machine, project.buildTargets, nativeToolchainIds.has(target.toolchainId));
+    const targetErrors = validateBuildTarget(target, project.files, machine, project.buildTargets, nativeToolchainIds.has(target.toolchainId), nativeUnavailableReasons.get(target.toolchainId));
     const requestId = ++buildRequestSequenceRef.current;
     const trigger: BuildTrigger = destination === 'run' ? 'run' : destination === 'Debugger' ? 'debug' : destination === 'Tests' ? 'test' : 'manual';
     if (!file || targetErrors.length) {
@@ -1367,6 +1517,7 @@ function App() {
       return artifact;
     }
     if (!isMachineCodeArtifact(artifact) && (destination === 'run' || destination === 'Debugger')) {
+      if (romUnavailableReason) { setNotice(romUnavailableReason); return null; }
       if (!romReady || !machineRomSet) { setNotice(`Supply the selected ROM set in Settings before running ${artifact.dialect}`); return null; }
       queueMachineCommand({ type: 'load-basic', format: artifact.kind, bytes: Array.from(artifact.bytes), autorun: true, programLoadDraft: buildBasicProgramLoadDraft(artifact, destination === 'Debugger' ? 'debug' : 'run') });
       if (destination === 'Debugger') setWorkspaceTab('Debugger');
@@ -1490,7 +1641,7 @@ function App() {
     for (const capture of targetPlan?.captures ?? []) { if (capture.kind === 'registers') captures.push({ id: capture.id, kind: 'registers' }); else { const address = resolveTestValue(capture.address, artifact.symbols); if (address !== null) captures.push({ id: capture.id, kind: 'memory', address, length: capture.length }); } }
     if (captures.length !== (targetPlan?.captures.length ?? 0)) { setHardwareTest({ name: configuration.name, status: 'error', reason: 'A capture address is not a current build symbol or 16-bit address', cycles: 0, assertions: [] }); return; }
     setHardwareTest({ name: configuration.name, status: 'running', reason: `Loading build and running to ${formatAddress(plan.stopAddress)}`, cycles: 0, stopAddress: plan.stopAddress, assertionCount: plan.assertions.length, cycleBudget: configuration.cycleBudget, assertions: [] });
-    queueMachineCommand({ type: 'run-test', name: configuration.name, planId: targetPlan?.id, suite: targetPlan?.suite, buildFingerprint: artifact.provenance?.fingerprint, programLoadDraft: buildProgramLoadDraft(artifact, 'test'), requestId: crypto.randomUUID(), bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, stopAddress: plan.stopAddress, cycleBudget: configuration.cycleBudget, assertions: plan.assertions, setup: targetPlan?.setup ?? { reset: 'hard', media: 'retain' }, inputs: targetPlan?.inputs ?? [], captures, teardown: targetPlan?.teardown.action ?? 'pause' });
+    queueMachineCommand({ type: 'run-test', name: configuration.name, processor: plan.processor, planId: targetPlan?.id, suite: targetPlan?.suite, buildFingerprint: artifact.provenance?.fingerprint, programLoadDraft: buildProgramLoadDraft(artifact, 'test'), requestId: crypto.randomUUID(), bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, stopAddress: plan.stopAddress, cycleBudget: configuration.cycleBudget, assertions: plan.assertions, setup: targetPlan?.setup ?? { reset: 'hard', media: 'retain' }, inputs: targetPlan?.inputs ?? [], captures, teardown: targetPlan?.teardown.action ?? 'pause' });
     setNotice(`Hardware test ${configuration.name} queued · ${plan.assertions.length} assertion${plan.assertions.length === 1 ? '' : 's'}`);
   };
   const cancelTestAll = () => {
@@ -1524,7 +1675,7 @@ function App() {
           const captures: Array<{ id: string; kind: 'registers' } | { id: string; kind: 'memory'; address: number; length: number }> = [];
           for (const capture of plan.captures) { if (capture.kind === 'registers') captures.push({ id: capture.id, kind: 'registers' }); else { const address = resolveTestValue(capture.address, artifact.symbols); if (address !== null) captures.push({ id: capture.id, kind: 'memory', address, length: capture.length }); } }
           if (captures.length !== plan.captures.length) { window.clearTimeout(timer); testResultWaiterRef.current = undefined; reject(new Error('A capture address is not a current build symbol or 16-bit address')); return; }
-          queueMachineCommand({ type: 'run-test', name: plan.name, planId: plan.id, suite: plan.suite, buildFingerprint: artifact.provenance?.fingerprint, programLoadDraft: buildProgramLoadDraft(artifact, 'test'), requestId, bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, stopAddress: parsed.stopAddress, cycleBudget: plan.cycleBudget, assertions: parsed.assertions, setup: plan.setup, inputs: plan.inputs, captures, teardown: plan.teardown.action });
+          queueMachineCommand({ type: 'run-test', name: plan.name, processor: parsed.processor, planId: plan.id, suite: plan.suite, buildFingerprint: artifact.provenance?.fingerprint, programLoadDraft: buildProgramLoadDraft(artifact, 'test'), requestId, bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, stopAddress: parsed.stopAddress, cycleBudget: plan.cycleBudget, assertions: parsed.assertions, setup: plan.setup, inputs: plan.inputs, captures, teardown: plan.teardown.action });
         });
         update(plan.id, { status: result.status, message: result.reason, result });
       } catch (error) { update(plan.id, { status: controller.signal.aborted ? 'cancelled' : 'error', message: error instanceof Error ? error.message : String(error) }); }
@@ -1538,6 +1689,43 @@ function App() {
       return { ...current, [fileId]: existing.includes(line) ? existing.filter((item) => item !== line) : [...existing, line].sort((a, b) => a - b) };
     });
     setNotice(`Source breakpoint toggled at line ${line} · rebuild to resolve its address`);
+  };
+
+  /* Below these widths the panels are laid over the editor rather than beside
+   * it, so they take no grid column and have no edge to drag. The person's own
+   * choice about each panel is untouched: it applies again as soon as there is
+   * room for the panel to sit beside the editor. */
+  const panelsOverlayEditor = useMediaQuery('(max-width: 900px)');
+  const inspectorFitsBeside = !useMediaQuery('(max-width: 1180px)');
+  /* What a revision of this project would hold: its sources, and the project
+   * itself, so that opening a stored revision restores the build targets and
+   * breakpoints rather than having them guessed again from the source. Rebuilt
+   * only when the project changes, which is also the only time a new revision
+   * is worth writing. */
+  const storeClient = useMemo(() => new ProjectStoreClient(), []);
+  const storedProjectFiles = useMemo(
+    () => Object.entries(storedFilesFor(project, new Date().toISOString())).map(([name, content]) => ({ name, content })),
+    [project],
+  );
+
+  const panelOpenState: PanelOpenState = {
+    config: configOpen && !panelsOverlayEditor,
+    explorer: explorerOpen && !panelsOverlayEditor,
+    inspector: inspectorOpen && inspectorFitsBeside && !panelsOverlayEditor,
+    runtime: runtimeOpen,
+  };
+
+  /* Resizing is measured against the workbench as it actually is, so the rules
+   * about leaving the editor room are applied to the window somebody has rather
+   * than to one assumed here. */
+  const resizePanelTo = (panel: PanelId, value: number) => {
+    const box = workbenchRef.current?.getBoundingClientRect();
+    const available = { width: box?.width ?? window.innerWidth, height: box?.height ?? window.innerHeight };
+    setPanelSizes((current) => {
+      const next = resizePanel(current, panelOpenState, panel, value, available);
+      try { writePanelSizes(next, window.localStorage); } catch { /* a refused write loses the arrangement, not the session */ }
+      return next;
+    });
   };
 
   const toggleConfigPanel = () => {
@@ -1570,7 +1758,7 @@ function App() {
   const openSourceFiles = documents.openIds.flatMap((id) => { const file = project.files.find((candidate) => candidate.id === id); return file ? [file] : []; });
   const canReopenClosed = documents.recentlyClosed.some((id) => project.files.some((file) => file.id === id));
   const buildEntry = project.files.find((file) => file.id === activeBuildTarget.entryFileId);
-  const buildTargetErrors = validateBuildTarget(activeBuildTarget, project.files, machine, project.buildTargets, nativeToolchainIds.has(activeBuildTarget.toolchainId));
+  const buildTargetErrors = validateBuildTarget(activeBuildTarget, project.files, machine, project.buildTargets, nativeToolchainIds.has(activeBuildTarget.toolchainId), nativeUnavailableReasons.get(activeBuildTarget.toolchainId));
   const canBuild = buildTargetErrors.length === 0;
   const selectedProjectTarget = { platformClass, machineId: machine.id, variant: resolved.variant, romId: resolved.rom.id, enabledCapabilities };
   const buildArtifactIsCurrent = !!buildArtifact?.provenance && provenanceMatches(buildArtifact.provenance, activeBuildTarget, selectedProjectTarget, project.files);
@@ -1635,43 +1823,64 @@ function App() {
     run: () => tab === 'Search' ? openProjectSearch() : setWorkspaceTab(tab),
   }));
   const commandDefinitions: WorkbenchCommand[] = [
-    { id: 'project-new', label: 'Create new project', category: 'Project', keywords: ['clear', 'start'], enabled: true, run: newLocalProject },
-    { id: 'project-open', label: 'Open portable project', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
-    { id: 'project-start', label: 'Start a project from a sample or an existing codebase', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => setStartProjectOpen(true) },
-    { id: 'file-save', label: 'Save current source in browser', category: 'File', keywords: ['persist', 'local', 'dirty'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: saveCurrentSource },
-    { id: 'project-save-all', label: 'Save all project files in browser', category: 'Project', keywords: ['persist', 'local', 'dirty'], enabled: true, run: saveLocalProject },
-    { id: 'project-write-folder', label: 'Write project files back to the connected folder', category: 'Project', keywords: ['folder', 'disk', 'save', 'write'], enabled: !!connectedFolder, run: () => { void writeProjectToFolder(); } },
-    { id: 'project-export', label: 'Export portable project', category: 'Project', keywords: ['download', 'bundle', 'private', 'redact'], enabled: true, run: () => setProjectExportOpen(true) },
-    { id: 'file-new', label: 'Create new source file', category: 'File', keywords: ['add'], enabled: true, run: () => addSourceFile() },
-    { id: 'file-import', label: 'Import source files', category: 'File', keywords: ['open', 'multiple'], enabled: true, run: () => sourceInputRef.current?.click() },
-    { id: 'file-analyse', label: 'Analyse local binary or BASIC file', category: 'Analysis', keywords: ['disassemble', 'list', 'inspect'], enabled: true, run: openAnalysisFile },
-    { id: 'file-close-editor', label: 'Close current source editor', category: 'File', keywords: ['tab', 'document'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: () => activeSource && closeSourceEditor(activeSource.id) },
-    { id: 'file-close-other-editors', label: 'Close other source editors', category: 'File', keywords: ['tabs', 'documents'], enabled: !!activeSource && documents.openIds.length > 1, disabledReason: activeSource ? 'No other source editors are open' : 'No source editor is open', run: () => activeSource && closeOtherSourceEditors(activeSource.id) },
-    { id: 'file-close-all-editors', label: 'Close all source editors', category: 'File', keywords: ['tabs', 'documents'], enabled: documents.openIds.length > 0, disabledReason: 'No source editors are open', run: closeAllSourceEditors },
-    { id: 'file-reopen-editor', label: 'Reopen recently closed source editor', category: 'File', keywords: ['tab', 'document', 'history'], enabled: canReopenClosed, disabledReason: 'No recently closed project file is available', run: reopenClosedSourceEditor },
-    { id: 'file-revert-editor', label: 'Revert current source to last save', category: 'File', keywords: ['discard', 'restore', 'baseline'], enabled: !!activeSource && activeSource.saved !== false && activeSource.content !== (activeSource.savedContent ?? activeSource.content), disabledReason: activeSource?.saved === false ? 'Current source has never been explicitly saved' : activeSource ? 'Current source matches its saved content' : 'No source editor is open', run: () => activeSource && revertSourceFile(activeSource.id) },
-    { id: 'editor-find', label: 'Find and replace in current file', category: 'Editor', keywords: ['search'], enabled: !!activeSource, disabledReason: 'No active source file', run: findInCurrentFile },
-    { id: 'editor-search-project', label: 'Search and replace project', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
-    { id: 'editor-go-line', label: 'Go to line or project symbol', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
-    { id: 'build-active', label: 'Build selected target', category: 'Build', keywords: ['compile', 'assemble', 'tokenize'], enabled: canBuild, disabledReason: buildTargetErrors[0] ?? 'Build target is invalid', run: () => { buildActiveSource(); } },
-    { id: 'run-active', label: 'Build and run selected target', category: 'Run', keywords: ['execute', 'emulator'], enabled: canRun, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before running BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: runProgram },
-    { id: 'debug-active', label: 'Build and debug selected target', category: 'Debug', keywords: ['breakpoint', 'inspect'], enabled: canDebug, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before debugging BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: () => void startDebugger() },
-    { id: 'debug-run-to', label: 'Debugger: run to address', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
-    { id: 'debug-pause', label: 'Debugger: pause', category: 'Debug', keywords: ['break', 'suspend'], enabled: debugAttached && !!debugCoreState?.running, disabledReason: !debugAttached ? 'Start a debug session first' : 'The attached core is already paused', run: debugPauseCommand },
-    { id: 'debug-stop', label: 'Debugger: stop session', category: 'Debug', keywords: ['terminate', 'end'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: stopDebugSession },
-    { id: 'debug-restart', label: 'Debugger: restart bound machine', category: 'Debug', keywords: ['reset', 'reboot'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: debugRestartCommand },
-    { id: 'debug-step-instruction', label: 'Debugger: step one instruction', category: 'Debug', keywords: ['cpu', 'opcode'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core before stepping' : 'Start a debug session first', run: debugInstructionStepCommand },
-    { id: 'debug-step-source-in', label: 'Debugger: source step into', category: 'Debug', keywords: ['line', 'statement'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('in') },
-    { id: 'debug-step-source-over', label: 'Debugger: source step over', category: 'Debug', keywords: ['line', 'call'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('over') },
-    { id: 'debug-step-source-out', label: 'Debugger: source step out', category: 'Debug', keywords: ['return', 'stack', 'r14'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('out') },
-    { id: 'debug-run-cursor', label: 'Debugger: run to cursor', category: 'Debug', keywords: ['line', 'source'], enabled: debugPaused && !!currentMachineArtifact && !!activeSource, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact and active file are required', run: runToCursorCommand },
-    { id: 'debug-run-symbol', label: 'Debugger: run to symbol', category: 'Debug', keywords: ['label', 'function'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current artifact symbol table is required', run: runToSymbolCommand },
-    { id: 'runtime-continue', label: 'Runtime: continue execution', category: 'Run', keywords: ['resume', 'play'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Hardware CPU is already running' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'run' }) : continueProgram() },
-    { id: 'runtime-step', label: 'Runtime: step one instruction', category: 'Debug', keywords: ['cpu', 'instruction'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Pause the hardware CPU first' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'step' }) : stepProgram() },
-    { id: 'runtime-reset', label: 'Runtime: reset machine or program', category: 'Run', keywords: ['restart'], enabled: !!hardwareState || !!runtimeState, disabledReason: 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'reset' }) : resetProgram() },
-    { id: 'view-target', label: `${configOpen ? 'Hide' : 'Show'} target configuration`, category: 'View', keywords: ['machine', 'profile'], enabled: true, run: toggleConfigPanel },
-    { id: 'view-explorer', label: `${explorerOpen ? 'Hide' : 'Show'} project explorer`, category: 'View', keywords: ['files', 'tree'], enabled: true, run: toggleExplorerPanel },
-    { id: 'view-inspector', label: `${inspectorOpen ? 'Hide' : 'Show'} inspector`, category: 'View', keywords: ['problems', 'registers'], enabled: true, run: () => setInspectorOpen((current) => !current) },
+    { id: 'project-new', label: 'Create new project', short: 'New project', icon: 'new', category: 'Project', keywords: ['clear', 'start'], enabled: true, run: newLocalProject },
+    { id: 'project-open', label: 'Open portable project', short: 'Open project…', icon: 'open', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
+    { id: 'project-start', label: 'Start a project from a sample or a template', short: 'Start from a sample…', icon: 'layers', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => { setStartProjectTab('samples'); setStartProjectOpen(true); } },
+    /* Its own entry rather than a tab somebody has to know is there: opening a
+     * codebase is a different intent from starting from a sample, and the menu
+     * offered no way to say so. */
+    { id: 'project-import-codebase', label: 'Start a project from an existing codebase folder', short: 'Open a codebase…', icon: 'folder', category: 'Project', keywords: ['import', 'folder', 'existing', 'source', 'game', 'codebase'], enabled: true, run: () => { setStartProjectTab('folder'); setStartProjectOpen(true); } },
+    { id: 'file-save', label: 'Save current source in browser', short: 'Save', icon: 'save', category: 'File', keywords: ['persist', 'local', 'dirty'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: saveCurrentSource },
+    { id: 'project-save-all', label: 'Save all project files in browser', short: 'Save all', icon: 'save', category: 'Project', keywords: ['persist', 'local', 'dirty'], enabled: true, run: saveLocalProject },
+    { id: 'project-write-folder', label: 'Write project files back to the connected folder', short: 'Write to folder', icon: 'folder', category: 'Project', keywords: ['folder', 'disk', 'save', 'write'], enabled: !!connectedFolder, run: () => { void writeProjectToFolder(); } },
+    { id: 'project-export', label: 'Export portable project', short: 'Export…', icon: 'download', category: 'Project', keywords: ['download', 'bundle', 'private', 'redact'], enabled: true, run: () => setProjectExportOpen(true) },
+    { id: 'file-new', label: 'Create new source file', short: 'New file', icon: 'new', category: 'File', keywords: ['add'], enabled: true, run: () => addSourceFile() },
+    { id: 'file-import', label: 'Import source files', short: 'Import files…', icon: 'open', category: 'File', keywords: ['open', 'multiple'], enabled: true, run: () => sourceInputRef.current?.click() },
+    { id: 'file-analyse', label: 'Analyse local binary or BASIC file', short: 'Analyse a file…', icon: 'terminal', category: 'Analysis', keywords: ['disassemble', 'list', 'inspect'], enabled: true, run: openAnalysisFile },
+    { id: 'file-close-editor', label: 'Close current source editor', short: 'Close editor', icon: 'close', category: 'File', keywords: ['tab', 'document'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: () => activeSource && closeSourceEditor(activeSource.id) },
+    { id: 'file-close-other-editors', label: 'Close other source editors', short: 'Close others', category: 'File', keywords: ['tabs', 'documents'], enabled: !!activeSource && documents.openIds.length > 1, disabledReason: activeSource ? 'No other source editors are open' : 'No source editor is open', run: () => activeSource && closeOtherSourceEditors(activeSource.id) },
+    { id: 'file-close-all-editors', label: 'Close all source editors', short: 'Close all', category: 'File', keywords: ['tabs', 'documents'], enabled: documents.openIds.length > 0, disabledReason: 'No source editors are open', run: closeAllSourceEditors },
+    { id: 'file-reopen-editor', label: 'Reopen recently closed source editor', short: 'Reopen editor', category: 'File', keywords: ['tab', 'document', 'history'], enabled: canReopenClosed, disabledReason: 'No recently closed project file is available', run: reopenClosedSourceEditor },
+    { id: 'file-revert-editor', label: 'Revert current source to last save', short: 'Revert', category: 'File', keywords: ['discard', 'restore', 'baseline'], enabled: !!activeSource && activeSource.saved !== false && activeSource.content !== (activeSource.savedContent ?? activeSource.content), disabledReason: activeSource?.saved === false ? 'Current source has never been explicitly saved' : activeSource ? 'Current source matches its saved content' : 'No source editor is open', run: () => activeSource && revertSourceFile(activeSource.id) },
+    { id: 'editor-find', label: 'Find and replace in current file', short: 'Find…', icon: 'search', category: 'Editor', keywords: ['search'], enabled: !!activeSource, disabledReason: 'No active source file', run: findInCurrentFile },
+    { id: 'editor-search-project', label: 'Search and replace project', short: 'Search project…', icon: 'search', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
+    { id: 'editor-go-line', label: 'Go to line or project symbol', short: 'Go to line…', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
+    { id: 'build-active', label: 'Build selected target', short: 'Build', icon: 'build', category: 'Build', keywords: ['compile', 'assemble', 'tokenize'], enabled: canBuild, disabledReason: buildTargetErrors[0] ?? 'Build target is invalid', run: () => { buildActiveSource(); } },
+    { id: 'run-active', label: 'Build and run selected target', short: 'Build and run', icon: 'play', category: 'Run', keywords: ['execute', 'emulator'], enabled: canRun, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before running BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: runProgram },
+    { id: 'debug-active', label: 'Build and debug selected target', short: 'Build and debug', icon: 'debug', category: 'Debug', keywords: ['breakpoint', 'inspect'], enabled: canDebug, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before debugging BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: () => void startDebugger() },
+    { id: 'debug-run-to', label: 'Debugger: run to address', short: 'Run to address…', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
+    { id: 'debug-pause', label: 'Debugger: pause', short: 'Pause', icon: 'pause', category: 'Debug', keywords: ['break', 'suspend'], enabled: debugAttached && !!debugCoreState?.running, disabledReason: !debugAttached ? 'Start a debug session first' : 'The attached core is already paused', run: debugPauseCommand },
+    { id: 'debug-stop', label: 'Debugger: stop session', short: 'Stop', icon: 'stop', category: 'Debug', keywords: ['terminate', 'end'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: stopDebugSession },
+    { id: 'debug-restart', label: 'Debugger: restart bound machine', short: 'Restart machine', icon: 'reset', category: 'Debug', keywords: ['reset', 'reboot'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: debugRestartCommand },
+    { id: 'debug-step-instruction', label: 'Debugger: step one instruction', short: 'Step instruction', category: 'Debug', keywords: ['cpu', 'opcode'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core before stepping' : 'Start a debug session first', run: debugInstructionStepCommand },
+    { id: 'debug-step-source-in', label: 'Debugger: source step into', short: 'Step into', category: 'Debug', keywords: ['line', 'statement'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('in') },
+    { id: 'debug-step-source-over', label: 'Debugger: source step over', short: 'Step over', category: 'Debug', keywords: ['line', 'call'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('over') },
+    { id: 'debug-step-source-out', label: 'Debugger: source step out', short: 'Step out', category: 'Debug', keywords: ['return', 'stack', 'r14'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('out') },
+    { id: 'debug-run-cursor', label: 'Debugger: run to cursor', short: 'Run to cursor', category: 'Debug', keywords: ['line', 'source'], enabled: debugPaused && !!currentMachineArtifact && !!activeSource, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact and active file are required', run: runToCursorCommand },
+    { id: 'debug-run-symbol', label: 'Debugger: run to symbol', short: 'Run to symbol…', category: 'Debug', keywords: ['label', 'function'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current artifact symbol table is required', run: runToSymbolCommand },
+    { id: 'runtime-continue', label: 'Runtime: continue execution', short: 'Continue', icon: 'play', category: 'Run', keywords: ['resume', 'play'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Hardware CPU is already running' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'run' }) : continueProgram() },
+    { id: 'runtime-step', label: 'Runtime: step one instruction', short: 'Step', category: 'Debug', keywords: ['cpu', 'instruction'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Pause the hardware CPU first' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'step' }) : stepProgram() },
+    { id: 'runtime-reset', label: 'Runtime: reset machine or program', short: 'Reset', icon: 'reset', category: 'Run', keywords: ['restart'], enabled: !!hardwareState || !!runtimeState, disabledReason: 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'reset' }) : resetProgram() },
+    { id: 'view-target', label: `${configOpen ? 'Hide' : 'Show'} target configuration`, short: 'Target configuration', checked: configOpen, category: 'View', keywords: ['machine', 'profile'], enabled: true, run: toggleConfigPanel },
+    { id: 'view-explorer', label: `${explorerOpen ? 'Hide' : 'Show'} project explorer`, short: 'Project explorer', checked: explorerOpen, category: 'View', keywords: ['files', 'tree'], enabled: true, run: toggleExplorerPanel },
+    { id: 'view-inspector', label: `${inspectorOpen ? 'Hide' : 'Show'} inspector`, short: 'Inspector', checked: inspectorOpen, category: 'View', keywords: ['problems', 'registers'], enabled: true, run: () => setInspectorOpen((current) => !current) },
+    { id: 'store-save', label: 'Project store: save this project', short: 'Save to store', icon: 'cloud', category: 'Project', keywords: ['backend', 'persist', 'commit', 'revision', 'server'], enabled: true, run: () => { void (async () => {
+      const files = Object.fromEntries(storedProjectFiles.map((file) => [file.name, file.content]));
+      /* Written against the head the store reports, so a second workbench
+       * editing the same project collides here rather than one of them quietly
+       * overwriting the other. */
+      const id = storeProjectId(project.name).id;
+      const history = await storeClient.revisions(id);
+      const head = history.ok && history.value.length ? history.value[history.value.length - 1]!.id : null;
+      const written = await storeClient.commit(id, files, head, `Saved from the workbench on ${new Date().toISOString()}`);
+      setNotice(written.ok
+        ? `Saved ${project.name} to the project store as revision ${written.value.id}.`
+        : `The project store did not accept this project: ${written.reason}`);
+    })(); } },
+    { id: 'project-close', label: 'Close this project', short: 'Close project', icon: 'close', category: 'Project', keywords: ['shut', 'discard', 'finish', 'delete', 'stored'], enabled: true, run: () => { void beginCloseProject(); } },
+    { id: 'store-open', label: 'Project store: open a project', short: 'Open from store…', icon: 'cloud', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
+    { id: 'view-runtime', label: `${runtimeOpen ? 'Hide' : 'Show'} machine runtime`, short: 'Machine runtime', checked: runtimeOpen, category: 'View', keywords: ['emulator', 'screen', 'panel'], enabled: true, run: () => setRuntimeOpen((current) => !current) },
+    { id: 'view-reset-panels', label: 'Reset panel sizes', short: 'Reset panel sizes', category: 'View', keywords: ['layout', 'width', 'resize', 'default'], enabled: true, run: () => { setPanelSizes({ ...DEFAULT_PANEL_SIZES }); try { writePanelSizes(DEFAULT_PANEL_SIZES, window.localStorage); } catch { /* the arrangement is lost, the session is not */ } setNotice('Panel sizes reset'); } },
     ...workspaceCommands,
   ];
   /* The dispatched binding table is the only source of advertised chords. */
@@ -1680,16 +1889,89 @@ function App() {
     return shortcut ? { ...command, shortcut } : command;
   });
 
+  /* The workbench menu bar is a view of that same command table rather than a
+   * second copy of it. Every item below is a command the palette, the shortcut
+   * dispatcher and the Settings keyboard panel already agree on, so a menu
+   * cannot offer something the workbench will not do, nothing reachable by a
+   * chord is hidden from somebody driving with a pointer, and the actions the
+   * header used to drop at narrow widths are now always within reach. */
+  const menuItemsFor = (categories: string[]): PanelMenuItem[] => commands
+    .filter((command) => categories.includes(command.category))
+    .map((command) => ({
+      id: `menu-${command.id}`,
+      /* A word or two, the way a desktop menu reads; the palette keeps the
+       * whole descriptive phrase, because that is what somebody searches
+       * against, and it becomes this entry's tooltip. */
+      label: command.short ?? command.label,
+      description: command.enabled ? command.label : `${command.label} · ${command.disabledReason ?? 'unavailable here'}`,
+      ...(command.icon ? { icon: command.icon } : {}),
+      ...(command.checked === undefined ? {} : { checked: command.checked }),
+      onSelect: command.run,
+      disabled: !command.enabled,
+      /* Only the chord. The reason a greyed item is greyed used to sit here as
+       * well, which put a sentence beside every unavailable entry and made the
+       * menu as wide as the longest of them. It is in the tooltip above, where
+       * somebody who wants it can find it and nobody else pays for it. */
+      ...(command.shortcut ? { hint: command.shortcut } : {}),
+    }));
+  const workspaceHelpTopic = workspaceTab === 'Debugger'
+    ? (buildEntry?.language === 'arm' ? 'debugger-arm' : 'debugger-6502')
+    : workspaceHelpTopics[workspaceTab] ?? 'first-run';
+  const workbenchMenus: PanelMenu[] = [
+    { id: 'menu-file', label: 'File', items: menuItemsFor(['File', 'Analysis']) },
+    { id: 'menu-project', label: 'Project', items: menuItemsFor(['Project']) },
+    { id: 'menu-edit', label: 'Edit', items: menuItemsFor(['Editor']) },
+    { id: 'menu-build', label: 'Build', items: menuItemsFor(['Build', 'Run']) },
+    { id: 'menu-debug', label: 'Debug', items: menuItemsFor(['Debug']) },
+    {
+      id: 'menu-view',
+      label: 'View',
+      /* The workspaces are radio items rather than plain ones because exactly
+       * one of them is showing, and the menu should say which. */
+      items: [...menuItemsFor(['View']), ...[...workspaceTabs, ...assetTabs].map((tab) => ({
+        id: `menu-open-${tab}`,
+        label: tab,
+        description: `Show the ${tab} workspace`,
+        onSelect: () => tab === 'Search' ? openProjectSearch() : setWorkspaceTab(tab),
+        checked: workspaceTab === tab,
+        separated: tab === workspaceTabs[0] || tab === assetTabs[0],
+      }))],
+    },
+    {
+      id: 'menu-help',
+      label: 'Help',
+      items: [
+        { id: 'menu-help-here', label: `Help for ${workspaceTab}`, icon: 'book', description: `Open the guide at the ${workspaceTab} workspace`, onSelect: () => openHelp(workspaceHelpTopic) },
+        { id: 'menu-help-start', label: 'First run', icon: 'book', description: 'First run and workspace layout', onSelect: () => openHelp('first-run') },
+        { id: 'menu-help-search', label: 'Search the guide…', icon: 'search', description: 'Search and navigate this guide', onSelect: () => openHelp('using-help') },
+        { id: 'menu-help-keys', label: 'Keyboard shortcuts', icon: 'settings', description: 'Review and rebind every workbench chord in Settings', separated: true, onSelect: () => setWorkspaceTab('Settings') },
+        { id: 'menu-help-palette', label: 'Command palette', icon: 'terminal', description: 'Search every command the workbench offers', onSelect: () => setCommandPaletteOpen(true) },
+      ],
+    },
+  ];
+
   /* Every workbench shortcut is dispatched from the resolved binding table, so
    * the palette labels, the Settings keyboard panel and the actual key handler
    * cannot drift apart. Chords the user unbinds simply stop resolving. */
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      const chord = chordFromEvent(event);
-      if (!chord) return;
-      const commandId = workbenchKeyLookup.get(chord);
-      if (!commandId) return;
+      const candidates = chordCandidates(event);
+      if (!candidates.length) return;
+      /* A prefix that outlived its welcome is abandoned rather than completed
+       * by a key press minutes later. */
+      const held = pendingChord.current;
+      const pending = held && Date.now() - held.at <= CHORD_SEQUENCE_TIMEOUT_MS ? held.chord : null;
+      pendingChord.current = null;
+      const match = matchKeyBinding(workbenchKeyLookup, workbenchChordPrefixes, candidates, pending);
+      if (match.kind === 'pending') {
+        pendingChord.current = { chord: match.chord, at: Date.now() };
+        event.preventDefault();
+        setNotice(`${formatChord(match.chord)} pressed. Waiting for the second stroke.`);
+        return;
+      }
+      if (match.kind !== 'command') return;
+      const commandId = match.commandId;
       if (commandId === 'palette-open') { event.preventDefault(); setCommandPaletteOpen(true); return; }
       if (commandPaletteOpen || goToSourceOpen) return;
       const target = event.target as HTMLElement | null;
@@ -1766,7 +2048,26 @@ function App() {
         }}
       />
       <CommandPalette open={commandPaletteOpen} commands={commands} onClose={() => setCommandPaletteOpen(false)} />
-      {startProjectOpen && <StartProjectDialog onOpenProject={adoptProject} onClose={() => setStartProjectOpen(false)} onNotice={setNotice} machineId={resolved.machine.id} />}
+      {startProjectOpen && <StartProjectDialog onOpenProject={adoptProject} initialTab={startProjectTab} onClose={() => { setStartProjectOpen(false); setStartProjectTab('samples'); }} onNotice={setNotice} machineId={resolved.machine.id} />}
+      {closing && (
+        <div className="modal-scrim" role="presentation" onClick={() => setClosing(null)}>
+          <div className="close-project-dialog panel-surface" role="dialog" aria-modal="true" aria-labelledby="close-project-title" onClick={(event) => event.stopPropagation()}>
+            <header><h2 id="close-project-title">Close {project.name}</h2></header>
+            <p>{closing.detail}</p>
+            <div className="close-project-actions">
+              <button type="button" onClick={() => setClosing(null)}>Keep working on it</button>
+              {closing.asks ? (
+                <>
+                  <button type="button" className="primary-action" onClick={() => void finishCloseProject('keep-stored')}>Close and keep the stored copy</button>
+                  <button type="button" className="destructive-action" onClick={() => void finishCloseProject('delete-stored')}>Close and delete the stored copy</button>
+                </>
+              ) : (
+                <button type="button" className="primary-action" onClick={() => void finishCloseProject('nothing-stored')}>Close it</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <ProjectExportDialog open={projectExportOpen} projectName={project.name} projectBookmarkCount={project.bookmarks.filter((bookmark) => bookmark.scope === 'project').length} privateBookmarkCount={project.bookmarks.filter((bookmark) => bookmark.scope === 'private').length} preview={exportPreview} onClose={() => setProjectExportOpen(false)} onExport={exportLocalProject} />
       <GoToSourceDialog open={goToSourceOpen} files={project.files} activeFileId={activeFileId} currentLine={caretLine} sourceLocations={currentMachineArtifact?.sourceLocations} onClose={() => setGoToSourceOpen(false)} onNavigate={(fileId, line, column, length) => {
         jumpToSourceLocation(fileId, line, column, length);
@@ -1793,14 +2094,6 @@ function App() {
 
         <div className="global-actions" aria-label="Project actions">
           <div className="action-cluster">
-            <ToolbarButton label="New project" icon="new" onClick={newLocalProject} />
-            <ToolbarButton label="Open project" icon="open" onClick={() => projectInputRef.current?.click()} />
-            <ToolbarButton label="Start from a sample or existing codebase" icon="layers" onClick={() => setStartProjectOpen(true)} />
-            <ToolbarButton label="Save all project files in browser" icon="save" onClick={saveLocalProject} />
-            <ToolbarButton label="Export portable project" icon="download" onClick={() => setProjectExportOpen(true)} />
-            <ToolbarButton label="Analyse local file" icon="terminal" tone="blue" onClick={openAnalysisFile} />
-          </div>
-          <div className="action-cluster">
             <ToolbarButton label="Open command palette" icon="terminal" onClick={() => setCommandPaletteOpen(true)} />
             <ToolbarButton label="Open technical help" icon="book" onClick={() => openHelp('using-help')} />
             <ToolbarButton label={canBuild ? `Build target ${activeBuildTarget.name}` : buildTargetErrors[0] ?? 'Build target is invalid'} icon="build" tone="amber" onClick={() => buildActiveSource()} disabled={!canBuild} />
@@ -1812,6 +2105,7 @@ function App() {
       </header>
 
       <nav className="modebar" aria-label="IDE sections">
+        <PanelMenuBar label="Workbench menu" menus={workbenchMenus} />
         <div className="tab-group-label"><span />WORKSPACE</div>
         <div className="tab-scroll">
           {workspaceTabs.map((tab) => (
@@ -1837,12 +2131,16 @@ function App() {
             </button>
           ))}
         </div>
-        <button className="panel-menu-button" type="button" aria-label={`Open help for ${workspaceTab}`} title={`Open technical help for ${workspaceTab}`} onClick={() => openHelp(workspaceTab === 'Debugger' ? (buildEntry?.language === 'arm' ? 'debugger-arm' : 'debugger-6502') : workspaceHelpTopics[workspaceTab] ?? 'first-run')}>
+        <button className="panel-menu-button" type="button" aria-label={`Open help for ${workspaceTab}`} title={`Open technical help for ${workspaceTab}`} onClick={() => openHelp(workspaceHelpTopic)}>
           <Icon name="book" />
         </button>
       </nav>
 
-      <div className={`workbench ${configOpen ? 'config-open' : 'config-closed'} ${explorerOpen ? 'explorer-open' : 'explorer-closed'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}>
+      <div
+        ref={workbenchRef}
+        className={`workbench ${configOpen ? 'config-open' : 'config-closed'} ${explorerOpen ? 'explorer-open' : 'explorer-closed'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}
+        style={{ '--workbench-columns': workbenchColumns(panelOpenState, panelSizes) } as CSSProperties}
+      >
         <aside className="activity-rail" aria-label="Workbench panels">
           <button className={configOpen ? 'rail-button active' : 'rail-button'} type="button" aria-label="Target configuration" onClick={toggleConfigPanel}>
             <Icon name="chip" />
@@ -1853,6 +2151,7 @@ function App() {
           <button className={workspaceTab === 'Search' ? 'rail-button active' : 'rail-button'} type="button" aria-label="Search project" onClick={openProjectSearch}><Icon name="search" /></button>
           <button className={assetTabs.includes(workspaceTab) ? 'rail-button active' : 'rail-button'} type="button" aria-label="Assets" onClick={() => setWorkspaceTab('Sprites')}><Icon name="image" /></button>
           <button className={workspaceTab === 'Research' ? 'rail-button active' : 'rail-button'} type="button" aria-label="Research" onClick={() => setWorkspaceTab('Research')}><Icon name="book" /></button>
+          <button className={runtimeOpen ? 'rail-button active' : 'rail-button'} type="button" aria-label={runtimeOpen ? 'Hide machine runtime' : 'Show machine runtime'} aria-pressed={runtimeOpen} onClick={() => setRuntimeOpen((open) => !open)}><Icon name="play" /></button>
           <div className="rail-spacer" />
           <button className={workspaceTab === 'Settings' ? 'rail-button active' : 'rail-button'} type="button" aria-label="Settings" onClick={() => setWorkspaceTab('Settings')}><Icon name="settings" /></button>
         </aside>
@@ -1897,10 +2196,11 @@ function App() {
               <label>
                 <span>ROM / operating system</span>
                 <select aria-label="ROM and operating system" value={resolved.rom.id} onChange={(event) => setRomId(event.target.value)}>
-                  {machine.roms.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  {machine.roms.map((item) => <option key={item.id} value={item.id}>{item.label}{item.unavailableReason ? ' · not runnable here' : ''}</option>)}
                 </select>
               </label>
             </div>
+            {romUnavailableReason && <p className="honest-note" role="status">{romUnavailableReason}</p>}
 
             <div className="hardware-summary" aria-label="Hardware summary">
               <div><span>CPU</span><strong>{machine.cpu}</strong></div>
@@ -1967,16 +2267,27 @@ function App() {
             </button>
           </aside>
         )}
+        {panelOpenState.config && <PanelSeparator panel="config" orientation="vertical" before label="Resize the target configuration panel" size={panelSizes.config} onResize={resizePanelTo} />}
 
         {explorerOpen && (
           <aside className="explorer-panel panel-surface" aria-label="Project explorer">
             <div className="panel-heading compact">
               <div><span className="eyebrow">LOCAL PROJECT</span><h2>{project.name}</h2></div>
               <button className="plain-icon" type="button" aria-label="Export portable project" onClick={() => setProjectExportOpen(true)}><Icon name="download" size={17} /></button>
+              <button className="plain-icon" type="button" aria-label="Close this project" onClick={() => void beginCloseProject()}><Icon name="close" size={17} /></button>
+              <button className="plain-icon" type="button" aria-label="Close project explorer" onClick={() => setExplorerOpen(false)}><Icon name="close" size={16} /></button>
             </div>
             <div className="explorer-actions">
               <button type="button" onClick={() => addSourceFile()}><Icon name="new" size={14} /> New</button>
               <button type="button" onClick={() => sourceInputRef.current?.click()}><Icon name="open" size={14} /> Import</button>
+              {/* Only while a folder is connected: a control that is always
+                * there but never usable is noise, and the connection lasts only
+                * as long as the session because a handle cannot be persisted. */}
+              {connectedFolder && (
+                <button type="button" title={`Write this project's sources back into ${connectedFolder.name}`} onClick={() => void writeProjectToFolder()}>
+                  <Icon name="save" size={14} /> To folder
+                </button>
+              )}
             </div>
             <ProjectTree
               files={project.files}
@@ -1993,8 +2304,14 @@ function App() {
             />
           </aside>
         )}
+        {panelOpenState.explorer && <PanelSeparator panel="explorer" orientation="vertical" before label="Resize the project explorer" size={panelSizes.explorer} onResize={resizePanelTo} />}
 
-        <main className="main-workspace" id="main-workspace" aria-label="Acorn development workbench">
+        <main
+          className={`main-workspace ${runtimeOpen ? 'runtime-open' : 'runtime-closed'}`}
+          id="main-workspace"
+          aria-label="Acorn development workbench"
+          style={{ '--workspace-rows': workspaceRows(panelOpenState, panelSizes) } as CSSProperties}
+        >
           <section className="editor-stack" aria-label={`${workspaceTab} workspace`}>
             {workspaceTab === 'Code' && openSourceFiles.length ? (
               <><div className={`source-editor-split${sourceSplitFileId ? ' open' : ''}`}>
@@ -2111,6 +2428,8 @@ function App() {
                 onEntryChange={setAnalysisEntry}
                 onProcessorChange={setAnalysisProcessor}
                 onOpen={openAnalysisFile}
+                candidates={analysisPickerCandidates}
+                onChooseCandidate={chooseAnalysisCandidate}
                 onReanalyse={reanalyse}
                 onCancel={() => analysisTaskRef.current?.cancel()}
                 onAddSource={addSourceFile}
@@ -2142,12 +2461,18 @@ function App() {
             ) : workspaceTab === 'Debugger' ? (
               <div className="debugger-session-workspace">
                 <DebugSessionPanel session={debugSession} onStop={stopDebugSession} />
-                {archimedesRuntime ? <ArchimedesDebuggerWorkspace connected={romReady} state={archimedesState} memory={archimedesMemory} artifact={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? buildArtifact : null} sourceBreakpointAddresses={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? resolveSourceBreakpointAddresses(buildArtifact) : []} persistedBreakpoints={project.armBreakpoints[activeBuildTarget.id] ?? EMPTY_ARM_BREAKPOINTS} breakpointGroups={project.armBreakpointGroups[activeBuildTarget.id] ?? EMPTY_ARM_BREAKPOINT_GROUPS} onPersistBreakpoints={(intents) => setProject((current) => ({ ...current, armBreakpoints: { ...current.armBreakpoints, [activeBuildTarget.id]: intents } }))} onPersistGroups={(groups) => setProject((current) => ({ ...current, armBreakpointGroups: { ...current.armBreakpointGroups, [activeBuildTarget.id]: groups } }))} onMachineCommand={queueDebugMachineCommand} onNavigateSource={jumpToSourceLocation} /> : <DebuggerWorkspace artifact={assemblyArtifact} currentFiles={project.files} state={runtimeState} runtime={runtimeRef.current} hardwareState={hardwareState} hardwareMemory={hardwareMemory} hardwareDisassembly={hardwareDisassembly} hardwareInspection={hardwareInspection} hardwareConnected={romReady && !!machineRomSet} sourceBreakpointAddresses={assemblyArtifact ? resolveSourceBreakpointAddresses(assemblyArtifact) : []} persistedBreakpoints={project.breakpoints6502[activeBuildTarget.id] ?? EMPTY_6502_BREAKPOINTS} breakpointGroups={project.breakpointGroups6502[activeBuildTarget.id] ?? EMPTY_6502_BREAKPOINT_GROUPS} onPersistBreakpoints={(intents) => setProject((current) => ({ ...current, breakpoints6502: { ...current.breakpoints6502, [activeBuildTarget.id]: intents } }))} onPersistGroups={(groups) => setProject((current) => ({ ...current, breakpointGroups6502: { ...current.breakpointGroups6502, [activeBuildTarget.id]: groups } }))} onMachineCommand={queueDebugMachineCommand} onNavigateSource={jumpToSourceLocation} onStep={() => { updateDebugLifecycle('stepping', 'ROM-less instruction step requested'); stepProgram(); updateDebugLifecycle('paused', 'ROM-less instruction step completed'); }} onContinue={() => { updateDebugLifecycle('running', 'ROM-less continue requested'); continueProgram(); }} onReset={() => { updateDebugLifecycle('starting', 'ROM-less debug session restarting'); resetProgram(); updateDebugLifecycle('paused', 'ROM-less debug session restarted at entry point'); }} onStateChange={setRuntimeState} />}
+                {archimedesRuntime ? <ArchimedesDebuggerWorkspace connected={romReady} state={archimedesState} memory={archimedesMemory} artifact={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? buildArtifact : null} sourceBreakpointAddresses={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? resolveSourceBreakpointAddresses(buildArtifact) : []} persistedBreakpoints={project.armBreakpoints[activeBuildTarget.id] ?? EMPTY_ARM_BREAKPOINTS} breakpointGroups={project.armBreakpointGroups[activeBuildTarget.id] ?? EMPTY_ARM_BREAKPOINT_GROUPS} onPersistBreakpoints={(intents) => setProject((current) => ({ ...current, armBreakpoints: { ...current.armBreakpoints, [activeBuildTarget.id]: intents } }))} onPersistGroups={(groups) => setProject((current) => ({ ...current, armBreakpointGroups: { ...current.armBreakpointGroups, [activeBuildTarget.id]: groups } }))} onMachineCommand={queueDebugMachineCommand} onNavigateSource={jumpToSourceLocation} /> : <DebuggerWorkspace artifact={assemblyArtifact} currentFiles={project.files} state={runtimeState} runtime={runtimeRef.current} hardwareState={hardwareState} hardwareMemory={hardwareMemory} hardwareDisassembly={hardwareDisassembly} hardwareInspection={hardwareInspection} hardwareConnected={romReady && !!machineRomSet} sourceBreakpointAddresses={assemblyArtifact ? resolveSourceBreakpointAddresses(assemblyArtifact) : []} persistedBreakpoints={project.breakpoints6502[activeBuildTarget.id] ?? EMPTY_6502_BREAKPOINTS} breakpointGroups={project.breakpointGroups6502[activeBuildTarget.id] ?? EMPTY_6502_BREAKPOINT_GROUPS} onPersistBreakpoints={(intents) => setProject((current) => ({ ...current, breakpoints6502: { ...current.breakpoints6502, [activeBuildTarget.id]: intents } }))} onPersistGroups={(groups) => setProject((current) => ({ ...current, breakpointGroups6502: { ...current.breakpointGroups6502, [activeBuildTarget.id]: groups } }))} onMachineCommand={queueDebugMachineCommand} onNavigateSource={jumpToSourceLocation} onStep={() => { updateDebugLifecycle('stepping', 'ROM-less instruction step requested'); stepProgram(); updateDebugLifecycle('paused', 'ROM-less instruction step completed'); }} onContinue={() => { updateDebugLifecycle('running', 'ROM-less continue requested'); continueProgram(); }} onReset={() => { updateDebugLifecycle('starting', 'ROM-less debug session restarting'); resetProgram(); updateDebugLifecycle('paused', 'ROM-less debug session restarted at entry point'); }} onStateChange={setRuntimeState} onAnalyse={openAnalysisPayload} />}
               </div>
             ) : workspaceTab === 'Tests' ? (
               <TestWorkspace machineManifestId={`${machine.id}/${resolved.variant}/${resolved.rom.id}`} targetName={activeBuildTarget.name} entryFileName={buildEntry?.name ?? 'missing entry'} connected={romReady && !!machineRomSet} supported={buildEntry?.language === '6502'} artifact={assemblyArtifact} result={hardwareTest} plans={project.testPlans.filter((plan) => plan.targetId === activeBuildTarget.id)} testAllRecords={testAllRecords} history={testHistory} onAdd={addTestPlan} onChange={updateTestPlan} onRemove={removeTestPlan} onRun={runHardwareTest} onRunAll={() => void runTestAll()} onCancelAll={cancelTestAll} onDebugFailed={(failed) => { const exact = [buildArtifact, ...retainedArtifacts.map((item) => item.artifact)].find((candidate) => candidate?.provenance?.fingerprint === failed.buildFingerprint); if (!exact || !isMachineCodeArtifact(exact)) { setNotice('The exact failed-test artifact is no longer retained. Run the test again before debugging it.'); return; } void startDebugger(exact); }} />
             ) : workspaceTab === 'Research' ? (
-              <ResearchWorkspace target={languageTarget} request={researchRequest} onNotice={setNotice} />
+              <><ResearchWorkspace target={languageTarget} request={researchRequest} onNotice={setNotice} />
+                <ReferencePanel
+                  library={packLibrary}
+                  target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }}
+                  {...(researchRequest ? { request: { sequence: researchRequest.sequence, query: researchRequest.query } } : {})}
+                  onNotice={setNotice}
+                /></>
             ) : workspaceTab === 'Settings' ? (
               <div className="settings-workspace">{unreadableSnapshot && (
                 <section className="recovered-snapshot" role="alert" aria-label="Unreadable saved project">
@@ -2158,15 +2483,17 @@ function App() {
                     <button type="button" onClick={() => { clearQuarantinedSnapshot(); setUnreadableSnapshot(null); setNotice('The preserved copy has been discarded at your request'); }}>Discard it</button>
                   </div>
                 </section>
-              )}<SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProfileComparisonPanel /><SystemStatusPanel /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
+              )}<SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProjectStorePanel projectName={project.name} files={storedProjectFiles} onNotice={setNotice} onOpenFiles={(opened) => { for (const file of opened) if (!isStoreManifest(file.name)) addSourceFile(file.name, file.content); }} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><ProfileComparisonPanel /><SystemStatusPanel /><ConformancePanel machineId={machine.id} capabilities={enabledCapabilities} romSetId={resolved.rom.id} /><ReferenceLibraryPanel library={packLibrary} target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }} onNotice={setNotice} onChange={(next) => { setPackLibrary(next); const failure = savePackLibrary(next); if (failure) setNotice(failure); }} /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
             ) : workspaceTab === 'Help' ? (
               <HelpWorkspace />
             ) : workspaceTab === 'Sound' ? (
-              <SongWorkspace onAddSource={addSourceFile} onAddLiveSong={addLiveSong} onNotice={setNotice} />
+              <SongWorkspace projectFiles={project.files} onAddSource={addSourceFile} onAddLiveSong={addLiveSong} onNotice={setNotice} />
+            ) : workspaceTab === 'Samples' ? (
+              <SampleWorkspace machineId={machine.id} machineLabel={machine.label} projectFiles={project.files} onAddSource={addSourceFile} onNotice={setNotice} />
             ) : workspaceTab === 'Screens' ? (
-              <ScreenWorkspace projectPalette={projectPalette} onAddSource={addSourceFile} onAddLiveScreen={addLiveScreen} onNotice={setNotice} />
+              <ScreenWorkspace projectPalette={projectPalette} projectFiles={project.files} onAddSource={addSourceFile} onAddLiveScreen={addLiveScreen} onNotice={setNotice} />
             ) : workspaceTab === 'Fonts' ? (
-              <FontWorkspace projectPalette={projectPalette} onAddSource={addSourceFile} onAddLiveFont={addLiveFont} onNotice={setNotice} />
+              <FontWorkspace projectPalette={projectPalette} projectFiles={project.files} onAddSource={addSourceFile} onAddLiveFont={addLiveFont} onNotice={setNotice} />
             ) : workspaceTab === 'Palettes' ? (
               <PaletteWorkspace
                 projectFiles={project.files.map((file) => ({ name: file.name, content: file.content }))}
@@ -2178,19 +2505,22 @@ function App() {
               <TileMapWorkspace
                 projectPalette={projectPalette}
                 availableAssets={project.files.filter((file) => /\.asset\.json$/i.test(file.name)).map((file) => ({ name: file.name, content: file.content }))}
+                availableMaps={projectDocuments(project.files, ['map']).map((entry) => ({ ...entry, content: project.files.find((file) => file.id === entry.id)?.content ?? '' }))}
                 onAddSource={addSourceFile}
                 onAddLiveMap={addLiveTileMap}
                 onNotice={setNotice}
               />
             ) : ['Characters', 'Sprites', 'Tiles'].includes(workspaceTab) ? (
-              <VersionedPixelAssetWorkspace key={workspaceTab} kind={workspaceTab as 'Characters' | 'Sprites' | 'Tiles'} projectPalette={projectPalette} onAddSource={addSourceFile} onAddLiveAsset={addLivePixelAsset} onNotice={setNotice} />
+              <VersionedPixelAssetWorkspace key={workspaceTab} kind={workspaceTab as 'Characters' | 'Sprites' | 'Tiles'} projectPalette={projectPalette} projectFiles={project.files} onAddSource={addSourceFile} onAddLiveAsset={addLivePixelAsset} onNotice={setNotice} />
             ) : (
               <WorkspacePlaceholder tab={workspaceTab} machine={machine.label} />
             )}
           </section>
-          <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} command={machineCommand} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />
+          {runtimeOpen && <PanelSeparator panel="runtime" orientation="horizontal" before={false} label="Resize the machine runtime" size={panelSizes.runtime} onResize={resizePanelTo} />}
+          {runtimeOpen && <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} command={machineCommand} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />}
         </main>
 
+        {panelOpenState.inspector && <PanelSeparator panel="inspector" orientation="vertical" before={false} label="Resize the inspector" size={panelSizes.inspector} onResize={resizePanelTo} />}
         {inspectorOpen && (
           <aside className="inspector-panel panel-surface" aria-label="Inspector">
             <div className="inspector-tabs" role="tablist" aria-label="Inspector views">
@@ -2240,6 +2570,10 @@ export interface AnalysisWorkspaceProps {
   onEntryChange: (value: string) => void;
   onProcessorChange: (value: AnalysisProcessor) => void;
   onOpen: () => void;
+  /* What the project itself can offer, so reading a program the workbench just
+   * built does not mean going and finding it on disk again. */
+  candidates: AnalysisCandidate[];
+  onChooseCandidate: (id: string) => void;
   onReanalyse: () => void;
   onCancel: () => void;
   onAddSource: (name: string, content: string) => void;
@@ -2256,9 +2590,31 @@ export interface AnalysisWorkspaceProps {
   coverage: RuntimeCoverage | null;
 }
 
+/* The analyser can read what the project already holds, so choosing the
+ * program somebody just built does not mean finding it on disk again. */
+function ProjectAnalysisPicker({ candidates, onChoose, disabled }: { candidates: AnalysisCandidate[]; onChoose: (id: string) => void; disabled?: boolean }) {
+  if (!candidates.length) return null;
+  return (
+    <label className="project-source-picker">
+      <span>From this project</span>
+      <select
+        aria-label="Analyse a file from this project"
+        value=""
+        disabled={disabled}
+        onChange={(event) => { const chosen = event.target.value; if (chosen) onChoose(chosen); }}
+      >
+        <option value="">Choose a file…</option>
+        {candidates.map((candidate) => (
+          <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.detail}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function AnalysisWorkspace({
   file, origin, entryPoint, processor, activity, onOriginChange, onEntryChange,
-  onProcessorChange, onOpen, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
+  onProcessorChange, onOpen, candidates, onChooseCandidate, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
   annotations, history, onAnnotationsChange, onHistoryMove, coverage,
 }: AnalysisWorkspaceProps) {
   const [filter, setFilter] = useState('');
@@ -2512,6 +2868,7 @@ export function AnalysisWorkspace({
         <h2>{activity.status === 'running' ? 'Analysing file' : 'File analyser'}</h2>
         <p>{activity.status === 'idle' ? 'Load an Atom/BBC BASIC program or 6502/65C02/ARM2/ARM3 binary. Files remain in this browser and are never executed.' : activity.message}</p>
         {activity.status === 'running' ? <button type="button" onClick={onCancel}>Cancel analysis</button> : <button className="primary-action" type="button" onClick={onOpen}><Icon name="open" size={16} /> Choose Acorn file</button>}
+        <ProjectAnalysisPicker candidates={candidates} onChoose={onChooseCandidate} disabled={activity.status === 'running'} />
         <small>Select one data file plus an optional matching .inf sidecar · 4 MiB input limit</small>
       </div>
     );
@@ -2539,6 +2896,7 @@ export function AnalysisWorkspace({
           </div>
         )}
         <div className="analysis-actions">
+          <ProjectAnalysisPicker candidates={candidates} onChoose={onChooseCandidate} disabled={activity.status === 'running'} />
           <button type="button" onClick={onOpen}><Icon name="open" size={14} /> Open</button>
           <button type="button" onClick={exportListing}><Icon name="download" size={14} /> Listing</button>
           {disassembly && (processor === '6502' || processor === '65c02') && <button type="button" disabled={!assemblySource?.verified} title={assemblySource?.verificationMessage} onClick={exportAssemblySource}><Icon name="download" size={14} /> Verified source</button>}
@@ -2787,7 +3145,12 @@ function ResearchWorkspace({ target, request, onNotice }: { target: LanguageTarg
   </div>;
 }
 
-function VersionedPixelAssetWorkspace({ kind, projectPalette, onAddSource, onAddLiveAsset, onNotice }: { kind: 'Characters' | 'Sprites' | 'Tiles'; projectPalette: ProjectPalette; onAddSource: (name: string, content: string) => void; onAddLiveAsset: (stem: string, content: string) => void; onNotice: (message: string) => void }) {
+/* Whole and half multiples of the artwork's own pixels, so a cell is always
+ * drawn on a whole number of screen pixels wherever that is possible and the
+ * grid never lands between two of them. */
+const PIXEL_ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8];
+
+function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAddSource, onAddLiveAsset, onNotice }: { kind: 'Characters' | 'Sprites' | 'Tiles'; projectPalette: ProjectPalette; projectFiles: ProjectFile[]; onAddSource: (name: string, content: string) => void; onAddLiveAsset: (stem: string, content: string) => void; onNotice: (message: string) => void }) {
   const kindId: PixelAssetKind = kind === 'Characters' ? 'character' : kind === 'Sprites' ? 'sprite' : 'tile';
   const storageKey = `8bit-net-dev:pixel-asset:${kind.toLowerCase()}`;
   const recovered = useMemo(() => {
@@ -2802,7 +3165,22 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, onAddSource, onAdd
   const [selectionAnchor, setSelectionAnchor] = useState<PixelPoint>();
   const [clipboard, setClipboard] = useState<PixelClipboard>();
   const [zoom, setZoom] = useState(1);
+  /* The stage drew every cell at sixteen pixels whatever the size of the
+   * artwork or of the panel it was in, and nothing in the editor could change
+   * it — the state was set once and never written again. A 32x32 sprite was
+   * therefore drawn twice as tall as the stage that held it, and what fell off
+   * the bottom could only be reached by scrolling a box most people would not
+   * notice had scrolled. It fits what it has now, until somebody chooses a
+   * magnification of their own. */
+  const [fitToStage, setFitToStage] = useState(true);
+  const panRef = useRef<HTMLDivElement>(null);
   const [editPlane, setEditPlane] = useState<'colour' | 'mask'>('colour');
+  const setMagnification = (next: number) => { setFitToStage(false); setZoom(next); };
+  const stepZoom = (direction: 1 | -1) => {
+    const at = PIXEL_ZOOM_STEPS.indexOf(zoom);
+    const from = at >= 0 ? at : PIXEL_ZOOM_STEPS.findIndex((step) => step >= zoom);
+    setMagnification(PIXEL_ZOOM_STEPS[Math.min(PIXEL_ZOOM_STEPS.length - 1, Math.max(0, (from < 0 ? PIXEL_ZOOM_STEPS.length - 1 : from) + direction))]!);
+  };
   const [activeFrameIndex, setActiveFrameIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const storedDocument = history.present;
@@ -2853,6 +3231,38 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, onAddSource, onAdd
       setActiveFrameIndex(0); setPlaying(false); commit(imported); onNotice(`${imported.name} opened as a versioned pixel asset`);
     } catch (error) { onNotice(`Asset import refused · ${error instanceof Error ? error.message : String(error)}`); }
   };
+  /* The documents this project already holds, which is where a recovered sprite
+   * or an edited tile actually lives. Reaching one used to mean exporting it
+   * and opening it again through a file dialog. */
+  const openable = useMemo(() => projectDocuments(projectFiles, [kindId]), [projectFiles, kindId]);
+  const artworkWidth = document.width;
+  const artworkHeight = document.height;
+  useEffect(() => {
+    if (!fitToStage) return;
+    const pan = panRef.current;
+    if (!pan) return;
+    const fit = () => {
+      /* Sixteen pixels is the cell the artwork is drawn at unmagnified, and the
+       * padding is what keeps the border off the edge of the box. */
+      const room = Math.min((pan.clientWidth - 16) / (artworkWidth * 16), (pan.clientHeight - 16) / (artworkHeight * 16));
+      const chosen = [...PIXEL_ZOOM_STEPS].reverse().find((step) => step <= room) ?? PIXEL_ZOOM_STEPS[0]!;
+      setZoom(chosen);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(pan);
+    return () => observer.disconnect();
+  }, [fitToStage, artworkWidth, artworkHeight]);
+  const openFromProject = (id: string) => {
+    const file = projectFiles.find((candidate) => candidate.id === id);
+    if (!file) { onNotice('That document is no longer in the project'); return; }
+    try {
+      const opened = parsePixelAssetDocument(file.content, kindId);
+      if (opened.kind !== kindId) throw new Error(`This ${kind} workspace cannot open a ${opened.kind} document`);
+      setActiveFrameIndex(0); setPlaying(false); commit(opened); onNotice(`${file.name} opened from this project`);
+    } catch (error) { onNotice(`${file.name} could not be opened · ${error instanceof Error ? error.message : String(error)}`); }
+  };
+
   const downloadBinary = () => { downloadBlob(new Blob([output.bytes], { type: 'application/octet-stream' }), `${stem}.bin`); onNotice(`${storedDocument.name} exported · ${output.bytes.length} packed 2bpp bytes across ${frames.length} frame${frames.length === 1 ? '' : 's'}`); };
   const toggleMask = (index: number) => { if (document.sprite) update({ sprite: { ...document.sprite, mask: document.sprite.mask.map((bit, candidate) => candidate === index ? 1 - bit : bit) } }); };
   const chooseSelectionPoint = (point: PixelPoint) => {
@@ -2878,19 +3288,73 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, onAddSource, onAdd
 
   return <div className="pixel-workspace">
     <div className="runtime-heading">
-      <div><span className="eyebrow">VERSIONED ACORN 2BPP ASSET · SCHEMA 1</span><h2>{kind} editor</h2></div>
-      <div className="runtime-actions"><button type="button" disabled={!history.past.length} onClick={undo}>Undo</button><button type="button" disabled={!history.future.length} onClick={redo}>Redo</button><button type="button" onClick={() => downloadBlob(new Blob([serializePixelAssetDocument(storedDocument)], { type: 'application/json' }), `${stem}.asset.json`)}><Icon name="download" size={14} /> Document</button><button type="button" onClick={() => onAddSource(`${stem}.asset.json`, serializePixelAssetDocument(storedDocument))}>Add document</button><button type="button" onClick={() => onAddSource(`${stem}.asm`, `${output.assembly}\n`)}>Add EQUB source</button><button type="button" onClick={downloadBinary}><Icon name="download" size={14} /> Binary</button></div>
+      <div><span className="eyebrow">2BPP · SCHEMA 1</span><h2>{kind} editor</h2></div>
+      <PanelMenuBar label={`${kind} actions`} menus={[
+        { id: 'document', label: 'Document', items: [
+          { id: 'add-document', label: 'Add to project', icon: 'file', description: 'Write this editable document into the project', hint: `${stem}.asset.json`, onSelect: () => onAddSource(`${stem}.asset.json`, serializePixelAssetDocument(storedDocument)) },
+          { id: 'add-equb', label: 'Add EQUB source', icon: 'code', description: 'Write the generated assembler source into the project', hint: `${stem}.asm`, onSelect: () => onAddSource(`${stem}.asm`, `${output.assembly}\n`) },
+          { id: 'add-live-target', label: 'Add build target', icon: 'build', description: 'Create an editable document and a 6502 target that includes it with INCLUDEASSET, so edits stale the build', onSelect: () => onAddLiveAsset(stem, serializePixelAssetDocument(storedDocument)) },
+          { id: 'download-document', label: 'Save document…', icon: 'download', description: 'Download the editable document as a file', separated: true, onSelect: () => downloadBlob(new Blob([serializePixelAssetDocument(storedDocument)], { type: 'application/json' }), `${stem}.asset.json`) },
+          { id: 'download-binary', label: 'Save binary…', icon: 'download', description: 'Download the generated bytes exactly as the machine reads them', hint: `${output.bytes.length} bytes`, onSelect: downloadBinary },
+          ...(document.sprite ? ([{ id: 'download-mask', label: 'Save mask…', icon: 'download', description: 'Download the opacity mask as a separate binary', disabled: !output.maskBytes, onSelect: () => { if (output.maskBytes) downloadBlob(new Blob([output.maskBytes], { type: 'application/octet-stream' }), `${stem}.mask.bin`); } }] satisfies PanelMenuItem[]) : []),
+        ] },
+        { id: 'encoding', label: 'Encoding', items: [
+          /* The generated byte order was a whole row of the editor for one
+           * choice between two values. It is the same choice here, and it says
+           * which one is in force without spending a line of the panel. */
+          { id: 'encoding-logical', label: 'Logical 2bpp', description: 'Portable logical groups, which are not screen memory', hint: 'interchange', checked: document.target.packing === 'logical-2bpp-msb-groups', onSelect: () => update({ target: { ...document.target, packing: 'logical-2bpp-msb-groups' } }) },
+          { id: 'encoding-mode5', label: 'BBC MODE 5', description: 'Hardware bit-plane order, four pixels to the byte, ready for screen memory', hint: 'screen bytes', checked: document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp', onSelect: () => update({ target: { ...document.target, packing: 'bbc-mode-5-hardware-interleaved-2bpp' } }) },
+        ] },
+        { id: 'edit', label: 'Edit', items: [
+          { id: 'undo', label: 'Undo', icon: 'reset', description: 'Undo the last change to this document', disabled: !history.past.length, onSelect: undo },
+          { id: 'redo', label: 'Redo', description: 'Redo the change that was undone', disabled: !history.future.length, onSelect: redo },
+          ...(document.sprite ? [
+            { id: 'all-opaque', label: 'All opaque', description: 'Make every pixel of the sprite opaque', separated: true, onSelect: () => update({ sprite: { ...document.sprite!, mask: Array(document.pixels.length).fill(1) } }) },
+            { id: 'all-transparent', label: 'All transparent', description: 'Make every pixel of the sprite transparent', onSelect: () => update({ sprite: { ...document.sprite!, mask: Array(document.pixels.length).fill(0) } }) },
+          ] : []),
+        ] },
+      ]} />
+      {/* The one control that stays on the surface: which plane the pointer
+        * paints on is a mode somebody switches while drawing, not something to
+        * go looking for in a menu. */}
     </div>
-    <div className="pixel-encoding-toolbar"><label><span>Generated byte encoding</span><select aria-label="Pixel asset byte encoding" value={document.target.packing} onChange={(event) => update({ target: { ...document.target, packing: event.target.value as PixelAssetDocument['target']['packing'] } })}><option value="logical-2bpp-msb-groups">Logical 2bpp interchange (not screen memory)</option><option value="bbc-mode-5-hardware-interleaved-2bpp">BBC Micro MODE 5 screen bytes</option></select></label><span>{document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? 'Hardware bit-plane order · four pixels per byte' : 'Portable logical groups · choose a hardware codec before writing screen memory'}</span></div>
-    {document.sprite && <div className="sprite-metadata-toolbar"><div role="radiogroup" aria-label="Sprite editing plane"><button type="button" role="radio" aria-checked={editPlane === 'colour'} onClick={() => setEditPlane('colour')}>Edit colour</button><button type="button" role="radio" aria-checked={editPlane === 'mask'} onClick={() => setEditPlane('mask')}>Edit opacity mask</button></div><label><span>Hotspot X</span><select aria-label="Sprite hotspot X" value={document.sprite.hotspot.x} onChange={(event) => update({ sprite: { ...document.sprite!, hotspot: { ...document.sprite!.hotspot, x: Number(event.target.value) } } })}>{Array.from({ length: document.width }, (_, value) => <option value={value} key={value}>{value}</option>)}</select></label><label><span>Y</span><select aria-label="Sprite hotspot Y" value={document.sprite.hotspot.y} onChange={(event) => update({ sprite: { ...document.sprite!, hotspot: { ...document.sprite!.hotspot, y: Number(event.target.value) } } })}>{Array.from({ length: document.height }, (_, value) => <option value={value} key={value}>{value}</option>)}</select></label><button type="button" onClick={() => update({ sprite: { ...document.sprite!, mask: Array(document.pixels.length).fill(1) } })}>All opaque</button><button type="button" onClick={() => update({ sprite: { ...document.sprite!, mask: Array(document.pixels.length).fill(0) } })}>All transparent</button><button type="button" disabled={!output.maskBytes} onClick={() => output.maskBytes && downloadBlob(new Blob([output.maskBytes], { type: 'application/octet-stream' }), `${stem}.mask.bin`)}><Icon name="download" size={14} /> Mask</button></div>}
-    {document.sprite && <div className="sprite-animation-toolbar"><div><strong>Animation frames</strong><span>{frames.length} frame{frames.length === 1 ? '' : 's'} · build output is ordered exactly as shown</span></div><div className="sprite-frame-tabs" role="tablist" aria-label="Sprite animation frames">{frames.map((frame, index) => <button type="button" role="tab" aria-selected={index === activeFrameIndex} className={index === activeFrameIndex ? 'selected' : ''} onClick={() => { setPlaying(false); setActiveFrameIndex(index); setSelection(undefined); }} key={frame.id}><strong>{index + 1}</strong><span>{frame.name}</span><small>{frame.durationMs} ms</small></button>)}</div><label><span>Frame name</span><input aria-label="Sprite frame name" maxLength={40} value={activeFrame.name} onChange={(event) => commit(updatePixelSpriteFrame(storedDocument, activeFrameIndex, { name: event.target.value || `Frame ${activeFrameIndex + 1}` }))} /></label><label><span>Duration ms</span><input aria-label="Sprite frame duration" type="number" min={20} max={60000} value={activeFrame.durationMs} onChange={(event) => { const durationMs = Math.max(20, Math.min(60000, Number(event.target.value) || 20)); commit(updatePixelSpriteFrame(storedDocument, activeFrameIndex, { durationMs })); }} /></label><label className="sprite-playback"><span>Playback</span><select aria-label="Sprite animation playback" value={storedDocument.sprite?.animation?.playback ?? 'loop'} onChange={(event) => { const next = structuredClone(storedDocument); next.sprite!.animation ??= { playback: 'loop', frames: [] }; next.sprite!.animation.playback = event.target.value as 'loop' | 'once'; commit(next); }}><option value="loop">Loop</option><option value="once">Once</option></select></label><button type="button" disabled={frames.length < 2} aria-pressed={playing} onClick={() => { if (playing) setPlaying(false); else { setActiveFrameIndex(0); setPlaying(true); } }}>{playing ? 'Stop preview' : 'Play preview'}</button><button type="button" onClick={() => { const next = addPixelSpriteFrame(storedDocument, activeFrameIndex); commit(next); setActiveFrameIndex(pixelAssetFrames(next).length - 1); }}>Duplicate frame</button><button type="button" disabled={frames.length <= 1} onClick={() => { const next = removePixelSpriteFrame(storedDocument, activeFrameIndex); commit(next); setActiveFrameIndex(Math.min(activeFrameIndex, pixelAssetFrames(next).length - 1)); }}>Delete frame</button><button type="button" disabled={activeFrameIndex === 0} aria-label="Move sprite frame left" onClick={() => { commit(movePixelSpriteFrame(storedDocument, activeFrameIndex, -1)); setActiveFrameIndex(activeFrameIndex - 1); }}>←</button><button type="button" disabled={activeFrameIndex >= frames.length - 1} aria-label="Move sprite frame right" onClick={() => { commit(movePixelSpriteFrame(storedDocument, activeFrameIndex, 1)); setActiveFrameIndex(activeFrameIndex + 1); }}>→</button></div>}
+    {/* Open when there is an animation to see, shut when there is one frame:
+      * a still sprite spent a sixth of the panel on a list of one. */}
+    {document.sprite && <details className="sprite-animation-toolbar" open={frames.length > 1}><summary><strong>Animation frames</strong><span>{frames.length} frame{frames.length === 1 ? '' : 's'} · build output is ordered exactly as shown</span></summary><div className="sprite-animation-row"><div className="sprite-frame-tabs" role="tablist" aria-label="Sprite animation frames">{frames.map((frame, index) => <button type="button" role="tab" aria-selected={index === activeFrameIndex} className={index === activeFrameIndex ? 'selected' : ''} onClick={() => { setPlaying(false); setActiveFrameIndex(index); setSelection(undefined); }} key={frame.id}><strong>{index + 1}</strong><span>{frame.name}</span><small>{frame.durationMs} ms</small></button>)}</div><label><span>Frame name</span><input aria-label="Sprite frame name" maxLength={40} value={activeFrame.name} onChange={(event) => commit(updatePixelSpriteFrame(storedDocument, activeFrameIndex, { name: event.target.value || `Frame ${activeFrameIndex + 1}` }))} /></label><label><span>Duration ms</span><input aria-label="Sprite frame duration" type="number" min={20} max={60000} value={activeFrame.durationMs} onChange={(event) => { const durationMs = Math.max(20, Math.min(60000, Number(event.target.value) || 20)); commit(updatePixelSpriteFrame(storedDocument, activeFrameIndex, { durationMs })); }} /></label><label className="sprite-playback"><span>Playback</span><select aria-label="Sprite animation playback" value={storedDocument.sprite?.animation?.playback ?? 'loop'} onChange={(event) => { const next = structuredClone(storedDocument); next.sprite!.animation ??= { playback: 'loop', frames: [] }; next.sprite!.animation.playback = event.target.value as 'loop' | 'once'; commit(next); }}><option value="loop">Loop</option><option value="once">Once</option></select></label><button type="button" disabled={frames.length < 2} aria-pressed={playing} onClick={() => { if (playing) setPlaying(false); else { setActiveFrameIndex(0); setPlaying(true); } }}>{playing ? 'Stop preview' : 'Play preview'}</button><button type="button" onClick={() => { const next = addPixelSpriteFrame(storedDocument, activeFrameIndex); commit(next); setActiveFrameIndex(pixelAssetFrames(next).length - 1); }}>Duplicate frame</button><button type="button" disabled={frames.length <= 1} onClick={() => { const next = removePixelSpriteFrame(storedDocument, activeFrameIndex); commit(next); setActiveFrameIndex(Math.min(activeFrameIndex, pixelAssetFrames(next).length - 1)); }}>Delete frame</button><button type="button" disabled={activeFrameIndex === 0} aria-label="Move sprite frame left" onClick={() => { commit(movePixelSpriteFrame(storedDocument, activeFrameIndex, -1)); setActiveFrameIndex(activeFrameIndex - 1); }}>←</button><button type="button" disabled={activeFrameIndex >= frames.length - 1} aria-label="Move sprite frame right" onClick={() => { commit(movePixelSpriteFrame(storedDocument, activeFrameIndex, 1)); setActiveFrameIndex(activeFrameIndex + 1); }}>→</button></div></details>}
     {selection && <div className="pixel-selection-toolbar" aria-label="Selected pixel transform"><span>Selected rectangle</span><button type="button" onClick={() => update({ pixels: transformPixelSelection(document.pixels, document.width, selection, 'flip-horizontal') })}>Flip horizontally</button><button type="button" onClick={() => update({ pixels: transformPixelSelection(document.pixels, document.width, selection, 'flip-vertical') })}>Flip vertically</button><button type="button" onClick={() => { setSelection(undefined); setSelectionAnchor(undefined); }}>Deselect</button></div>}
     <div className="pixel-editor-layout">
-      <section className="pixel-controls"><h3>Document</h3><label><span>Name</span><input aria-label="Pixel asset name" maxLength={80} value={document.name} onChange={(event) => update({ name: event.target.value || `untitled-${kindId}` })} /></label><label><span>Open document</span><input aria-label="Open pixel asset document" type="file" accept=".json,.asset.json,application/json" onChange={(event) => void importDocument(event.target.files?.[0])} /></label><label><span>Width</span><select aria-label="Pixel asset width" value={document.width} onChange={(event) => resize(Number(event.target.value), document.height)}>{[8, 16, 24, 32].map((value) => <option key={value}>{value}</option>)}</select></label><label><span>Height</span><select aria-label="Pixel asset height" value={document.height} onChange={(event) => resize(document.width, Number(event.target.value))}>{[8, 16, 24, 32].map((value) => <option key={value}>{value}</option>)}</select></label><label><span>Zoom</span><select aria-label="Pixel asset zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}>{[1, 2, 3, 4].map((value) => <option value={value} key={value}>{value}×</option>)}</select></label><h3>Palette index</h3><div className="pixel-palette" role="radiogroup" aria-label="Pixel colour">{[0, 1, 2, 3].map((value) => <button type="button" role="radio" aria-checked={colour === value} aria-label={`Colour ${value}, ${physicalColour(projectPalette.document?.entries[value] ?? value).name}`} className={`pixel-colour ${colour === value ? 'selected' : ''}`} style={{ background: projectPalette.colours[value] ?? projectPalette.colours[0], color: readableInk(projectPalette.colours[value] ?? projectPalette.colours[0] ?? '#000000').ink, textShadow: 'none' }} onClick={() => setColour(value)} key={value}>{value}</button>)}</div><h3>Selection</h3><button className="pixel-clear" type="button" aria-pressed={selectionMode} onClick={() => { setSelectionMode((active) => !active); setSelectionAnchor(undefined); }}>{selectionMode ? 'Painting mode' : 'Select rectangle'}</button><div className="pixel-selection-actions"><button type="button" disabled={!selection} onClick={() => copySelection()}>Copy</button><button type="button" disabled={!selection} onClick={() => copySelection(true)}>Cut</button><button type="button" disabled={!clipboard} onClick={() => void pasteSelection()}>Paste</button><button type="button" disabled={!selection} onClick={() => selection && update({ pixels: fillPixelSelection(document.pixels, document.width, selection, colour) })}>Fill</button></div><h3>Transform</h3><div className="pixel-transform"><button type="button" aria-label="Shift left" onClick={() => shift(-1, 0)}>←</button><button type="button" aria-label="Shift right" onClick={() => shift(1, 0)}>→</button><button type="button" aria-label="Shift up" onClick={() => shift(0, -1)}>↑</button><button type="button" aria-label="Shift down" onClick={() => shift(0, 1)}>↓</button></div><button className="pixel-clear" type="button" onClick={() => update({ pixels: Array(document.width * document.height).fill(0) })}>Clear asset</button></section>
-      <section className="pixel-stage"><div className="pixel-pan"><div className={`pixel-grid ${selectionMode ? 'selecting' : ''} ${editPlane === 'mask' ? 'editing-mask' : ''}`} role="grid" data-essential-target-size="A cell in this grid is one pixel of the artwork. Enlarging it past the artwork would change what the editor edits, so WCAG 2.2 AA 2.5.8 is met by its essential exception. The surrounding tools are full-size targets." aria-label={`${kind} pixel grid`} style={{ gridTemplateColumns: `repeat(${document.width}, 1fr)`, width: `${document.width * 16 * zoom}px`, height: `${document.height * 16 * zoom}px` }}>{document.pixels.map((pixel, index) => { const point = { x: index % document.width, y: Math.floor(index / document.width) }; const selected = selection ? selectionContains(selection, point.x, point.y) : false; const opaque = document.sprite?.mask[index] !== 0; const hotspot = document.sprite?.hotspot.x === point.x && document.sprite?.hotspot.y === point.y; return <button type="button" role="gridcell" aria-selected={selected} aria-label={`Pixel ${point.x + 1},${point.y + 1}, colour ${pixel}${document.sprite ? opaque ? ', opaque' : ', transparent' : ''}${hotspot ? ', hotspot' : ''}${selected ? ', selected' : ''}`} className={`pixel-cell ${selected ? 'selected' : ''} ${!opaque ? 'mask-transparent' : ''} ${hotspot ? 'sprite-hotspot' : ''}`} style={{ background: projectPalette.colours[pixel] ?? projectPalette.colours[0] }} key={index} onClick={() => selectionMode ? chooseSelectionPoint(point) : editPlane === 'mask' && document.sprite ? toggleMask(index) : paint(index)} onContextMenu={(event) => { event.preventDefault(); if (!selectionMode && editPlane === 'colour') paint(index, 0); }} />; })}</div></div><p>{selectionMode ? selectionAnchor ? 'Choose the opposite corner of the rectangle.' : 'Choose the first corner of a rectangular selection.' : editPlane === 'mask' && document.sprite ? 'Click toggles independent opaque/transparent mask pixels.' : 'Left click paints; right click erases.'} Up to 100 changes are undoable; zoomed canvases pan with standard scrolling. {projectPalette.fileName ? `Previewed with ${projectPalette.fileName}.` : 'Previewed with the MODE 5 power-up palette; add a palette document to change it.'}{projectPalette.flashing.length ? ` Colours ${projectPalette.flashing.join(', ')} flash on the machine and only their first phase is shown.` : ''}</p></section>
-      <section className="pixel-output"><h3>Generated output</h3><div className="asset-summary"><span>{document.width} × {document.height}</span>{frames.length > 1 && <span>{frames.length} ordered frames</span>}<span>{output.bytes.length} colour bytes</span>{output.maskBytes && <span>{output.maskBytes.length} mask bytes</span>}<span>SHA-256 {output.manifest.sha256.slice(0, 12)}…</span>{output.manifest.maskSha256 && <span>Mask {output.manifest.maskSha256.slice(0, 12)}…</span>}</div><pre>{output.assembly}</pre></section>
+      <section className="pixel-controls"><h3>Document</h3>{document.sprite && (
+        /* Beside the rest of what describes this document, rather than in a
+         * row of its own above the drawing. */
+        <div className="pixel-hotspot"><label><span>Hotspot X</span><select aria-label="Sprite hotspot X" value={document.sprite.hotspot.x} onChange={(event) => update({ sprite: { ...document.sprite!, hotspot: { ...document.sprite!.hotspot, x: Number(event.target.value) } } })}>{Array.from({ length: document.width }, (_, value) => <option value={value} key={value}>{value}</option>)}</select></label><label><span>Hotspot Y</span><select aria-label="Sprite hotspot Y" value={document.sprite.hotspot.y} onChange={(event) => update({ sprite: { ...document.sprite!, hotspot: { ...document.sprite!.hotspot, y: Number(event.target.value) } } })}>{Array.from({ length: document.height }, (_, value) => <option value={value} key={value}>{value}</option>)}</select></label></div>
+      )}{!!openable.length && (
+        <label className="project-source-picker"><span>From this project</span>
+          <select aria-label={`Open a ${kindId} document from this project`} value="" onChange={(event) => { const chosen = event.target.value; if (chosen) openFromProject(chosen); }}>
+            <option value="">Choose a document…</option>
+            {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
+          </select>
+        </label>
+      )}<label><span>Name</span><input aria-label="Pixel asset name" maxLength={80} value={document.name} onChange={(event) => update({ name: event.target.value || `untitled-${kindId}` })} /></label><label><span>Open document</span><input aria-label="Open pixel asset document" type="file" accept=".json,.asset.json,application/json" onChange={(event) => void importDocument(event.target.files?.[0])} /></label><label><span>Width</span><select aria-label="Pixel asset width" value={document.width} onChange={(event) => resize(Number(event.target.value), document.height)}>{[8, 16, 24, 32].map((value) => <option key={value}>{value}</option>)}</select></label><label><span>Height</span><select aria-label="Pixel asset height" value={document.height} onChange={(event) => resize(document.width, Number(event.target.value))}>{[8, 16, 24, 32].map((value) => <option key={value}>{value}</option>)}</select></label><h3>Palette index</h3><div className="pixel-palette" role="radiogroup" aria-label="Pixel colour">{[0, 1, 2, 3].map((value) => <button type="button" role="radio" aria-checked={colour === value} aria-label={`Colour ${value}, ${physicalColour(projectPalette.document?.entries[value] ?? value).name}`} className={`pixel-colour ${colour === value ? 'selected' : ''}`} style={{ background: projectPalette.colours[value] ?? projectPalette.colours[0], color: readableInk(projectPalette.colours[value] ?? projectPalette.colours[0] ?? '#000000').ink, textShadow: 'none' }} onClick={() => setColour(value)} key={value}>{value}</button>)}</div><h3>Selection</h3><button className="pixel-clear" type="button" aria-pressed={selectionMode} onClick={() => { setSelectionMode((active) => !active); setSelectionAnchor(undefined); }}>{selectionMode ? 'Painting mode' : 'Select rectangle'}</button><div className="pixel-selection-actions"><button type="button" disabled={!selection} onClick={() => copySelection()}>Copy</button><button type="button" disabled={!selection} onClick={() => copySelection(true)}>Cut</button><button type="button" disabled={!clipboard} onClick={() => void pasteSelection()}>Paste</button><button type="button" disabled={!selection} onClick={() => selection && update({ pixels: fillPixelSelection(document.pixels, document.width, selection, colour) })}>Fill</button></div><h3>Transform</h3><div className="pixel-transform"><button type="button" aria-label="Shift left" onClick={() => shift(-1, 0)}>←</button><button type="button" aria-label="Shift right" onClick={() => shift(1, 0)}>→</button><button type="button" aria-label="Shift up" onClick={() => shift(0, -1)}>↑</button><button type="button" aria-label="Shift down" onClick={() => shift(0, 1)}>↓</button></div><button className="pixel-clear" type="button" onClick={() => update({ pixels: Array(document.width * document.height).fill(0) })}>Clear asset</button></section>
+      <section className="pixel-stage">
+      {/* Over the drawing rather than in the panel's heading: which plane the
+        * pointer paints on and how large the artwork is drawn are both about
+        * this canvas, and the heading had no room left for them. */}
+      <div className="pixel-stage-tools">
+        <div className="pixel-zoom" role="group" aria-label="Magnification">
+          <button type="button" aria-label="Show the artwork smaller" disabled={zoom <= PIXEL_ZOOM_STEPS[0]!} onClick={() => stepZoom(-1)}>−</button>
+          <span aria-live="off">{Math.round(zoom * 100)}%</span>
+          <button type="button" aria-label="Show the artwork larger" disabled={zoom >= PIXEL_ZOOM_STEPS[PIXEL_ZOOM_STEPS.length - 1]!} onClick={() => stepZoom(1)}>+</button>
+          <button type="button" aria-pressed={fitToStage} onClick={() => setFitToStage(true)}>Fit</button>
+        </div>
+        {document.sprite && <div className="pixel-plane-switch" role="radiogroup" aria-label="Sprite editing plane">
+          <button type="button" role="radio" aria-label="Edit colour" aria-checked={editPlane === 'colour'} className={editPlane === 'colour' ? 'selected' : ''} onClick={() => setEditPlane('colour')}>Colour</button>
+          <button type="button" role="radio" aria-label="Edit opacity mask" aria-checked={editPlane === 'mask'} className={editPlane === 'mask' ? 'selected' : ''} onClick={() => setEditPlane('mask')}>Opacity mask</button>
+        </div>}
+      </div>
+      <div className="pixel-pan" ref={panRef}><div className={`pixel-grid ${selectionMode ? 'selecting' : ''} ${editPlane === 'mask' ? 'editing-mask' : ''}`} role="grid" data-essential-target-size="A cell in this grid is one pixel of the artwork. Enlarging it past the artwork would change what the editor edits, so WCAG 2.2 AA 2.5.8 is met by its essential exception. The surrounding tools are full-size targets." aria-label={`${kind} pixel grid`} style={{ gridTemplateColumns: `repeat(${document.width}, 1fr)`, width: `${document.width * 16 * zoom}px`, height: `${document.height * 16 * zoom}px` }}>{document.pixels.map((pixel, index) => { const point = { x: index % document.width, y: Math.floor(index / document.width) }; const selected = selection ? selectionContains(selection, point.x, point.y) : false; const opaque = document.sprite?.mask[index] !== 0; const hotspot = document.sprite?.hotspot.x === point.x && document.sprite?.hotspot.y === point.y; return <button type="button" role="gridcell" aria-selected={selected} aria-label={`Pixel ${point.x + 1},${point.y + 1}, colour ${pixel}${document.sprite ? opaque ? ', opaque' : ', transparent' : ''}${hotspot ? ', hotspot' : ''}${selected ? ', selected' : ''}`} className={`pixel-cell ${selected ? 'selected' : ''} ${!opaque ? 'mask-transparent' : ''} ${hotspot ? 'sprite-hotspot' : ''}`} style={{ background: projectPalette.colours[pixel] ?? projectPalette.colours[0] }} key={index} onClick={() => selectionMode ? chooseSelectionPoint(point) : editPlane === 'mask' && document.sprite ? toggleMask(index) : paint(index)} onContextMenu={(event) => { event.preventDefault(); if (!selectionMode && editPlane === 'colour') paint(index, 0); }} />; })}</div></div><p>{selectionMode ? selectionAnchor ? 'Choose the opposite corner of the rectangle.' : 'Choose the first corner of a rectangular selection.' : editPlane === 'mask' && document.sprite ? 'Click toggles independent opaque/transparent mask pixels.' : 'Left click paints; right click erases.'} Up to 100 changes are undoable; zoomed canvases pan with standard scrolling. {projectPalette.fileName ? `Previewed with ${projectPalette.fileName}.` : 'Previewed with the MODE 5 power-up palette; add a palette document to change it.'}{projectPalette.flashing.length ? ` Colours ${projectPalette.flashing.join(', ')} flash on the machine and only their first phase is shown.` : ''}</p></section>
+      <TargetModePreview pixels={document.pixels} width={document.width} height={document.height} palette={projectPalette} {...(document.sprite ? { mask: document.sprite.mask } : {})} />
+      <section className="pixel-output"><h3>Generated output</h3><p className="pixel-encoding-note">{document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? 'Hardware bit-plane order · four pixels per byte' : 'Portable logical groups · choose a hardware codec before writing screen memory'}</p><div className="asset-summary"><span>{document.width} × {document.height}</span>{frames.length > 1 && <span>{frames.length} ordered frames</span>}<span>{output.bytes.length} colour bytes</span>{output.maskBytes && <span>{output.maskBytes.length} mask bytes</span>}<span>SHA-256 {output.manifest.sha256.slice(0, 12)}…</span>{output.manifest.maskSha256 && <span>Mask {output.manifest.maskSha256.slice(0, 12)}…</span>}</div><pre>{output.assembly}</pre></section>
     </div>
-    <div className="asset-build-toolbar"><div><strong>Live project dependency</strong><span>Creates an editable document and a 6502 target using INCLUDEASSET; document and frame edits invalidate the build fingerprint.</span></div><button type="button" onClick={() => onAddLiveAsset(stem, serializePixelAssetDocument(storedDocument))}>Add live build target</button></div>
   </div>;
 }
 
@@ -2916,6 +3380,10 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
   const archimedesTarget = machineId.startsWith('archimedes-') || machineId === 'a3000' || machineId === 'a5000';
   const [discFile, setDiscFile] = useState<File>();
   const [tapeFile, setTapeFile] = useState<File>();
+  const [tapeDraft, setTapeDraft] = useState<TapeFile>();
+  const [createdTape, setCreatedTape] = useState<Uint8Array>();
+  const [createdTapeBlocks, setCreatedTapeBlocks] = useState(0);
+  const [tapeCreatorStatus, setTapeCreatorStatus] = useState('Build a target, then write it to a cassette the machine can load.');
   const [tapeReport, setTapeReport] = useState<TapeReport | null>(null);
   const [dfsCatalogue, setDfsCatalogue] = useState<DfsCatalogue>();
   const [adfsCatalogue, setAdfsCatalogue] = useState<AdfsCatalogue>();
@@ -3033,8 +3501,18 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
   const loadDisc = async () => {
     if (!discFile || !connected || !discSupported) return;
     if (discFile.size > 2 * 1024 * 1024) { onNotice('Disk images are limited to 2 MiB'); return; }
-    if (archimedesDiscConnected && (!/\.adf$/i.test(discFile.name) || discFile.size !== 800 * 1024)) { onNotice('The qualified A310 floppy adapter currently accepts exact 800 KiB ADFS .adf images'); return; }
-    if (!/\.(ssd|dsd|adl|adf|adm)$/i.test(discFile.name)) { onNotice('Choose a DFS or ADFS disk image (.ssd, .dsd, .adl, .adf or .adm)'); return; }
+    if (archimedesDiscConnected) {
+      /* Mounting and listing are different capabilities, held to different
+       * standards. The core reads the sectors of every geometry its own loader
+       * table declares, so all of them mount; whether this build can then list
+       * the catalogue is said separately rather than used as a reason to
+       * withhold a disc the machine could have read. */
+      const refusal = adfsMountRefusal(discFile.name, discFile.size);
+      if (refusal) { onNotice(refusal); return; }
+      const geometry = adfsGeometryFor(discFile.name, discFile.size);
+      if (geometry && !geometry.catalogue.readable) onNotice(`Mounting ${geometry.label}. ${geometry.catalogue.reason}`);
+    }
+    if (!/\.(ssd|dsd|adl|adf|adm|ads)$/i.test(discFile.name)) { onNotice('Choose a DFS or ADFS disk image (.ssd, .dsd, .adl, .adf, .adm or .ads)'); return; }
     const bytes = new Uint8Array(await discFile.arrayBuffer());
     if (archimedesDiscConnected) {
       try { parseAdfsCatalogue(bytes); }
@@ -3221,6 +3699,60 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
     const project = dfsDsdProject.sides[side]; setDfsSide(side); setDfsProject(project); setDfsTitle(project.title);
     setDfsCatalogue(createdDsd?.sides[side].catalogue); setCatalogueStatus(`Editing DSD side ${side}; changes remain a logical draft until the complete image is rebuilt.`);
   };
+  /*
+   * Writing a tape the machine will load.
+   *
+   * The two formats here are not interchangeable and neither is a preference:
+   * the Atom's ROM and the BBC's MOS read different headers, so the machine the
+   * project targets decides which one is written. Both were verified by making
+   * real machines load them; see src/media/acornTapeMeasurements.ts.
+   */
+  const atomTapeTarget = machineId === 'atom';
+  const rebuildTape = (draft = tapeDraft) => {
+    if (!draft) return;
+    try {
+      const image = atomTapeTarget ? createAtomTapeImage([draft]) : createTapeImage([draft]);
+      const blocks = atomTapeTarget ? encodeAtomTapeFile(draft) : encodeTapeFile(draft);
+      setCreatedTape(image); setCreatedTapeBlocks(blocks.length);
+      setTapeCreatorStatus(`${atomTapeTarget ? 'Atom' : 'BBC/Electron'} cassette · ${draft.name} · load ${formatAddress(draft.loadAddress)} · execute ${formatAddress(draft.executionAddress)} · ${draft.bytes.length.toLocaleString()} bytes in ${blocks.length} block${blocks.length === 1 ? '' : 's'} · ${image.length.toLocaleString()} bytes of UEF.`);
+    } catch (error) {
+      setCreatedTape(undefined); setCreatedTapeBlocks(0);
+      setTapeCreatorStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const packageCurrentBuildToTape = () => {
+    if (!buildArtifact || buildArtifact.kind !== '6502-binary') { onNotice('Build a 6502 target before writing a cassette'); return; }
+    const limit = atomTapeTarget ? MAX_ATOM_NAME_LENGTH : MAX_NAME_LENGTH;
+    const outputName = buildArtifact.provenance?.target.outputName.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_!-]/g, '').toUpperCase().slice(0, limit) || 'GAME';
+    const draft: TapeFile = { name: outputName, loadAddress: buildArtifact.origin, executionAddress: buildArtifact.entryPoint, bytes: buildArtifact.bytes };
+    setTapeDraft(draft); rebuildTape(draft);
+  };
+  const updateTapeDraft = (patch: Partial<TapeFile>) => {
+    setCreatedTape(undefined); setTapeDraft((current) => current ? { ...current, ...patch } : current);
+    setTapeCreatorStatus('Cassette metadata changed; write the tape again before downloading or mounting it.');
+  };
+  const mountCreatedTape = () => {
+    if (!createdTape || !tapeDraft || !connected || !tapeSupported) return;
+    onCommand({ type: 'load-tape', name: `${safeFilename(tapeDraft.name) || 'game'}.uef`, bytes: Array.from(createdTape) });
+    onNotice(atomTapeTarget
+      ? `Cassette mounted · type *LOAD"${tapeDraft.name}" then press RETURN when the machine asks you to play the tape`
+      : `Cassette mounted · type *TAPE then *RUN "${tapeDraft.name}" or CHAIN"${tapeDraft.name}"`);
+  };
+  const tapeCreator = tapeSupported && <section className="media-subsection dfs-creator" aria-label="Write a cassette image from the current build">
+    <h3>Write cassette</h3>
+    <p>Writes a UEF carrying {atomTapeTarget ? "the Atom's own block format: a shorter header, addresses written high byte first, each block naming its own load address, and a summed check byte covering the synchronising asterisks." : 'the block format the MOS reads: name, load and execution addresses, block number and length, each half checked by its own CRC.'} Nothing validates these blocks on the way in, so the encoder is held to bytes real machines accepted.</p>
+    <div className="media-fields">
+      <button type="button" disabled={!buildArtifact || buildArtifact.kind !== '6502-binary'} onClick={packageCurrentBuildToTape}>Package current build</button>
+      <label><span>Name</span><input aria-label="Cassette file name" maxLength={atomTapeTarget ? MAX_ATOM_NAME_LENGTH : MAX_NAME_LENGTH} value={tapeDraft?.name ?? ''} onChange={(event) => updateTapeDraft({ name: event.target.value.toUpperCase() })} /></label>
+      <label><span>Load</span><input aria-label="Cassette load address" type="number" min={0} max={atomTapeTarget ? 0xffff : 0xffffffff} value={tapeDraft?.loadAddress ?? 0} onChange={(event) => updateTapeDraft({ loadAddress: Number(event.target.value) })} /></label>
+      <label><span>Execute</span><input aria-label="Cassette execution address" type="number" min={0} max={atomTapeTarget ? 0xffff : 0xffffffff} value={tapeDraft?.executionAddress ?? 0} onChange={(event) => updateTapeDraft({ executionAddress: Number(event.target.value) })} /></label>
+      <button type="button" disabled={!tapeDraft} onClick={() => rebuildTape()}>Write tape</button>
+      <button type="button" disabled={!createdTape} onClick={() => createdTape && tapeDraft && downloadBlob(new Blob([createdTape], { type: 'application/octet-stream' }), `${safeFilename(tapeDraft.name) || 'game'}.uef`)}><Icon name="download" size={14} /> Download UEF</button>
+      <button type="button" disabled={!createdTape || !connected} onClick={mountCreatedTape}><Icon name="open" size={14} /> Mount cassette</button>
+    </div>
+    <div className="dfs-preview-status" role="status" aria-live="polite">{tapeCreatorStatus}</div>
+    {createdTape && tapeDraft && <div className="dfs-facts"><span>Format <strong>{atomTapeTarget ? 'Acorn Atom' : 'BBC / Electron'}</strong></span><span>Blocks <strong>{createdTapeBlocks}</strong></span><span>Image <strong>{createdTape.length.toLocaleString()} bytes</strong></span></div>}
+  </section>;
   const updateAtomAtmDraft = (patch: Partial<AtomAtmFile>) => {
     setCreatedAtm(undefined); setAtomAtmDraft((current) => current ? { ...current, ...patch } : current);
     setAtomAtmStatus('ATM metadata changed; rebuild and validate before download or live RAM handoff.');
@@ -3264,6 +3796,7 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
   return <div className="media-workspace">
     <div className="runtime-heading"><div><span className="eyebrow">LIVE MACHINE MEDIA ADAPTER</span><h2>Packaging and machine media</h2></div></div>
     {atomAtmEditor}
+    {tapeCreator}
     {riscOsPackage && <RiscOsResourcePanel application={riscOsPackage} onChange={setRiscOsPackage} onNotice={onNotice} onDownload={(bytes, filename) => downloadBlob(new Blob([bytes], { type: 'application/zip' }), filename)} onDisc={(created, filename) => { setCreatedAdfs(created); setDiscFile(new File([created.image], filename, { type: 'application/octet-stream' })); setDfsCatalogue(undefined); setAdfsCatalogue(created.catalogue); setAdfsImage(created.image); setAdfsEditing(undefined); }} />}
     {(discSupported || archimedesConnected) && <AdfsDiscBuilder artifact={armArtifact ? { name: riscOsName, bytes: armArtifact.bytes, entryPoint: armArtifact.entryPoint } : null} onNotice={onNotice} onCreated={(created, filename) => { setCreatedAdfs(created); setDiscFile(new File([created.image], filename, { type: 'application/octet-stream' })); setDfsCatalogue(undefined); setAdfsCatalogue(created.catalogue); setAdfsImage(created.image); setAdfsEditing(undefined); }} />}
     {(armArtifact || archimedesConnected) && <section className="media-subsection dfs-creator" aria-label="Create RISC OS application from ARM build"><h3>RISC OS application and ADFS E disk</h3><p>Wrap a current raw ARM2 image only when it satisfies FileSwitch's Absolute contract: little-endian code linked and entered at &amp;00008000. HostFS creates a typed <code>!Run</code>/<code>RunImage</code> directory; the disk path creates an independently reparsed one-file 800 KiB ADFS E image.</p><div className="media-fields"><label><span>Application</span><input aria-label="RISC OS application name" maxLength={10} value={riscOsName} onChange={(event) => { setRiscOsName(event.target.value); setRiscOsPackage(undefined); setCreatedAdfs(undefined); }} /></label><button type="button" disabled={!armArtifact} onClick={createApplication}>Create HostFS app</button><button type="button" disabled={!riscOsPackage || !archimedesConnected} onClick={stageApplication}>Stage in HostFS</button><button type="button" disabled={!riscOsPackage || !archimedesConnected} onClick={launchApplication}><Icon name="play" size={14} /> Run HostFS app</button><button type="button" disabled={!armArtifact} onClick={createAdfsApplication}>Create ADFS E</button><button type="button" disabled={!createdAdfs} onClick={() => createdAdfs && downloadBlob(new Blob([createdAdfs.image], { type: 'application/octet-stream' }), `${safeFilename(riscOsName)}.adf`)}><Icon name="download" size={14} /> Download ADF</button><button type="button" disabled={!createdAdfs || drive !== 0 || !discFile || !mounted.some((item) => item.kind === 'disc' && item.drive === 0 && item.name === discFile.name)} onClick={launchAdfsApplication}><Icon name="play" size={14} /> Run mounted ADF</button></div>{armArtifact ? <p className="media-limit">Artifact {armArtifact.bytes.length.toLocaleString()} bytes · origin {formatAddress(armArtifact.origin, 8)} · entry {formatAddress(armArtifact.entryPoint, 8)} · automatic ADFS launch is qualified on drive 0</p> : <p className="honest-note">Build a current ARM2 target to enable application packaging.</p>}{riscOsPackage && <div className="dfs-preview-status" role="status">Validated {riscOsPackage.rootDirectory} · !Run &amp;FEB · RunImage &amp;FF8 · FileSwitch launch path {riscOsPackage.launchPath}</div>}{createdAdfs && <div className="dfs-preview-status" role="status">Validated ADFS E · $.{riscOsName} &amp;FF8 · {armArtifact?.bytes.length.toLocaleString()} exact bytes · mount in drive 0 to run</div>}</section>}
@@ -3522,7 +4055,10 @@ function TestInputEditor({
   plan: TargetTestPlan;
   onChange: (id: string, update: Partial<TargetTestPlan>) => void;
 }) {
-  const [recording, setRecording] = useState(false);
+  /* What the recorder is capturing. Keys were the first slice; a gamepad and
+   * the pointer are recorded the same way, because a test that can only be
+   * given a joystick position by typing it in is a test nobody writes. */
+  const [recording, setRecording] = useState<'off' | 'keys' | 'gamepad' | 'pointer'>('off');
   const [delayCycles, setDelayCycles] = useState("1000");
   const [gamepadAction, setGamepadAction] = useState<GamepadAction>("fire1");
   const [gamepadCode, setGamepadCode] = useState(90);
@@ -3557,7 +4093,7 @@ function TestInputEditor({
     | "mount-initial-tape"
   >("eject-disc-0");
   useEffect(() => {
-    if (!recording) return;
+    if (recording !== 'keys') return;
     const capture = (event: KeyboardEvent) => {
       if (
         event.repeat ||
@@ -3581,6 +4117,71 @@ function TestInputEditor({
       window.removeEventListener("keyup", capture, true);
     };
   }, [onChange, plan.id, plan.inputs, recording]);
+
+  /*
+   * Recording a real controller.
+   *
+   * A gamepad has no events — the browser only reports its state when asked —
+   * so it is polled, and only a change is written down. Recording the state on
+   * every frame would fill the two-hundred-and-fifty-six input budget in four
+   * seconds with entries that say nothing happened.
+   */
+  useEffect(() => {
+    if (recording !== 'gamepad') return;
+    let recorded: string | null = null;
+    let frame = 0;
+    const poll = () => {
+      frame = requestAnimationFrame(poll);
+      const pad = navigator.getGamepads?.().find((candidate) => candidate) ?? null;
+      if (!pad) return;
+      /* The same reader the live joystick path uses, with the same dead zone,
+       * so a recording and a live session agree about what is held. */
+      const down = activeGamepadActions(pad, GAMEPAD_RECORD_DEAD_ZONE);
+      const pressed = GAMEPAD_ACTIONS.filter((action) => down.has(action.id)).map((action) => action.id);
+      const signature = pressed.join(',');
+      if (signature === recorded) return;
+      const previous: GamepadAction[] = recorded === null ? [] : recorded.split(',').filter(Boolean) as GamepadAction[];
+      recorded = signature;
+      const entries = gamepadTransitions(previous, pressed, validateMachineTapCode(gamepadCode));
+      if (!entries.length) return;
+      onChange(plan.id, { inputs: appendRecorded(plan.inputs, entries) });
+    };
+    frame = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(frame);
+  }, [gamepadCode, onChange, plan.id, plan.inputs, recording]);
+
+  /*
+   * Recording the pointer as the analogue joystick it is mapped to.
+   *
+   * The position is taken relative to the element it moved over and scaled to
+   * the sixteen-bit range the machine reads, inverted the way the real
+   * converter is. Movement is sampled rather than taken from every event: a
+   * pointer produces hundreds of events a second and a test wants the few that
+   * matter.
+   */
+  useEffect(() => {
+    if (recording !== 'pointer') return;
+    let last = 0;
+    const capture = (event: PointerEvent) => {
+      const now = event.timeStamp;
+      if (!shouldSamplePointer(last, now)) return;
+      last = now;
+      const target = event.currentTarget as HTMLElement | null;
+      const box = target?.getBoundingClientRect();
+      if (!box) return;
+      const sample = pointerSample(box, { clientX: event.clientX, clientY: event.clientY, buttons: event.buttons });
+      if (!sample) return;
+      onChange(plan.id, { inputs: appendRecorded(plan.inputs, [sample]) });
+    };
+    const surface = window.document.querySelector('.test-input-surface');
+    surface?.addEventListener('pointermove', capture as EventListener);
+    surface?.addEventListener('pointerdown', capture as EventListener);
+    return () => {
+      surface?.removeEventListener('pointermove', capture as EventListener);
+      surface?.removeEventListener('pointerdown', capture as EventListener);
+    };
+  }, [onChange, plan.id, plan.inputs, recording]);
+
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction;
     if (target < 0 || target >= plan.inputs.length) return;
@@ -3655,17 +4256,23 @@ function TestInputEditor({
         <strong>Deterministic input script</strong>
         <span>
           {plan.inputs.length}/256 actions ·{" "}
-          {recording ? "recording host keys" : "ready"}
+          {recording === "off" ? "ready" : `recording ${RECORDER_LABELS[recording]}`}
         </span>
       </summary>
-      <div className="test-input-actions">
-        <button
-          type="button"
-          aria-pressed={recording}
-          onClick={() => setRecording((value) => !value)}
-        >
-          {recording ? "Stop recording" : "Record key input"}
-        </button>
+      <div className="test-input-actions test-input-surface">
+        {/* One recorder per device rather than one switch, because what is
+            being captured decides what a stray movement means: a pointer moved
+            across the panel while keys are being recorded is not input. */}
+        {(["keys", "gamepad", "pointer"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={recording === mode}
+            onClick={() => setRecording((value) => (value === mode ? "off" : mode))}
+          >
+            {recording === mode ? `Stop recording ${RECORDER_LABELS[mode]}` : `Record ${RECORDER_LABELS[mode]}`}
+          </button>
+        ))}
         <label>
           <span>Delay cycles</span>
           <input
@@ -4038,6 +4645,10 @@ function TestWorkspace({
     cycles: item.result.cycles,
     buildFingerprint: item.result.buildFingerprint,
     recordedAt: item.recordedAt,
+    /* Every assertion, with what it asked for and what the machine gave back.
+     * The runtime has always computed both and the report dropped them, so a
+     * failing run named the test and never said what it saw. */
+    ...(item.result.assertions ? { assertions: item.result.assertions } : {}),
   }));
   const exportNative = () =>
     downloadBlob(
@@ -4626,6 +5237,9 @@ interface DebuggerWorkspaceProps {
   onContinue: () => void;
   onReset: () => void;
   onStateChange: (state: CpuSnapshot) => void;
+  /* Optional, because a debugger with no analyser attached is still a
+   * debugger; the button is simply absent rather than present and inert. */
+  onAnalyse?: (name: string, bytes: Uint8Array, metadata: AcornFileMetadata, overrides?: { processor?: AnalysisProcessor; origin?: number; entryPoint?: number }) => void;
 }
 
 function ReplayHistoryPanel({ state, onMachineCommand }: { state: MachineBridgeSnapshot; onMachineCommand: (message: Record<string, unknown>) => void }) {
@@ -4802,7 +5416,7 @@ function DebugVariablesPanel({ artifact, state, memory, onMachineCommand }: { ar
   </section>;
 }
 
-function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareState, hardwareMemory, hardwareDisassembly, hardwareInspection, hardwareConnected, sourceBreakpointAddresses, persistedBreakpoints, breakpointGroups, onPersistBreakpoints, onPersistGroups, onMachineCommand, onNavigateSource, onStep, onContinue, onReset, onStateChange }: DebuggerWorkspaceProps) {
+function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareState, hardwareMemory, hardwareDisassembly, hardwareInspection, hardwareConnected, sourceBreakpointAddresses, persistedBreakpoints, breakpointGroups, onPersistBreakpoints, onPersistGroups, onMachineCommand, onNavigateSource, onStep, onContinue, onReset, onStateChange, onAnalyse }: DebuggerWorkspaceProps) {
   const [breakpointAddress, setBreakpointAddress] = useState('');
   const [breakpointRegister, setBreakpointRegister] = useState('');
   const [breakpointOperator, setBreakpointOperator] = useState('eq');
@@ -4815,7 +5429,13 @@ function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareSta
   const [breakpointMessage, setBreakpointMessage] = useState('');
   const resolvedPersistedBreakpoints = useMemo(() => resolve6502BreakpointIntents(persistedBreakpoints, artifact, breakpointGroups), [artifact, breakpointGroups, persistedBreakpoints]);
   const sourceBreakpointKey = [...new Set(sourceBreakpointAddresses)].sort((a, b) => a - b).join(',');
-  const hardwareArtifactLoaded = !!artifact && !!hardwareState && hardwareState.registers.pc >= artifact.origin && hardwareState.registers.pc < artifact.origin + artifact.bytes.length;
+  /* Whether the machine is holding the program these breakpoints are about.
+   * The reasoning, and the case this used to get wrong, are in the module. */
+  const hardwareArtifactLoaded = machineHoldsArtifact(
+    artifact ? { origin: artifact.origin, byteLength: artifact.bytes.length } : null,
+    hardwareState?.programManifest ?? null,
+    hardwareState?.registers.pc ?? null,
+  );
   useEffect(() => {
     if (!hardwareConnected || !hardwareArtifactLoaded) return;
     const combined = new Map<number, object>();
@@ -4848,9 +5468,23 @@ function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareSta
       {hardwareState && <DebugVariablesPanel artifact={artifact} state={hardwareState} memory={hardwareMemory} onMachineCommand={onMachineCommand} />}
       {hardwareState && <ReplayHistoryPanel state={hardwareState} onMachineCommand={onMachineCommand} />}
       {hardwareState && <RuntimePerformancePanel state={hardwareState.performance} />}
+      {/*
+        * A machine can be running perfectly and holding somebody else's
+        * program — the operating system, or a build from before. Breakpoints
+        * set against this build are then armed against nothing, and the only
+        * clue was that pressing the machine's own Run resumed the ROM. Saying
+        * which control puts this build on the machine is the difference
+        * between a debugger and a puzzle.
+        */}
+      {hardwareState && artifact && !hardwareArtifactLoaded && <p className="honest-note" role="status">
+        The machine is running, and it is not holding this build. Breakpoints set here are kept and
+        armed as soon as it is. Use <strong>Build and debug</strong> in the toolbar to put
+        {' '}{artifact.provenance?.target.name ?? 'this build'} on the machine and stop at its
+        entry point.
+      </p>}
       {!hardwareState ? <div className="honest-empty runtime-empty">The ROM-aware hardware emulator is booting. Register, breakpoint and instruction state will attach as soon as the bridge reports its first snapshot.</div> : <div className="debug-grid">
         <section><h3>Hardware registers</h3><div className="register-grid">{Object.entries(hardwareState.registers).map(([name, value]) => <div key={name}><span>{name.toUpperCase()}</span><strong>{name === 'pc' ? formatAddress(value) : formatByte(value)}</strong></div>)}</div><h3>Processor flags</h3><div className="flag-row">{['N','V','U','B','D','I','Z','C'].map((flag, index) => <span className={hardwareState.registers.p & (0x80 >> index) ? 'set' : ''} key={flag}>{flag}</span>)}</div><h3>Current instruction</h3><div className="current-instruction"><code>{formatAddress(hardwareState.currentInstruction.address)}</code><span>{hardwareState.currentInstruction.bytes.map(formatByte).join(' ')}</span><strong>{hardwareState.currentInstruction.instruction}</strong><small>{artifact?.sourceMap[hardwareState.currentInstruction.address] ? `source line ${artifact.sourceMap[hardwareState.currentInstruction.address]}` : 'live machine memory'}</small></div><InstructionEffects state={hardwareState} /><h3>Execute breakpoints / run to</h3><div className="breakpoint-editor"><div className="breakpoint-entry"><input aria-label="Hardware breakpoint address" value={breakpointAddress} onChange={(event) => setBreakpointAddress(event.target.value)} placeholder="&E581" /><button type="button" onClick={addHardwareBreakpoint}>Add</button><button type="button" disabled={hardwareState.running} onClick={runToAddress}>Run to</button></div><div className="breakpoint-options"><label><span>Condition</span><select aria-label="Breakpoint condition register" value={breakpointRegister} onChange={(event) => setBreakpointRegister(event.target.value)}><option value="">Always</option>{['a','x','y','s','p','pc'].map((register) => <option value={register} key={register}>{register.toUpperCase()}</option>)}</select></label><label><span>Compare</span><select aria-label="Breakpoint condition operator" value={breakpointOperator} disabled={!breakpointRegister} onChange={(event) => setBreakpointOperator(event.target.value)}><option value="eq">equals</option><option value="ne">not equal</option><option value="lt">less than</option><option value="lte">at most</option><option value="gt">greater than</option><option value="gte">at least</option></select></label><label><span>Value</span><input aria-label="Breakpoint condition value" disabled={!breakpointRegister} value={breakpointValue} onChange={(event) => setBreakpointValue(event.target.value)} placeholder="&03" /></label><label><span>Hit ≥</span><input aria-label="Breakpoint hit target" inputMode="numeric" value={breakpointHitTarget} onChange={(event) => setBreakpointHitTarget(event.target.value)} placeholder="1" /></label><label><span>Action</span><select aria-label="Breakpoint action" value={breakpointMode} onChange={(event) => setBreakpointMode(event.target.value as 'break' | 'log')}><option value="break">Pause</option><option value="log">Log only</option></select></label><label className="breakpoint-log-input"><span>Log message · placeholders: {'{pc} {a} {x} {y} {s} {p} {hits}'}</span><input aria-label="Breakpoint log message" value={breakpointLogMessage} onChange={(event) => setBreakpointLogMessage(event.target.value)} placeholder={breakpointMode === 'log' ? 'X={x} hit {hits}' : 'Optional'} /></label></div></div><div className="breakpoint-list hardware-breakpoint-list" aria-label="Hardware breakpoints">{hardwareState.breakpoints.map((breakpoint) => <button type="button" aria-label={`Remove breakpoint ${formatAddress(breakpoint.address)}`} key={breakpoint.address} onClick={() => onMachineCommand({ type: 'breakpoint', address: breakpoint.address, enabled: false, stop: true })}><strong>{formatAddress(breakpoint.address)}</strong><span>{breakpoint.stop ? 'pause' : 'log'} · {breakpoint.hits} hit{breakpoint.hits === 1 ? '' : 's'}{breakpoint.condition ? ` · ${breakpoint.condition.register.toUpperCase()} ${breakpoint.condition.operator} &${breakpoint.condition.value.toString(16).toUpperCase()}` : ''}{breakpoint.hitTarget ? ` · ≥${breakpoint.hitTarget}` : ''}</span><small>Remove ×</small></button>)}</div><h3>Raw hardware stack</h3><div className="raw-stack">{hardwareState.stack.length ? hardwareState.stack.map((item) => <code key={item.address}>{formatAddress(item.address)}:{formatByte(item.value)}</code>) : <span>No bytes above SP</span>}</div></section>
-        <section><h3>Machine state</h3><div className="machine-debug-facts"><div><span>Execution</span><strong>{hardwareState.running ? 'running' : 'paused'}</strong></div><div><span>CPU core</span><strong>{hardwareState.cpuCore}</strong></div><div><span>Reason</span><strong>{hardwareState.reason}</strong></div><div><span>Emulated cycles</span><strong>{hardwareState.cycles.toLocaleString()}</strong></div></div><h3>Interrupt state</h3><div className="interrupt-grid" aria-label="Live CPU interrupt state"><div><span>IRQ line</span><strong className={hardwareState.interrupts.irqLine ? 'asserted' : ''}>{hardwareState.interrupts.irqLine ? 'asserted' : 'clear'}</strong></div><div><span>IRQ accepted</span><strong>{hardwareState.interrupts.irqAccepted ? 'pending' : 'no'}</strong></div><div><span>I mask</span><strong>{hardwareState.interrupts.interruptDisable ? 'set' : 'clear'}</strong></div><div><span>IRQ source mask</span><strong>&amp;{hardwareState.interrupts.irqSourceMask.toString(16).toUpperCase().padStart(8, '0')}</strong></div><div><span>NMI line / edge</span><strong>{hardwareState.interrupts.nmiLevel ? 'high' : 'low'} / {hardwareState.interrupts.nmiEdge ? 'latched' : 'clear'}</strong></div></div><p className="honest-note">IRQ source mask, acceptance and NMI state are read directly from the selected jsbeeb CPU core; named sources below come only from peripheral IFR/IER or status/control snapshots.</p><InterruptHistoryPanel state={hardwareState} onMachineCommand={onMachineCommand} /><HardwareMemoryInspector artifact={artifact} state={hardwareState} memory={hardwareMemory} onMachineCommand={onMachineCommand} /></section>
+        <section><h3>Machine state</h3><div className="machine-debug-facts"><div><span>Execution</span><strong>{hardwareState.running ? 'running' : 'paused'}</strong></div><div><span>CPU core</span><strong>{hardwareState.cpuCore}</strong></div><div><span>Reason</span><strong>{hardwareState.reason}</strong></div><div><span>Emulated cycles</span><strong>{hardwareState.cycles.toLocaleString()}</strong></div></div><h3>Interrupt state</h3><div className="interrupt-grid" aria-label="Live CPU interrupt state"><div><span>IRQ line</span><strong className={hardwareState.interrupts.irqLine ? 'asserted' : ''}>{hardwareState.interrupts.irqLine ? 'asserted' : 'clear'}</strong></div><div><span>IRQ accepted</span><strong>{hardwareState.interrupts.irqAccepted ? 'pending' : 'no'}</strong></div><div><span>I mask</span><strong>{hardwareState.interrupts.interruptDisable ? 'set' : 'clear'}</strong></div><div><span>IRQ source mask</span><strong>&amp;{hardwareState.interrupts.irqSourceMask.toString(16).toUpperCase().padStart(8, '0')}</strong></div><div><span>NMI line / edge</span><strong>{hardwareState.interrupts.nmiLevel ? 'high' : 'low'} / {hardwareState.interrupts.nmiEdge ? 'latched' : 'clear'}</strong></div></div><p className="honest-note">IRQ source mask, acceptance and NMI state are read directly from the selected jsbeeb CPU core; named sources below come only from peripheral IFR/IER or status/control snapshots.</p><InterruptHistoryPanel state={hardwareState} onMachineCommand={onMachineCommand} /><HardwareMemoryInspector artifact={artifact} state={hardwareState} memory={hardwareMemory} onMachineCommand={onMachineCommand} onAnalyse={onAnalyse} /></section>
         <section className="trace-section"><HardwareDisassemblyPanel artifact={artifact} currentFiles={currentFiles} state={hardwareState} disassembly={hardwareDisassembly} onMachineCommand={onMachineCommand} onNavigateSource={onNavigateSource} /><HardwareTracePanel state={hardwareState} onMachineCommand={onMachineCommand} /><h3>Breakpoint event log <small>{hardwareState.breakpointLogs.length} retained</small></h3><div className="breakpoint-event-log" role="log" aria-label="Breakpoint event log">{hardwareState.breakpointLogs.length ? hardwareState.breakpointLogs.slice().reverse().map((entry) => <div key={entry.sequence}><code>#{entry.sequence}</code><strong>{formatAddress(entry.address)}</strong><span>{entry.message}</span><small>hit {entry.hits}</small></div>) : <div className="honest-empty">No breakpoint log events in this debug session.</div>}</div></section>
       </div>}
       {hardwareState && <Breakpoint6502PersistencePanel intents={persistedBreakpoints} groups={breakpointGroups} resolved={resolvedPersistedBreakpoints} selectedGroupId={breakpointGroupId} groupName={breakpointGroupName} message={breakpointMessage} onSelectedGroup={setBreakpointGroupId} onGroupName={setBreakpointGroupName} onGroups={onPersistGroups} onIntents={onPersistBreakpoints} />}
@@ -4885,7 +5519,7 @@ function RuntimePerformancePanel({ state }: { state: MachineBridgeSnapshot['perf
   return <details className="runtime-performance-panel"><summary><strong>Runtime performance</strong><span>{frames.droppedFrames.toLocaleString()} estimated drops · {underrunLabel} · {state.crashes.retained} crashes</span></summary><div className="runtime-performance-grid"><div><span>Frame interval</span><strong>{frames.lastIntervalMs.toFixed(1)} ms</strong><small>average {frames.averageIntervalMs.toFixed(1)} · maximum {frames.maximumIntervalMs.toFixed(1)}</small></div><div><span>Presentation</span><strong>{frames.renderedFrames.toLocaleString()} frames</strong><small>{frames.lateFrames.toLocaleString()} late · {frames.droppedFrames.toLocaleString()} estimated dropped</small></div><div><span>Audio path</span><strong>{state.audio.latencyMs.toFixed(1)} ms latency</strong><small>{state.audio.underrunsAvailable ? `${state.audio.underruns.toLocaleString()} gap underruns · last gap ${state.audio.lastBufferGapMs.toFixed(1)} ms` : 'callback underrun counter is not exposed by this adapter'}</small></div><div><span>Background</span><strong>{state.background.suspended ? 'suspended' : 'active'}</strong><small>{state.background.policy}</small></div></div><dl className="runtime-budget-list"><div><dt>Frame</dt><dd>{state.budgets.frameBudgetMs} ms</dd></div><div><dt>Snapshots</dt><dd>{state.budgets.snapshotIntervalMs} ms</dd></div><div><dt>Trace</dt><dd>{state.budgets.traceCapacity.toLocaleString()} records</dd></div><div><dt>Media</dt><dd>{(state.budgets.mediaBytesPerDrive / 1048576).toFixed(0)} MiB / drive</dd></div><div><dt>Sessions</dt><dd>{state.budgets.activeSessions}</dd></div></dl><p>{frames.source}. {state.audio.source}. {state.isolation}.</p><div className="runtime-crash-list" aria-label="Bounded runtime crash diagnostics">{state.crashes.records.length ? state.crashes.records.slice().reverse().map((record) => <div key={record.sequence}><code>#{record.sequence}</code><strong>{record.kind}</strong><span>{record.message}</span><small>{record.timeMs.toFixed(1)} ms monotonic</small></div>) : <div className="honest-empty">No runtime crash has been observed in this machine session.</div>}</div></details>;
 }
 
-function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand }: { artifact: AssemblyArtifact | null; state: MachineBridgeSnapshot; memory: MachineMemory | null; onMachineCommand: (message: Record<string, unknown>) => void }) {
+function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand, onAnalyse }: { artifact: AssemblyArtifact | null; state: MachineBridgeSnapshot; memory: MachineMemory | null; onMachineCommand: (message: Record<string, unknown>) => void; onAnalyse?: (name: string, bytes: Uint8Array, metadata: AcornFileMetadata, overrides?: { processor?: AnalysisProcessor; origin?: number; entryPoint?: number }) => void }) {
   const [query, setQuery] = useState('&0000');
   const [length, setLength] = useState('128');
   const [width, setWidth] = useState<8 | 16 | 32>(16);
@@ -5001,6 +5635,7 @@ function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand }: 
       <button type="button" disabled={!memory} onClick={() => memory && setSnapshot({ address: memory.address, bytes: [...memory.bytes], cycles: memory.capturedAtCycles, addressSpace: memory.addressSpace, ...(memory.bank === undefined ? {} : { bank: memory.bank }) })}>Take snapshot</button>
       <button type="button" disabled={!snapshot} onClick={() => setSnapshot(undefined)}>Clear snapshot</button>
       <button type="button" disabled={!memory} onClick={() => void copyDump()}>Copy</button><button type="button" disabled={!memory} onClick={() => exportDump(false)}>Export text</button><button type="button" disabled={!memory} onClick={() => exportDump(true)}>Export binary</button>
+      <button type="button" disabled={!memory || !onAnalyse} onClick={() => { if (!memory || !onAnalyse) return; const context = capturedMemoryFrom(memory, selectedSpace, state.sessionManifest.machine.label); onAnalyse(capturedMemoryName(context), Uint8Array.from(memory.bytes), capturedMemoryMetadata(context), { origin: memory.address, entryPoint: memory.address }); }}>Analyse window</button>
       <span>{snapshot ? `${changed.size} changed · snapshot cycle ${snapshot.cycles.toLocaleString()}` : 'No comparison snapshot'}</span>
     </div>
     {memory ? <div className="memory-inspector-table" role="table" aria-label="Live machine memory">
@@ -5894,7 +6529,10 @@ interface EmulatorPanelProps {
   machineModel?: string;
   romSetId?: string;
   /** Which pinned core would run this ROM set; the panel routes on it. */
-  engineId?: 'jsbeeb' | 'elkjs';
+  /* Widened for the Elkulator port. Nothing routes to it: the panel matches
+   * on the engines it can start, and an unrecognised one falls through to the
+   * refusal rather than to a blank frame. */
+  engineId?: 'jsbeeb' | 'elkjs' | 'elkulator';
   /* Settings the open project carries. They take precedence over this
    * browser's own for as long as that project is open, so a preference a piece
    * of work needs travels with it. */
@@ -6018,23 +6656,32 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
     try {
       return createRuntimeSessionManifest({
         id: debugSessionId, createdAt: new Date().toISOString(),
-        adapter: archimedesRuntime ? { id: 'arculator-wasm', version: '579ac437b9a4ebe83b9b5f9b8e50b0c9c530509e' } : engineId === 'elkjs' ? { id: 'elkjs', version: 'ff123355' } : { id: 'jsbeeb', version: '1.19.1' },
+        adapter: archimedesRuntime ? { id: 'arculator-wasm', version: '579ac437b9a4ebe83b9b5f9b8e50b0c9c530509e' } : engineId === 'elkulator' ? { id: 'elkulator', version: 'allegro5-6785521' } : engineId === 'elkjs' ? { id: 'elkjs', version: 'ff123355' } : { id: 'jsbeeb', version: '1.19.1' },
         machine: { ...machineProfile, label: machine, variant, model: machineModel ?? archimedesRuntime!.profile.label, romSetId: romSetId ?? archimedesRuntime!.profile.id },
         roms: romRecords.map(({ key, filename, size, sha256 }) => ({ key, filename, size, sha256 })),
         boot: { tube, extraRoms, keyboardLayout, runtimeSpeed, fastBootMs: archimedesFastBootMs },
         substitutions: [],
         limitations: archimedesRuntime
           ? ['Runtime speed, deterministic save state and guest media current-byte export are unavailable for the pinned A310 adapter']
-          : engineId === 'elkjs'
-            ? [ELECTRON_ADAPTER_SUMMARY]
+          : engineId === 'elkulator'
+            ? [ELKULATOR_ADAPTER_SUMMARY]
+            : engineId === 'elkjs'
+              ? [ELECTRON_ADAPTER_SUMMARY]
             : ['Guest-modified current-byte export is qualified for SSD and DSD only; the pinned ADF loader exposes no write callback'],
       });
     } catch { return null; }
   }, [debugSessionId, profileIdentity, romReady]);
-  /* The Electron ROM set is served by the vendored ElkJS core, not by jsbeeb,
-   * so it must not fall through the 6502 path: jsbeeb has no Electron model and
-   * would refuse the machine after the session had already been declared live. */
-  const electronMachine = engineId === 'elkjs';
+  /* The Electron ROM sets are served by their own cores, not by jsbeeb, so they
+   * must not fall through the 6502 path: jsbeeb has no Electron model and would
+   * refuse the machine after the session had already been declared live.
+   *
+   * There are two of those cores and the ROM set chooses. Both speak the same
+   * envelope and report the same state, so everything below treats them
+   * together; where they differ — the page, the channel and what each can be
+   * asked to do — is decided by this one flag. */
+  const electronRoute = electronRuntimeRoute(engineId);
+  const electronMachine = isElectronEngine(engineId);
+  const elkulatorMachine = engineId === 'elkulator';
   const fullElectronMachine = romReady && electronMachine && !!machineModel && !!romSetId && !!sessionManifest;
   const full6502Machine = romReady && !electronMachine && !!machineModel && !!romSetId && !!sessionManifest;
   const bbcAnalogueSupported = full6502Machine && ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'].includes(machineProfile.machineId);
@@ -6063,7 +6710,15 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
     return urls;
   }, [romSetId, romRecords]);
   const runtimeIdentity = sessionManifest?.fingerprint ?? profileIdentity;
-  const frameSource = fullArchimedesMachine ? `/archimedes.html?boot=${fastArchimedesBoot ? 'fast' : 'authentic'}&session=${encodeURIComponent(debugSessionId)}` : fullElectronMachine ? `/electron.html?session=${encodeURIComponent(debugSessionId)}` : `/emulator.html?session=${encodeURIComponent(debugSessionId)}`;
+  /* What this build says the attached core offers, until the core itself says.
+   * Two cores, two declarations: showing ElkJS's list beside a running
+   * Elkulator would tell somebody stepping is unavailable while they were
+   * stepping. */
+  const declaredCapabilities: readonly string[] = elkulatorMachine ? ELKULATOR_CAPABILITIES : ELECTRON_CAPABILITIES;
+  const declaredUnavailable = elkulatorMachine ? ELKULATOR_UNAVAILABLE : ELECTRON_UNAVAILABLE;
+  const electronPage = electronRoute?.page ?? '/electron.html';
+  const electronChannel = electronRoute?.channel ?? '8bit-net-electron';
+  const frameSource = fullArchimedesMachine ? `/archimedes.html?boot=${fastArchimedesBoot ? 'fast' : 'authentic'}&session=${encodeURIComponent(debugSessionId)}` : fullElectronMachine ? `${electronPage}?session=${encodeURIComponent(debugSessionId)}` : `/emulator.html?session=${encodeURIComponent(debugSessionId)}`;
   const framebufferWidth = fullArchimedesMachine ? archimedesState?.hardware.vidc.width : fullElectronMachine ? 640 : 1024;
   const framebufferHeight = fullArchimedesMachine ? archimedesState?.hardware.vidc.height : fullElectronMachine ? 512 : 625;
   const scaledViewport = scaledFramebufferViewport(emulatorScale, framebufferWidth, framebufferHeight);
@@ -6072,11 +6727,11 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
    * the Electron slice restricts anything today, and it refuses in the
    * workbench with the core's own recorded reason rather than sending a command
    * that would be dropped and leave the interface looking live. */
-  const adapterBlock = (type: string) => fullElectronMachine ? electronCommandRefusal(type) : null;
+  const adapterBlock = (type: string) => fullElectronMachine ? (elkulatorMachine ? elkulatorCommandRefusal(type) : electronCommandRefusal(type)) : null;
   const sendMachine = (message: Record<string, unknown>) => {
     const refusal = adapterBlock(String(message.type));
     if (refusal) { onNotice(`${machine} adapter · ${refusal}`); return; }
-    const envelope = { ...(fullArchimedesMachine ? { channel: '8bit-net-archimedes' } : fullElectronMachine ? { channel: '8bit-net-electron' } : {}), ...message, sessionId: debugSessionId, commandId: ++transportCommandRef.current };
+    const envelope = { ...(fullArchimedesMachine ? { channel: '8bit-net-archimedes' } : fullElectronMachine ? { channel: electronChannel } : {}), ...message, sessionId: debugSessionId, commandId: ++transportCommandRef.current };
     if (transportPendingRef.current === null) { postTransportCommand(envelope); return; }
     if (transportQueueRef.current.length >= 64) { onNotice('Debug command queue is full · wait for the attached core to acknowledge pending work'); return; }
     transportQueueRef.current.push(envelope);
@@ -6141,7 +6796,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== frameRef.current?.contentWindow) return;
-      if (event.data?.channel !== (fullArchimedesMachine ? '8bit-net-archimedes' : fullElectronMachine ? '8bit-net-electron' : '8bit-net-machine')) return;
+      if (event.data?.channel !== (fullArchimedesMachine ? '8bit-net-archimedes' : fullElectronMachine ? electronChannel : '8bit-net-machine')) return;
       const acceptedSequence = acceptDebugEvent(event.data, debugSessionId, receivedEventRef.current);
       if (acceptedSequence === null) return;
       receivedEventRef.current = acceptedSequence;
@@ -6599,11 +7254,15 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           <button
             className="icon-button"
             type="button"
-            aria-label="Run program"
+            /* The name follows what the control does. It did not, and that is
+             * how somebody presses "Run program" expecting their build to
+             * reach the machine and gets the operating system resumed instead.
+             * A tooltip said which; a tooltip is not an accessible name. */
+            aria-label={fullMachine ? "Resume machine" : "Run program"}
             title={
               fullMachine
                 ? machinePowered
-                  ? "Run the hardware emulator"
+                  ? "Resume the emulated machine. To put this build on it, use Build and debug."
                   : "Power on the machine first"
                 : artifact
                   ? "Continue the loaded program"
@@ -6619,20 +7278,24 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           <button
             className="icon-button"
             type="button"
-            aria-label={fullMachine ? "Pause machine" : "Step instruction"}
+            /* Always Pause, because it always shows a pause icon. It used to
+             * be called "Step instruction" when no machine was attached — a
+             * pause icon that stepped, sharing its name with the step control
+             * beside it, so two adjacent buttons announced themselves
+             * identically and did the same thing. Stepping has its own control;
+             * this one has nothing to pause when the ROM-less runtime is what
+             * is loaded, because that runtime executes to completion rather
+             * than running. */
+            aria-label="Pause machine"
             title={
               fullMachine
                 ? machinePowered
-                  ? "Pause the hardware emulator"
+                  ? "Pause the emulated machine"
                   : "Power on the machine first"
-                : artifact
-                  ? "Execute one 6502 instruction"
-                  : "Build an assembly source first"
+                : "Nothing is running to pause: without a machine, a program runs to completion. Use Step to advance one instruction."
             }
-            disabled={fullMachine ? !poweredMachine : !artifact}
-            onClick={() =>
-              poweredMachine ? sendMachine({ type: "pause" }) : onStep()
-            }
+            disabled={!poweredMachine}
+            onClick={() => sendMachine({ type: "pause" })}
           >
             <Icon name="pause" />
           </button>
@@ -7508,17 +8171,21 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
       {fullElectronMachine && !collapsed && (
         <details className="adapter-capability-note">
           <summary>
-            ElkJS Electron adapter ·{" "}
-            {(electronState?.capabilities ?? ELECTRON_CAPABILITIES).length} of{" "}
-            {(electronState?.capabilities ?? ELECTRON_CAPABILITIES).length +
-              Object.keys(electronState?.unavailable ?? ELECTRON_UNAVAILABLE)
+            {electronRoute?.label ?? "ElkJS"} Electron adapter ·{" "}
+            {(electronState?.capabilities ?? declaredCapabilities).length} of{" "}
+            {(electronState?.capabilities ?? declaredCapabilities).length +
+              Object.keys(electronState?.unavailable ?? declaredUnavailable)
                 .length}{" "}
             capabilities offered
           </summary>
-          <p>{ELECTRON_ADAPTER_SUMMARY}</p>
+          <p>
+            {elkulatorMachine
+              ? ELKULATOR_ADAPTER_SUMMARY
+              : ELECTRON_ADAPTER_SUMMARY}
+          </p>
           <ul>
             {Object.entries(
-              electronState?.unavailable ?? ELECTRON_UNAVAILABLE,
+              electronState?.unavailable ?? declaredUnavailable,
             ).map(([capability, reason]) => (
               <li key={capability}>
                 <strong>{capability}</strong>

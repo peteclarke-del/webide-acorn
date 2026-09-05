@@ -75,8 +75,14 @@ export const machineProfiles: MachineProfile[] = [
     memory: '16 KB RAM',
     variants: ['Model A 16K', 'Model A upgraded 32K'],
     roms: [
-      { id: 'os12-basic2', label: 'OS 1.20 + BASIC II', detail: 'Standard MOS and BASIC' },
-      { id: 'os10-basic1', label: 'OS 1.00 + BASIC I', detail: 'Early firmware profile' },
+      {
+        id: 'os12-basic2', label: 'OS 1.20 + BASIC II', detail: 'Standard MOS and BASIC',
+        unavailableReason: 'jsbeeb models the BBC B and no Model A. The two differ in fitted RAM and in which interfaces are present, so running a Model A profile on the B model would be a Model B wearing the name — and every difference that matters to a program written for a Model A is one this build would not show. The profile is listed because the product models the machine, not because this build can run it.',
+      },
+      {
+        id: 'os10-basic1', label: 'OS 1.00 + BASIC I', detail: 'Early firmware profile',
+        unavailableReason: 'jsbeeb models the BBC B and no Model A, so this early Model A firmware combination has no machine here to run on. Its BASIC I differs from BASIC II in ways a program can detect, and pretending otherwise on a Model B would be worse than saying so.',
+      },
     ],
     capabilities: [
       capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported', true),
@@ -99,14 +105,14 @@ export const machineProfiles: MachineProfile[] = [
     roms: [
       { id: 'os12-basic2-dfs', label: 'OS 1.20 + BASIC II + DFS 0.90', detail: 'Canonical development set' },
       { id: 'os12-basic2-adfs', label: 'OS 1.20 + BASIC II + ADFS', detail: '1770 storage profile' },
-      { id: 'os12-basic1', label: 'OS 1.20 + BASIC I', detail: 'Compatibility profile' },
+      { id: 'os12-basic1', label: 'OS 1.20 + BASIC I + DFS 0.90', detail: 'Compatibility profile: the same machine with the earlier BASIC' },
     ],
     capabilities: [
       capability('dfs', 'DFS disk system', '8271/1770 disk image mastering', 'supported', true),
       capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported'),
       capability('sideways', 'Sideways RAM', 'Writable ROM banks at &8000', 'supported', true),
       capability('1mhzpi', '1MHzPi WiFi ROM', 'Development sideways ROM for the external 1 MHz bus interface', 'preview'),
-      capability('tube', 'Tube second processor', '6502, Z80, ARM and other parasites', 'preview'),
+      capability('tube', 'Tube second processor', 'The pinned core fits the interface but never hands the language over on this machine: the parasite runs its own ROM and waits, and its RAM is untouched. It boots on the Master, so this is the machine and not the feature', 'planned'),
       capability('econet', 'Econet', 'Network interface and NFS ROM', 'planned'),
       capability('speech', 'Speech system', 'TMS5220 speech hardware and PHROM', 'planned'),
     ],
@@ -121,17 +127,28 @@ export const machineProfiles: MachineProfile[] = [
     generation: '1985 · enhanced BBC Micro',
     cpu: 'MOS 6502A @ 2 MHz',
     memory: '64 or 128 KB RAM',
+    /* The 128 is described because Acorn sold it, and is not offered as a
+     * machine to run: its extra sideways RAM makes OS 2.00 report a memory size
+     * no B+ was sold with, so nothing here can show it behaving like one. */
     variants: ['B+ 64K', 'B+ 128K'],
     roms: [
-      { id: 'bplus-os', label: 'B+ MOS + BASIC II + DFS', detail: 'Standard B+ ROM set' },
-      { id: 'bplus-adfs', label: 'B+ MOS + BASIC II + ADFS', detail: 'ADFS storage set' },
+      { id: 'bplus-os', label: 'B+ MOS 2.00 + BASIC II + 1770 DFS', detail: 'Standard B+ ROM set' },
+      { id: 'bplus-adfs', label: 'B+ MOS 2.00 + BASIC II + ADFS', detail: 'ADFS storage set' },
     ],
+    /*
+     * The two capabilities that make this machine a B+ rather than a Model B
+     * are supported because the machine demonstrated them, not because the
+     * hardware had them: a shadow mode leaves HIMEM at &8000 where a Model B
+     * drops it to &3000, and the paged RAM answers across all twelve kilobytes
+     * and lifts again cleanly. See src/emulator/bbcBPlusMeasurements.ts.
+     */
     capabilities: [
-      capability('shadow', 'Shadow screen RAM', 'Dedicated display memory', 'supported', true),
-      capability('sideways', 'Sideways RAM', '12 KB or 64 KB banked workspace', 'supported', true),
+      capability('shadow', 'Shadow screen RAM', 'Twenty kilobytes of display memory the program never pays for', 'supported', true),
+      capability('sideways', 'Paged RAM at &8000', 'Twelve kilobytes brought in by ROMSEL bit 7', 'supported', true),
+      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported'),
       capability('dfs', '1770 DFS', 'Disk image mastering', 'supported', true),
-      capability('adfs', 'ADFS', 'Hierarchical filing system', 'preview'),
-      capability('tube', 'Tube second processor', 'External parasite CPU', 'preview'),
+      capability('adfs', 'ADFS', 'Hierarchical filing system', 'supported'),
+      capability('tube', 'Tube second processor', 'External parasite CPU. Not offered while the pinned core does not complete the Tube boot on a BBC-family host; it does on the Master', 'planned'),
       capability('1mhzpi', '1MHzPi WiFi ROM', 'Development sideways ROM shared with BBC B and Master profiles', 'preview'),
       capability('econet', 'Econet', 'Network interface', 'planned'),
     ],
@@ -149,21 +166,32 @@ export const machineProfiles: MachineProfile[] = [
     variants: ['Electron', 'Electron + Plus 1', 'Electron + Plus 3'],
     roms: [
       { id: 'electron-os', label: 'Electron OS 1.0 + BASIC II', detail: 'Standard firmware' },
-      { id: 'electron-plus3', label: 'Electron OS + ADFS E00', detail: 'Plus 3 disk profile' },
+      { id: 'electron-expanded', label: 'Electron + Plus 1 expansions', detail: 'Elkulator core with the Plus 1, Plus 3 and sideways boards' },
     ],
-    /* The vendored ElkJS core models a base 32 KB Electron with an operating
-     * system and BASIC and nothing else, so every expansion below is planned
-     * rather than supported: enabling one here would change no behaviour in the
-     * only adapter that can run this machine. They become real with the
-     * Elkulator port recorded in the backlog, which is named as the
-     * requirement so the reason is on the control itself. */
+    /* Two cores can run this machine and they are not equally equipped. ElkJS
+     * models a base 32 KB Electron with an operating system and BASIC and
+     * nothing else; Elkulator, built for WebAssembly, is the full machine with
+     * sideways banks, the Plus 1 and the Plus 3.
+     *
+     * The cassette interface is supported because it was proved rather than
+     * assumed: a tape written by this build was mounted on a real Electron
+     * under Elkulator in a browser, `*LOAD` was typed at its keyboard, the
+     * machine turned its own cassette motor on, and every byte of the file
+     * arrived at its load address.
+     *
+     * The expansions below stay planned, and the reason has changed. It is no
+     * longer that no core can run them — Elkulator runs, and the bridge mounts
+     * disc images through its own loader. It is that each one needs firmware
+     * this vault does not hold: a Plus 1 ROM, an ADFS or DFS ROM. An expansion
+     * whose ROM is absent is an expansion that is not fitted, and saying it is
+     * supported would promise a machine nobody here can start. */
     capabilities: [
-      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'planned', false, 'the Elkulator port; the vendored ElkJS core has no tape'),
-      capability('plus1', 'Plus 1 expansion', 'Cartridge, printer and analogue interfaces', 'planned', false, 'the Elkulator port; the vendored ElkJS core models no Plus 1'),
-      capability('plus3', 'Plus 3 expansion', '3.5-inch disk and ADFS', 'planned', false, 'the Elkulator port; the vendored ElkJS core models no Plus 3 or ADFS'),
-      capability('sideways', 'Sideways RAM', 'Expansion banked memory', 'planned', false, 'the Elkulator port; ElkJS decodes every unclaimed ROM bank to BASIC'),
-      capability('joystick', 'Joystick interface', 'Configurable expansion joystick', 'planned', false, 'the Plus 1 the vendored ElkJS core does not model'),
-      capability('1mhzpi', '1MHzPi / ElkWiFi', 'Development Plus 1 RH and modified ElkWiFi firmware', 'planned', false, 'the Elkulator port and a Plus 1 the vendored ElkJS core does not model'),
+      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported', true),
+      capability('plus1', 'Plus 1 expansion', 'Cartridge, printer and analogue interfaces', 'planned', false, 'a Plus 1 ROM in the firmware vault; the Elkulator core fits one when it is there'),
+      capability('plus3', 'Plus 3 expansion', '3.5-inch disk and ADFS', 'planned', false, 'an ADFS or DFS ROM in the firmware vault; the bridge mounts disc images through Elkulator\'s own loader once a machine has an interface to read them with'),
+      capability('sideways', 'Sideways RAM', 'Expansion banked memory', 'planned', false, 'a sideways ROM manifest for the Elkulator core; ElkJS decodes every unclaimed ROM bank to BASIC'),
+      capability('joystick', 'Joystick interface', 'Configurable expansion joystick', 'planned', false, 'the Plus 1, which needs its ROM'),
+      capability('1mhzpi', '1MHzPi / ElkWiFi', 'Development Plus 1 RH and modified ElkWiFi firmware', 'planned', false, 'the Plus 1 the ElkWiFi board plugs into'),
     ],
     accent: '#cf6857',
   },
@@ -180,14 +208,22 @@ export const machineProfiles: MachineProfile[] = [
     roms: [
       { id: 'mos320', label: 'MOS 3.20', detail: 'Original Master firmware' },
       { id: 'mos350', label: 'MOS 3.50', detail: 'Updated Master firmware' },
-      { id: 'compact510', label: 'Compact MOS 5.10', detail: 'Master Compact profile' },
+      {
+        id: 'compact510', label: 'Compact MOS 5.10', detail: 'Master Compact profile',
+        unavailableReason: 'The Master Compact is a different machine, not a Master 128 with later firmware: a different keyboard, no Tube and its own MOS entry points. jsbeeb models the Master 128 and no Compact, so running Compact firmware on it would boot something that is not a Compact and would be wrong in ways nothing here would catch. Supplying the ROM would not change that.',
+      },
     ],
     capabilities: [
+      /* The Master 128 has a cassette port like the machines before it, and it
+       * is here because a tape written by this build was loaded on one: see
+       * MASTER_TAPE_LOAD in src/media/acornTapeMeasurements.ts, where the
+       * machine printed its own Searching/Loading and every byte arrived. */
+      capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported'),
       capability('shadow', 'Shadow & Hazel RAM', 'Display and private workspace', 'supported', true),
       capability('sideways', 'Sideways RAM', 'Four writable bank slots', 'supported', true),
       capability('adfs', 'ADFS', 'Integrated hierarchical filing system', 'supported', true),
       capability('dfs', 'DFS', '1770 DFS compatibility', 'supported'),
-      capability('tube', 'Tube / Turbo', 'Internal or external second processor', 'preview'),
+      capability('tube', 'Tube / Turbo', 'Internal 65C102 Turbo second processor. The host reports it, the language is transferred and a conformance case passes on real hardware', 'supported'),
       capability('1mhzpi', '1MHzPi WiFi ROM', 'Development sideways ROM shared with BBC B and B+ profiles', 'preview'),
       capability('econet', 'Econet', 'Network interface and ANFS', 'planned'),
     ],
@@ -277,8 +313,14 @@ export const machineProfiles: MachineProfile[] = [
     memory: '2–8 MB RAM',
     variants: ['A5000', 'A5000 Alpha'],
     roms: [
-      { id: 'riscos310-a5k', label: 'RISC OS 3.10', detail: 'Original A5000 release' },
-      { id: 'riscos311-a5k', label: 'RISC OS 3.11', detail: 'Updated desktop ROM' },
+      {
+        id: 'riscos310-a5k', label: 'RISC OS 3.10', detail: 'Original A5000 release',
+        unavailableReason: 'The qualified Arculator slice in this build covers the A310 class only, and the Archimedes firmware inventory carries no A5000 entry, so there is no machine here for this ROM to run on. The A5000 is an ARM3 machine with a different memory controller and IDE rather than floppy-first storage; it is described because the product models it, not because this build emulates it.',
+      },
+      {
+        id: 'riscos311-a5k', label: 'RISC OS 3.11', detail: 'Updated desktop ROM',
+        unavailableReason: 'The same obstacle as the 3.10 set: no A5000 is modelled here and no A5000 firmware entry is registered. The RISC OS version is not what is missing.',
+      },
     ],
     capabilities: [
       capability('adfs', 'IDE + ADFS', 'Integrated hard disk and floppy', 'supported', true),
@@ -300,8 +342,14 @@ export const machineProfiles: MachineProfile[] = [
     memory: '4–256 MB RAM',
     variants: ['Risc PC 600', 'Risc PC 700', 'StrongARM Risc PC'],
     roms: [
-      { id: 'riscos350', label: 'RISC OS 3.50', detail: 'Original Risc PC ROM' },
-      { id: 'riscos370', label: 'RISC OS 3.70', detail: 'StrongARM-era ROM' },
+      {
+        id: 'riscos350', label: 'RISC OS 3.50', detail: 'Original Risc PC ROM',
+        unavailableReason: 'No Risc PC is modelled here: the qualified Arculator slice covers the A310 class, and the Risc PC is a different machine again — ARM610 and later, VIDC20, and a ROM image in a format the Archimedes inventory does not describe. The profile is listed because the product models the machine.',
+      },
+      {
+        id: 'riscos370', label: 'RISC OS 3.70', detail: 'StrongARM-era ROM',
+        unavailableReason: 'The same obstacle as the 3.50 ROM: no Risc PC is modelled here, and a StrongARM-era ROM has no machine in this build to be loaded into.',
+      },
     ],
     capabilities: [
       capability('vidc20', 'VIDC20 display', 'High-colour and multisync modes', 'preview', true),

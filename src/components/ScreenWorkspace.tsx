@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  GridSelectionError,
+  copySelection,
+  describeSelection,
+  fillSelection,
+  pasteSelection,
+  selectionContains,
+  type GridClipboard,
+  type GridSelection,
+} from '../assets/gridSelection';
 import { readableInk } from '../theme/readableInk';
 import { Icon } from './Icon';
+import { PanelMenuBar } from './PanelMenuBar';
+import { projectDocuments } from '../project/projectDocuments';
+import type { ProjectFile } from '../project/project';
 import {
   createScreenDocument, generateScreenOutputFromBytes, importImageIntoScreen, parseScreenDocument,
   readScreenPixel, screenBytes, screenDocumentFromBytes, screenGeometry, serializeScreenDocument,
@@ -10,6 +23,8 @@ import { PALETTE_MODES, paletteModeProfile, physicalColour, type PaletteModeId, 
 
 interface ScreenWorkspaceProps {
   projectPalette: ProjectPalette;
+  /** Everything the project holds, so a screen already in it can be opened. */
+  projectFiles?: readonly ProjectFile[];
   onAddSource: (name: string, content: string) => void;
   onAddLiveScreen: (stem: string, content: string) => void;
   onNotice: (message: string) => void;
@@ -17,7 +32,11 @@ interface ScreenWorkspaceProps {
 
 const STORAGE_KEY = '8bit-net-dev:screen';
 
-export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, onNotice }: ScreenWorkspaceProps) {
+export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource, onAddLiveScreen, onNotice }: ScreenWorkspaceProps) {
+  /* A screen recovered from an imported game, or generated earlier, is in the
+   * project already; sending somebody to a file dialog to fetch what the
+   * product is holding is busy work. */
+  const openable = useMemo(() => projectDocuments(projectFiles, ['screen']), [projectFiles]);
   const recovered = useMemo(() => {
     try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) return parseScreenDocument(saved); }
     catch { /* an invalid recovery starts a new validated document */ }
@@ -33,7 +52,12 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
   const [colour, setColour] = useState(1);
   const [zoom, setZoom] = useState(2);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
+  const [selectionAnchor, setSelectionAnchor] = useState<{ x: number; y: number }>();
+  const [selection, setSelection] = useState<GridSelection>();
+  const [clipboard, setClipboard] = useState<GridClipboard>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /* Reached from the Document menu, since a menu item cannot be a file input. */
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const geometry = screenGeometry(screen.mode);
   const bytes = screen.bytes;
   const document = useMemo(() => screenDocumentFromBytes(screen.name, screen.mode, screen.bytes), [screen]);
@@ -97,8 +121,20 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
     }
     context.strokeStyle = '#f2c14e';
     context.lineWidth = 1;
+    if (selection) {
+      context.fillStyle = 'rgba(242, 193, 78, 0.28)';
+      for (let y = 0; y < geometry.height; y += 1) {
+        for (let x = 0; x < geometry.width; x += 1) {
+          if (selectionContains(selection, x, y)) context.fillRect(x * zoom, y * zoom, zoom, zoom);
+        }
+      }
+    }
+    if (selectionAnchor) {
+      context.strokeStyle = '#6fd08c';
+      context.strokeRect(selectionAnchor.x * zoom - 1, selectionAnchor.y * zoom - 1, zoom + 2, zoom + 2);
+    }
     context.strokeRect(cursor.x * zoom - 1, cursor.y * zoom - 1, zoom + 2, zoom + 2);
-  }, [bytes, geometry, zoom, cursor, modeColours]);
+  }, [bytes, geometry, zoom, cursor, modeColours, selection, selectionAnchor]);
 
   const paintAt = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= geometry.width || y >= geometry.height) { onNotice('That pixel is outside the screen'); return; }
@@ -108,6 +144,58 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
       writeScreenPixel(next, geometry, x, y, colour);
       return { ...current, bytes: next, revision: current.revision + 1 };
     });
+  };
+
+  /* The frame buffer is packed, so a selection works on the pixels the mode
+   * shows rather than on the bytes behind them: the same rectangle means the
+   * same picture whatever the depth. */
+  const gridOf = () => ({ width: geometry.width, height: geometry.height, kind: 'screen' as const, valueLimit: geometry.logicalColours });
+  const readPixels = () => Array.from({ length: geometry.width * geometry.height }, (_, index) =>
+    readScreenPixel(bytes, geometry, index % geometry.width, Math.floor(index / geometry.width)));
+  const writePixels = (values: number[], message: string) => {
+    remember();
+    setScreen((current) => {
+      const next = current.bytes.slice();
+      values.forEach((value, index) => writeScreenPixel(next, geometry, index % geometry.width, Math.floor(index / geometry.width), value));
+      return { ...current, bytes: next, revision: current.revision + 1 };
+    });
+    onNotice(message);
+  };
+
+  const markSelectionCorner = (x: number, y: number) => {
+    if (!selectionAnchor) { setSelectionAnchor({ x, y }); setSelection(undefined); return; }
+    setSelection({ start: selectionAnchor, end: { x, y } });
+    setSelectionAnchor(undefined);
+  };
+
+  const copyArea = () => {
+    if (!selection) { onNotice('Choose a rectangle first: press S at one corner and S again at the other.'); return; }
+    try {
+      setClipboard(copySelection(readPixels(), gridOf(), selection));
+      onNotice(`Copied ${describeSelection(selection)}.`);
+    } catch (error) { onNotice(error instanceof Error ? error.message : String(error)); }
+  };
+
+  const cutArea = () => {
+    if (!selection) { onNotice('Choose a rectangle first: press S at one corner and S again at the other.'); return; }
+    try {
+      const pixels = readPixels();
+      setClipboard(copySelection(pixels, gridOf(), selection));
+      writePixels(fillSelection(pixels, geometry.width, selection, 0), `Cut ${describeSelection(selection)} to logical colour 0.`);
+    } catch (error) { onNotice(error instanceof Error ? error.message : String(error)); }
+  };
+
+  const pasteArea = () => {
+    if (!clipboard) { onNotice('Nothing has been copied yet.'); return; }
+    try {
+      writePixels(pasteSelection(readPixels(), gridOf(), clipboard, cursor),
+        `Pasted ${clipboard.width} by ${clipboard.height} pixels at ${cursor.x + 1},${cursor.y + 1}.`);
+    } catch (error) {
+      /* The refusal that matters here: artwork copied in a sixteen-colour mode
+       * cannot be written into a four-colour one without either losing colours
+       * or writing values the mode has no room for. */
+      onNotice(error instanceof GridSelectionError ? error.message : String(error));
+    }
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -122,7 +210,13 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
       }));
       return;
     }
-    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); paintAt(cursor.x, cursor.y); }
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); paintAt(cursor.x, cursor.y); return; }
+    const key = event.key.toLowerCase();
+    if (key === 's') { event.preventDefault(); markSelectionCorner(cursor.x, cursor.y); return; }
+    if (key === 'c') { event.preventDefault(); copyArea(); return; }
+    if (key === 'x') { event.preventDefault(); cutArea(); return; }
+    if (key === 'v') { event.preventDefault(); pasteArea(); return; }
+    if (key === 'escape') { event.preventDefault(); setSelection(undefined); setSelectionAnchor(undefined); }
   };
 
   const changeMode = (mode: PaletteModeId) => {
@@ -158,15 +252,34 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
   return (
     <section className="screen-workspace" aria-label="Screen editor">
       <header className="screen-toolbar">
-        <label><span>Name</span><input aria-label="Screen name" value={document.name} onChange={(event) => guard(() => parseScreenDocument({ ...document, name: event.target.value || 'untitled-screen' }))} /></label>
-        <label>
-          <span>Display mode</span>
-          <select aria-label="Display mode" value={document.mode} onChange={(event) => changeMode(event.target.value as PaletteModeId)}>
-            {PALETTE_MODES.map((mode) => <option key={mode.id} value={mode.id}>{mode.label} · {mode.detail}</option>)}
-          </select>
-        </label>
-        <label><span>Zoom</span><select aria-label="Screen zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}>{[1, 2, 3].map((level) => <option key={level} value={level}>{level}×</option>)}</select></label>
-        <button type="button" onClick={() => {
+        <div><span className="eyebrow">SCREEN · SCHEMA 1</span><h2>Screen editor</h2></div>
+        {/* The same reasoning as the map and the sprite editors: the actions
+          * somebody takes once a session were spending a quarter of the panel's
+          * height above the picture they act on. */}
+        <PanelMenuBar label="Screen actions" menus={[
+          { id: 'document', label: 'Document', items: [
+            ...openable.map((entry) => ({
+              id: `open-${entry.id}`,
+              label: entry.name.replace(/\.screen\.json$/i, ''),
+              icon: 'file' as const,
+              description: `Open ${entry.name} from this project`,
+              hint: entry.detail,
+              onSelect: () => {
+                const held = projectFiles.find((file) => file.id === entry.id);
+                if (!held) { onNotice(`${entry.name} is no longer in this project`); return; }
+                guard(() => parseScreenDocument(held.content), `${entry.name} opened from this project`);
+              },
+            })),
+            { id: 'import-image', label: 'Import image…', icon: 'image', description: 'Convert an image into this display mode, reporting what the conversion lost', hint: 'converted', separated: !!openable.length, onSelect: () => imageInputRef.current?.click() },
+          ] },
+          { id: 'edit', label: 'Edit', items: [
+            { id: 'undo', label: 'Undo', icon: 'reset', description: 'Undo the last change to this screen', disabled: !past.length, onSelect: () => {
+          const previous = past[past.length - 1];
+          if (!previous) return;
+          setPast((current) => current.slice(0, -1));
+          setScreen((current) => ({ ...previous, bytes: previous.bytes.slice(), revision: current.revision + 1 }));
+        } },
+            { id: 'fill', label: 'Fill screen', description: 'Fill the whole screen with the chosen logical colour', separated: true, onSelect: () => {
           remember();
           setScreen((current) => {
             const next = new Uint8Array(geometry.byteLength);
@@ -175,17 +288,20 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
             return { ...current, bytes: next, revision: current.revision + 1 };
           });
           onNotice(`Screen filled with logical colour ${colour}`);
-        }}>Fill screen</button>
-        <label className="screen-import">
-          <input type="file" accept="image/*" aria-label="Import an image" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importImage(file); }} />
-          <Icon name="open" size={14} /> Import image
-        </label>
-        <button type="button" disabled={!past.length} onClick={() => {
-          const previous = past[past.length - 1];
-          if (!previous) return;
-          setPast((current) => current.slice(0, -1));
-          setScreen((current) => ({ ...previous, bytes: previous.bytes.slice(), revision: current.revision + 1 }));
-        }}>Undo</button>
+        } },
+            { id: 'copy-area', label: 'Copy area', description: 'Copy the marked rectangle of pixels', disabled: !selection, separated: true, onSelect: copyArea },
+            { id: 'cut-area', label: 'Cut area', description: 'Copy the marked rectangle and clear it', disabled: !selection, onSelect: cutArea },
+            { id: 'paste-area', label: 'Paste', description: 'Paste the copied pixels at the cursor', disabled: !clipboard, onSelect: pasteArea },
+            { id: 'clear-selection', label: 'Deselect', description: 'Forget the marked rectangle', disabled: !selection && !selectionAnchor, onSelect: () => { setSelection(undefined); setSelectionAnchor(undefined); } },
+          ] },
+        ]} />
+        <div className="map-selection-tools" role="group" aria-label="Rectangular selection">
+          <button type="button" aria-pressed={!!selectionAnchor} onClick={() => markSelectionCorner(cursor.x, cursor.y)}>
+            {selectionAnchor ? 'Mark opposite corner' : 'Mark corner'}
+          </button>
+        </div>
+        <label><span>Zoom</span><select aria-label="Screen zoom" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}>{[1, 2, 3].map((level) => <option key={level} value={level}>{level}×</option>)}</select></label>
+        <input ref={imageInputRef} type="file" accept="image/*" aria-label="Import an image" hidden onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importImage(file); }} />
       </header>
 
       <div className="screen-body">
@@ -210,11 +326,25 @@ export function ScreenWorkspace({ projectPalette, onAddSource, onAddLiveScreen, 
           </div>
           <p id="screen-cursor" role="status" className="screen-cursor-status">
             Pixel {cursor.x + 1}, {cursor.y + 1} of {geometry.width} by {geometry.height} is logical colour {cursorColour}.
+            {selection ? ` Selected ${describeSelection(selection)}.` : selectionAnchor ? ` One corner marked at ${selectionAnchor.x + 1},${selectionAnchor.y + 1}; move and press S again.` : ' No selection. Press S to mark a corner.'}
+            {clipboard ? ` ${clipboard.width} by ${clipboard.height} pixels are on the clipboard; press V to paste at the cursor.` : ''}
             Move with the arrow keys, eight pixels at a time with Shift, and paint with Enter.
           </p>
         </div>
 
         <div className="screen-side">
+          <section aria-label="Screen document">
+            <h2>Document</h2>
+            <div className="screen-document">
+        <label><span>Name</span><input aria-label="Screen name" value={document.name} onChange={(event) => guard(() => parseScreenDocument({ ...document, name: event.target.value || 'untitled-screen' }))} /></label>
+        <label>
+          <span>Display mode</span>
+          <select aria-label="Display mode" value={document.mode} onChange={(event) => changeMode(event.target.value as PaletteModeId)}>
+            {PALETTE_MODES.map((mode) => <option key={mode.id} value={mode.id}>{mode.label} · {mode.detail}</option>)}
+          </select>
+        </label>
+            </div>
+          </section>
           <section aria-label="Logical colour">
             <h2>Logical colour</h2>
             <div className="screen-colours" role="radiogroup" aria-label="Logical colour">

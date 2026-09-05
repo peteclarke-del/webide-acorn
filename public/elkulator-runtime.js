@@ -1,0 +1,888 @@
+/* 8bit-net Acorn Electron runtime, on the Elkulator core.
+ *
+ * There are two Electron cores in this build. This is the second: Elkulator
+ * compiled to WebAssembly, which is the full machine — sideways ROM banks, the
+ * Plus 1 and Plus 3, and a debugger hook before every instruction — where ElkJS
+ * is a 32 KB machine with two ROMs and no hook at all.
+ *
+ * Everything this page asks of the machine goes through the bridge in
+ * `docker/elkulator/webide_bridge.c`, which is deliberately the whole of that
+ * interface. So the capability list below is not a summary of what Elkulator
+ * can do; it is a statement of what this build exposes, and the reasons for the
+ * refusals say which of the two a missing capability is.
+ *
+ * The core owns its own canvas and its own frame: Allegro's SDL backend renders
+ * into it and the browser drives one iteration of the emulator's loop per
+ * animation frame. This page therefore does not run a frame loop of its own, and
+ * running or pausing is a question asked of the bridge rather than of a timer
+ * here.
+ */
+(() => {
+  'use strict';
+  const CHANNEL = '8bit-net-elkulator';
+  const debugSessionId = new URLSearchParams(window.location.search).get('session') ?? '';
+  const ENGINE = { id: 'elkulator', version: '6785521a', machine: 'Acorn Electron' };
+
+  /* Kept in step with `src/emulator/elkulatorAdapter.ts` by a contract test, so
+   * the workbench refuses what this build cannot do with the same reason this
+   * page would give. */
+  const CAPABILITIES = [
+    'execution', 'reset', 'instruction-step', 'execute-breakpoint', 'run-test',
+    'register-read', 'register-write', 'memory-read', 'memory-write',
+    'program-load', 'keyboard-input', 'key-injection',
+    'display', 'display-filter', 'screen-capture', 'input-focus',
+    'media',
+  ];
+  const UNAVAILABLE = {
+    'conditional-breakpoint': 'The instruction hook compares the program counter and nothing else; a condition would have to be evaluated in the bridge, and it is not.',
+    logpoint: 'A logpoint records registers and resumes; the bridge stops the machine or leaves it alone, and keeps no log buffer.',
+    watchpoint: 'Elkulator reads and writes memory through plain functions with no hook, so a memory watch could not be honoured exactly.',
+    trace: 'The instruction hook could feed a trace, but the bridge records no trace buffer and this slice publishes no instruction stream.',
+    disassembly: 'Live disassembly needs an instruction stream placed against executed code; the bridge publishes memory and registers, not that.',
+    'hardware-inspection': 'This slice publishes no verified ULA, ADC or 1770 register map, so an inspector would be reading addresses nobody has checked.',
+    'interrupt-monitor': 'Elkulator raises its interrupts inside the ULA with no hook to observe them, so an interrupt history could not be recorded.',
+    'raster-monitor': 'The ULA renders a scanline at a time; a per-cycle beam position is not published.',
+    profiler: 'Sampling would run off the instruction hook, but the bridge keeps no sample buffer.',
+    replay: 'Reverse execution needs deterministic per-instruction state capture, which this slice does not record.',
+    tube: 'The Acorn Electron has no Tube interface, and Elkulator models none.',
+    'basic-load': 'Injecting a tokenised BASIC program needs the Electron BASIC workspace pointers, which this slice does not resolve.',
+    'keyboard-mapping': 'The bridge sets Electron key states directly, so there is no host key map to remap.',
+    joystick: 'An analogue joystick needs the Plus 1, and this slice fits no expansion ROM.',
+    'audio-toggle': 'The OpenAL path has not been verified under Emscripten in this build, so a toggle would claim control of sound that may not be produced.',
+    volume: 'No gain stage is exposed; the sound path itself is unverified here.',
+    'audio-capture': 'There is no tap to record from, and the sound path itself is unverified here.',
+    speed: 'The machine is driven one field per animation frame and the bridge exposes no cycle-rate control.',
+    'disc-export': 'A mounted disc can be written to by the machine, but the bridge does not read the image back out, so an export would hand back the bytes that went in rather than the bytes on the disc.',
+    'state-save': 'Elkulator has a save-state format, but the bridge does not carry it and a partial restore would be worse than none.',
+  };
+  /* Every command the workbench emulator panel can emit, against the capability
+   * it needs. A command missing from this map has never been taught to this
+   * adapter and is refused as such. */
+  const COMMAND_CAPABILITY = {
+    initialise: 'execution', run: 'execution', pause: 'execution', stop: 'execution', reset: 'reset',
+    step: 'instruction-step', 'step-over': 'instruction-step', 'step-out': 'instruction-step',
+    'source-step': 'instruction-step', 'run-to': 'execute-breakpoint',
+    'reverse-step': 'replay', 'reverse-continue': 'replay', 'replay-config': 'replay',
+    breakpoint: 'execute-breakpoint', 'set-breakpoints': 'execute-breakpoint',
+    watchpoint: 'watchpoint',
+    'read-memory': 'memory-read', 'write-memory': 'memory-write',
+    'read-tube-memory': 'tube', 'read-disassembly': 'disassembly',
+    'write-registers': 'register-write', 'inspect-hardware': 'hardware-inspection',
+    'interrupt-monitor': 'interrupt-monitor', 'interrupt-history-clear': 'interrupt-monitor',
+    'raster-monitor': 'raster-monitor', 'raster-timeline-clear': 'raster-monitor',
+    'profiler-config': 'profiler', 'profiler-clear': 'profiler',
+    'trace-config': 'trace', 'trace-clear': 'trace',
+    'run-test': 'run-test',
+    'load-machine-code': 'program-load', 'load-basic': 'basic-load',
+    'load-disc': 'media', 'load-tape': 'media', 'eject-disc': 'media', 'eject-tape': 'media',
+    'export-disc': 'disc-export',
+    'save-state': 'state-save', 'load-state': 'state-save',
+    'capture-screen': 'screen-capture',
+    'focus-input': 'input-focus', 'release-input': 'input-focus',
+    'set-keyboard-layout': 'keyboard-mapping', 'set-key-remaps': 'keyboard-mapping',
+    'inject-text': 'key-injection', 'tap-key': 'key-injection',
+    'gamepad-key-edge': 'joystick', 'bbc-analogue-joystick': 'joystick',
+    'atom-atommc-joystick': 'joystick', 'set-bbc-mouse-joystick': 'joystick',
+    'set-audio': 'audio-toggle', 'start-audio-capture': 'audio-capture', 'stop-audio-capture': 'audio-capture',
+    'set-speed': 'speed', 'set-volume': 'volume', 'set-display-filter': 'display-filter',
+  };
+
+  /* The register order the bridge uses. Kept here rather than passed around as
+   * numbers so that a mistake is a missing name rather than a wrong reading. */
+  const REGISTER = { a: 0, x: 1, y: 2, s: 3, p: 4, pc: 5 };
+
+  /* The Electron keys the bridge accepts, in its own enumeration order. Only
+   * the ones this page can name are listed: a key nobody can spell is not a key
+   * the workbench can ask for. */
+  const ELK_KEY = {
+    0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10,
+    a: 11, b: 12, c: 13, d: 14, e: 15, f: 16, g: 17, h: 18, i: 19, j: 20, k: 21, l: 22, m: 23,
+    n: 24, o: 25, p: 26, q: 27, r: 28, s: 29, t: 30, u: 31, v: 32, w: 33, x: 34, y: 35, z: 36,
+    /* The two punctuation keys are the other way round from what the core's own
+     * enumeration suggests: pressing what it calls COLON produces a semicolon
+     * on the machine, and so `*` — which is shift on the colon key, and the
+     * first character of every Acorn command — came out as `+`. Elkulator's
+     * matrix carries a note doubting this row, and the machine settled it: with
+     * these two swapped, `:` `;` `*` `+` all arrive as themselves. */
+    '-': 37, ',': 38, '.': 39, '/': 40, ':': 41, ';': 42,
+    left: 43, right: 44, up: 45, down: 46,
+    func: 47, copy: 48, ctrl: 49, shift: 50, delete: 51, ' ': 52, enter: 53, escape: 54, break: 55,
+  };
+  const SHIFTED = {
+    '!': '1', '"': '2', '#': '3', $: '4', '%': '5', '&': '6', "'": '7', '(': '8', ')': '9', '@': '0',
+    '<': ',', '>': '.', '?': '/', '+': ';', '*': ':',
+    /* The key the core enumerates as EQUALS is the Electron's `- =` key, and
+     * unshifted it produces a minus. Without this the workbench could not type
+     * a minus at all — which is every negative amplitude in a SOUND statement —
+     * and an equals sign came out as one. */
+    '=': '-',
+  };
+
+  /* Allegro's SDL backend finds its drawing surface with the selector
+   * "#canvas", so that is what the surface is called here — a canvas named
+   * anything else would not be the one the emulator renders into. */
+  const SCREEN_ID = 'canvas';
+  const screenElement = () => document.getElementById(SCREEN_ID);
+
+  const status = document.getElementById('runtime-status');
+  const output = document.getElementById('output');
+  let eventSequence = 0;
+  let lastCommandId = 0;
+  let acceptedCommands = 0;
+  let commandAudit = [];
+
+  let core = null;
+  let sessionManifest = null;
+  let loadedProgram = null;
+  let displayFilter = 'nearest';
+  let inputCaptured = false;
+  let breakpointSlots = [];
+
+  function log(line) {
+    if (!output) return;
+    output.textContent = `${output.textContent}${line}\n`.split('\n').slice(-200).join('\n');
+  }
+
+  function setStatus(text, state) {
+    if (status) { status.textContent = text; status.dataset.state = state ?? 'ready'; }
+  }
+
+  /* The workbench transport stamps `sessionId` and `commandId` on every command
+   * and expects the same names back, so this adapter speaks that envelope rather
+   * than one of its own. */
+  function send(payload) {
+    if (!window.parent || window.parent === window) return;
+    window.parent.postMessage({
+      channel: CHANNEL,
+      sessionId: debugSessionId,
+      eventSequence: ++eventSequence,
+      engine: ENGINE,
+      ...payload,
+    }, window.location.origin);
+  }
+
+  /* ---- the core --------------------------------------------------------- */
+
+  const call = (name, ...args) => core.ccall(name, 'number', args.map(() => 'number'), args);
+
+  /*
+   * A screen capture has to be the pixels the core produced, and a WebGL canvas
+   * throws its drawing buffer away at the end of every frame unless it is asked
+   * not to. SDL creates the context, so the attribute is forced here before
+   * anything can create one. It costs a copy per frame and buys a capture that
+   * is the machine's own picture rather than a black rectangle.
+   */
+  function preserveDrawingBuffer() {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function getContext(kind, attributes) {
+      if (kind === 'webgl' || kind === 'webgl2' || kind === 'experimental-webgl') {
+        return original.call(this, kind, { ...(attributes ?? {}), preserveDrawingBuffer: true });
+      }
+      return original.call(this, kind, attributes);
+    };
+  }
+
+  function readRegisters() {
+    if (!core) return null;
+    const registers = {};
+    for (const [name, index] of Object.entries(REGISTER)) registers[name] = call('elk_webide_get_register', index);
+    registers.source = 'Elkulator 6502 state at an instruction boundary';
+    return registers;
+  }
+
+  /* Two readings, and the caller says which it wants. `direct` is the RAM array,
+   * which cannot disturb anything and answers nothing above &7FFF; otherwise the
+   * processor's own view, where paged ROM and the ULA answer and a read can have
+   * a side effect. */
+  function readMemory(address, length, direct) {
+    const bytes = [];
+    const entry = direct ? 'elk_webide_read_ram' : 'elk_webide_read_memory';
+    for (let offset = 0; offset < length; offset += 1) {
+      const value = call(entry, (address + offset) & 0xffff);
+      bytes.push(value < 0 ? null : value & 0xff);
+    }
+    return bytes;
+  }
+
+  function isRunning() {
+    return Boolean(core) && call('elk_webide_paused') === 0;
+  }
+
+  function snapshot(reason) {
+    if (!core) return;
+    const hit = call('elk_webide_breakpoint_hit');
+    send({
+      type: 'state',
+      reason,
+      running: isRunning(),
+      registers: readRegisters(),
+      capabilities: CAPABILITIES,
+      unavailable: UNAVAILABLE,
+      acceptedCommands,
+      lastCommandId,
+      commandAudit: commandAudit.slice(-32),
+      program: loadedProgram,
+      manifest: sessionManifest,
+      breakpoints: breakpointSlots.map((address, slot) => ({ slot, address, hits: call('elk_webide_breakpoint_hits', slot) })),
+      breakpointHit: hit < 0 ? null : { slot: hit, address: breakpointSlots[hit] ?? null },
+      frames: call('elk_webide_frames'),
+      /* Cycles, when somebody asked for them. Like the instruction count this
+       * is null rather than zero when nothing is counting, because zero would
+       * read as "nothing has executed". */
+      cycles: call('elk_webide_counting') ? call('elk_webide_cycles') : null,
+      /* Zero would read as "nothing has executed", which is a different claim
+       * from "nobody asked for a count". */
+      instructions: call('elk_webide_counting') ? call('elk_webide_instructions') : null,
+      displayFilter,
+      inputCaptured,
+      /* The tape as the machine has it, not as the page remembers it: whether
+       * an image is loaded, and whether the Electron's own cassette motor is
+       * running. A page that reported the second from its own state would show
+       * a tape moving while nothing was listening. */
+      tape: mountedTape ? { ...mountedTape, ...tapeState() } : { mounted: false, running: false },
+      sound: soundState(),
+      discs: [...mountedDiscs.entries()].sort(([left], [right]) => left - right).map(([drive, disc]) => ({ drive, ...disc })),
+    });
+  }
+
+  /* ---- commands --------------------------------------------------------- */
+
+  /*
+   * Bring the machine up.
+   *
+   * Elkulator reads its firmware from a `roms` directory before `main` returns,
+   * so every image has to be in the virtual file system first. Only the
+   * operating system and BASIC are required; an Electron with no Plus 1 is a
+   * real Electron, and a ROM the person does not own is simply an expansion that
+   * is not fitted.
+   */
+  async function initialise(payload) {
+    if (core) throw new Error('The Electron is already initialised; reload the runtime to change its firmware');
+    const supplied = payload.roms ?? {};
+    if (!supplied.os || !supplied.basic) throw new Error('The Electron needs both an operating system and a BASIC ROM');
+    const images = {};
+    for (const [name, path] of Object.entries(supplied)) {
+      const response = await fetch(path, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`${name} ROM was not supplied (${response.status})`);
+      images[name] = new Uint8Array(await response.arrayBuffer());
+    }
+    preserveDrawingBuffer();
+    core = await createElkulator({ canvas: screenElement(), print: log, printErr: log });
+    core.FS.mkdir('/roms');
+    /* The names are Elkulator's own; a supplied ROM whose name is not one of
+     * them would be written and never read, so it is refused instead. */
+    const FILENAMES = { os: 'os', basic: 'basic.rom', mrbos: 'os300.rom', adfs: 'adfs.rom', dfs: 'dfs.rom', sound: 'sndrom', plus1: 'plus1.rom' };
+    for (const [name, bytes] of Object.entries(images)) {
+      const filename = FILENAMES[name];
+      if (!filename) throw new Error(`${name} is not a ROM socket this Electron has`);
+      core.FS.writeFile(`/roms/${filename}`, bytes);
+    }
+    core.callMain([]);
+    sessionManifest = payload.sessionManifest ?? null;
+    setStatus('Acorn Electron running on Elkulator', 'ready');
+    log(`Elkulator ${ENGINE.version} initialised with ${Object.keys(images).length} ROM images.`);
+    snapshot('initialised');
+  }
+
+  function requireCore() {
+    if (!core) throw new Error('The Electron is not initialised');
+  }
+
+  /* ---- media ------------------------------------------------------------
+   *
+   * Elkulator opens media by filename because it was written for a desktop with
+   * a file dialogue. Under Emscripten there is a filesystem in memory, so the
+   * honest way to mount an image is to write the bytes there and hand the core
+   * the path: Elkulator's own loaders then decide what a UEF, a CSW, an SSD or
+   * an ADF is, which is knowledge that belongs to the emulator and not to this
+   * page. Nothing here touches the host's real filesystem.
+   *
+   * The extension matters — it is what selects the format — so it is preserved
+   * from the name the workbench gave, and refused when it is not one Elkulator
+   * reads, rather than mounting a file the core will silently make nothing of.
+   */
+  const MEDIA_DIRECTORY = '/webide-media';
+  const TAPE_EXTENSIONS = ['uef', 'csw'];
+  const DISC_EXTENSIONS = ['ssd', 'dsd', 'adf', 'adl', 'img', 'fdi'];
+  let mountedTape = null;
+  const mountedDiscs = new Map();
+
+  function writeMedia(name, bytes, allowed, what) {
+    const extension = /\.([A-Za-z0-9]+)$/.exec(String(name ?? ''))?.[1]?.toLowerCase();
+    if (!extension || !allowed.includes(extension)) {
+      throw new Error(`Elkulator reads ${what} images ending ${allowed.map((entry) => `.${entry}`).join(', ')}, and ${JSON.stringify(name)} is not one`);
+    }
+    const data = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes ?? []);
+    if (!data.length) throw new Error(`An empty file is not a ${what} image`);
+    try { core.FS.mkdir(MEDIA_DIRECTORY); } catch { /* already there on the second mount */ }
+    /* One file per slot, so a remount replaces rather than accumulating images
+     * in a filesystem that only exists in this tab's memory. */
+    const path = `${MEDIA_DIRECTORY}/${what}.${extension}`;
+    core.FS.writeFile(path, data);
+    return { path, extension, bytes: data.length };
+  }
+
+  function mountTape(command) {
+    requireCore();
+    const written = writeMedia(command.name, command.bytes, TAPE_EXTENSIONS, 'tape');
+    const accepted = core.ccall('elk_webide_load_tape', 'number', ['string'], [written.path]);
+    if (!accepted) throw new Error(`Elkulator did not accept ${JSON.stringify(command.name)} as a cassette image`);
+    mountedTape = { name: String(command.name), bytes: written.bytes, format: written.extension.toUpperCase() };
+    send({ type: 'media', action: 'load-tape', tapeMounted: true, name: mountedTape.name, format: mountedTape.format, size: mountedTape.bytes, source: 'live Elkulator tape state' });
+    return undefined;
+  }
+
+  function mountDisc(command) {
+    requireCore();
+    const drive = command.drive === 1 ? 1 : 0;
+    const written = writeMedia(command.name, command.bytes, DISC_EXTENSIONS, `disc${drive}`);
+    const accepted = core.ccall('elk_webide_load_disc', 'number', ['number', 'string'], [drive, written.path]);
+    if (!accepted) throw new Error(`Elkulator did not accept ${JSON.stringify(command.name)} as a disc image for drive ${drive}`);
+    mountedDiscs.set(drive, { name: String(command.name), bytes: written.bytes, format: written.extension.toUpperCase() });
+    send({ type: 'media', action: 'load-disc', drive, mountedDiscs: [...mountedDiscs.keys()].sort(), name: String(command.name), size: written.bytes, source: 'live Elkulator 1770 state' });
+    return undefined;
+  }
+
+  /* The one tone generator this machine has, as its ULA holds it: the divider
+   * that fixes the pitch and whether the tone is on. Both registers are
+   * write-only to the processor, so this is the only place the workbench can
+   * see what a program actually asked the hardware for. */
+  function soundState() {
+    if (!core) return { divider: null, enabled: false };
+    const divider = call('elk_webide_sound_divider');
+    return { divider: divider < 0 ? null : divider, enabled: call('elk_webide_sound_enabled') === 1 };
+  }
+
+  /* What the machine itself says about the tape, rather than what the page
+   * remembers mounting: bit 0 is a tape present, bit 1 is the Electron's own
+   * cassette motor being on. */
+  function tapeState() {
+    if (!core) return { mounted: false, running: false };
+    const state = call('elk_webide_tape_state');
+    return { mounted: (state & 1) !== 0, running: (state & 2) !== 0 };
+  }
+
+  function loadProgram(payload) {
+    requireCore();
+    const bytes = payload.bytes ?? [];
+    const origin = payload.origin & 0xffff;
+    if (!bytes.length || origin + bytes.length > 0x8000) throw new Error('An Electron program must fit inside the 32 KiB of RAM');
+    const programManifest = payload.programManifest ?? null;
+    if (programManifest && sessionManifest && programManifest.sessionFingerprint !== sessionManifest.fingerprint) {
+      throw new Error('The program is bound to another runtime session and was not loaded');
+    }
+    call('elk_webide_pause');
+    const buffer = core._malloc(bytes.length);
+    try {
+      core.HEAPU8.set(Uint8Array.from(bytes, (value) => value & 0xff), buffer);
+      const written = call('elk_webide_load', origin, buffer, bytes.length);
+      if (written !== bytes.length) throw new Error('The Electron refused the program; it would not fit in RAM');
+    } finally {
+      core._free(buffer);
+    }
+    const entry = payload.entryPoint & 0xffff;
+    loadedProgram = { origin, entryPoint: entry, bytes: bytes.length, programManifest };
+    if (payload.autorun === false) {
+      /* Loaded for the debugger: the program counter is moved to the entry
+       * point and the machine left standing there, which is what stepping and
+       * breakpoints are written against. */
+      call('elk_webide_set_register', REGISTER.pc, entry);
+    } else {
+      /*
+       * Run it the way a person would, by asking BASIC to call it.
+       *
+       * Moving the program counter into a loaded program looks equivalent and
+       * is not: it abandons whatever the operating system was in the middle of,
+       * with a stack that no longer describes how to get back. On this machine
+       * a program launched that way prints correctly until it makes a blocking
+       * OS call — and then the screen clears and the machine ends up back in
+       * ROM, with nothing to say why. Entered through CALL, the same program
+       * prints, waits for its key, returns, and leaves BASIC working. That was
+       * measured both ways.
+       */
+      call('elk_webide_resume');
+      tapKeys(`CALL &${entry.toString(16).toUpperCase().padStart(4, '0')}\n`);
+    }
+    send({ type: 'program-loaded', format: '6502 machine code', size: bytes.length, address: origin, entryPoint: entry, autorun: payload.autorun !== false, programManifest });
+    snapshot('program loaded');
+  }
+
+  /* ---- test plans --------------------------------------------------------
+   *
+   * Running a plan on this core is not the same as running it on jsbeeb, and
+   * pretending otherwise would be the worst thing this file could do: a result
+   * that says "passed" while nothing was checked is worse than a refusal.
+   *
+   * What the bridge can honestly answer is a program placed in RAM, run to an
+   * address inside a cycle budget, and then asked about its registers, its
+   * memory and how long it took. Everything else a plan can assert needs a hook
+   * this core does not have, and each of those is refused by name below rather
+   * than quietly skipped — an assertion nobody evaluated must not be counted as
+   * one that passed.
+   *
+   * Cycles are counted, not instructions. A plan's budget is written in cycles
+   * because that is what an Acorn program has to fit inside, and answering an
+   * instruction count would be a different number wearing the same name. They
+   * are the Electron's real, contended cycles: the ULA stretches the processor
+   * when it touches shared RAM, so a four-instruction program that a datasheet
+   * would call eight cycles is measured at twelve, and that is the number a
+   * program actually has to live within.
+   *
+   * A stop address is exact — the instruction hook halts the machine on it. A
+   * budget is not: this core runs a whole field per animation frame and cannot
+   * be interrupted inside one, so a test that never reaches its stop overruns
+   * its budget by up to a field before the overrun is noticed. The result says
+   * how many cycles actually elapsed rather than the budget, so nothing has to
+   * be inferred from the timeout.
+   */
+  const TEST_ASSERTION_REFUSALS = {
+    output: 'OUTPUT captures characters at the BBC MOS write vector. The Electron\u2019s operating system is not that one, and this bridge installs no character hook, so the capture would be of nothing.',
+    audio: 'AUDIO[WRITES] counts writes to a sound chip. The Electron has one tone generator in its ULA and no chip to write to, and the bridge counts no writes.',
+    'audio-speaker': 'AUDIO[SPEAKER] counts transitions of a one-bit speaker, which this machine does not have.',
+    screen: 'SCREEN hashes a region of the framebuffer. The core renders into its own canvas through Allegro and this bridge publishes no framebuffer to read back.',
+    'screen-golden': 'SCREEN_IMAGE compares a region of the framebuffer against a golden image, and this bridge publishes no framebuffer to compare.',
+    event: 'EVENT[MOS_CALL] counts entries to the BBC MOS at addresses the Electron does not use for that, so the count would be of whatever happens to sit there.',
+    'event-address': 'EVENT[address] counts how often a program counter value is reached. The instruction hook stops the machine at an address rather than counting it, and the bridge keeps no per-address tally.',
+  };
+  const TEST_INPUT_REFUSALS = {
+    gamepad: 'A gamepad reaches the machine through the Plus 1 analogue port, and no expansion is fitted here.',
+    'bbc-analogue': 'The analogue port assertion is a BBC one; this machine reaches its joystick through the Plus 1, which is not fitted.',
+    'bbc-mouse': 'A BBC mouse is not an Electron peripheral.',
+    'atom-atommc': 'An AtoMMC joystick is an Atom peripheral.',
+    'emulator-event': 'Waiting for the next video frame needs a frame callback the bridge does not publish.',
+  };
+
+  let activeTest = null;
+
+  function testRegisters() {
+    return Object.fromEntries(Object.entries(REGISTER).map(([name, index]) => [name, call('elk_webide_get_register', index)]));
+  }
+
+  function testResult(payload) {
+    send({ type: 'test-result', ...payload });
+  }
+
+  function startTest(command) {
+    requireCore();
+    if (activeTest) throw new Error('A test is already running on this Electron');
+    if (typeof command.name !== 'string' || !command.name.trim() || command.name.length > 80) throw new Error('Test name must contain 1 to 80 characters');
+    if (command.processor === 'parasite') throw new Error('The Acorn Electron has no Tube, so there is no parasite to run a test on');
+    if (!Number.isInteger(command.cycleBudget) || command.cycleBudget < 100 || command.cycleBudget > 10_000_000) throw new Error('Test cycle budget must be between 100 and 10,000,000');
+    if (!Number.isInteger(command.stopAddress) || command.stopAddress < 0 || command.stopAddress > 0xffff) throw new Error('Test stop address must be a 16-bit address');
+    const assertions = Array.isArray(command.assertions) ? command.assertions : [];
+    if (assertions.length < 1 || assertions.length > 64) throw new Error('Tests require 1 to 64 assertions');
+    for (const assertion of assertions) {
+      const refusal = TEST_ASSERTION_REFUSALS[assertion?.kind];
+      if (refusal) throw new Error(refusal);
+      if (assertion?.kind === 'register') {
+        const limit = assertion.register === 'pc' ? 0xffff : 0xff;
+        if (REGISTER[assertion.register] === undefined || !Number.isInteger(assertion.expected) || assertion.expected < 0 || assertion.expected > limit) throw new Error('Test contains an invalid register assertion');
+      } else if (assertion?.kind === 'memory') {
+        if (!Number.isInteger(assertion.address) || assertion.address < 0 || !Array.isArray(assertion.expected) || !assertion.expected.length
+          || assertion.address + assertion.expected.length > 0x10000
+          || assertion.expected.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) throw new Error('Test contains an invalid memory assertion');
+      } else if (assertion?.kind === 'cycles') {
+        if (!['eq', 'lte', 'gte', 'range'].includes(assertion.operator) || !Number.isSafeInteger(assertion.expected) || assertion.expected < 0) throw new Error('Test contains an invalid cycle assertion');
+        if (assertion.operator === 'range' && (!Number.isSafeInteger(assertion.expectedMaximum) || assertion.expectedMaximum < assertion.expected)) throw new Error('Test contains an invalid cycle range assertion');
+      } else throw new Error(`This Electron adapter cannot evaluate a ${String(assertion?.kind)} assertion, so it will not report a result for one`);
+    }
+    const captures = Array.isArray(command.captures) ? command.captures : [];
+    if (captures.length > 16) throw new Error('Tests are limited to 16 artifact captures');
+    for (const capture of captures) {
+      if (!capture || typeof capture.id !== 'string' || !capture.id || capture.id.length > 80) throw new Error('Test capture identity is invalid');
+      if (capture.kind === 'registers') continue;
+      if (capture.kind !== 'memory' || !Number.isInteger(capture.address) || !Number.isInteger(capture.length)
+        || capture.address < 0 || capture.length < 1 || capture.length > 4096 || capture.address + capture.length > 0x10000) throw new Error('Test memory capture is outside the 16-bit address space');
+    }
+    const inputs = Array.isArray(command.inputs) ? command.inputs : [];
+    if (inputs.length > 256) throw new Error('Tests are limited to 256 input actions');
+    for (const input of inputs) {
+      const refusal = TEST_INPUT_REFUSALS[input?.kind];
+      if (refusal) throw new Error(refusal);
+      if (input?.kind === 'delay') {
+        if (!Number.isInteger(input.cycles) || input.cycles < 1 || input.cycles > 10_000_000) throw new Error('Test delay must be between 1 and 10,000,000 cycles');
+      } else if (input?.kind === 'key') {
+        if (ELK_KEY[String(input.code ?? '').toLowerCase()] === undefined) throw new Error(`The Electron keyboard has no key named ${JSON.stringify(input.code)}`);
+        if (typeof input.pressed !== 'boolean') throw new Error('A test key action has to say whether the key goes down or up');
+      } else if (input?.kind === 'media') {
+        if (input.action !== 'eject-tape') throw new Error(`This Electron adapter cannot apply the ${String(input.action)} media action during a test`);
+      } else if (input?.kind === 'reset') {
+        if (input.reset !== 'hard' && input.reset !== 'soft') throw new Error('A test reset must be hard or soft');
+      } else throw new Error(`This Electron adapter cannot apply a ${String(input?.kind)} input during a test`);
+    }
+    if (command.teardown !== undefined && command.teardown !== 'pause' && command.teardown !== 'reset') throw new Error('Unsupported test teardown action');
+    if (command.setup?.reset !== undefined && !['hard', 'soft', 'none'].includes(command.setup.reset)) throw new Error('Unsupported test setup reset');
+    if (command.setup?.media !== undefined && command.setup.media !== 'retain' && command.setup.media !== 'eject') throw new Error('Unsupported test setup media policy');
+
+    if (command.setup?.media === 'eject') {
+      call('elk_webide_eject_tape'); mountedTape = null;
+      for (const drive of [...mountedDiscs.keys()]) { call('elk_webide_eject_disc', drive); mountedDiscs.delete(drive); }
+    }
+    if (command.setup?.reset === 'hard' || command.setup?.reset === 'soft') call('elk_webide_reset');
+
+    loadProgram({ ...command, autorun: false });
+    /* Counting arms the instruction hook and starts the cycle total from zero,
+     * which is what makes the budget and the cycle assertions mean anything. */
+    call('elk_webide_set_counting', 1);
+    setBreakpoints([command.stopAddress]);
+    activeTest = {
+      command, assertions, captures, inputs,
+      teardown: command.teardown ?? 'pause',
+      appliedInputs: 0,
+      inputIndex: 0,
+      /* The next input is applied once this many cycles have elapsed. */
+      dueAt: 0,
+      poll: 0,
+    };
+    call('elk_webide_resume');
+    activeTest.poll = window.setInterval(() => stepTest(), 5);
+  }
+
+  function stepTest() {
+    if (!activeTest) return;
+    const elapsed = call('elk_webide_cycles');
+    while (activeTest.inputIndex < activeTest.inputs.length && elapsed >= activeTest.dueAt) {
+      const input = activeTest.inputs[activeTest.inputIndex];
+      if (input.kind === 'delay') { activeTest.dueAt = elapsed + input.cycles; activeTest.inputIndex += 1; activeTest.appliedInputs += 1; break; }
+      if (input.kind === 'key') call('elk_webide_set_key', ELK_KEY[String(input.code).toLowerCase()], input.pressed ? 1 : 0);
+      else if (input.kind === 'media') { call('elk_webide_eject_tape'); mountedTape = null; }
+      else if (input.kind === 'reset') call('elk_webide_reset');
+      activeTest.inputIndex += 1;
+      activeTest.appliedInputs += 1;
+    }
+    if (call('elk_webide_breakpoint_hit') >= 0) { finishTest('stop address reached'); return; }
+    if (elapsed >= activeTest.command.cycleBudget) { finishTest('timeout'); return; }
+  }
+
+  function finishTest(reason) {
+    const test = activeTest;
+    if (!test) return;
+    activeTest = null;
+    window.clearInterval(test.poll);
+    call('elk_webide_pause');
+    call('elk_webide_clear_keys');
+    const cycles = call('elk_webide_cycles');
+    const registers = testRegisters();
+    const peek = (address) => call('elk_webide_read_ram', address);
+    const results = test.assertions.map((assertion) => {
+      if (assertion.kind === 'register') {
+        const actual = registers[assertion.register];
+        return { ...assertion, actual, passed: actual === assertion.expected };
+      }
+      if (assertion.kind === 'memory') {
+        const actual = assertion.expected.map((_, offset) => peek((assertion.address + offset) & 0xffff));
+        return { ...assertion, actual, passed: actual.every((byte, index) => byte === assertion.expected[index]) };
+      }
+      if (assertion.kind === 'cycles') {
+        const passed = assertion.operator === 'eq' ? cycles === assertion.expected
+          : assertion.operator === 'lte' ? cycles <= assertion.expected
+            : assertion.operator === 'gte' ? cycles >= assertion.expected
+              : cycles >= assertion.expected && cycles <= assertion.expectedMaximum;
+        return { ...assertion, actual: cycles, passed };
+      }
+      /* Unreachable: startTest refuses anything else before the run begins.
+       * Falling through to a cycle comparison would have quietly answered a
+       * question nobody asked, which is the one outcome worse than refusing. */
+      return { ...assertion, actual: null, passed: false };
+    });
+    const timedOut = reason === 'timeout';
+    const passed = !timedOut && results.every((result) => result.passed);
+    const status = passed ? 'passed' : timedOut ? 'timeout' : 'failed';
+    const captures = test.captures.map((capture) => capture.kind === 'registers'
+      ? { id: capture.id, kind: 'registers', registers: { ...registers } }
+      : { id: capture.id, kind: 'memory', address: capture.address, bytes: Array.from({ length: capture.length }, (_, offset) => peek((capture.address + offset) & 0xffff)) });
+    setStatus(`${test.command.name} ${status}`, passed ? 'ready' : 'error');
+    testResult({
+      name: test.command.name,
+      processor: 'host',
+      requestId: test.command.requestId,
+      planId: test.command.planId,
+      suite: test.command.suite,
+      buildFingerprint: test.command.buildFingerprint,
+      status,
+      reason: `${reason} · ${test.appliedInputs} input action${test.appliedInputs === 1 ? '' : 's'} applied`,
+      cycles,
+      stopAddress: test.command.stopAddress,
+      registers,
+      assertions: results,
+      captures,
+      appliedInputs: test.appliedInputs,
+      teardown: test.teardown,
+    });
+    if (test.teardown === 'reset') call('elk_webide_reset');
+    snapshot(`test ${status} · ${test.teardown} teardown`);
+  }
+
+  function setBreakpoints(addresses) {
+    call('elk_webide_clear_breakpoints');
+    breakpointSlots = [];
+    const wanted = [...new Set(addresses.map((address) => address & 0xffff))];
+    if (wanted.length > 32) throw new Error('The Electron bridge holds 32 breakpoints; more were asked for than it has slots');
+    for (const [slot, address] of wanted.entries()) {
+      if (!call('elk_webide_set_breakpoint', slot, address)) throw new Error(`The Electron refused a breakpoint at &${address.toString(16).toUpperCase()}`);
+      breakpointSlots.push(address);
+    }
+  }
+
+  /* A key press the workbench asked for, rather than one somebody typed. The
+   * bridge sets the Electron's own key state, so this does not depend on the
+   * page having focus and cannot be swallowed by the workbench around it. */
+  function keyName(character) {
+    /* A line of text has to be able to end. Without this, injected text could
+     * spell a command and not submit it, and the caller would have to follow it
+     * with a separate key tap to press RETURN. */
+    if (character === '\n' || character === '\r') return { key: 'enter', shift: false };
+    const lower = String(character).toLowerCase();
+    if (ELK_KEY[lower] !== undefined) return { key: lower, shift: false };
+    const unshifted = SHIFTED[character];
+    if (unshifted !== undefined) return { key: unshifted, shift: true };
+    if (character >= 'A' && character <= 'Z') return { key: lower, shift: true };
+    return null;
+  }
+
+  /*
+   * Type into the machine on the machine's clock, not the browser's.
+   *
+   * The first version of this held each key for a number of milliseconds and it
+   * dropped characters — `PRINT 1` arrived as `PINT 1`. The cause is that the
+   * two clocks are not the same one: the emulator advances a field per
+   * animation frame, so when the browser is busy the machine's time runs slower
+   * than wall-clock and a key held for 60 ms of wall-clock can be held for
+   * fewer emulated fields than the operating system's keyboard scan needs to
+   * see it. The schedule is therefore counted in the machine's own completed
+   * fields, which the bridge publishes, and a slow browser then makes typing
+   * take longer rather than lose letters.
+   */
+  const KEY_HOLD_FIELDS = 3;
+  let typing = null;
+
+  function tapKeys(characters, holdFields) {
+    requireCore();
+    const hold = Math.max(1, Math.min(50, holdFields | 0 || KEY_HOLD_FIELDS));
+    const keys = [];
+    for (const character of characters) {
+      const named = keyName(character);
+      if (!named) throw new Error(`The Electron keyboard has no key for ${JSON.stringify(character)}`);
+      keys.push({ code: ELK_KEY[named.key], shift: named.shift });
+    }
+    if (typing) { window.clearInterval(typing.poll); releaseTyped(typing); }
+    if (!keys.length) return { keys: 0, fields: 0 };
+
+    const state = { keys, index: 0, pressed: false, until: 0, poll: 0 };
+    const field = () => call('elk_webide_frames');
+    const step = () => {
+      if (field() < state.until) return;
+      if (state.pressed) {
+        releaseTyped(state);
+        state.pressed = false;
+        state.index += 1;
+        state.until = field() + hold;
+        if (state.index >= state.keys.length) { window.clearInterval(state.poll); typing = null; send({ type: 'text-typed', characters: state.keys.length }); }
+        return;
+      }
+      const next = state.keys[state.index];
+      if (next.shift) call('elk_webide_set_key', ELK_KEY.shift, 1);
+      call('elk_webide_set_key', next.code, 1);
+      state.pressed = true;
+      state.until = field() + hold;
+    };
+    /* Polled rather than driven from an animation frame, so typing continues
+     * while the tab is in the background and the machine is still running. */
+    state.poll = window.setInterval(step, 5);
+    typing = state;
+    return { keys: keys.length, fields: keys.length * hold * 2 };
+  }
+
+  /* Whatever is held down, let go of. A key left pressed on the emulated matrix
+   * is how a machine ends up typing by itself. */
+  function releaseTyped(state) {
+    const held = state.keys[state.index];
+    if (held) { call('elk_webide_set_key', held.code, 0); if (held.shift) call('elk_webide_set_key', ELK_KEY.shift, 0); }
+  }
+
+  function handle(command) {
+    switch (command.type) {
+      case 'initialise': return initialise(command);
+      case 'run': requireCore(); call('elk_webide_resume'); snapshot('running'); return;
+      case 'pause':
+      case 'stop': requireCore(); call('elk_webide_pause'); snapshot('paused'); return;
+      case 'reset':
+        requireCore();
+        call('elk_webide_reset');
+        call('elk_webide_resume');
+        loadedProgram = null;
+        snapshot('reset');
+        return;
+      case 'step':
+      case 'step-over':
+      case 'step-out':
+      case 'source-step': {
+        requireCore();
+        const count = Math.max(1, Math.min(100_000, command.instructions | 0 || 1));
+        if (!call('elk_webide_step', count)) throw new Error('The Electron refused a step of that length');
+        /* The step is taken by the machine's own loop on the next field, so the
+         * state is reported once it has actually happened rather than now. */
+        window.setTimeout(() => snapshot('stepped'), 40);
+        return;
+      }
+      case 'run-to': {
+        requireCore();
+        setBreakpoints([command.address & 0xffff]);
+        call('elk_webide_resume');
+        snapshot('running to address');
+        return;
+      }
+      case 'breakpoint':
+      case 'set-breakpoints': {
+        requireCore();
+        const addresses = command.type === 'breakpoint'
+          ? [command.address & 0xffff]
+          : (command.breakpoints ?? []).map((entry) => (typeof entry === 'number' ? entry : entry.address) & 0xffff);
+        setBreakpoints(addresses);
+        snapshot('breakpoints set');
+        return;
+      }
+      case 'load-program':
+      case 'load-machine-code': return loadProgram(command);
+      case 'read-memory': {
+        requireCore();
+        const length = Math.max(1, Math.min(4096, command.length | 0));
+        const address = command.address & 0xffff;
+        send({ type: 'memory', requestId: command.requestId, address, direct: command.direct !== false, bytes: readMemory(address, length, command.direct !== false) });
+        return;
+      }
+      case 'write-memory': {
+        requireCore();
+        for (const [index, value] of (command.bytes ?? []).entries()) {
+          if (!call('elk_webide_write_memory', (command.address + index) & 0xffff, value & 0xff)) throw new Error('The Electron refused a memory write');
+        }
+        snapshot('memory written');
+        return;
+      }
+      case 'write-registers': {
+        requireCore();
+        for (const [name, value] of Object.entries(command.registers ?? {})) {
+          const index = REGISTER[name];
+          if (index === undefined) throw new Error(`The Electron 6502 has no register named ${name}`);
+          if (!call('elk_webide_set_register', index, value >>> 0)) throw new Error(`The Electron refused a write to ${name}`);
+        }
+        snapshot('registers written');
+        return;
+      }
+      case 'inject-text': {
+        const result = tapKeys(String(command.text ?? ''), command.holdFields);
+        /* The event name the workbench already listens for, so injected text is
+         * reported the same way whichever core is attached. `text-typed`
+         * follows when the last key has actually been released. */
+        send({ type: 'text-queued', characters: result.keys, fields: result.fields });
+        return;
+      }
+      case 'tap-key': {
+        requireCore();
+        const code = ELK_KEY[String(command.key ?? '').toLowerCase()];
+        if (code === undefined) throw new Error(`The Electron keyboard has no key named ${JSON.stringify(command.key)}`);
+        call('elk_webide_set_key', code, command.pressed === false ? 0 : 1);
+        send({ type: 'key-state', key: command.key, pressed: command.pressed !== false });
+        return;
+      }
+      case 'snapshot': snapshot('requested'); return;
+      case 'capabilities':
+        send({ type: 'capabilities', capabilities: CAPABILITIES, unavailable: UNAVAILABLE });
+        return;
+      case 'set-display-filter': {
+        const filter = command.filter === 'linear' ? 'linear' : 'nearest';
+        displayFilter = filter;
+        const canvas = screenElement();
+        if (canvas) canvas.style.imageRendering = filter === 'linear' ? 'auto' : 'pixelated';
+        send({ type: 'display-filter', filter });
+        return;
+      }
+      case 'focus-input':
+      case 'release-input': {
+        const canvas = screenElement();
+        inputCaptured = command.type === 'focus-input';
+        if (canvas) { if (inputCaptured) canvas.focus(); else canvas.blur(); }
+        /* Anything held down when focus leaves would stay held on the emulated
+         * matrix, which is how a machine ends up typing by itself. */
+        if (!inputCaptured && core) call('elk_webide_clear_keys');
+        send({ type: 'input-focus', captured: inputCaptured });
+        return;
+      }
+      case 'run-test': {
+        try { startTest(command); } catch (error) {
+          /* A refused test is a refusal, not a failure: it comes back as an
+           * error with the reason, so nothing counts it as a run that passed. */
+          send({ type: 'test-result', name: command.name, requestId: command.requestId, planId: command.planId, suite: command.suite, buildFingerprint: command.buildFingerprint, status: 'error', reason: error.message, cycles: 0, assertions: [] });
+        }
+        return;
+      }
+      case 'load-tape': return mountTape(command);
+      case 'eject-tape': {
+        requireCore();
+        call('elk_webide_eject_tape');
+        mountedTape = null;
+        send({ type: 'media', action: 'eject-tape', tapeMounted: false, source: 'live Elkulator tape state' });
+        return;
+      }
+      case 'load-disc': return mountDisc(command);
+      case 'eject-disc': {
+        requireCore();
+        const drive = command.drive === 1 ? 1 : 0;
+        if (!call('elk_webide_eject_disc', drive)) throw new Error(`The Electron refused to eject drive ${drive}`);
+        mountedDiscs.delete(drive);
+        send({ type: 'media', action: 'eject-disc', drive, mountedDiscs: [...mountedDiscs.keys()].sort(), source: 'live Elkulator 1770 state' });
+        return;
+      }
+      case 'capture-screen': return captureScreen();
+      default: {
+        const capability = COMMAND_CAPABILITY[command.type];
+        if (capability === undefined) throw new Error(`${command.type} is not a command this Elkulator adapter accepts`);
+        throw new Error(`${command.type} is not available on this Elkulator adapter: ${UNAVAILABLE[capability] ?? 'no reason was recorded'}`);
+      }
+    }
+  }
+
+  function captureScreen() {
+    const canvas = screenElement();
+    if (!canvas) throw new Error('The Electron display canvas is not present');
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) { reject(new Error('The browser refused to encode the Electron framebuffer')); return; }
+        send({ type: 'screen-captured', blob, filename: 'acorn-electron-screen.png', width: canvas.width, height: canvas.height, size: blob.size });
+        resolve();
+      }, 'image/png');
+    });
+  }
+
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.source !== window.parent) return;
+    const command = event.data;
+    if (!command || command.channel !== CHANNEL) return;
+    if (command.sessionId !== debugSessionId) { send({ type: 'error', message: 'Command rejected: wrong runtime session' }); return; }
+    if (!Number.isSafeInteger(command.commandId) || command.commandId <= lastCommandId) { send({ type: 'error', message: 'Command rejected: stale or duplicate sequence' }); return; }
+    lastCommandId = command.commandId;
+    Promise.resolve()
+      .then(() => handle(command))
+      .then(() => {
+        acceptedCommands += 1;
+        commandAudit = [...commandAudit, { commandId: command.commandId, type: command.type }].slice(-32);
+        send({ type: 'command-accepted', commandId: command.commandId, command: command.type, queued: 0, capacity: 64 });
+      })
+      .catch((error) => {
+        send({ type: 'error', commandId: command.commandId, command: command.type, message: error.message });
+        log(`Refused ${command.type}: ${error.message}`);
+      });
+  });
+
+  /* SDL installs its own key handlers on the canvas, so the real keyboard
+   * reaches the emulated matrix without this page adding handlers that would
+   * consume the events it is waiting for. */
+
+  setStatus('Waiting for firmware from the local vault…', 'pending');
+  send({ type: 'ready', capabilities: CAPABILITIES, unavailable: UNAVAILABLE, romsLoaded: false });
+  window.__elkulatorRuntime = {
+    readRegisters, readMemory, isRunning, engine: ENGINE, capabilities: CAPABILITIES, unavailable: UNAVAILABLE,
+    handle, keyName, ELK_KEY, REGISTER,
+  };
+})();

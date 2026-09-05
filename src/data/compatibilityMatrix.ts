@@ -29,6 +29,7 @@ import { ADAPTER_SUPPORT, type AdapterMachineSupport } from '../rom/adapterSuppo
 import { TOOLCHAINS } from '../build/buildTarget';
 import { productionAdapterDescriptors } from '../emulator/adapterContract';
 import { ELECTRON_ADAPTER_SUMMARY, ELECTRON_CAPABILITIES, ELECTRON_UNAVAILABLE } from '../emulator/electronAdapter';
+import { ELKULATOR_ADAPTER_SUMMARY, ELKULATOR_CAPABILITIES, ELKULATOR_UNAVAILABLE } from '../emulator/elkulatorAdapter';
 
 export type SupportTier = 'runnable' | 'described';
 
@@ -185,6 +186,12 @@ export function renderCompatibilityMatrix(): string {
           'ff123355',
           `${Object.keys(ELECTRON_UNAVAILABLE).length} of ${ELECTRON_CAPABILITIES.length + Object.keys(ELECTRON_UNAVAILABLE).length} declared capabilities`,
           ELECTRON_ADAPTER_SUMMARY.replace(/\s+/g, ' ').trim(),
+        ],
+        [
+          'elkulator',
+          'allegro5-6785521',
+          `${Object.keys(ELKULATOR_UNAVAILABLE).length} of ${ELKULATOR_CAPABILITIES.length + Object.keys(ELKULATOR_UNAVAILABLE).length} declared capabilities`,
+          ELKULATOR_ADAPTER_SUMMARY.replace(/\s+/g, ' ').trim(),
         ],
       ],
     ),

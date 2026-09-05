@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Build;
 
-use App\Observability\StructuredLogger;
-
 use App\Http\ApiProblem;
+
+use App\Observability\StructuredLogger;
 
 final class BeebAsmBuildService
 {
@@ -16,6 +16,8 @@ final class BeebAsmBuildService
         private readonly BeebAsmOutputParser $parser,
         private readonly NativeProcessRunner $runner,
         private readonly StructuredLogger $logger,
+        private readonly JobWorkspace $workspace,
+        private readonly BuildCache $cache,
     ) {}
 
     /** @return array<string, mixed> */
@@ -24,14 +26,37 @@ final class BeebAsmBuildService
         $started = hrtime(true); $this->policy->validate($request);
         $toolchain = $this->manifest->detect();
         if (!$toolchain['ready']) throw new ApiProblem(503, 'BEEBASM_UNAVAILABLE', 'The pinned BeebAsm adapter is not ready.', true);
-        $job = '/tmp/native-builds/beebasm-'.bin2hex(random_bytes(16));
-        if (!mkdir($job.'/.build', 0700, true)) throw new ApiProblem(500, 'BUILD_JOB_CREATE', 'Could not create the isolated build job.', true);
+        /*
+         * Answered from the cache when the same inputs, toolchain and target
+         * have been built before. The key is checked against the entry's own
+         * record of those inputs on the way out, so a hit is a hit because the
+         * build matches and not because a hash did.
+         */
+        $cacheKey = BuildCache::key(BuildCache::LOCAL_OWNER, BeebAsmManifest::ADAPTER_ID, BeebAsmManifest::ADAPTER_VERSION, (string) $toolchain['digest'], $request);
+        if (!$request->cacheBypass) {
+            $cached = $this->cache->read(BuildCache::LOCAL_OWNER, $cacheKey, $request->files);
+            if ($cached !== null) {
+                return $this->cache->hitEnvelope($cached, BuildCache::LOCAL_OWNER, $cacheKey, max(0.0, (hrtime(true) - $started) / 1_000_000.0));
+            }
+        }
+        $job = $this->workspace->allocate('beebasm-');
+        if (!mkdir($job.'/.build', 0700)) throw new ApiProblem(500, 'BUILD_JOB_CREATE', 'Could not create the isolated build job.', true);
         try {
             foreach ($request->files as $file) {
                 $path = $job.'/'.$file['name']; $directory = dirname($path);
                 if (!is_dir($directory) && !mkdir($directory, 0700, true)) throw new ApiProblem(500, 'BUILD_JOB_CREATE', 'Could not create a project directory.', true);
                 if (file_put_contents($path, $file['content'], LOCK_EX) !== strlen($file['content'])) throw new ApiProblem(500, 'BUILD_JOB_WRITE', 'Could not stage a project source file.', true);
             }
+            /* A named SAVE writes where the source says and BeebAsm does not
+             * create the directory, so a project that saves into build/ would
+             * assemble to the end and then fail to write. */
+            foreach ($this->parser->saveDirectories($request->files) as $directory) {
+                $path = $job.'/'.$directory;
+                if (!is_dir($path) && !@mkdir($path, 0700, true) && !is_dir($path)) {
+                    throw new ApiProblem(500, 'BUILD_JOB_CREATE', sprintf('Could not create %s for this build to save into.', $directory), true);
+                }
+            }
+
             $root = $this->fileById($request, $request->sourceUnitIds[0]);
             $wrapper = sprintf("CPU %d\nINCLUDE \"%s\"\n", $request->processor === '6502' ? 0 : 1, $root['name']);
             file_put_contents($job.'/.build/entry.asm', $wrapper, LOCK_EX);
@@ -49,12 +74,30 @@ final class BeebAsmBuildService
             $artifact = null; $artifactRecord = []; $bytes = '';
             if ($process['reason'] === 'succeeded' && $errors === 0) {
                 $path = $job.'/.build/output.bin';
+                /* BeebAsm writes the -o output only for a SAVE that names no
+                 * file. A project whose SAVEs are all named — which is every
+                 * project that builds more than one binary — produced nothing
+                 * there, and was told it had not built. What it saved is the
+                 * build, so those files are the artifact instead. */
+                $saved = $this->savedArtifact($job, $combined, $request);
+                $savedOrigin = null;
+                if (!file_exists($path) && $saved !== null) {
+                    $path = $saved['path'];
+                    /* The listing's lowest address belongs to the whole
+                     * assembly, not to one of several files it saved: a project
+                     * that assembles a rules block at &1400 and its game at
+                     * &1900 would have its game reported as loading at &1400,
+                     * and every breakpoint and mapped line would be out by the
+                     * difference. */
+                    $savedOrigin = $this->parser->saveOrigin($request->files, $saved['name'], $symbols);
+                    $diagnostics[] = ['severity' => 'info', 'message' => $saved['detail'].($savedOrigin === null ? ' Its load address could not be read from the directive that saved it, so the target\'s own origin is used.' : ''), 'line' => 1, 'column' => 1, 'fileId' => $root['id'], 'fileName' => $root['name']];
+                }
                 if (!file_exists($path)) {
-                    $diagnostics[] = ['severity' => 'error', 'message' => 'BeebAsm completed without the required filename-free SAVE output.', 'line' => 1, 'column' => 1, 'stage' => 'collect', 'fileId' => $root['id'], 'fileName' => $root['name']]; ++$errors;
+                    $diagnostics[] = ['severity' => 'error', 'message' => $this->noOutputMessage($combined), 'line' => 1, 'column' => 1, 'stage' => 'collect', 'fileId' => $root['id'], 'fileName' => $root['name']]; ++$errors;
                 } else {
                     $this->regular($path, 'BeebAsm binary'); $size = filesize($path);
                     if ($size === false || $size > BuildLimits::ARTIFACT_BYTES) throw new ApiProblem(400, 'BUILD_ARTIFACT_TOO_LARGE', 'BeebAsm binary exceeded the artifact limit.');
-                    $bytes = (string) file_get_contents($path); $origin = $listing['origin'] ?? $request->origin;
+                    $bytes = (string) file_get_contents($path); $origin = $savedOrigin ?? $listing['origin'] ?? $request->origin;
                     if ($origin !== $request->origin) throw new ApiProblem(400, 'BEEBASM_ORIGIN_MISMATCH', sprintf('First emitted address &%04X does not match target origin &%04X.', $origin, $request->origin), false, ['target.origin' => 'Must match the first emitted address']);
                     if (strlen($bytes) === 0 || $origin + strlen($bytes) - 1 > $request->maximumAddress) throw new ApiProblem(400, 'BUILD_MEMORY_OVERFLOW', 'BeebAsm output is empty or exceeds the target memory range.');
                     $entry = $this->entryPoint($request, $symbols, $origin, strlen($bytes));
@@ -71,8 +114,11 @@ final class BeebAsmBuildService
             $provenance = ['schema' => '8bit-net.build-provenance', 'version' => 2, 'fingerprintAlgorithm' => 'fnv1a32', 'digestAlgorithm' => 'sha256', 'fingerprint' => $this->fingerprint(ToolchainManifest::canonicalJson(['targetId' => $request->targetId, 'machineId' => $request->machineId, 'processor' => $request->processor, 'inputs' => $inputs, 'output' => $artifactRecord[0] ?? null])), 'toolchain' => $toolchain, 'toolchainDigest' => $toolchain['digest'], 'inputs' => $inputs, 'output' => $artifactRecord[0] ?? null];
             if ($artifact) $artifact['provenance'] = $provenance;
             $this->logger->info('native-build-completed', ['adapter' => BeebAsmManifest::ADAPTER_ID, 'outcome' => $reason, 'durationMs' => round($duration, 2), 'outputByteCount' => strlen($bytes), 'errors' => $errors, 'warnings' => $warnings]);
-            return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => [$process], 'provenance' => $provenance];
-        } finally { $this->removeTree($job); }
+            $response = ['schema' => '8bit-net.native-build-response', 'version' => 1, 'requestId' => $request->requestId, 'result' => $metadata, 'artifact' => $artifact, 'documents' => $documents, 'invocations' => [$process], 'provenance' => $provenance];
+            $this->cache->write(BuildCache::LOCAL_OWNER, $cacheKey, $request->files, $response);
+
+            return $this->cache->storedEnvelope($response, BuildCache::LOCAL_OWNER, $cacheKey, $request->cacheBypass);
+        } finally { $this->workspace->remove($job); }
     }
 
     /** @return array{id: string, name: string, content: string} */
@@ -85,6 +131,55 @@ final class BeebAsmBuildService
     private function safeText(string $path): string { if (!file_exists($path)) return ''; $this->regular($path, 'generated document'); $size = filesize($path); if ($size === false || $size > BuildLimits::FILE_BYTES) throw new ApiProblem(400, 'BUILD_DOCUMENT_LIMIT', 'Generated document exceeded its limit.'); return (string) file_get_contents($path); }
     private function regular(string $path, string $label): void { if (is_link($path) || !is_file($path) || filetype($path) !== 'file') throw new ApiProblem(400, 'BUILD_OUTPUT_INVALID', $label.' was not a regular file.'); }
     private function terminalMessage(string $reason): string { return $reason === 'timeout' ? 'BeebAsm exceeded its wall-clock limit.' : ($reason === 'output-limit' ? 'BeebAsm exceeded its output limit.' : 'BeebAsm stopped without a parsed diagnostic.'); }
+    /**
+     * The saved file this build should answer with, or null if there is none.
+     *
+     * A build target names its output, and a project that saves several
+     * binaries needs somebody to say which of them is the one being built.
+     * Matching that name is the answer; a single saved file is the answer when
+     * nothing matches, because there is nothing else it could be; and several
+     * that match nothing is a question rather than a guess, answered by the
+     * message below.
+     *
+     * @return array{path: string, name: string, detail: string}|null
+     */
+    private function savedArtifact(string $job, string $output, NativeBuildRequest $request): ?array
+    {
+        $saved = array_values(array_filter(
+            $this->parser->savedFiles($output),
+            static fn (string $name): bool => $name !== '' && $name[0] !== '/' && !preg_match('#(^|/)\.\.(/|$)#', $name),
+        ));
+        $present = array_values(array_filter($saved, static fn (string $name): bool => is_file($job.'/'.$name)));
+        if ($present === []) {
+            return null;
+        }
+
+        $wanted = $request->outputName;
+        foreach ($present as $name) {
+            if ($name === $wanted || basename($name) === $wanted || basename($name) === basename($wanted)) {
+                return ['path' => $job.'/'.$name, 'name' => $name, 'detail' => sprintf('Answered with %s, the file this target names.', $name)];
+            }
+        }
+        if (count($present) === 1) {
+            return ['path' => $job.'/'.$present[0], 'name' => $present[0], 'detail' => sprintf('Answered with %s, the only file this build saved.', $present[0])];
+        }
+
+        return null;
+    }
+
+    /** What to say when a build produced no output this adapter can answer with. */
+    private function noOutputMessage(string $output): string
+    {
+        $saved = $this->parser->savedFiles($output);
+        if ($saved === []) {
+            return 'BeebAsm completed without the required filename-free SAVE output.';
+        }
+
+        return sprintf(
+            'BeebAsm saved %s but none of them is this target\'s output and there is more than one, so which is the build cannot be decided here. Set the target output name to one of them.',
+            implode(', ', $saved),
+        );
+    }
+
     private function fingerprint(string $bytes): string { $hash = 0x811c9dc5; for ($i = 0; $i < strlen($bytes); ++$i) { $hash ^= ord($bytes[$i]); $hash = ($hash * 0x01000193) & 0xffffffff; } return str_pad(dechex($hash), 8, '0', STR_PAD_LEFT); }
-    private function removeTree(string $path): void { if (!file_exists($path) && !is_link($path)) return; if (is_link($path) || !is_dir($path)) { @unlink($path); return; } foreach (new \FilesystemIterator($path, \FilesystemIterator::SKIP_DOTS) as $item) $this->removeTree($item->getPathname()); @rmdir($path); }
 }

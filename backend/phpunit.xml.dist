@@ -6,6 +6,9 @@
          cacheDirectory=".phpunit.cache">
   <php>
     <env name="APP_ENV" value="test"/>
+    <!-- Booting the real kernel is how the API description is checked against the
+         real routes and the real answers, rather than against a reading of them. -->
+    <env name="KERNEL_CLASS" value="App\Kernel"/>
     <env name="APP_DEBUG" value="1"/>
     <env name="APP_SECRET" value="test-secret-not-for-production"/>
   </php>
