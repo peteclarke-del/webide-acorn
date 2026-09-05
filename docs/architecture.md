@@ -33,11 +33,12 @@ That split is the central architectural decision and it is deliberate:
 | `src/data` | Machine profiles, and the generated compatibility and conformance documents. |
 | `src/editor` | Editing operations, document lifecycle, preferences, encodings and line endings. |
 | `src/emulator` | Adapter contract, debug models, and everything that talks to a running machine. |
-| `src/language` | The language adapter API, the project language index, completion, and the reference packs. |
+| `src/language` | The language adapter API, the project language index, completion, and the maintained first-party knowledge — opcodes, OS calls, hardware registers — that ships with the build. |
 | `src/media` | Disk, tape and ROM image readers and writers. |
 | `src/profiles` | Machine and configuration resolution, and portability comparison. |
 | `src/project` | The project document, its schema and migrations, import, bundles, trash and limits. |
 | `src/rom` | Firmware manifests and adapter support, which decides what this build can actually run. |
+| `src/research` | Imported reference packs: their schema, the library that holds them, search, cross-linking and licensed insertion. Separate from `src/language` because the two answer for different things — what this build maintains, and what somebody brought to it. |
 | `src/settings` | Layered settings: defaults, then the person's, then the project's. |
 | `src/testing` | Hardware test plans and their execution model. |
 | `src/commands` | The workbench command set and the one key-binding table every chord resolves from. |

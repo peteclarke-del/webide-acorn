@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 294 |
-| Complete | 135 |
-| Complete and traced | 78 |
+| Complete | 143 |
+| Complete and traced | 79 |
 | Complete and described | 57 |
-| Complete and untraced | 0 |
-| Open | 159 |
+| Complete and untraced | 7 |
+| Open | 151 |
 
 ## By area
 
@@ -46,7 +46,7 @@ is the part a machine can settle.
 | DOD | 10 | 0 | 0 | 0 | 0 |
 | EXP | 10 | 0 | 0 | 0 | 0 |
 | MED | 10 | 9 | 6 | 3 | 0 |
-| RSH | 10 | 1 | 0 | 1 | 0 |
+| RSH | 10 | 9 | 1 | 1 | 7 |
 | A11Y | 9 | 4 | 4 | 0 | 0 |
 | PRJ | 9 | 9 | 6 | 3 | 0 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
@@ -65,7 +65,18 @@ is the part a machine can settle.
 
 ## Completed requirements that say nothing about verification
 
-None. Every completed requirement records how it was verified.
+Each of these is marked done and names no contract, test or run. They
+are listed rather than quietly counted.
+
+| Requirement | Title |
+| --- | --- |
+| RSH-700 | Finalize reference-source/pack/index schemas, source tiers, version/target tags,… |
+| RSH-701 | Implement approved ingestion pipeline with integrity, idempotency, extraction bounds,… |
+| RSH-702 | Implement target/profile/toolchain-aware exact/full-text search for symbols, addresses,… |
+| RSH-703 | Implement dockable research panel, filters, citations, bookmarks, history, external… |
+| RSH-704 | Cross-link diagnostics, hover, instruction/disassembly, hardware registers, machine… |
+| RSH-705 | Implement licensed code/example insertion preview with dialect compatibility, provenance… |
+| RSH-706 | Implement reference pack import/update/remove and offline behavior. |
 
 ## Completed requirements and their evidence
 
@@ -137,6 +148,7 @@ None. Every completed requirement records how it was verified.
 | AST-626 | Implement target-aware SN76489 music tracker and player/data export. | 15 document contracts and 11 workspace contracts. Two headless runs on a genuine BBC Model B with locally supplied ROMs: a four-row song with three sounding cells issued exactly three OSWORD calls and finished with its… |
 | AST-627 | Implement Atom-appropriate audio/SFX workflow without pretending… | 15 song-document contracts covering the Atom rebuild to one channel with bounded volume, and 11 song-workspace contracts driving the real editor. Nothing pretends the Atom has multichannel hardware: the rebuild is… |
 | AST-629 | Add third-party format import/export only with explicit round-trip,… | 11 interchange contracts including a full export and re-import round trip of layers, indices and objects, plus 3 workspace contracts covering the import report, a refusal that leaves the current map untouched, and… |
+| RSH-707 | Add accuracy evaluation set ensuring target/version relevance and… | 72 module contracts across the six research modules and 23 panel contracts. The invariants are proved able to fail by building a library past the parser — generated text carrying a citation, a licence permitting… |
 | OPS-903 | Enforce and exercise size/concurrency/retention limits with clear… | 12 register and boundary contracts, and 5 panel contracts driving the real Settings surface — every limit shown and grouped, each row carrying its value, reason and behaviour, byte values written in the unit a person… |
 | OPS-904 | Test cancellation, worker/browser crash, dependency outage,… | 16 resilience contracts covering all of the above, alongside the existing cancellation, timeout and abort-signal contracts in the analysis worker client and the build runner. |
 | SEC-902 | Verify CSP, worker/frame origins, message validation, CSRF, XSS,… | 8 header contracts covering both shipped policies, every refusal, the explained-difference register, and the document policy being stricter; 1 source-wide contract on message-origin checking; and the live policy check… |
@@ -258,15 +270,7 @@ None. Every completed requirement records how it was verified.
 | AST-628 | Implement Archimedes audio/sample workflow after selected hardware and runtime/player… | 0 of 2 parts done |
 | AST-630 | Test generated assets in real builds and emulator screenshots/audio, not only codec unit… | 2 of 3 parts done |
 | ASSET-GATE | Character/object, screen/palette, tile/block, map, and target- appropriate sound assets… | not started |
-| RSH-700 | Finalize reference-source/pack/index schemas, source tiers, version/target tags,… | not started |
-| RSH-701 | Implement approved ingestion pipeline with integrity, idempotency, extraction bounds,… | not started |
-| RSH-702 | Implement target/profile/toolchain-aware exact/full-text search for symbols, addresses,… | not started |
-| RSH-703 | Implement dockable research panel, filters, citations, bookmarks, history, external… | not started |
-| RSH-704 | Cross-link diagnostics, hover, instruction/disassembly, hardware registers, machine… | not started |
-| RSH-705 | Implement licensed code/example insertion preview with dialect compatibility, provenance… | not started |
-| RSH-706 | Implement reference pack import/update/remove and offline behavior. | not started |
-| RSH-707 | Add accuracy evaluation set ensuring target/version relevance and preventing… | not started |
-| RSH-708 | If AI help is approved, create a separate privacy/threat/quality specification and… | not started |
+| RSH-708 | If AI help is approved, create a separate privacy/threat/quality specification and… | 0 of 1 parts done |
 | RESEARCH-GATE | Users can reach cited, licensed, target-correct information from search, diagnostics, and… | not started |
 | CLD-800 | Implement authentication/session lifecycle with revocation, CSRF protection, rate limits,… | not started |
 | CLD-801 | Implement backend-enforced owner/editor/tester/viewer project capabilities and… | not started |

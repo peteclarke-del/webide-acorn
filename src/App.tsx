@@ -7,6 +7,10 @@ import { DiskSetWorkspace, type DiskSetSourceArtifact } from './components/DiskS
 import { SettingsLayersPanel } from './components/SettingsLayersPanel';
 import { LimitsPanel } from './components/LimitsPanel';
 import { SystemStatusPanel } from './components/SystemStatusPanel';
+import { ReferenceLibraryPanel } from './components/ReferenceLibraryPanel';
+import { ReferencePanel } from './components/ReferencePanel';
+import { loadPackLibrary, savePackLibrary } from './research/packStorage';
+import type { PackLibrary } from './research/packLibrary';
 import { ProfileComparisonPanel } from './components/ProfileComparisonPanel';
 import { SidewaysSlotPanel } from './components/SidewaysSlotPanel';
 import type { SidewaysAssignment } from './rom/sidewaysSlots';
@@ -398,6 +402,9 @@ function App() {
   const [hardwareDisassembly, setHardwareDisassembly] = useState<MachineDisassembly | null>(null);
   const [hardwareInspection, setHardwareInspection] = useState<HardwareInspection | null>(null);
   const [researchRequest, setResearchRequest] = useState<ResearchRequest>();
+  /* Read once, and re-parsed on the way in rather than trusted: storage is
+   * editable by hand and a partial write leaves a partial record. */
+  const [packLibrary, setPackLibrary] = useState<PackLibrary>(() => loadPackLibrary().library);
   const [sdkDocument, setSdkDocument] = useState<{ path: string; token?: string; status: 'loading' | 'ready' | 'error'; document?: SdkDocument; error?: string }>();
   const sdkDocumentAbortRef = useRef<AbortController | undefined>(undefined);
   const [hardwareMedia, setHardwareMedia] = useState<MachineMedia[]>([]);
@@ -2147,7 +2154,13 @@ function App() {
             ) : workspaceTab === 'Tests' ? (
               <TestWorkspace machineManifestId={`${machine.id}/${resolved.variant}/${resolved.rom.id}`} targetName={activeBuildTarget.name} entryFileName={buildEntry?.name ?? 'missing entry'} connected={romReady && !!machineRomSet} supported={buildEntry?.language === '6502'} artifact={assemblyArtifact} result={hardwareTest} plans={project.testPlans.filter((plan) => plan.targetId === activeBuildTarget.id)} testAllRecords={testAllRecords} history={testHistory} onAdd={addTestPlan} onChange={updateTestPlan} onRemove={removeTestPlan} onRun={runHardwareTest} onRunAll={() => void runTestAll()} onCancelAll={cancelTestAll} onDebugFailed={(failed) => { const exact = [buildArtifact, ...retainedArtifacts.map((item) => item.artifact)].find((candidate) => candidate?.provenance?.fingerprint === failed.buildFingerprint); if (!exact || !isMachineCodeArtifact(exact)) { setNotice('The exact failed-test artifact is no longer retained. Run the test again before debugging it.'); return; } void startDebugger(exact); }} />
             ) : workspaceTab === 'Research' ? (
-              <ResearchWorkspace target={languageTarget} request={researchRequest} onNotice={setNotice} />
+              <><ResearchWorkspace target={languageTarget} request={researchRequest} onNotice={setNotice} />
+                <ReferencePanel
+                  library={packLibrary}
+                  target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }}
+                  {...(researchRequest ? { request: { sequence: researchRequest.sequence, query: researchRequest.query } } : {})}
+                  onNotice={setNotice}
+                /></>
             ) : workspaceTab === 'Settings' ? (
               <div className="settings-workspace">{unreadableSnapshot && (
                 <section className="recovered-snapshot" role="alert" aria-label="Unreadable saved project">
@@ -2158,7 +2171,7 @@ function App() {
                     <button type="button" onClick={() => { clearQuarantinedSnapshot(); setUnreadableSnapshot(null); setNotice('The preserved copy has been discarded at your request'); }}>Discard it</button>
                   </div>
                 </section>
-              )}<SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProfileComparisonPanel /><SystemStatusPanel /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
+              )}<SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProfileComparisonPanel /><SystemStatusPanel /><ReferenceLibraryPanel library={packLibrary} target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }} onNotice={setNotice} onChange={(next) => { setPackLibrary(next); const failure = savePackLibrary(next); if (failure) setNotice(failure); }} /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
             ) : workspaceTab === 'Help' ? (
               <HelpWorkspace />
             ) : workspaceTab === 'Sound' ? (

@@ -4760,23 +4760,140 @@ Current implemented increment:
   version tagging and licensed reference-pack ingestion remain mandatory before
   RSH-700–RSH-708 or RESEARCH-GATE can close.
 
-- [ ] RSH-700 Finalize reference-source/pack/index schemas, source tiers,
+- [x] RSH-700 Finalize reference-source/pack/index schemas, source tiers,
   version/target tags, citations, retention, removal, and licence enforcement.
-- [ ] RSH-701 Implement approved ingestion pipeline with integrity, idempotency,
+  - [x] A pack declares what it is and what may be done with it, and nothing is
+    defaulted, because a default here is a claim about somebody else's rights or
+    somebody else's accuracy. Two decisions carry the weight. **Source tier**
+    travels with every entry — `publisher`, `independent`, `community`,
+    `generated` — because a page from Acorn's manual and a paragraph somebody
+    generated are both text about a BBC Micro, and presenting them alike tells
+    the reader they carry the same weight. Only the first two may be read as
+    authoritative. **Quotable and insertable are recorded separately from the
+    licence name**, because most published manuals are readable and not
+    copyable, and "MIT" and "all rights reserved" are not the only two cases;
+    guessing between them would either lose a right the author granted or take
+    one they did not.
+  - [x] The refusals are the substance. An unrecognised tier is refused rather
+    than treated as the safest one, because the safest one is also the one that
+    hides the problem. A licence permitting insertion but not quoting is refused
+    as incoherent. Generated text carrying a citation is refused outright: a
+    citation claims a document says this, and nothing generated can make that
+    claim. An entry may carry its own tier where a pack mixes material, so a
+    manual with community notes beside it is not flattened to one.
+- [x] RSH-701 Implement approved ingestion pipeline with integrity, idempotency,
   extraction bounds, change detection, deletion, and audit.
-- [ ] RSH-702 Implement target/profile/toolchain-aware exact/full-text search for
+  - [x] Three cases that look alike from outside are distinguished rather than
+    collapsed into "imported": the same pack again byte for byte, which changes
+    nothing and says so; the same pack reissued with altered text, which is an
+    update and reports what it replaced — including when the version number did
+    not change, which is the case a version number alone would hide; and a
+    different publisher claiming an identifier already held, which is refused,
+    because letting one overwrite the other would lose a document nobody agreed
+    to lose. Identity is therefore the pair of identifier and publisher.
+  - [x] The content digest is taken over the parsed pack rather than the bytes
+    that arrived, so the same pack formatted differently is the same pack and a
+    pack whose text changed is changed. Storage is re-parsed and re-digested on
+    the way back in rather than trusted — it is editable by hand and a partial
+    write leaves a partial record — and anything that will not load is dropped
+    with its reason rather than carried as documentation.
+- [x] RSH-702 Implement target/profile/toolchain-aware exact/full-text search for
   symbols, addresses, opcodes, registers, OS calls/SWIs, topics, and examples.
-- [ ] RSH-703 Implement dockable research panel, filters, citations, bookmarks,
+  - [x] Applicability is part of the ranking rather than a filter applied
+    afterwards, and it is a preference rather than a rule: a Master manual page
+    ranks below a Model B one for a Model B project and is never hidden, because
+    sometimes the Master manual is the only place a thing is written down. A
+    pack that names no machine is not thereby wrong for yours.
+  - [x] Two kinds of match are reported rather than folded into a score. An
+    anchor match means the entry says it documents this exact thing; a text
+    match means the words appear. The first is an answer and the second is a
+    lead. Addresses match however they were written — `&FE30`, `FE30`, `0xFE30`,
+    `$FE30` — and an empty query returns nothing rather than everything, because
+    a panel listing every page it holds before being asked has answered a
+    question nobody put to it.
+  - [x] What could not be looked at is reported alongside the results, so a thin
+    answer is explained: somebody searching an empty library and somebody
+    searching a full one that happens not to cover their machine see the same
+    empty list and are in very different situations.
+- [x] RSH-703 Implement dockable research panel, filters, citations, bookmarks,
   history, external links, and keyboard/screen-reader semantics.
-- [ ] RSH-704 Cross-link diagnostics, hover, instruction/disassembly, hardware
+  - [x] Results are separated under their own headings rather than merely
+    ordered, because a single list is read as one list whatever the ranking:
+    what may be read as authoritative sits under one heading and everything else
+    under a heading that says what it is. Opening a community entry shows the
+    caveat again beside the text itself. Citations are shown with section and
+    page, external links open in a new tab and say so to a screen reader, and
+    filters, bookmarks and a bounded history are keyboard-operable with the
+    listbox semantics the rest of the workbench uses.
+- [x] RSH-704 Cross-link diagnostics, hover, instruction/disassembly, hardware
   registers, machine settings, and project symbols to relevant references.
-- [ ] RSH-705 Implement licensed code/example insertion preview with dialect
+  - [x] The workbench already knows a great deal about what is under somebody's
+    caret, and all of it was being thrown away when it reached a search as a
+    word. Lookups now ask **by kind**: a project symbol called `OSWRCH` and the
+    OS call `OSWRCH` are different questions with different right answers. A
+    disassembly row asks by both its mnemonic and the address it reaches; a
+    hardware register by its name and its address; a hovered token in assembly
+    as an opcode and as a symbol, and in BASIC as a topic.
+  - [x] A diagnostic is asked by its code and never by its message, because a
+    message is prose that changes between toolchain versions and searching it
+    would find whatever happened to share a word with it. A typed question that
+    finds nothing is not re-asked as a word: that would turn a precise "nothing
+    documents this" into a vague "here is something", and a panel that always
+    finds something teaches people that finding something means nothing.
+- [x] RSH-705 Implement licensed code/example insertion preview with dialect
   compatibility, provenance persistence, explicit apply, and undo.
-- [ ] RSH-706 Implement reference pack import/update/remove and offline behavior.
-- [ ] RSH-707 Add accuracy evaluation set ensuring target/version relevance and
+  - [x] This is the one path that leaves a permanent mark on somebody's work and
+    on their licence position, so it is refused by default. Three questions are
+    answered separately because they fail for different reasons: whether the
+    licence permits copying at all, which is final; whether the dialect matches,
+    which is reported rather than decided, since an example in a neighbouring
+    dialect is often exactly what somebody wants to adapt; and what the file
+    will end up saying about where the text came from.
+  - [x] Provenance is written into the source as a comment, in the comment
+    syntax of the language it is going into — taken from this product's own
+    emitters rather than from memory, so ARM gets `@` and 6502 gets `;` — because
+    a record kept anywhere else is a record that gets separated from the code.
+    Community and generated text say so in the file they land in, not only on
+    screen. Nothing applies anything: a preview that inserted as a side effect
+    of being looked at would be a preview nobody could safely open, and the
+    apply returns what was there before so it can be put back exactly.
+- [x] RSH-706 Implement reference pack import/update/remove and offline behavior.
+  - [x] Import, update and remove are in Settings alongside an account of what is
+    held, what it permits and what it is made of — a library that is mostly
+    community notes answers differently from one that is mostly manuals, and
+    somebody deciding whether to trust an answer needs to know which they have
+    before they read it. Everything is local: nothing is fetched and nothing is
+    uploaded, which is the whole of the offline behaviour and is stated rather
+    than implied through a cache. A quota failure on save is reported rather
+    than swallowed, because a library that silently stopped saving looks exactly
+    like one that saved.
+- [x] RSH-707 Add accuracy evaluation set ensuring target/version relevance and
   preventing generated/community text from being presented as authoritative.
+  - [x] A fixed question set would only check the documentation somebody thought
+    to write questions about, and a library is whatever a person imported. So six
+    invariants are checked against the library that is actually there, by asking
+    the search the same questions a person would: generated text is never
+    authoritative and never cites; a publisher outranks community material for
+    the same anchor where applicability is equal; a pack naming the target
+    machine outranks one naming another; an entry that documents a thing
+    outranks one that merely mentions it; and a licence cannot permit inserting
+    what it forbids quoting.
+  - [x] A run against an empty library reports that it examined nothing, in
+    those words — "this is not a clean result; it is an empty one" — and rules
+    that had nothing to examine are named rather than counted as passes. Without
+    that distinction the whole check would be decorative.
+  - [x] Evidence: 72 module contracts across the six research modules and 23
+    panel contracts. The invariants are proved able to fail by building a
+    library past the parser — generated text carrying a citation, a licence
+    permitting insertion but not quoting — and watching each rule report it.
 - [ ] RSH-708 If AI help is approved, create a separate privacy/threat/quality
   specification and consented implementation; it is not implied by this backlog.
+  - [ ] Deliberately not started. The requirement says this is not implied by
+    the backlog and needs its own consented specification, so building it
+    because the surrounding area was built would be exactly the thing it warns
+    against. The `generated` source tier exists so that machine-produced text,
+    if it ever arrives, is labelled as such and can never be cited — that is
+    preparation for the decision, not the decision.
 
 ### Phase 7 exit gate
 
