@@ -71,7 +71,11 @@ describe('StartProjectDialog', () => {
     expect(screen.getByLabelText('Imported project name')).toHaveValue('game');
   });
 
-  it('creates the project only from the files and assets that were chosen', async () => {
+  it('brings the artwork it recovered in with the codebase, and lets it be left out', async () => {
+    /* This asserted the opposite until somebody imported a real game and got a
+     * project with none of its twenty-seven sprites and sixty-one rooms in it.
+     * Everything recoverable without a guess arrives selected; unticking it is
+     * the deliberate act, not ticking it. */
     const onOpenProject = vi.fn();
     render(<StartProjectDialog machineId="bbc-b" onOpenProject={onOpenProject} onClose={() => {}} onNotice={() => {}} />);
     fireEvent.click(screen.getByRole('tab', { name: 'From an existing codebase' }));
@@ -82,15 +86,37 @@ describe('StartProjectDialog', () => {
     await screen.findByRole('status');
 
     fireEvent.click(screen.getByRole('button', { name: /Create project from 2 files/ }));
-    const [withoutAsset] = onOpenProject.mock.calls[0] as [LocalProject];
-    expect(withoutAsset.files.map((file) => file.name).sort()).toEqual(['gfx.asm', 'main.asm']);
+    const [withAsset] = onOpenProject.mock.calls[0] as [LocalProject];
+    expect(withAsset.files.map((file) => file.name).sort()).toEqual(['gfx.asm', 'hero.asset.json', 'main.asm']);
+    /* And the source it was recovered from is untouched. */
+    expect(withAsset.files.find((file) => file.name === 'gfx.asm')!.content).toContain('EQUB 0, 1, 2');
 
     fireEvent.click(screen.getByText(/Editable assets that can be recovered/));
-    fireEvent.click(await screen.findByRole('checkbox'));
+    const offered = await screen.findByRole('checkbox');
+    expect(offered, 'what was found is already chosen').toBeChecked();
+    fireEvent.click(offered);
     fireEvent.click(screen.getByRole('button', { name: /Create project from 2 files/ }));
-    const [withAsset] = onOpenProject.mock.calls[1] as [LocalProject];
-    expect(withAsset.files.map((file) => file.name).sort()).toEqual(['gfx.asm', 'hero.asset.json', 'main.asm']);
-    expect(withAsset.files.find((file) => file.name === 'gfx.asm')!.content).toContain('EQUB 0, 1, 2');
+    const [withoutAsset] = onOpenProject.mock.calls[1] as [LocalProject];
+    expect(withoutAsset.files.map((file) => file.name).sort()).toEqual(['gfx.asm', 'main.asm']);
+  });
+
+  it('leaves what would need a guess to be chosen, rather than guessing it', async () => {
+    /* A byte run whose length allows several grid shapes is offered and not
+     * selected: picking one would produce a plausible, wrong map. */
+    const onOpenProject = vi.fn();
+    render(<StartProjectDialog machineId="bbc-b" onOpenProject={onOpenProject} onClose={() => {}} onNotice={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'From an existing codebase' }));
+    chooseFolder([
+      fileFrom('game/main.asm', 'ORG &1900\n.start\nRTS\n'),
+      fileFrom('game/level.asm', `.level_map\nEQUB ${Array.from({ length: 96 }, (_, index) => index % 5).join(', ')}\n`),
+    ]);
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByText(/Tile maps that can be recovered/));
+    const map = await screen.findByRole('checkbox', { name: /Promote level_map/ });
+    expect(map, 'a map whose shape is a guess waits to be chosen').not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /Create project from 2 files/ }));
+    const [project] = onOpenProject.mock.calls[0] as [LocalProject];
+    expect(project.files.some((file) => file.name.endsWith('.map.json'))).toBe(false);
   });
 
   it('reports every excluded path with the reason it was left out', async () => {
