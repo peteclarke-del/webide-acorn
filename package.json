@@ -23,7 +23,7 @@
     "api:types": "node scripts/generateApiTypes.mjs"
   },
   "dependencies": {
-    "fflate": "0.8.2",
+    "fflate": "0.8.3",
     "jsbeeb": "1.19.1",
     "react": "19.0.0",
     "react-dom": "19.0.0"
