@@ -143,7 +143,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "A folder of Acorn source in editable text form",
     ],
     steps: [
-      "Choose Project then Start from a sample in the workbench menu bar, then the From an existing codebase tab.",
+      "Choose Project then Open a codebase in the workbench menu bar, which opens the From an existing codebase tab.",
       "Choose the folder. It is read in this browser and is never uploaded.",
       "Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.",
       "Use Recover all to take every asset the plan found, or tick the ones you want. Each becomes an editable document in the project.",

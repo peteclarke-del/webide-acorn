@@ -1825,7 +1825,11 @@ function App() {
   const commandDefinitions: WorkbenchCommand[] = [
     { id: 'project-new', label: 'Create new project', short: 'New project', icon: 'new', category: 'Project', keywords: ['clear', 'start'], enabled: true, run: newLocalProject },
     { id: 'project-open', label: 'Open portable project', short: 'Open project…', icon: 'open', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
-    { id: 'project-start', label: 'Start a project from a sample or an existing codebase', short: 'Start from a sample…', icon: 'layers', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => setStartProjectOpen(true) },
+    { id: 'project-start', label: 'Start a project from a sample or a template', short: 'Start from a sample…', icon: 'layers', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => { setStartProjectTab('samples'); setStartProjectOpen(true); } },
+    /* Its own entry rather than a tab somebody has to know is there: opening a
+     * codebase is a different intent from starting from a sample, and the menu
+     * offered no way to say so. */
+    { id: 'project-import-codebase', label: 'Start a project from an existing codebase folder', short: 'Open a codebase…', icon: 'folder', category: 'Project', keywords: ['import', 'folder', 'existing', 'source', 'game', 'codebase'], enabled: true, run: () => { setStartProjectTab('folder'); setStartProjectOpen(true); } },
     { id: 'file-save', label: 'Save current source in browser', short: 'Save', icon: 'save', category: 'File', keywords: ['persist', 'local', 'dirty'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: saveCurrentSource },
     { id: 'project-save-all', label: 'Save all project files in browser', short: 'Save all', icon: 'save', category: 'Project', keywords: ['persist', 'local', 'dirty'], enabled: true, run: saveLocalProject },
     { id: 'project-write-folder', label: 'Write project files back to the connected folder', short: 'Write to folder', icon: 'folder', category: 'Project', keywords: ['folder', 'disk', 'save', 'write'], enabled: !!connectedFolder, run: () => { void writeProjectToFolder(); } },

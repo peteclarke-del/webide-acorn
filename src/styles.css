@@ -65,6 +65,16 @@
      * ends up a pixel or two past the standard height and no rule says so.
      * Fixing the line settles the content, so the height is the height. */
     line-height: 1.15;
+    /*
+     * And a size of its own, rather than whatever the surrounding text happens
+     * to be. Without this a control inherits its container: the close-project
+     * dialog sets larger body text for its explanation, so the button beside it
+     * came out at 16.9px, wrapped onto two lines and stood at 46 pixels next to
+     * a 28-pixel one. A control that wants different text still says so and
+     * still wins; what this stops is a control being resized by the paragraph
+     * it happens to sit under.
+     */
+    font-size: var(--fs-9);
   }
   .pixel-grid button, .tile-grid button, .map-grid button, .glyph-grid button, .screen-grid button { min-height: 0; }
 
@@ -857,8 +867,8 @@
   .close-project-dialog h2 { margin: 0; color: var(--theme-ink-strong); font: 700 var(--fs-12)/1.2 var(--font-ui); }
   .close-project-dialog p { margin: 0; color: var(--theme-muted); }
   .close-project-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-  .close-project-actions button { min-height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--theme-line-strong); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-ink); }
-  .close-project-actions .primary-action { border-color: var(--theme-primary); color: var(--theme-ink-strong); }
+  .close-project-actions button { min-height: var(--control-h); white-space: nowrap; padding: 0 var(--control-pad-x); border: 1px solid var(--theme-line-strong); border-radius: var(--radius-xs); background: var(--theme-surface-2); color: var(--theme-ink); }
+  .close-project-actions .primary-action { min-height: var(--control-h); margin-top: 0; border-color: var(--theme-primary); color: var(--theme-ink-strong); }
   .close-project-actions .destructive-action { border-color: var(--theme-danger); color: var(--theme-danger); }
   .close-project-actions button:hover { border-color: var(--theme-primary); color: var(--theme-ink-strong); }
 

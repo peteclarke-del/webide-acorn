@@ -52,7 +52,7 @@ Turn a folder of existing Acorn source into a working project, reviewing the who
 
 **Procedure**
 
-1. Choose Project then Start from a sample in the workbench menu bar, then the From an existing codebase tab.
+1. Choose Project then Open a codebase in the workbench menu bar, which opens the From an existing codebase tab.
 2. Choose the folder. It is read in this browser and is never uploaded.
 3. Read the plan: files to import, proposed build targets and the evidence for each, recoverable assets, map-shaped data and everything left out.
 4. Use Recover all to take every asset the plan found, or tick the ones you want. Each becomes an editable document in the project.

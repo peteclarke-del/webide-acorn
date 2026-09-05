@@ -125,6 +125,10 @@ export function PanelMenuBar({ label, menus }: PanelMenuBarProps) {
                 <button
                   type="button"
                   key={item.id}
+                  /* A stable handle for anything that has to find this entry
+                   * without depending on its label, which is the part most
+                   * likely to be reworded. */
+                  data-menu-item={item.id}
                   role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
                   {...(item.checked === undefined ? {} : { 'aria-checked': item.checked })}
                   className={item.separated ? 'panel-menu-item separated' : 'panel-menu-item'}

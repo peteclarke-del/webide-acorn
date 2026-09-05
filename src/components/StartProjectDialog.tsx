@@ -113,8 +113,27 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
     const byPath = new Map(inputs.map((input) => [input.path, input.content]));
     setPlan(nextPlan);
     setContents(new Map(nextPlan.files.map((file) => [file.name, byPath.get(file.path) ?? ''])));
-    setSelectedAssets([]);
-    setSelectedMaps({});
+    /*
+     * Everything that can be recovered without a guess is recovered.
+     *
+     * These all began unticked, so importing a codebase that plainly held
+     * twenty-seven sprites and sixty-one rooms produced a project with none of
+     * them, and the only sign was a count in a collapsed summary. Somebody who
+     * imports a game expects the game's artwork and levels to come with it.
+     *
+     * What stays unticked is only what cannot be settled from the codebase: a
+     * map recovered from a byte run whose length allows several grid shapes,
+     * and a screen whose file does not name the display mode its bytes are for.
+     * Both would need a guess, and a wrong guess produces a plausible, wrong
+     * document — so those wait to be chosen, in the same list, already found.
+     */
+    setSelectedAssets(nextPlan.derivedAssets.map((asset) => asset.id));
+    setSelectedMaps(Object.fromEntries(nextPlan.mapCandidates
+      .filter((candidate) => candidate.shapes.length === 1)
+      .map((candidate) => [candidate.id, `${candidate.shapes[0]!.width}x${candidate.shapes[0]!.height}`])));
+    setSelectedScreens(Object.fromEntries(nextPlan.screenCandidates
+      .filter((candidate) => candidate.namedByFilename)
+      .map((candidate) => [candidate.id, candidate.modes[0]!])));
     setProjectName(nextPlan.name);
     setFolderNotes(notes);
   };

@@ -752,6 +752,63 @@ await stage('smoke', async () => {
     }
     await call('Emulation.setEmulatedMedia', { features: [] });
 
+    /*
+     * And the dialogs, which is where the mismatch was actually reported.
+     *
+     * The scan above walks workspaces, so a control that only exists while a
+     * dialog is open was never measured: the close-project dialog stood a
+     * 46-pixel button beside a 28-pixel one and this passed. Each of these is
+     * opened, measured and dismissed. A dialog that will not open fails rather
+     * than being quietly skipped, because a skipped surface is how the first
+     * one was missed.
+     */
+    const DIALOGS = [
+      { name: 'close project', menu: 'Project', item: 'menu-project-close', root: '.close-project-dialog' },
+      { name: 'start a project', menu: 'Project', item: 'menu-project-import-codebase', root: '.start-project-dialog' },
+      { name: 'export project', menu: 'Project', item: 'menu-project-export', root: '[role=dialog]' },
+      { name: 'command palette', menu: null, item: null, root: '.command-palette' },
+    ];
+    for (const dialog of DIALOGS) {
+      if (dialog.menu) {
+        /* Opened a step at a time, because the items of a menu do not exist
+         * until it has been drawn and a single expression cannot wait for
+         * that. Reading one synchronously found an empty menu and reported
+         * that nothing opens the dialog. */
+        const barOpened = await evaluate(`(() => {
+          const bar = document.querySelector('[role="menubar"][aria-label="Workbench menu"]');
+          if (!bar) return 'no workbench menu bar';
+          const button = [...bar.querySelectorAll('.panel-actions-button')].find((entry) => entry.textContent.trim() === ${JSON.stringify(dialog.menu)});
+          if (!button) return 'no ${dialog.menu} menu';
+          button.click();
+          return true;
+        })()`);
+        if (barOpened !== true) throw new Error(`The ${dialog.name} dialog could not be reached: ${barOpened}`);
+        await delay(400);
+        const chosen = await evaluate(`(() => {
+          const item = document.querySelector('.panel-menu-items [data-menu-item="${dialog.item}"]');
+          if (!item) return 'the ${dialog.menu} menu has no ${dialog.item} entry';
+          if (item.disabled) return 'the ${dialog.item} entry is disabled';
+          item.click();
+          return true;
+        })()`);
+        if (chosen !== true) throw new Error(`The ${dialog.name} dialog could not be opened to measure it: ${chosen}`);
+      } else {
+        await evaluate(`(() => { document.querySelector('button[aria-label="Open command palette"]').click(); return true; })()`);
+      }
+      await delay(700);
+      const present = await evaluate(`!!document.querySelector(${JSON.stringify(dialog.root)})`);
+      if (!present) throw new Error(`The ${dialog.name} dialog did not appear, so its controls were not measured`);
+      for (const odd of await evaluate(CONTROL_SIZES)) mismatched.push({ ...odd, workspace: `${dialog.name} dialog` });
+      await evaluate(`(() => {
+        const close = [...document.querySelectorAll('button')].find((b) => /^(Keep working on it|Cancel|Choose a different folder)$/.test(b.textContent.trim()));
+        if (close) { close.click(); return true; }
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        for (const backdrop of document.querySelectorAll('.command-palette-backdrop, .modal-backdrop')) backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        return true;
+      })()`);
+      await delay(500);
+    }
+
     if (mismatched.length) {
       const shown = mismatched.slice(0, 6).map((odd) => `${odd.height}px .${odd.klass} "${odd.text}" in ${odd.workspace}`);
       throw new Error(`${mismatched.length} control(s) are not one of the ${CONTROL_HEIGHTS.join(', ')} pixel sizes the product declares: ${shown.join(' | ')}`);
