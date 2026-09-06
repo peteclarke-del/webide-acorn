@@ -6840,6 +6840,36 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           });
           setMachineError(undefined);
         }
+        /*
+         * The Elkulator bridge says "media" with an action; jsbeeb and the
+         * A310 say "media-loaded". Only the second was listened for, so a disc
+         * this machine really had mounted was never recorded: the command went
+         * out, the core accepted it and answered, and the workbench went on
+         * showing "No media is mounted in this session". Two vocabularies for
+         * one event, and the workbench spoke one of them.
+         */
+        if (event.data.type === 'media') {
+          const action = String(event.data.action ?? '');
+          if (action === 'load-disc') {
+            const media: MachineMedia = { kind: 'disc', name: String(event.data.name), size: Number(event.data.size), drive: Number(event.data.drive), dirty: false, revision: 0 };
+            onMachineMedia((current) => [...current.filter((item) => !(item.kind === 'disc' && item.drive === media.drive)), media]);
+            onNotice(`${media.name} mounted in Electron drive ${media.drive} · ${String(event.data.source ?? 'the core acknowledged it')}`);
+          }
+          if (action === 'load-tape') {
+            const media: MachineMedia = { kind: 'tape', name: String(event.data.name), size: Number(event.data.size), format: String(event.data.format) };
+            onMachineMedia((current) => [...current.filter((item) => item.kind !== 'tape'), media]);
+            onNotice(`${media.name} mounted in the Electron cassette · ${String(event.data.source ?? 'the core acknowledged it')}`);
+          }
+          if (action === 'eject-disc') {
+            const drive = Number(event.data.drive);
+            onMachineMedia((current) => current.filter((item) => !(item.kind === 'disc' && item.drive === drive)));
+            onNotice(`Electron drive ${drive} emptied`);
+          }
+          if (action === 'eject-tape') {
+            onMachineMedia((current) => current.filter((item) => item.kind !== 'tape'));
+            onNotice('Electron cassette ejected');
+          }
+        }
         if (event.data.type === 'memory') onMachineMemory({ address: Number(event.data.address), bytes: event.data.bytes as number[], requestId: String(event.data.requestId), addressSpace: 'mapped', addressSpaceLabel: 'Electron mapped CPU view', capturedAtCycles: 0 });
         if (event.data.type === 'program-loaded') { setMachineProgram(`${String(event.data.format)} · ${Number(event.data.size).toLocaleString()} bytes at ${formatAddress(Number(event.data.address))}`); if (event.data.programManifest) setProgramManifest(event.data.programManifest as ProgramLoadManifest); onNotice(`Program loaded into live Electron RAM at ${formatAddress(Number(event.data.address))} · ElkJS acknowledged`); }
         if (event.data.type === 'audio-state') { const enabled = Boolean(event.data.enabled); setElectronState((current) => current ? { ...current, audioEnabled: enabled } : current); onNotice(`Electron sound ${enabled ? 'enabled' : 'muted'} · ${String(event.data.source)}`); }

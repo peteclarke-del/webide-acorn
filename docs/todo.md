@@ -5207,19 +5207,25 @@ Current implemented increment:
     drive and the control that mounts a disc never appeared. Each capability
     declares it for itself now, and with a Plus 3 fitted the Electron's Media
     workspace offers the control and accepts a 160 KiB ADFS S image.
-  - [ ] **A disc sent to the Electron is lost between the workbench and the
-    runtime page.** This is now narrow enough to hand on. With a Plus 3 fitted
-    and ADFS in it, choosing a 160 KiB ADFS S image and pressing Mount disk
-    makes the workbench report "Loading plus3.adf into drive 0" — so `loadDisc`
-    ran, and it is not the control, the capability gate or the image being
-    refused. The runtime page then prints nothing at all: no acceptance, no
-    refusal, and its own diagnostics end at the ROM images it loaded. Its
-    machine acknowledgements still read "No media is mounted in this session".
-    The runtime has a `load-disc` case and declares `media` among its
-    capabilities, and the Electron adapter maps `load-disc` to it, so every end
-    is willing; what has not been traced is the message between them. Until a
-    disc is acknowledged the Plus 3 stays preview, and no claim about mounting
-    belongs anywhere.
+  - [x] **A disc mounts in the Electron, and the machine acknowledges it.** The
+    earlier note here said the disc was lost between the workbench and the
+    runtime page. That was wrong, and watching the traffic rather than the two
+    ends showed why: the command goes out as `load-disc`, the bridge answers
+    with `media` and `command-accepted`, and the mount had been working all
+    along. What was lost was the acknowledgement. jsbeeb and the A310 announce a
+    mount as `media-loaded`; the Elkulator bridge announces it as `media` with an
+    action, and only the first was listened for — so a disc the machine really
+    held was recorded nowhere and the workbench went on saying "No media is
+    mounted in this session". Both vocabularies are spoken now, and
+    `electronMediaMessages.test.ts` reads both files so neither can rename a
+    message without the other being held to it. Measured: choosing a 160 KiB
+    ADFS S image and pressing Mount disk gives "plus3.adf mounted in Electron
+    drive 0 · live Elkulator 1770 state", and the machine lists it as accepted
+    by the live FDC adapter.
+  - [ ] What is still not shown is a filing system reading that disc. The image
+    is a formatted-size file of zeroes, so it can demonstrate a mount and never
+    a catalogue. That, and exercising the Plus 1's cartridge, printer and
+    analogue ports, is what stands between these two expansions and supported.
   - [x] **The Plus 3 is fitted too, with one filing system.** It had the same
     shape of problem one level on: ADFS and the Electron DFS were both marked
     required by it, so fitting a Plus 3 asked for both when the interface takes
