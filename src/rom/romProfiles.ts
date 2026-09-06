@@ -5,7 +5,22 @@ export interface RomRequirement {
   acceptedSizes: number[];
   purpose: 'operating-system' | 'language' | 'filing-system' | 'extension';
   required: boolean;
+  /**
+   * The capability this ROM *is*. Fitting that expansion without this ROM is
+   * not fitting it, so supplying it is required the moment the capability is
+   * switched on: a Plus 1 with no Plus 1 support ROM is not a Plus 1.
+   */
   requiredByCapability?: string;
+  /**
+   * A capability this ROM may be used *with*, rather than one it constitutes.
+   *
+   * MMFS, the Advanced File Manager and the ElkWiFi firmware are cartridge and
+   * sideways ROMs somebody may put in a Plus 1. None of them is the Plus 1, and
+   * treating them as required meant switching the Plus 1 on demanded four more
+   * ROMs and left the machine unready — so the expansion could not be fitted at
+   * all. They are offered when the capability is on and never required.
+   */
+  offeredByCapability?: string;
   runtimeMount?: 'sideways';
   supportStatus?: 'stable' | 'development';
   provenanceNote?: string;
@@ -31,7 +46,7 @@ export interface RomSetDefinition {
   requirements: RomRequirement[];
 }
 
-const rom = (id: string, label: string, emulatorPath: string, acceptedSizes: number[], purpose: RomRequirement['purpose'], required = true, requiredByCapability?: string, options: Pick<RomRequirement, 'runtimeMount' | 'supportStatus' | 'provenanceNote'> = {}): RomRequirement => ({ id, label, emulatorPath, acceptedSizes, purpose, required, requiredByCapability, ...options });
+const rom = (id: string, label: string, emulatorPath: string, acceptedSizes: number[], purpose: RomRequirement['purpose'], required = true, requiredByCapability?: string, options: Pick<RomRequirement, 'runtimeMount' | 'supportStatus' | 'provenanceNote' | 'offeredByCapability'> = {}): RomRequirement => ({ id, label, emulatorPath, acceptedSizes, purpose, required, requiredByCapability, ...options });
 const engine = { id: 'jsbeeb', version: '1.19.1' } as const;
 const elkjs = { id: 'elkjs', version: 'ff123355' } as const;
 const bbcWifi = () => rom('1mhzpi-wifi', '1MHzPi BBC WiFi development ROM', 'development/BBCWiFi-development.rom', [16384], 'extension', false, '1mhzpi', {
@@ -56,6 +71,12 @@ const elkulator = { id: 'elkulator', version: 'allegro5-6785521' } as const;
 const elkExpansion = (id: string, label: string, path: string, capability: string, note: string, sizes = [16384]) =>
   rom(id, label, path, sizes, 'extension', false, capability, {
     runtimeMount: 'sideways', supportStatus: 'development', provenanceNote: note,
+  });
+
+/* A ROM somebody may put in an expansion, rather than the expansion itself. */
+const elkCarried = (id: string, label: string, path: string, capability: string, note: string, sizes = [16384]) =>
+  rom(id, label, path, sizes, 'extension', false, undefined, {
+    runtimeMount: 'sideways', supportStatus: 'development', provenanceNote: note, offeredByCapability: capability,
   });
 
 export const ROM_SETS: RomSetDefinition[] = [
@@ -198,12 +219,12 @@ export const ROM_SETS: RomSetDefinition[] = [
       elkExpansion('plus1', 'Plus 1 expansion ROM', 'roms/plus1.rom', 'plus1', 'Acorn Plus 1 support ROM. Supplies the cartridge slots, printer port and analogue port.', [4096]),
       elkExpansion('adfs', 'Acorn ADFS for the Plus 3', 'roms/adfs.rom', 'plus3', 'Acorn ADFS. The Plus 3 disc interface is unusable without it.'),
       elkExpansion('dfs', 'Electron DFS', 'roms/dfs.rom', 'plus3', 'Disc filing system for Electron disc interfaces.'),
-      elkExpansion('emmfs', 'EMMFS · MMFS for the Electron', 'roms/EMMFS.rom', 'plus1', 'MMFS built for the Electron, giving SD-card storage through the cartridge slot.'),
-      elkExpansion('eswmmfs', 'ESWMMFS · sideways-RAM MMFS', 'roms/ESWMMFS.rom', 'sideways', 'MMFS variant that keeps its workspace in sideways RAM.'),
-      elkExpansion('zemmfs', 'ZEMMFS · MMFS variant', 'roms/ZEMMFS.rom', 'plus1', 'A further MMFS build carried by the 1MHzPi project.'),
-      elkExpansion('afm', 'Advanced File Manager 1.09', 'roms/AFM1V09.rom', 'plus1', 'Advanced File Manager, a filing-system front end used with MMFS.'),
-      elkExpansion('rhplus1', 'Retro Hardware Plus 1 support 1.33', 'roms/RHPLUS133.rom', 'plus1', 'Support ROM for the Retro Hardware Plus 1 reimplementation, which is the board the 1MHzPi work uses.'),
-      elkExpansion('elkwifi', 'ElkWiFi 1MHz bus firmware', 'roms/elkwifi.rom', '1mhzpi', 'Built from the 1MHzPi project\u2019s own source rather than obtained; re-import after a firmware rebuild. Its size is not a round 16 KB.', [16384, 16406]),
+      elkCarried('emmfs', 'EMMFS · MMFS for the Electron', 'roms/EMMFS.rom', 'plus1', 'MMFS built for the Electron, giving SD-card storage through the cartridge slot.'),
+      elkCarried('eswmmfs', 'ESWMMFS · sideways-RAM MMFS', 'roms/ESWMMFS.rom', 'sideways', 'MMFS variant that keeps its workspace in sideways RAM.'),
+      elkCarried('zemmfs', 'ZEMMFS · MMFS variant', 'roms/ZEMMFS.rom', 'plus1', 'A further MMFS build carried by the 1MHzPi project.'),
+      elkCarried('afm', 'Advanced File Manager 1.09', 'roms/AFM1V09.rom', 'plus1', 'Advanced File Manager, a filing-system front end used with MMFS.'),
+      elkCarried('rhplus1', 'Retro Hardware Plus 1 support 1.33', 'roms/RHPLUS133.rom', 'plus1', 'Support ROM for the Retro Hardware Plus 1 reimplementation, which is the board the 1MHzPi work uses.'),
+      elkCarried('elkwifi', 'ElkWiFi 1MHz bus firmware', 'roms/elkwifi.rom', '1mhzpi', 'Built from the 1MHzPi project\u2019s own source rather than obtained; re-import after a firmware rebuild. Its size is not a round 16 KB.', [16384, 16406]),
       /* The Electron's Tube is on the Plus 1's expansion connector, so the
        * client ROM is a 4 KB parasite image rather than a sideways one. */
       rom('tube6502', '6502 Tube client 1.20', 'roms/6502tube_120.rom', [4096], 'extension', false, 'tube', {
@@ -234,6 +255,19 @@ export function romSetFor(machineId: string, romId: string): RomSetDefinition | 
 
 export function requiredRomRequirements(definition: RomSetDefinition, enabledCapabilities: string[] = []): RomRequirement[] {
   return definition.requirements.filter((item) => item.required || (!!item.requiredByCapability && enabledCapabilities.includes(item.requiredByCapability)));
+}
+
+/**
+ * Every ROM that may reach the machine: what it needs, and what it may carry.
+ *
+ * The runtime is given this rather than the required set, because a ROM offered
+ * with an expansion is one somebody supplied on purpose and expects to be in
+ * the machine. It is what a Plus 1 cartridge is for.
+ */
+export function fittedRomRequirements(definition: RomSetDefinition, enabledCapabilities: string[] = []): RomRequirement[] {
+  return definition.requirements.filter((item) => item.required
+    || (!!item.requiredByCapability && enabledCapabilities.includes(item.requiredByCapability))
+    || (!!item.offeredByCapability && enabledCapabilities.includes(item.offeredByCapability)));
 }
 
 export function runtimeSidewaysRomPaths(definition: RomSetDefinition, enabledCapabilities: string[] = []): string[] {

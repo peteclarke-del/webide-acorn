@@ -71,8 +71,22 @@ describe('the Electron expansion combinations', () => {
     const required = set.requirements.filter((item) => item.required).map((item) => item.id);
     expect(required).toEqual(['os', 'basic']);
     for (const item of set.requirements.filter((entry) => !entry.required)) {
-      expect(item.requiredByCapability, item.id).toBeTruthy();
+      /* Either the expansion itself, or something an expansion carries. */
+      expect(item.requiredByCapability ?? item.offeredByCapability, item.id).toBeTruthy();
       expect(item.provenanceNote, item.id).toBeTruthy();
+    }
+  });
+
+  it('requires the board itself and merely offers what goes in it', () => {
+    /* Fitting a Plus 1 once demanded four MMFS variants and a file manager,
+     * because every ROM a Plus 1 can carry was tagged as one it needs. The
+     * machine went unready the moment somebody fitted the expansion the set
+     * exists for. */
+    expect(set.requirements.find((item) => item.id === 'plus1')?.requiredByCapability).toBe('plus1');
+    for (const carried of ['emmfs', 'eswmmfs', 'zemmfs', 'afm', 'rhplus1']) {
+      const item = set.requirements.find((entry) => entry.id === carried);
+      expect(item?.offeredByCapability, `${carried} is carried, not required`).toBeTruthy();
+      expect(item?.requiredByCapability, `${carried} must not be demanded`).toBeUndefined();
     }
   });
 

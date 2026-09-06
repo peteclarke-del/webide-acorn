@@ -81,7 +81,7 @@ import { SongWorkspace } from './components/SongWorkspace';
 import { physicalColour, resolveProjectPalette, type ProjectPalette } from './assets/paletteDocument';
 import { readableInk } from './theme/readableInk';
 import { loadSdkDocument, type SdkDocument } from './language/sdkDocumentClient';
-import { ROM_SETS, requiredRomRequirements, romSetFor, romStorageKey, runtimeSidewaysRomPaths } from './rom/romProfiles';
+import { ROM_SETS, fittedRomRequirements, requiredRomRequirements, romSetFor, romStorageKey, runtimeSidewaysRomPaths } from './rom/romProfiles';
 import { ELECTRON_ADAPTER_SUMMARY, ELECTRON_CAPABILITIES, ELECTRON_UNAVAILABLE, electronCommandRefusal } from './emulator/electronAdapter';
 import { ELKULATOR_ADAPTER_SUMMARY, ELKULATOR_CAPABILITIES, ELKULATOR_UNAVAILABLE, elkulatorCommandRefusal } from './emulator/elkulatorAdapter';
 import { electronRuntimeRoute, isElectronEngine } from './emulator/electronRuntimeRouting';
@@ -630,8 +630,12 @@ function App() {
     void listRoms(prefix).then((records) => {
       if (!current) return;
       const supplied = new Set(records.map((record) => record.key));
+      /* What may reach the machine, not only what it cannot start without: a
+       * ROM supplied for a fitted expansion is one somebody put there on
+       * purpose, and filtering it out here is why the core was handed two
+       * images however many were in the vault. */
       const selectedKeys = machineRomSet
-        ? new Set(requiredRomRequirements(machineRomSet, enabledCapabilities).map((item) => romStorageKey(machineRomSet.id, item)))
+        ? new Set(fittedRomRequirements(machineRomSet, enabledCapabilities).map((item) => romStorageKey(machineRomSet.id, item)))
         : archimedesRuntime
           ? new Set([archimedesCombinedRomKey(archimedesRuntime.profile), archimedesCmosKey(archimedesRuntime.profile)])
           : new Set<string>();

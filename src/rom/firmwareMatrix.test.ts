@@ -41,13 +41,17 @@ describe('the firmware matrix', () => {
     }
   });
 
-  it('says of every optional ROM which capability needs it', () => {
+  it('says of every optional ROM which capability it belongs to', () => {
     /* An optional ROM with nothing beside it reads as one nobody needs, which
-     * is the opposite of true: it is needed exactly when its capability is on. */
+     * is the opposite of true. It belongs to a capability in one of two ways:
+     * it is that expansion, and is required the moment the expansion is fitted;
+     * or it is something the expansion carries, and is offered with it. Both
+     * are a stated relationship; neither is silence. */
     for (const set of ROM_SETS) {
       for (const requirement of set.requirements) {
         if (requirement.required) continue;
-        expect(requirement.requiredByCapability, `${set.id}/${requirement.id}`).toBeTruthy();
+        const belongs = requirement.requiredByCapability ?? requirement.offeredByCapability;
+        expect(belongs, `${set.id}/${requirement.id} names no capability at all`).toBeTruthy();
       }
     }
     expect(renderFirmwareMatrix()).toContain('needed for');

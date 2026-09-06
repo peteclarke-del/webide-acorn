@@ -187,7 +187,7 @@ export const machineProfiles: MachineProfile[] = [
      * supported would promise a machine nobody here can start. */
     capabilities: [
       capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported', true),
-      capability('plus1', 'Plus 1 expansion', 'Cartridge, printer and analogue interfaces', 'planned', false, 'a Plus 1 ROM in the firmware vault; the Elkulator core fits one when it is there'),
+      capability('plus1', 'Plus 1 expansion', 'Cartridge, printer and analogue interfaces', 'preview', false, 'a Plus 1 ROM in the firmware vault. Fitting one was measured: with the ROM supplied through the workbench and the capability switched on, the Elkulator core reports three ROM images and no longer names plus1.rom as absent. What that proves is that the board is fitted, not that its cartridge, printer and analogue ports have been exercised, which is why this is preview rather than supported'),
       capability('plus3', 'Plus 3 expansion', '3.5-inch disk and ADFS', 'planned', false, 'an ADFS or DFS ROM in the firmware vault; the bridge mounts disc images through Elkulator\'s own loader once a machine has an interface to read them with'),
       capability('sideways', 'Sideways RAM', 'Expansion banked memory', 'planned', false, 'a sideways ROM manifest for the Elkulator core; ElkJS decodes every unclaimed ROM bank to BASIC'),
       capability('joystick', 'Joystick interface', 'Configurable expansion joystick', 'planned', false, 'the Plus 1, which needs its ROM'),

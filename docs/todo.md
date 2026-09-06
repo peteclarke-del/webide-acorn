@@ -5183,7 +5183,28 @@ Current implemented increment:
     Electron running on Elkulator" and presents a 640 by 512 framebuffer.
     Powering it off and on again from the panel's own control works and keeps
     the machine and its ROM set selected.
-  - [ ] **No expansion is fitted, and an earlier note here said two were.** That
+  - [x] **The Plus 1 is fitted, and measured.** With the ROM supplied through
+    the workbench and the capability switched on, the Elkulator core reports
+    "initialised with 3 ROM images" and no longer names `plus1.rom` among the
+    expansions it could not find. That is the first expansion to go through this
+    core. It is marked preview rather than supported, because what was shown is
+    that the board is fitted — its cartridge, printer and analogue ports have
+    not been exercised.
+  - [x] Fitting it needed a modelling fault fixed first. Every cartridge and
+    sideways ROM offered for the Plus 1 was tagged as *required by* the Plus 1,
+    so switching the Plus 1 on demanded four more ROMs and left the machine
+    unready — the expansion the set exists for could not be fitted at all. A
+    Plus 1 with no support ROM is not a Plus 1, so that one is required; a Plus 1
+    with no MMFS is a Plus 1 with an empty cartridge slot, so that one is
+    offered. `fittedRomRequirements` gives the machine everything fitted while
+    readiness asks only for what is required, and `fittedRoms.test.ts` holds the
+    distinction, including that nothing can ever be required that would not be
+    fitted.
+  - [ ] The Plus 3 has the same shape of problem one level further on: ADFS and
+    the Electron DFS are both marked as required by it, so fitting a Plus 3 asks
+    for both when the hardware needs either. That is an "any one of these" which
+    this model cannot yet express, and it is the next thing to do here.
+  - [ ] **An earlier note here said two expansions were fitted before any were.** That
     was read off a truncated line of the core's own output and was wrong. Read
     in full it says: "Elkulator 6785521a initialised with 2 ROM images", and
     names every one of `os300.rom`, `adfs.rom`, `dfs.rom`, `sndrom` and
