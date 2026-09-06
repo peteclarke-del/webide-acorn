@@ -262,7 +262,7 @@ None. Every completed requirement records how it was verified.
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
-| EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 51 of 57 parts done |
+| EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 52 of 58 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |

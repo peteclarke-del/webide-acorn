@@ -35,7 +35,20 @@ const capability = (
   defaultEnabled,
   requirement,
   requiresVariant,
+  /*
+   * Which of these gives a machine somewhere to put a disc.
+   *
+   * Named here, once, rather than by each caller: the set is small, it is a
+   * property of the expansion and not of the machine, and listing it in one
+   * place is what stops the Electron being forgotten again. Its disc interface
+   * is the Plus 3, which is why looking for capabilities called `dfs` or `adfs`
+   * left a fitted Plus 3 with no way to mount anything.
+   */
+  ...(DISC_BEARING.has(id) ? { providesDiscStorage: true } : {}),
 });
+
+/** Expansions and interfaces that carry a disc drive. */
+const DISC_BEARING = new Set(['dfs', 'adfs', 'atomdos', 'plus3', 'harddisc', 'ide']);
 
 export const machineProfiles: MachineProfile[] = [
   {

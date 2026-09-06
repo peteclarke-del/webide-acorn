@@ -5200,6 +5200,16 @@ Current implemented increment:
     readiness asks only for what is required, and `fittedRoms.test.ts` holds the
     distinction, including that nothing can ever be required that would not be
     fitted.
+  - [x] A Plus 3 with a filing system in it had no way to mount a disc. The
+    workbench decided whether a machine could take one by looking for
+    capabilities named `dfs` or `adfs` — true of the BBC family, false of the
+    Electron, whose disc interface is the Plus 3. So the machine had a working
+    drive and the control that mounts a disc never appeared. Each capability
+    declares it for itself now, and with a Plus 3 fitted the Electron's Media
+    workspace offers the control and accepts a 160 KiB ADFS S image.
+  - [ ] Whether the core then takes that image is not shown. The control accepts
+    it and the bridge has a mount path, but no run has yet seen Elkulator
+    acknowledge a disc, so mounting stays unproven and the Plus 3 stays preview.
   - [x] **The Plus 3 is fitted too, with one filing system.** It had the same
     shape of problem one level on: ADFS and the Electron DFS were both marked
     required by it, so fitting a Plus 3 asked for both when the interface takes

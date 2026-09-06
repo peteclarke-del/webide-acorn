@@ -26,6 +26,16 @@ export interface MachineCapability {
   /** Free prose about what this capability still needs, shown to the reader. */
   requirement?: string;
   /**
+   * Whether fitting this gives the machine somewhere to put a disc.
+   *
+   * The workbench decided that by looking for capabilities named `dfs` or
+   * `adfs`, which is true of the BBC family and false of the Electron: its disc
+   * interface is the Plus 3, and a Plus 3 with ADFS in it was a machine with a
+   * working drive and no way to mount anything, because the control that mounts
+   * a disc never appeared. Each machine says this for itself now.
+   */
+  providesDiscStorage?: boolean;
+  /**
    * The exact variant this capability is fitted to, when it is fitted to one.
    * Naming the variant rather than describing it in prose lets resolution
    * refuse the capability on a variant that does not have the hardware, instead
