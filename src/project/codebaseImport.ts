@@ -7,9 +7,11 @@
  * Nothing is inferred silently, and nothing that cannot be reproduced byte for
  * byte is offered. */
 import { MAX_PROJECT_SOURCE_BYTES, MAX_SOURCE_FILE_BYTES, sourceUtf8ByteLength } from '../editor/sourceTextFormat';
-import { languageForFilename, parseProject, PROJECT_FORMAT, type LocalProject, type ProjectFile, type SourceLanguage } from './project';
+import { DEFAULT_TARGET, languageForFilename, parseProject, PROJECT_FORMAT, type LocalProject, type ProjectFile, type ProjectTarget, type SourceLanguage } from './project';
 import { BUILD_TARGET_SCHEMA, defaultToolchainId, toolchainFor, type ToolchainId } from '../build/buildTarget';
 import { asciiMapGrid } from '../assets/asciiTileMap';
+import { detectPlatform, type DetectedPlatform } from './platformDetection';
+import { machineProfiles } from '../data/machines';
 import { screenDocumentFromBytes, serializeScreenDocument } from '../assets/screenDocument';
 import { screenDumpCandidate, type ScreenDumpCandidate } from '../assets/screenDump';
 import type { PaletteModeId } from '../assets/paletteDocument';
@@ -109,6 +111,12 @@ export interface CodebaseImportPlan {
   derivedAssets: DerivedPixelAsset[];
   /** Files that are exactly a frame buffer, offered as screens to recover. */
   screenCandidates: ScreenDumpCandidate[];
+  /**
+   * Which Acorn this codebase is for, and what it needs fitted, read from the
+   * codebase itself. Always present: where nothing names a machine it holds the
+   * lowest configuration and says it is a default rather than a finding.
+   */
+  platform: DetectedPlatform;
   mapCandidates: TileMapCandidate[];
   totalBytes: number;
   warnings: string[];
@@ -332,7 +340,9 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
   const mapCandidates = [...tileMapCandidates(runs), ...asciiMaps];
 
   if (!files.length) warnings.push('No editable source file was found in that folder.');
-  return { name: folderName.trim() || 'Imported project', files, exclusions, targets, derivedAssets, screenCandidates, mapCandidates, totalBytes, warnings: [...warnings, ...targetWarnings] };
+  const platform = detectPlatform(files.map((file) => ({ name: file.name, content: contents.get(file.name) ?? '' })));
+
+  return { name: folderName.trim() || 'Imported project', files, exclusions, targets, derivedAssets, screenCandidates, mapCandidates, platform, totalBytes, warnings: [...warnings, ...targetWarnings] };
 }
 
 /**
@@ -443,7 +453,18 @@ export function codebaseImportDocument(
     format: PROJECT_FORMAT,
     name: (selection.projectName ?? plan.name).trim() || 'Imported project',
     files,
-    target: { platformClass: '8-16-bit', machineId: 'bbc-b', variant: 'Model B · 8271 DFS', romId: 'os12-basic2-dfs', enabledCapabilities: ['dfs', 'sideways'] },
+    /*
+     * The machine the codebase is for, rather than a Model B for everything.
+     *
+     * Every imported project was configured as a BBC B with DFS and sideways
+     * RAM whatever it was written for, so an Electron game arrived pointed at
+     * the wrong machine and its first build failed for a reason that had
+     * nothing to do with the code. What is fitted is what the source shows it
+     * needs, and a capability the chosen machine cannot have is dropped rather
+     * than carried: a project cannot be set up with hardware that machine never
+     * had.
+     */
+    target: targetFor(plan.platform),
     breakpoints: {},
     bookmarks: [],
     buildTargets,
@@ -484,6 +505,71 @@ export function fileIdentifier(name: string, used: Set<string>): string {
   while (used.has(id.toLowerCase())) { id = `${base.slice(0, 74)}-${counter}`; counter += 1; }
   used.add(id.toLowerCase());
   return id;
+}
+
+/**
+ * The workbench configuration a detected platform asks for.
+ *
+ * The variant and firmware come from the machine's own catalogue rather than
+ * being written out here, so a machine whose models or ROM sets change does not
+ * leave this holding a name nothing recognises.
+ */
+/**
+ * What the codebase needs that this machine cannot currently be given.
+ *
+ * Detection can find that a program wants a Plus 3 and a disc filing system;
+ * whether the workbench can fit one is a separate question, and the answer is
+ * usually a ROM the firmware vault does not hold. Reporting the gap is the
+ * useful half: it tells somebody exactly which firmware to supply, instead of
+ * leaving them with a machine that quietly lacks what the program assumes.
+ */
+export function fittingGaps(platform: DetectedPlatform): Array<{ id: string; label: string; needs: string; because: string }> {
+  const profile = machineProfiles.find((candidate) => candidate.id === platform.machineId);
+  if (!profile) return [];
+  return platform.capabilities.flatMap((entry) => {
+    const capability = profile.capabilities.find((candidate) => candidate.id === entry.id);
+    /* A need this machine's catalogue does not model at all — a joystick on a
+     * Model B, ADFS on an Electron — was being dropped, which loses exactly the
+     * thing worth saying: the program wants hardware this machine, as this
+     * product knows it, does not offer. */
+    if (!capability) {
+      return [{
+        id: entry.id,
+        label: entry.id,
+        needs: `hardware ${profile.label} does not offer in this workbench, so the program may expect a machine or expansion that is not modelled here`,
+        because: entry.because.what,
+      }];
+    }
+    if (capability.state === 'supported') return [];
+    return [{
+      id: entry.id,
+      label: capability.label,
+      needs: capability.requirement ?? `${capability.label} is ${capability.state} on this machine`,
+      because: entry.because.what,
+    }];
+  });
+}
+
+export function targetFor(platform: DetectedPlatform): ProjectTarget {
+  const profile = machineProfiles.find((candidate) => candidate.id === platform.machineId);
+  if (!profile) return DEFAULT_TARGET;
+  /*
+   * Only capabilities this machine actually has, and only the ones it can
+   * really run. A capability the catalogue marks planned is one whose firmware
+   * this product does not hold, so switching it on because the source mentions
+   * it would set up a machine that cannot start.
+   */
+  const usable = new Set(profile.capabilities.filter((capability) => capability.state === 'supported').map((capability) => capability.id));
+  const fitted = platform.capabilities.map((entry) => entry.id).filter((id) => usable.has(id));
+  /* Whatever the machine has without anything being fitted stays on. */
+  const standard = profile.capabilities.filter((capability) => capability.defaultEnabled).map((capability) => capability.id);
+  return {
+    platformClass: profile.platformClass,
+    machineId: profile.id,
+    variant: profile.variants[0] ?? DEFAULT_TARGET.variant,
+    romId: profile.roms[0]?.id ?? DEFAULT_TARGET.romId,
+    enabledCapabilities: [...new Set([...standard, ...fitted])],
+  };
 }
 
 function savedFile(id: string, name: string, content: string, language: SourceLanguage): ProjectFile {

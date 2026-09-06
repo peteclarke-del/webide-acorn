@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import { loadSampleProjects, sampleLocalProject, type SampleProject } from '../samples/sampleProjects';
-import { overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput, type CodebaseImportOptions, type CodebaseImportPlan } from '../project/codebaseImport';
+import { fittingGaps, overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput, type CodebaseImportOptions, type CodebaseImportPlan } from '../project/codebaseImport';
 import { directorySupport, pickDirectory, readDirectory, type FileSystemDirectoryHandleLike } from '../project/directoryAccess';
 import { archiveRefusalSummary, readZipArchive } from '../project/archiveImport';
 import { projectFromTemplate, templatesForMachine } from '../project/templateCatalogue';
@@ -552,6 +552,55 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                     </ul>
                   </details>
                 )}
+
+                {/* What the codebase says it is for. Shown before the assets,
+                  * because it decides how everything below will build. */}
+                <details open>
+                  <summary>Machine · {plan.platform.guessed ? 'not named by this codebase' : plan.platform.machineId}</summary>
+                  <p className="binding-note">{plan.platform.summary}</p>
+                  {!!plan.platform.machineEvidence.length && (
+                    <ul className="import-evidence">
+                      {plan.platform.machineEvidence.map((signal) => (
+                        <li key={`${signal.file}:${signal.line}:${signal.what}`}>
+                          {signal.what} · <code>{signal.file}:{signal.line}</code>
+                        </li>
+                      ))}
+                      {plan.platform.capabilities.map((entry) => (
+                        <li key={`fit:${entry.id}`}>
+                          needs <strong>{entry.id}</strong>, because the code {entry.because.what} · <code>{entry.because.file}:{entry.because.line}</code>
+                        </li>
+                      ))}
+                      {plan.platform.alsoEvidenced.map((entry) => (
+                        <li key={`also:${entry.machineId}`}>
+                          also builds for <strong>{entry.machineId}</strong>, which {entry.because.what} · <code>{entry.because.file}:{entry.because.line}</code>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {(() => {
+                    const gaps = fittingGaps(plan.platform);
+                    if (!gaps.length) return null;
+                    return (
+                      <>
+                        <p className="binding-note">
+                          This codebase uses hardware the workbench cannot fit to that machine yet. Each one
+                          names the firmware it needs, so supplying it in Settings is what makes it available.
+                        </p>
+                        <ul className="import-evidence">
+                          {gaps.map((gap) => (
+                            <li key={`gap:${gap.id}`}>
+                              <strong>{gap.label}</strong> · needs {gap.needs} · wanted because the code {gap.because}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    );
+                  })()}
+                  <p className="binding-note">
+                    The workbench is set up this way when the project opens. Change the machine or what is
+                    fitted in the target panel afterwards if this reads it wrongly.
+                  </p>
+                </details>
 
                 {!!plan.screenCandidates.length && (
                   <details>
