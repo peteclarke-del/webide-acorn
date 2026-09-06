@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ROM_SETS, fittedRomRequirements, requiredRomRequirements } from './romProfiles';
+import { ROM_SETS, fittedRomRequirements, requiredRomRequirements, romRequirementsMet, romStorageKey } from './romProfiles';
 
 /*
  * What an expansion is, and what it carries.
@@ -52,5 +52,34 @@ describe('fitting an expansion and filling it', () => {
       const missing = required.filter((id) => !fitted.has(id));
       expect(missing, `${set.id} would require a ROM it never fits`).toEqual([]);
     }
+  });
+
+  describe('an expansion that takes either of two ROMs', () => {
+    const key = (id: string) => romStorageKey(ELECTRON.id, ELECTRON.requirements.find((item) => item.id === id)!);
+    const machine = [key('os'), key('basic')];
+
+    it('is satisfied by one filing system, because the interface takes one', () => {
+      /* Both ADFS and the Electron DFS were marked required by the Plus 3, so
+       * fitting one asked for both — a machine nobody owns. */
+      expect(romRequirementsMet(ELECTRON, ['plus3'], new Set([...machine, key('adfs')])), 'ADFS alone').toBe(true);
+      expect(romRequirementsMet(ELECTRON, ['plus3'], new Set([...machine, key('dfs')])), 'the DFS alone').toBe(true);
+      expect(romRequirementsMet(ELECTRON, ['plus3'], new Set([...machine, key('adfs'), key('dfs')])), 'both').toBe(true);
+    });
+
+    it('is not satisfied by neither', () => {
+      expect(romRequirementsMet(ELECTRON, ['plus3'], new Set(machine))).toBe(false);
+    });
+
+    it('still asks for everything outside a group', () => {
+      /* The Plus 1's own ROM is not an alternative to anything. */
+      expect(romRequirementsMet(ELECTRON, ['plus1'], new Set(machine))).toBe(false);
+      expect(romRequirementsMet(ELECTRON, ['plus1'], new Set([...machine, key('plus1')]))).toBe(true);
+    });
+
+    it('offers both to the machine even though it needs one', () => {
+      const fitted = fittedRomRequirements(ELECTRON, ['plus3']).map((item) => item.id);
+      expect(fitted).toContain('adfs');
+      expect(fitted).toContain('dfs');
+    });
   });
 });

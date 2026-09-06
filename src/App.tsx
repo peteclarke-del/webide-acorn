@@ -81,7 +81,7 @@ import { SongWorkspace } from './components/SongWorkspace';
 import { physicalColour, resolveProjectPalette, type ProjectPalette } from './assets/paletteDocument';
 import { readableInk } from './theme/readableInk';
 import { loadSdkDocument, type SdkDocument } from './language/sdkDocumentClient';
-import { ROM_SETS, fittedRomRequirements, requiredRomRequirements, romSetFor, romStorageKey, runtimeSidewaysRomPaths } from './rom/romProfiles';
+import { ROM_SETS, fittedRomRequirements, requiredRomRequirements, romRequirementsMet, romSetFor, romStorageKey, runtimeSidewaysRomPaths } from './rom/romProfiles';
 import { ELECTRON_ADAPTER_SUMMARY, ELECTRON_CAPABILITIES, ELECTRON_UNAVAILABLE, electronCommandRefusal } from './emulator/electronAdapter';
 import { ELKULATOR_ADAPTER_SUMMARY, ELKULATOR_CAPABILITIES, ELKULATOR_UNAVAILABLE, elkulatorCommandRefusal } from './emulator/elkulatorAdapter';
 import { electronRuntimeRoute, isElectronEngine } from './emulator/electronRuntimeRouting';
@@ -641,7 +641,7 @@ function App() {
           : new Set<string>();
       setResolvedRomRecords(records.filter((record) => selectedKeys.has(record.key)).sort((left, right) => left.key.localeCompare(right.key)));
       setRomReady(machineRomSet
-        ? requiredRomRequirements(machineRomSet, enabledCapabilities).every((item) => supplied.has(romStorageKey(machineRomSet.id, item)))
+        ? romRequirementsMet(machineRomSet, enabledCapabilities, supplied)
         : !!archimedesRuntime && supplied.has(archimedesCombinedRomKey(archimedesRuntime.profile)) && supplied.has(archimedesCmosKey(archimedesRuntime.profile)));
     }).catch(() => { if (current) { setRomReady(false); setResolvedRomRecords([]); } });
     return () => { current = false; };

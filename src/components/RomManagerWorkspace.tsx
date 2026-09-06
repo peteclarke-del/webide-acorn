@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { adapterSupportFor, adapterSupportSummary } from '../rom/adapterSupport';
 import { Icon } from './Icon';
-import { requiredRomRequirements, romSetFor, romStorageKey, validateRom, type RomRequirement } from '../rom/romProfiles';
+import { requiredRomRequirements, romRequirementsMet, romSetFor, romStorageKey, validateRom, type RomRequirement } from '../rom/romProfiles';
 import { listRoms, removeRom, storeRom, storeRomBatch, type StoredRom } from '../rom/romStore';
 import { planRomFolderImport } from '../rom/romFolderImport';
 import { DevelopmentFirmwareWorkspace } from './DevelopmentFirmwareWorkspace';
@@ -31,7 +31,7 @@ export function RomManagerWorkspace({ machineId, romId, onNotice, onReadyChange,
   useEffect(() => {
     if (!definition) return;
     const supplied = new Set(records.map((record) => record.key));
-    onReadyChange?.(requiredRomRequirements(definition, enabledCapabilities).every((item) => supplied.has(romStorageKey(definition.id, item))));
+    onReadyChange?.(romRequirementsMet(definition, enabledCapabilities, supplied));
   }, [definition, enabledCapabilities, records, onReadyChange]);
 
   const importRom = async (requirement: RomRequirement, file: File) => {

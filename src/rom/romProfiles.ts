@@ -21,6 +21,17 @@ export interface RomRequirement {
    * all. They are offered when the capability is on and never required.
    */
   offeredByCapability?: string;
+  /**
+   * A set of ROMs of which any one satisfies the capability.
+   *
+   * A Plus 3 needs a filing system, and either ADFS or the Electron DFS is a
+   * filing system. Marking both as required meant fitting a Plus 3 asked for
+   * both, which is a machine nobody has: the disc interface takes one ROM. Where
+   * several requirements share this name, supplying one of them is enough, and
+   * all of them are still offered to the machine so somebody may fit both if
+   * that is what they have.
+   */
+  alternativeGroup?: string;
   runtimeMount?: 'sideways';
   supportStatus?: 'stable' | 'development';
   provenanceNote?: string;
@@ -46,7 +57,7 @@ export interface RomSetDefinition {
   requirements: RomRequirement[];
 }
 
-const rom = (id: string, label: string, emulatorPath: string, acceptedSizes: number[], purpose: RomRequirement['purpose'], required = true, requiredByCapability?: string, options: Pick<RomRequirement, 'runtimeMount' | 'supportStatus' | 'provenanceNote' | 'offeredByCapability'> = {}): RomRequirement => ({ id, label, emulatorPath, acceptedSizes, purpose, required, requiredByCapability, ...options });
+const rom = (id: string, label: string, emulatorPath: string, acceptedSizes: number[], purpose: RomRequirement['purpose'], required = true, requiredByCapability?: string, options: Pick<RomRequirement, 'runtimeMount' | 'supportStatus' | 'provenanceNote' | 'offeredByCapability' | 'alternativeGroup'> = {}): RomRequirement => ({ id, label, emulatorPath, acceptedSizes, purpose, required, requiredByCapability, ...options });
 const engine = { id: 'jsbeeb', version: '1.19.1' } as const;
 const elkjs = { id: 'elkjs', version: 'ff123355' } as const;
 const bbcWifi = () => rom('1mhzpi-wifi', '1MHzPi BBC WiFi development ROM', 'development/BBCWiFi-development.rom', [16384], 'extension', false, '1mhzpi', {
@@ -217,8 +228,9 @@ export const ROM_SETS: RomSetDefinition[] = [
        * own ROM is what the cartridge slots and the printer and analogue ports
        * come from. It is 4 KB rather than 16. */
       elkExpansion('plus1', 'Plus 1 expansion ROM', 'roms/plus1.rom', 'plus1', 'Acorn Plus 1 support ROM. Supplies the cartridge slots, printer port and analogue port.', [4096]),
-      elkExpansion('adfs', 'Acorn ADFS for the Plus 3', 'roms/adfs.rom', 'plus3', 'Acorn ADFS. The Plus 3 disc interface is unusable without it.'),
-      elkExpansion('dfs', 'Electron DFS', 'roms/dfs.rom', 'plus3', 'Disc filing system for Electron disc interfaces.'),
+      /* Either of these is the Plus 3's filing system; the interface takes one. */
+      { ...elkExpansion('adfs', 'Acorn ADFS for the Plus 3', 'roms/adfs.rom', 'plus3', 'Acorn ADFS. One filing system ROM makes the Plus 3 disc interface usable; this is one of two that do.'), alternativeGroup: 'plus3-filing-system' },
+      { ...elkExpansion('dfs', 'Electron DFS', 'roms/dfs.rom', 'plus3', 'Disc filing system for Electron disc interfaces. One of the two that satisfy the Plus 3.'), alternativeGroup: 'plus3-filing-system' },
       elkCarried('emmfs', 'EMMFS · MMFS for the Electron', 'roms/EMMFS.rom', 'plus1', 'MMFS built for the Electron, giving SD-card storage through the cartridge slot.'),
       elkCarried('eswmmfs', 'ESWMMFS · sideways-RAM MMFS', 'roms/ESWMMFS.rom', 'sideways', 'MMFS variant that keeps its workspace in sideways RAM.'),
       elkCarried('zemmfs', 'ZEMMFS · MMFS variant', 'roms/ZEMMFS.rom', 'plus1', 'A further MMFS build carried by the 1MHzPi project.'),
@@ -255,6 +267,33 @@ export function romSetFor(machineId: string, romId: string): RomSetDefinition | 
 
 export function requiredRomRequirements(definition: RomSetDefinition, enabledCapabilities: string[] = []): RomRequirement[] {
   return definition.requirements.filter((item) => item.required || (!!item.requiredByCapability && enabledCapabilities.includes(item.requiredByCapability)));
+}
+
+/**
+ * Whether every requirement a fitted machine has is met by what was supplied.
+ *
+ * Counting requirements one by one is not the same question. Where several
+ * belong to one alternative group, any one of them answers for the group — a
+ * Plus 3 with ADFS is a Plus 3, and asking for the DFS as well describes no
+ * machine anybody owns.
+ */
+export function romRequirementsMet(
+  definition: RomSetDefinition,
+  enabledCapabilities: string[],
+  supplied: ReadonlySet<string>,
+): boolean {
+  const needed = requiredRomRequirements(definition, enabledCapabilities);
+  const groups = new Map<string, RomRequirement[]>();
+  for (const item of needed) {
+    if (!item.alternativeGroup) {
+      if (!supplied.has(romStorageKey(definition.id, item))) return false;
+      continue;
+    }
+    const group = groups.get(item.alternativeGroup) ?? [];
+    group.push(item);
+    groups.set(item.alternativeGroup, group);
+  }
+  return [...groups.values()].every((group) => group.some((item) => supplied.has(romStorageKey(definition.id, item))));
 }
 
 /**

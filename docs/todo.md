@@ -5200,10 +5200,16 @@ Current implemented increment:
     readiness asks only for what is required, and `fittedRoms.test.ts` holds the
     distinction, including that nothing can ever be required that would not be
     fitted.
-  - [ ] The Plus 3 has the same shape of problem one level further on: ADFS and
-    the Electron DFS are both marked as required by it, so fitting a Plus 3 asks
-    for both when the hardware needs either. That is an "any one of these" which
-    this model cannot yet express, and it is the next thing to do here.
+  - [x] **The Plus 3 is fitted too, with one filing system.** It had the same
+    shape of problem one level on: ADFS and the Electron DFS were both marked
+    required by it, so fitting a Plus 3 asked for both when the interface takes
+    one. Requirements can now name an alternative group, any member of which
+    satisfies it, and both are still offered to the machine so somebody may fit
+    both if that is what they have. Measured: with ADFS alone supplied through
+    the workbench and the capability switched on, the core reports three ROM
+    images and no longer names `adfs.rom` as absent. Preview rather than
+    supported — the interface has its filing system; no disc has been mounted or
+    read through it.
   - [ ] **An earlier note here said two expansions were fitted before any were.** That
     was read off a truncated line of the core's own output and was wrong. Read
     in full it says: "Elkulator 6785521a initialised with 2 ROM images", and
