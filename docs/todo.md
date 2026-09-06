@@ -5177,10 +5177,29 @@ Current implemented increment:
     ROMs are answered 200 with their real sizes. `romServiceWorkerKeys.test.ts`
     runs the worker's own rule over every key every shipped profile can produce,
     and fails if the unconditional strip returns.
-  - [ ] What remains is the machine itself. The runtime frame did not open in
-    that run, so no expansion has been exercised through the core and every one
-    of them stays marked planned. The firmware is no longer what stands in the
-    way: it is in the vault and it is now reachable.
+  - [x] The machine runs, and two expansions are fitted through the core. The
+    frame had not opened because the machine was simply powered off; powering it
+    on loads `/elkulator.html`, which reports "Acorn Electron running on
+    Elkulator" and presents a 640 by 512 framebuffer. The Plus 1 ROM and the
+    Electron DFS are loaded into their slots without complaint, which is the
+    first time any expansion has gone through this core.
+  - [x] Fitting them found a second defect. The core opens its firmware by
+    filename — `os`, `basic.rom`, `plus1.rom`, `adfs.rom`, `dfs.rom` — and a
+    name it cannot find is an expansion that is not fitted rather than a machine
+    that will not start. That is right, and it is also silent: the profile
+    supplied `acorn-adfs.rom`, so the machine booted perfectly with no disc
+    interface and a verified ADFS sitting in the vault under a name nothing
+    would ever ask for. It is `adfs.rom` now.
+    `src/rom/elkulatorRomNames.test.ts` reads the names out of the core's own
+    build script and holds every Elkulator requirement to them, and pins the
+    seven sideways expansions this build cannot fit so an eighth cannot be added
+    on the strength of merely having a ROM.
+  - [ ] Powering the machine off and on again returns the workbench to "ROM set
+    not ready" while the vault still holds the firmware and the service worker
+    still serves it. That is the next thing to look at, and it is why ADFS has
+    not yet been confirmed fitted in a boot that began with a complete vault:
+    the core reads its firmware once, at start, and the readiness state does not
+    survive the cycle that would let it read again.
   - [ ] What the run does not show is also recorded: the frame rate was
     measured in headless Chromium on a software renderer with nothing but the
     operating system and BASIC fitted and no program running, and no keyboard,

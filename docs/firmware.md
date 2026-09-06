@@ -146,7 +146,7 @@ the release gate whenever it stops matching the code.
 | Electron operating system 1.00 | operating system | required | 16 KiB | `electron-expanded/roms/os` | — |
 | BBC BASIC II for the Electron | language | required | 16 KiB | `electron-expanded/roms/basic.rom` | — |
 | Plus 1 expansion ROM | extension | optional · needed for plus1 | 4 KiB | `electron-expanded/roms/plus1.rom` | Acorn Plus 1 support ROM. Supplies the cartridge slots, printer port and analogue port. |
-| Acorn ADFS for the Plus 3 | extension | optional · needed for plus3 | 16 KiB | `electron-expanded/roms/acorn-adfs.rom` | Acorn ADFS. The Plus 3 disc interface is unusable without it. |
+| Acorn ADFS for the Plus 3 | extension | optional · needed for plus3 | 16 KiB | `electron-expanded/roms/adfs.rom` | Acorn ADFS. The Plus 3 disc interface is unusable without it. |
 | Electron DFS | extension | optional · needed for plus3 | 16 KiB | `electron-expanded/roms/dfs.rom` | Disc filing system for Electron disc interfaces. |
 | EMMFS · MMFS for the Electron | extension | optional · needed for plus1 | 16 KiB | `electron-expanded/roms/EMMFS.rom` | MMFS built for the Electron, giving SD-card storage through the cartridge slot. |
 | ESWMMFS · sideways-RAM MMFS | extension | optional · needed for sideways | 16 KiB | `electron-expanded/roms/ESWMMFS.rom` | MMFS variant that keeps its workspace in sideways RAM. |

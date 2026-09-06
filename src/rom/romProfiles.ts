@@ -196,7 +196,7 @@ export const ROM_SETS: RomSetDefinition[] = [
        * own ROM is what the cartridge slots and the printer and analogue ports
        * come from. It is 4 KB rather than 16. */
       elkExpansion('plus1', 'Plus 1 expansion ROM', 'roms/plus1.rom', 'plus1', 'Acorn Plus 1 support ROM. Supplies the cartridge slots, printer port and analogue port.', [4096]),
-      elkExpansion('adfs', 'Acorn ADFS for the Plus 3', 'roms/acorn-adfs.rom', 'plus3', 'Acorn ADFS. The Plus 3 disc interface is unusable without it.'),
+      elkExpansion('adfs', 'Acorn ADFS for the Plus 3', 'roms/adfs.rom', 'plus3', 'Acorn ADFS. The Plus 3 disc interface is unusable without it.'),
       elkExpansion('dfs', 'Electron DFS', 'roms/dfs.rom', 'plus3', 'Disc filing system for Electron disc interfaces.'),
       elkExpansion('emmfs', 'EMMFS · MMFS for the Electron', 'roms/EMMFS.rom', 'plus1', 'MMFS built for the Electron, giving SD-card storage through the cartridge slot.'),
       elkExpansion('eswmmfs', 'ESWMMFS · sideways-RAM MMFS', 'roms/ESWMMFS.rom', 'sideways', 'MMFS variant that keeps its workspace in sideways RAM.'),
