@@ -258,3 +258,64 @@ export function runtimeSummary(results) {
     .map(({ label, page }) => `${label} announced ${(page?.announced ?? []).join('+') || 'nothing'}`)
     .join(', ')}`;
 }
+
+
+/*
+ * Exercising the three capabilities that were only ever asked about.
+ *
+ * The probe above asks whether an API exists, which is not the same as it
+ * working: full-screen refuses without a user gesture, and the clipboard
+ * refuses without permission, so a build could report both present and fail
+ * both the moment somebody used them. This runs them.
+ *
+ * The gesture is the part a headless run does not have by default. It is
+ * supplied by the caller through the browser's own input pipeline rather than
+ * by dispatching an event from script, because a synthetic click carries no
+ * user activation and full-screen is one of the things that checks.
+ */
+export const EXERCISE_SOURCE = `(() => {
+  window.__ciExercise = { fullscreen: 'not attempted', clipboard: 'not attempted', gamepad: 'not attempted' };
+  /* Bound to a real press, so whatever runs inside carries user activation. */
+  const target = document.querySelector('.machine-frame-wrap') || document.body;
+  window.__ciRunExercise = async () => {
+    try {
+      await (target.requestFullscreen ? target.requestFullscreen() : Promise.reject(new Error('no requestFullscreen')));
+      window.__ciExercise.fullscreen = document.fullscreenElement ? 'entered' : 'called but nothing became full-screen';
+      if (document.fullscreenElement) { await document.exitFullscreen(); }
+    } catch (error) {
+      window.__ciExercise.fullscreen = 'refused: ' + String(error && error.message ? error.message : error).slice(0, 90);
+    }
+    try {
+      const written = 'workbench clipboard check';
+      await navigator.clipboard.writeText(written);
+      const read = await navigator.clipboard.readText();
+      window.__ciExercise.clipboard = read === written ? 'wrote and read back' : 'wrote but read back ' + JSON.stringify(read).slice(0, 40);
+    } catch (error) {
+      window.__ciExercise.clipboard = 'refused: ' + String(error && error.message ? error.message : error).slice(0, 90);
+    }
+    /*
+     * A gamepad cannot be attached to a headless browser, and nothing here
+     * pretends one was. What is checked is that the workbench asks the browser
+     * for one and copes with the honest answer, which is none; the mapping from
+     * axes and buttons to machine input is covered by its own tests, against
+     * values rather than a device.
+     */
+    try {
+      const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : null;
+      window.__ciExercise.gamepad = pads === null ? 'no getGamepads' : pads.length + ' attached; the API answers';
+    } catch (error) {
+      window.__ciExercise.gamepad = 'refused: ' + String(error && error.message ? error.message : error).slice(0, 90);
+    }
+    return JSON.stringify(window.__ciExercise);
+  };
+  return true;
+})()`;
+
+/** What the exercise found, or why it could not be run. */
+export function exerciseFindings(engine, exercised) {
+  const findings = [];
+  if (!exercised) return [`${engine} did not run the capability exercise at all`];
+  if (/^refused/.test(exercised.fullscreen)) findings.push(`${engine} could not enter full-screen: ${exercised.fullscreen}`);
+  if (/^refused/.test(exercised.clipboard)) findings.push(`${engine} could not use the clipboard: ${exercised.clipboard}`);
+  return findings;
+}

@@ -854,7 +854,7 @@ await stage('browsers', async () => {
    * on this platform, and reporting Chromium's answers under Safari's name is
    * exactly the claim this product refuses to make.
    */
-  const { COLLECTOR_SOURCE, PAGE_PROBE, RUNTIME_PAGES, RUNTIME_HOST_HTML, RUNTIME_HOST_SOURCE, matrixFindings, matrixSummary, runtimeFindings, runtimeProbe, runtimeSummary } = await import('./browserMatrix.mjs');
+  const { COLLECTOR_SOURCE, EXERCISE_SOURCE, exerciseFindings, PAGE_PROBE, RUNTIME_PAGES, RUNTIME_HOST_HTML, RUNTIME_HOST_SOURCE, matrixFindings, matrixSummary, runtimeFindings, runtimeProbe, runtimeSummary } = await import('./browserMatrix.mjs');
   const chromium = await firstExisting(CHROMIUM_CANDIDATES);
   const geckodriver = await firstExisting(env.GECKODRIVER_PATH ? [env.GECKODRIVER_PATH] : ['/usr/bin/geckodriver', '/snap/bin/geckodriver', '/usr/local/bin/geckodriver']);
   /* Which binary was driven, named in the stage detail. A Firefox installed as
@@ -928,9 +928,10 @@ await stage('browsers', async () => {
   try {
     const base = `http://127.0.0.1:${port}`;
     if (geckodriver) results.push(await measureFirefox(geckodriver, base, PAGE_PROBE, RUNTIME_PAGES, runtimeProbe, started, delay));
-    if (chromium) results.push(await measureChromium(chromium, base, PAGE_PROBE, RUNTIME_PAGES, runtimeProbe, started, delay));
+    if (chromium) results.push(await measureChromium(chromium, base, PAGE_PROBE, RUNTIME_PAGES, runtimeProbe, started, delay, EXERCISE_SOURCE));
     const findings = [
       ...matrixFindings(results),
+      ...results.flatMap((result) => result.exercised ? exerciseFindings(result.browser, result.exercised) : []),
       ...results.flatMap((result) => runtimeFindings(result.browser, result.runtimes ?? [])),
     ];
     if (findings.length) throw new Error(`${findings.length} browser finding(s): ${findings.slice(0, 4).join(' | ')}`);
@@ -943,7 +944,8 @@ await stage('browsers', async () => {
       'Safari (no engine for it on this platform, and none is substituted)',
     ];
     const runtimes = results[0]?.runtimes?.length ?? 0;
-    return { detail: `${results.length} engine${results.length === 1 ? '' : 's'} started the workbench and its ${runtimes} runtime documents · ${matrixSummary(results).join(' · ')} · ${runtimeSummary(results)} · not measured: ${absent.join(', ')}${firefoxSource ? ` · Firefox driven through ${firefoxSource}` : ''}` };
+    const ran = results.map((result) => result.exercised ? `${result.browser} full-screen ${result.exercised.fullscreen}, clipboard ${result.exercised.clipboard}, gamepad ${result.exercised.gamepad}` : '').filter(Boolean);
+    return { detail: `${results.length} engine${results.length === 1 ? '' : 's'} started the workbench and its ${runtimes} runtime documents · ${matrixSummary(results).join(' · ')} · ${runtimeSummary(results)} · not measured: ${absent.join(', ')}${firefoxSource ? ` · Firefox driven through ${firefoxSource}` : ''}${ran.length ? ` · exercised: ${ran.join(' · ')}` : ''}` };
   } finally {
     for (const stop of started.reverse()) await stop().catch(() => undefined);
     await new Promise((closed) => server.close(closed));
@@ -1024,7 +1026,7 @@ async function measureFirefox(geckodriver, base, probe, runtimePages, runtimePro
 }
 
 /** Chromium, over the DevTools protocol, which is what it speaks. */
-async function measureChromium(chromium, base, probe, runtimePages, runtimeProbe, started, delay) {
+async function measureChromium(chromium, base, probe, runtimePages, runtimeProbe, started, delay, exerciseSource) {
   const port = Number(env.CI_MATRIX_DEVTOOLS_PORT ?? 9139);
   const userDataDir = join(root, `.ci-matrix-${port}`);
   await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
@@ -1080,6 +1082,29 @@ async function measureChromium(chromium, base, probe, runtimePages, runtimeProbe
     const parsed = JSON.parse(value);
     return parsed.rootChildren > 0 ? parsed : null;
   }, 'the workbench in Chromium', 60_000, delay);
+  /*
+   * The three capabilities the matrix only ever asked about.
+   *
+   * Full-screen refuses without user activation, and a click dispatched from
+   * script carries none, so the press is delivered through the browser's own
+   * input pipeline where it counts as real. The clipboard needs permission
+   * granted rather than assumed, and it is granted for this origin only.
+   */
+  let exercised = null;
+  try {
+    await call('Browser.grantPermissions', { origin: base, permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
+    await evaluate(exerciseSource);
+    await evaluate(`(() => { const b = document.createElement('button'); b.id = 'ci-exercise'; b.style.cssText = 'position:fixed;left:4px;top:4px;width:60px;height:30px;z-index:99999'; b.textContent = 'run'; b.addEventListener('click', () => { window.__ciExercisePromise = window.__ciRunExercise(); }); document.body.appendChild(b); return true; })()`);
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await call('Input.dispatchMouseEvent', { type, x: 34, y: 19, button: 'left', clickCount: 1 }, sessionId);
+    }
+    const value = await waitFor(async () => evaluate('window.__ciExercisePromise ? window.__ciExercisePromise : null'), 'the capability exercise in Chromium', 15_000, delay).catch(() => null);
+    exercised = value ? JSON.parse(value) : null;
+    await evaluate(`(() => { document.getElementById('ci-exercise')?.remove(); return true; })()`);
+  } catch (error) {
+    exercised = { fullscreen: `not run: ${error.message}`, clipboard: `not run: ${error.message}`, gamepad: 'not run' };
+  }
+
   const runtimes = [];
   for (const runtime of runtimePages) {
     await call('Page.navigate', { url: `${base}/ci-runtime-host.html?page=${encodeURIComponent(runtime.path)}` }, sessionId);
@@ -1097,7 +1122,7 @@ async function measureChromium(chromium, base, probe, runtimePages, runtimeProbe
     runtimes.push({ label: runtime.label, expectsAnnouncement: runtime.expectsAnnouncement !== false, page: answer });
   }
   const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
-  return { browser: 'Chromium', version: (version.Browser ?? 'unknown').replace(/^.*\//, ''), page: answer, runtimes };
+  return { browser: 'Chromium', version: (version.Browser ?? 'unknown').replace(/^.*\//, ''), page: answer, runtimes, exercised };
 }
 
 async function waitFor(op, what, limit, delay) {

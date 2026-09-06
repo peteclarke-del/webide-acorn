@@ -7666,9 +7666,22 @@ Current implemented increment:
     embedded policy the container serves them under, not the workbench's
     stricter one, because measuring them under a policy the product never
     applies would test the wrong thing.
-  - [ ] Full-screen, gamepad and the clipboard are probed for presence but not
-    exercised. That is work rather than infrastructure, and it needs a
-    user-gesture path a headless run does not have by default.
+  - [x] Full-screen and the clipboard are exercised rather than asked about.
+    The gate now delivers a real press through the browser's own input pipeline,
+    which is what carries the user activation full-screen requires and which a
+    click dispatched from script does not; inside that press the workbench
+    enters full-screen, confirms an element became full-screen, leaves again,
+    and writes to the clipboard and reads the same text back. The clipboard
+    permission is granted for the test origin rather than assumed. Both are
+    reported in the stage's own account, and a denial fails the stage: proved by
+    withholding the permission and watching it report "Chromium could not use
+    the clipboard: Write permission denied".
+  - [ ] A gamepad is still not exercised, and nothing pretends otherwise. No
+    device can be attached to a headless browser, so what the gate checks is
+    that the workbench asks for one and copes with the honest answer of none;
+    the mapping from axes and buttons to machine input is covered against values
+    by `gamepadInputModel`'s own tests. Exercising a real device needs hardware
+    in the runner, which is infrastructure rather than work.
 
 ### 11.4 Documentation and release evidence
 
