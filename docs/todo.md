@@ -5210,6 +5210,17 @@ Current implemented increment:
     images and no longer names `adfs.rom` as absent. Preview rather than
     supported — the interface has its filing system; no disc has been mounted or
     read through it.
+  - [x] Giving the runtime everything fitted introduced a way to kill the
+    machine, found by supplying one. The core refuses a ROM name it has no
+    socket for — rightly, since one written and never read would be a lie — and
+    it refuses the whole machine with it: MMFS supplied with a Plus 1 fitted
+    answered "emmfs is not a ROM socket this Electron has" and nothing started.
+    A requirement now says where it has to be mounted when that is somewhere
+    this build lacks, a sideways bank or a Tube parasite, and anything naming
+    one is held back. Two entries were wrong in the other direction and had to
+    be corrected first: ADFS was marked sideways when the core opens it into a
+    dedicated slot, and the Tube client was marked as needing nothing at all,
+    which reads as "the core will take it". Both would have refused the machine.
   - [ ] **An earlier note here said two expansions were fitted before any were.** That
     was read off a truncated line of the core's own output and was wrong. Read
     in full it says: "Elkulator 6785521a initialised with 2 ROM images", and

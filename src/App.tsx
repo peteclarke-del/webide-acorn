@@ -6708,6 +6708,18 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
     const supplied = new Set(romRecords.map((record) => record.key));
     const urls: Record<string, string> = {};
     for (const requirement of definition.requirements) {
+      /*
+       * A sideways ROM has nowhere to go in this build.
+       *
+       * The core opens its firmware into named sockets and refuses a name it
+       * does not have — rightly, because a ROM it wrote and never read would be
+       * a lie. This build drives no sideways banks on the Electron, so handing
+       * it one does not fit an expansion, it refuses the whole machine: with
+       * MMFS supplied and a Plus 1 fitted, the runtime answered "emmfs is not a
+       * ROM socket this Electron has" and nothing started. They are held back
+       * until there are banks to put them in.
+       */
+      if (requirement.runtimeMount) continue;
       const key = romStorageKey(definition.id, requirement);
       if (supplied.has(key)) urls[requirement.id] = `/user-roms/${key.split('/').map(encodeURIComponent).join('/')}`;
     }

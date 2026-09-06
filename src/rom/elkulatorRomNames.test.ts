@@ -77,6 +77,31 @@ describe('the firmware an Elkulator machine is given', () => {
       .toEqual([...SIDEWAYS_NOT_DRIVEN].sort());
   });
 
+  it('never hands the core a ROM it has no socket for', () => {
+    /*
+     * The core refuses a name it does not have, rightly — a ROM written and
+     * never read would be a lie. But once the runtime started being given
+     * everything fitted rather than only what the machine needs, supplying MMFS
+     * with a Plus 1 fitted made it answer "emmfs is not a ROM socket this
+     * Electron has" and nothing started at all. A sideways ROM has nowhere to go
+     * in this build, so it is held back; what reaches the core is exactly what
+     * the core can take.
+     */
+    const names = new Set(namesTheCoreOpens());
+    for (const set of ROM_SETS) {
+      if (set.engine.id !== 'elkulator') continue;
+      for (const requirement of set.requirements) {
+        const filename = requirement.emulatorPath.replace(/^roms\//, '');
+        const reachesTheCore = !requirement.runtimeMount;
+        if (reachesTheCore) {
+          expect(names.has(filename), `${requirement.id} reaches the core but it opens no ${filename}`).toBe(true);
+        } else {
+          expect(names.has(filename), `${requirement.id} needs a ${requirement.runtimeMount} mount, so the core must never be handed it`).toBe(false);
+        }
+      }
+    }
+  });
+
   it('names the ADFS the way the core asks for it', () => {
     /* The one that was wrong, kept as its own case so the regression has a name. */
     const electron = ROM_SETS.find((set) => set.id === 'electron-expanded')!;

@@ -107,11 +107,21 @@ describe('the Electron expansion combinations', () => {
     expect(ids).toEqual(['adfs', 'afm', 'basic', 'dfs', 'elkwifi', 'emmfs', 'eswmmfs', 'os', 'plus1', 'rhplus1', 'tube6502', 'zemmfs']);
   });
 
-  it('mounts sideways ROMs sideways and the Tube client as a parasite image', () => {
-    /* The Tube client runs in the second processor rather than in a sideways
-     * bank, so mounting it sideways would put it where nothing reads it. */
-    expect(set.requirements.find((item) => item.id === 'tube6502')?.runtimeMount).toBeUndefined();
-    expect(set.requirements.find((item) => item.id === 'adfs')?.runtimeMount).toBe('sideways');
+  it('says where each ROM has to be mounted, when it is somewhere this build lacks', () => {
+    /*
+     * `runtimeMount` names a mount this build does not provide, and its absence
+     * means the core has a socket of its own. The distinction was not being
+     * drawn: the Tube client was marked as needing nothing, which reads as "the
+     * core will take it", and ADFS was marked sideways when the core opens it
+     * into a dedicated slot. Once the runtime began receiving everything
+     * fitted, both became ways to refuse the whole machine.
+     */
+    expect(set.requirements.find((item) => item.id === 'tube6502')?.runtimeMount,
+      'the Tube client runs in a second processor, which this build does not have').toBe('tube');
+    expect(set.requirements.find((item) => item.id === 'adfs')?.runtimeMount,
+      'ADFS goes into a socket the core opens by name').toBeUndefined();
+    expect(set.requirements.find((item) => item.id === 'emmfs')?.runtimeMount,
+      'MMFS is a sideways ROM and there are no banks to put it in').toBe('sideways');
   });
 });
 

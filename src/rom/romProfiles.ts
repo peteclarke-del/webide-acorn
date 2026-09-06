@@ -32,7 +32,18 @@ export interface RomRequirement {
    * that is what they have.
    */
   alternativeGroup?: string;
-  runtimeMount?: 'sideways';
+  /**
+   * Where this ROM has to be mounted for the machine to use it, when that is
+   * somewhere this build does not yet provide.
+   *
+   * Absent means the core has a socket of its own for it and will be handed it.
+   * A value names the mount it needs — a sideways bank, a Tube parasite — and
+   * this build has none of those on the Electron, so the ROM is held back. The
+   * core refuses a name it has no socket for and refuses the whole machine with
+   * it, so "held back" is the difference between an expansion that is not
+   * fitted and an Electron that will not start.
+   */
+  runtimeMount?: 'sideways' | 'tube';
   supportStatus?: 'stable' | 'development';
   provenanceNote?: string;
 }
@@ -79,9 +90,17 @@ const elkulator = { id: 'elkulator', version: 'allegro5-6785521' } as const;
  * hardware, so a file that is the wrong size is refused before it can produce
  * a machine that half works.
  */
+/*
+ * An expansion the core has a socket of its own for.
+ *
+ * The Plus 1 support ROM, ADFS and the DFS are opened by name into dedicated
+ * slots; none of them is a sideways bank, and marking them as one was simply
+ * wrong. It mattered once the runtime started being given everything fitted:
+ * `runtimeMount` is how this build knows which ROMs it has nowhere to put.
+ */
 const elkExpansion = (id: string, label: string, path: string, capability: string, note: string, sizes = [16384]) =>
   rom(id, label, path, sizes, 'extension', false, capability, {
-    runtimeMount: 'sideways', supportStatus: 'development', provenanceNote: note,
+    supportStatus: 'development', provenanceNote: note,
   });
 
 /* A ROM somebody may put in an expansion, rather than the expansion itself. */
@@ -241,6 +260,7 @@ export const ROM_SETS: RomSetDefinition[] = [
        * client ROM is a 4 KB parasite image rather than a sideways one. */
       rom('tube6502', '6502 Tube client 1.20', 'roms/6502tube_120.rom', [4096], 'extension', false, 'tube', {
         supportStatus: 'development', provenanceNote: 'Parasite boot ROM for a 6502 second processor on the Plus 1 expansion connector.',
+        runtimeMount: 'tube',
       }),
     ],
   },

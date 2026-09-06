@@ -258,11 +258,11 @@ None. Every completed requirement records how it was verified.
 | BLD-329 | Implement ARM assembler/linker and RISC OS C adapters before the ARM vertical slice;… | 6 of 8 parts done |
 | BLD-330 | Implement target-native assertion runtime/result channel and test target output for each… | 5 of 6 parts done |
 | MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 10 of 13 parts done |
-| ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 15 of 17 parts done |
+| ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 16 of 18 parts done |
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
-| EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 44 of 50 parts done |
+| EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 51 of 57 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
@@ -287,7 +287,7 @@ None. Every completed requirement records how it was verified.
 | A11Y-900 | Complete automated and manual WCAG 2.2 AA audit of J-01–J-08 in dark/light/high-contrast,… | not started |
 | A11Y-901 | Resolve all A/AA blockers and document any AAA enhancements. | not started |
 | A11Y-902 | Verify structured alternatives for graphics, map, waveform, memory, trace, profiler, and… | 5 of 6 parts done |
-| A11Y-903 | Test current/previous major Chromium, Firefox, and Safari including file system, audio,… | 7 of 10 parts done |
+| A11Y-903 | Test current/previous major Chromium, Firefox, and Safari including file system, audio,… | 8 of 11 parts done |
 | DOC-905 | Demonstrate J-01–J-08 and ACC-001–ACC-007 to stakeholders and capture acceptance. | not started |
 | RELEASE-GATE | All applicable acceptance criteria in Section 23 of the specification pass; no… | not started |
 | EXP-001 | Complete remaining BBC Model A/B controller/regional profiles. | not started |
