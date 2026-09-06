@@ -5207,9 +5207,19 @@ Current implemented increment:
     drive and the control that mounts a disc never appeared. Each capability
     declares it for itself now, and with a Plus 3 fitted the Electron's Media
     workspace offers the control and accepts a 160 KiB ADFS S image.
-  - [ ] Whether the core then takes that image is not shown. The control accepts
-    it and the bridge has a mount path, but no run has yet seen Elkulator
-    acknowledge a disc, so mounting stays unproven and the Plus 3 stays preview.
+  - [ ] **A disc sent to the Electron is lost between the workbench and the
+    runtime page.** This is now narrow enough to hand on. With a Plus 3 fitted
+    and ADFS in it, choosing a 160 KiB ADFS S image and pressing Mount disk
+    makes the workbench report "Loading plus3.adf into drive 0" — so `loadDisc`
+    ran, and it is not the control, the capability gate or the image being
+    refused. The runtime page then prints nothing at all: no acceptance, no
+    refusal, and its own diagnostics end at the ROM images it loaded. Its
+    machine acknowledgements still read "No media is mounted in this session".
+    The runtime has a `load-disc` case and declares `media` among its
+    capabilities, and the Electron adapter maps `load-disc` to it, so every end
+    is willing; what has not been traced is the message between them. Until a
+    disc is acknowledged the Plus 3 stays preview, and no claim about mounting
+    belongs anywhere.
   - [x] **The Plus 3 is fitted too, with one filing system.** It had the same
     shape of problem one level on: ADFS and the Electron DFS were both marked
     required by it, so fitting a Plus 3 asked for both when the interface takes
