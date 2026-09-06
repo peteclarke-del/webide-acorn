@@ -5177,12 +5177,26 @@ Current implemented increment:
     ROMs are answered 200 with their real sizes. `romServiceWorkerKeys.test.ts`
     runs the worker's own rule over every key every shipped profile can produce,
     and fails if the unconditional strip returns.
-  - [x] The machine runs, and two expansions are fitted through the core. The
-    frame had not opened because the machine was simply powered off; powering it
-    on loads `/elkulator.html`, which reports "Acorn Electron running on
-    Elkulator" and presents a 640 by 512 framebuffer. The Plus 1 ROM and the
-    Electron DFS are loaded into their slots without complaint, which is the
-    first time any expansion has gone through this core.
+  - [x] The machine runs, through the workbench, on firmware supplied through
+    the workbench. The frame had not opened because the machine was simply
+    powered off; powering it on loads `/elkulator.html`, which reports "Acorn
+    Electron running on Elkulator" and presents a 640 by 512 framebuffer.
+    Powering it off and on again from the panel's own control works and keeps
+    the machine and its ROM set selected.
+  - [ ] **No expansion is fitted, and an earlier note here said two were.** That
+    was read off a truncated line of the core's own output and was wrong. Read
+    in full it says: "Elkulator 6785521a initialised with 2 ROM images", and
+    names every one of `os300.rom`, `adfs.rom`, `dfs.rom`, `sndrom` and
+    `plus1.rom` as not fitted. Only the operating system and BASIC reach it.
+    The chain is now known exactly: each expansion is gated on a machine
+    capability, every one of those capabilities is `planned`, so
+    `requiredRomRequirements` leaves the ROM out of the resolved records, so it
+    never reaches `electronRomUrls`, so the core never sees it. That is the
+    design working as written — a planned capability is one that is not fitted.
+    What has changed is the reason each capability gives for being planned: they
+    name firmware "in the firmware vault", and it is now there and reachable. So
+    the next step is to fit one and prove it, then promote that capability on
+    the strength of the proof rather than the presence of a file.
   - [x] Fitting them found a second defect. The core opens its firmware by
     filename — `os`, `basic.rom`, `plus1.rom`, `adfs.rom`, `dfs.rom` — and a
     name it cannot find is an expansion that is not fitted rather than a machine
@@ -5194,12 +5208,15 @@ Current implemented increment:
     build script and holds every Elkulator requirement to them, and pins the
     seven sideways expansions this build cannot fit so an eighth cannot be added
     on the strength of merely having a ROM.
-  - [ ] Powering the machine off and on again returns the workbench to "ROM set
-    not ready" while the vault still holds the firmware and the service worker
-    still serves it. That is the next thing to look at, and it is why ADFS has
-    not yet been confirmed fitted in a boot that began with a complete vault:
-    the core reads its firmware once, at start, and the readiness state does not
-    survive the cycle that would let it read again.
+  - [x] An earlier note here claimed that powering off and on returned the
+    workbench to "ROM set not ready" and reset it to a Model B. It does not.
+    That was a fault in the measuring script, which matched any button on the
+    page whose text contained the phrase and so clicked something else
+    entirely. Driven through the emulator panel's own labelled control, the
+    cycle keeps the Electron and its expanded ROM set selected and brings the
+    machine back up. A loose selector in a test that looks exactly like a defect
+    in the product is worth naming: it is the second time in this run that one
+    did.
   - [ ] What the run does not show is also recorded: the frame rate was
     measured in headless Chromium on a software renderer with nothing but the
     operating system and BASIC fitted and no program running, and no keyboard,
