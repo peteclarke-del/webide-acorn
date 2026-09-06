@@ -3899,11 +3899,25 @@ Current implemented increment:
     keywords, that a truncated two-byte keyword is reported rather than
     invented, and that the 6502 decode is unchanged — a decoder that looked for
     prefixes everywhere would quietly alter what every existing file says.
-  - [ ] **BASIC VI is still absent.** It is the same language with eight-byte
-    reals and its tokens are widely said to be identical, but no BASIC VI ROM
-    has been read here, and shipping a table on the strength of what is said
-    about it rather than what was measured is the thing this work exists not to
-    do.
+  - [ ] **BASIC VI is still absent, and what it waits on is now known exactly.**
+    It is the same language with eight-byte reals, supplied as a separate
+    `BASIC64` module, and its tokens are widely said to be identical to BASIC
+    V's. Every ROM in this machine's firmware collection has now been searched
+    for one and none holds it: the Risc PC images carry BASIC V, and on those
+    versions BASIC64 shipped on disc rather than burnt into ROM. So this waits
+    on a BASIC64 image rather than on effort. Shipping a table on the strength
+    of what is said about it rather than what was measured is the thing this
+    work exists not to do.
+  - [x] The BASIC V table gained independent corroboration. It was read out of
+    two further ROMs from a different machine and two later operating systems —
+    the Risc PC's RISC OS 4.02 and 4.39 — both giving 161 entries ending at
+    `WIDTH` and agreeing with the shipped table on 160 of them. The two
+    differences are the ones already explained: one ROM lists `COLOR` where
+    another lists `COLOUR` at the same &FB, and the six pseudo-variable and
+    second-`ELSE` forms are not in a ROM's linear keyword table because they
+    were measured on a running machine. Three ROMs across three operating
+    systems is stronger evidence than any published table, and a published table
+    checked against this one agreed with 21 of its 123 entries.
   - [x] Evidence: 7 contracts in `scripts/extractBasicTokens.test.ts` covering
     the terminator in both families, built as fixtures in the ROMs' own shape
     rather than copied out of firmware, so they run everywhere. The reproduction

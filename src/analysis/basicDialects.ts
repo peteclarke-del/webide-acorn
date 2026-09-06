@@ -27,10 +27,23 @@
  * forms of `ELSE`. `scripts/extractBasicTokens.mjs` carries the rule that
  * measurement established.
  *
- * BASIC VI is still absent. It is the same language with eight-byte reals, and
- * its tokens are widely said to be identical — but no BASIC VI ROM has been
- * read here, and shipping a table on the strength of what is said about it
- * rather than what was measured is the thing this file exists not to do.
+ * The BASIC V table has since been read out of two more ROMs, from a different
+ * machine and two later operating systems: the Risc PC's RISC OS 4.02 and 4.39.
+ * Both give 161 entries ending at `WIDTH`, and both agree with the table above
+ * on 160 of them. The differences are the two this file already explains — one
+ * ROM lists `COLOR` where another lists `COLOUR` at the same &FB, and the six
+ * pseudo-variable and second-`ELSE` forms are not in a ROM's linear keyword
+ * table because they were measured on a running machine. Three ROMs across
+ * three operating systems is better corroboration than any published table.
+ *
+ * BASIC VI is still absent, and the reason is now specific rather than general.
+ * It is the same language with eight-byte reals, supplied as a separate
+ * `BASIC64` module, and no ROM held here contains one: the Risc PC images were
+ * searched for it and it is not in them, because on these versions BASIC64 was
+ * supplied on disc rather than burnt into the ROM. Its tokens are widely said
+ * to be identical to BASIC V's, and shipping a table on the strength of what is
+ * said about it rather than what was measured is the thing this file exists not
+ * to do.
  *
  * Two spellings can share one token: `COLOUR` and `COLOR` are both &FB, and
  * which one a ROM lists first is which one that machine would list back. Both
