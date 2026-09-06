@@ -5161,11 +5161,26 @@ Current implemented increment:
     that never answered with nothing anywhere to say why. An engine this build
     cannot start is refused rather than routed to a default, and every Electron
     ROM set registered here is asserted to have a route.
-  - [ ] Not yet exercised end to end: no run has gone through the workbench
-    itself with the expansion ROM set selected and firmware in the vault. The
-    shipped page has been driven directly and the routing has a contract, but
-    the two have not been joined up in one run. Nor has any expansion been
-    exercised through the core, so every one of them stays marked planned.
+  - [x] The two have now been joined up in one run, and joining them up found a
+    defect that neither end could see alone. Driving the shipped workbench in a
+    real browser — selecting the Electron, selecting the expanded ROM set, and
+    handing the operating system, BASIC, the Plus 1 ROM, Acorn ADFS and the
+    Electron DFS to the workbench's own file inputs — put all five in the vault
+    under `electron-expanded/roms/…` and satisfied the ROM-set readiness check.
+    The core then asked for them and was answered 404 every time. The service
+    worker strips a `roms/` segment from every request, because jsbeeb asks its
+    base URL for `roms/<path>` while jsbeeb profiles store `<set>/<path>`
+    without it; the Elkulator profiles put `roms/` in the manifest path itself,
+    so their keys really do contain it and the shortened key never existed.
+    Supplied, present, and unreachable. The worker now tries the stored key
+    before the shortened one, both conventions are served, and the same three
+    ROMs are answered 200 with their real sizes. `romServiceWorkerKeys.test.ts`
+    runs the worker's own rule over every key every shipped profile can produce,
+    and fails if the unconditional strip returns.
+  - [ ] What remains is the machine itself. The runtime frame did not open in
+    that run, so no expansion has been exercised through the core and every one
+    of them stays marked planned. The firmware is no longer what stands in the
+    way: it is in the vault and it is now reachable.
   - [ ] What the run does not show is also recorded: the frame rate was
     measured in headless Chromium on a software renderer with nothing but the
     operating system and BASIC fitted and no program running, and no keyboard,
