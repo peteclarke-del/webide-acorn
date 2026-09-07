@@ -1025,8 +1025,25 @@ Companion specification: `docs/requirements-specification.md`
     inside a row and that the rows and columns are numbered; the `smoke` stage
     applies the role-context rule across nineteen workspaces, and it was proved
     by the 448 findings it produced before the grids were fixed.
-- [ ] UX-124 Define canvas accessibility adapter pattern with structured view,
+- [x] UX-124 Define canvas accessibility adapter pattern with structured view,
   keyboard actions, live coordinates/value, and text alternatives (UX-007).
+  - [x] **The pattern was already in the product and unwritten, and it has two
+    halves rather than one.** An editable canvas — the screen editor, the tile
+    map — is `aria-hidden`, because a bitmap read out cell by cell tells nobody
+    anything; the wrapper takes focus and arrow keys, and a `role="status"`
+    region beside it says where the caret is and what is under it, live, so it
+    follows the caret. A canvas that only shows something — the golden-image
+    comparison, the map overview — carries an `aria-label` and is not hidden,
+    because there is something worth announcing and nothing to operate.
+  - [x] `scripts/canvasAlternatives.test.ts` refuses the third treatment: a
+    canvas that is neither hidden nor named, which a screen reader announces as
+    nothing at all and which may be the only place some data appears. It also
+    refuses a hidden canvas whose file has no live region, because hiding is
+    only honest when something else says what is there. Proved by removing one
+    canvas's `aria-hidden`.
+  - [x] Written up in `docs/primitives.md` beside the other patterns, including
+    the note that the pixel grids are not canvases at all — they are a `grid` of
+    `row`s of `gridcell` buttons, one per pixel, each with its own label.
 - [x] UX-125 Define empty/loading/stale/offline/error/permission/quota/unsupported
   states and prevent layout shift or ambiguous spinners.
   - [x] **The convention was already there and unwritten, and measuring it found
@@ -6539,6 +6556,17 @@ Current implemented increment:
     another machine is marked as unable to settle the question, that a
     difference is located inside a named box, and that a missing sound write is
     reported as absent rather than as a zero.
+- [x] **A fourth reproducibility fault, and the last of this shape: Testing
+  Library's own wait.** `findBy` defaults to one second, which is a measurement
+  of the machine rather than of the code — a completion list that renders in
+  40 ms idle took past a second under a full parallel run, and the suite failed
+  on a query that was right about what it wanted and wrong about how long the
+  machine would take. It is five seconds now, set once in the setup file, for
+  the same reason the per-test and hook bounds are thirty. It stays well inside
+  the test timeout so something that genuinely never appears still fails as the
+  missing element it is, naming what was looked for, rather than as a bare
+  timeout around it.
+
 - [x] **Three suites could fail on a timeout under a full parallel run and pass
   on their own, and that is now fixed rather than tolerated.** A test that only
   passes when nothing else is running is not reproducible, which is the one

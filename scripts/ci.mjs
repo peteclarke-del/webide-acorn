@@ -567,6 +567,53 @@ await stage('smoke', async () => {
     }
     await call('Emulation.clearDeviceMetricsOverride');
 
+    /*
+     * Text at twice its size, at an ordinary viewport.
+     *
+     * The sweep above shrinks the viewport, which is WCAG 1.4.10 reflow — 640
+     * wide is a 200% zoom of 1280, and 320 is 400%. Resizing the *text* and not
+     * the page is a different criterion, 1.4.4, and the product now has a
+     * control for it: the type scale multiplies every size in the workbench, up
+     * to double.
+     *
+     * That control is what makes this checkable, and checking it is also the
+     * only way to know the control is worth having. A setting that makes the
+     * interface larger and pushes half of it out of reach is worse than no
+     * setting, because somebody who needs it has no way back except to find the
+     * control they can no longer see.
+     *
+     * The two properties are set the way `applyAppearance` sets them, which is
+     * what choosing "Largest" in Settings does.
+     */
+    const LARGEST_SCALE = 2;
+    const LARGEST_FLOOR = 23.1;
+    await call('Emulation.setDeviceMetricsOverride', { width: 1280, height: 1024, deviceScaleFactor: 0, mobile: false });
+    await evaluate(`(() => {
+      const root = document.documentElement;
+      root.style.setProperty('--ui-scale', '${LARGEST_SCALE}');
+      root.style.setProperty('--fs-floor', '${LARGEST_FLOOR}px');
+    })()`);
+    await delay(500);
+    const enlarged = await evaluate(MEASURE);
+    const readable = await evaluate(`(() => {
+      /* And that it actually grew: a scale nothing reads would pass every check
+       * below by changing nothing at all. */
+      const sample = document.querySelector('.statusbar, .topbar, body');
+      return sample ? Number.parseFloat(getComputedStyle(sample).fontSize) : 0;
+    })()`);
+    await evaluate(`(() => {
+      const root = document.documentElement;
+      root.style.removeProperty('--ui-scale');
+      root.style.removeProperty('--fs-floor');
+    })()`);
+    await call('Emulation.clearDeviceMetricsOverride');
+    if (readable < 20) throw new Error(`Text at the largest size measured ${readable}px, so the type scale did not take effect and nothing below was tested`);
+    if (enlarged.horizontal > 0) throw new Error(`With text at ${LARGEST_SCALE}x the page scrolls horizontally by ${enlarged.horizontal}px (WCAG 1.4.4)`);
+    if (enlarged.clippedCount > 0) throw new Error(`With text at ${LARGEST_SCALE}x, ${enlarged.clippedCount} controls are out of reach: ${enlarged.clipped.join(', ')}`);
+    if (enlarged.overflowingCount > 0) throw new Error(`With text at ${LARGEST_SCALE}x, ${enlarged.overflowingCount} boxes reach past the viewport with nothing to scroll them: ${enlarged.overflowing.join(', ')}`);
+    const textZoom = { scale: LARGEST_SCALE, fontPx: readable, controls: enlarged.controls };
+
+
     /* Accessibility, across every workspace a person can open rather than the
      * one that happens to be showing. An automated scan cannot decide whether
      * a name is meaningful or whether a reading order makes sense; what it can
@@ -940,7 +987,7 @@ await stage('smoke', async () => {
     }
 
     if (errors.length) throw new Error(`The workbench reported ${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`);
-    return { detail: `${workspaces} controls under the shipped security headers, every one at one of ${CONTROL_HEIGHTS.length} declared sizes, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, contrast re-measured in all ${PALETTES.length} palettes, ${tabWalk.presses} Tab presses reached ${tabWalk.distinct} controls with no focus trap (${tabWalk.held} hold Tab and say how to leave), ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
+    return { detail: `${workspaces} controls under the shipped security headers, every one at one of ${CONTROL_HEIGHTS.length} declared sizes, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${textZoom.controls} controls reachable with text at ${textZoom.scale}x (${textZoom.fontPx}px), ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, contrast re-measured in all ${PALETTES.length} palettes, ${tabWalk.presses} Tab presses reached ${tabWalk.distinct} controls with no focus trap (${tabWalk.held} hold Tab and say how to leave), ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
   } finally {
     /* Every handle opened here is closed here. A gate that printed its verdict
      * and then sat with an open socket would hang a pipeline until its timeout

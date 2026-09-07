@@ -64,6 +64,32 @@ There is no `role="tooltip"` anywhere. Menu entries and icon buttons carry a
 focus and hover management an ARIA tooltip needs to get right. Where the detail
 matters more than that, it is on the page instead of in a tooltip.
 
+## Canvases have one of two treatments, never neither
+
+UX-007 says a canvas may not be the only way to inspect or edit critical data.
+Which treatment applies depends on whether the canvas can be edited.
+
+**An editable canvas is `aria-hidden`.** A bitmap read out cell by cell tells
+nobody anything. What it is wrapped in takes focus and arrow keys, and a
+`role="status"` region beside it says where the caret is and what is under it —
+*"Row 4 of 32, column 9 of 40, tile 12 on layer Background"*. That sentence is
+the accessible view, and because it is live it follows the caret. The screen
+editor and the tile map both work this way.
+
+**A canvas that only shows something carries an `aria-label`** describing what
+it shows: the golden-image comparison figure and the map overview thumbnail. It
+is not hidden, because there is something worth announcing, and there is nothing
+to operate.
+
+The failure this guards against is a third treatment — a canvas that is neither
+hidden nor named, which a screen reader announces as nothing at all and which
+may be the only place some data appears. `scripts/canvasAlternatives.test.ts`
+refuses one, and refuses a hidden canvas whose file has no live region to speak
+for it, since hiding is only honest when something else says what is there.
+
+The pixel grids are not canvases at all. They are a `grid` of `row`s of
+`gridcell` buttons, one per pixel, each with its own label — see above.
+
 ## Leaving a control that takes Tab
 
 The source editor takes Tab so that Tab indents. That is the case WCAG 2.1.2 has
