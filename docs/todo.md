@@ -4308,16 +4308,67 @@ Current implemented increment:
     `read-memory` answers, `inject-text` is queued and acknowledged, and two
     capabilities the runtime lacked were added to get that far.
 
-    What stopped it: nothing confirms the machine reached a BASIC prompt. The
-    screen capture answered once early in a session and not afterwards, so there
-    is no picture of where the machine is, and the addresses tried for `PAGE`
-    read as zero — which is equally consistent with BASIC not running and with
-    `PAGE` being somewhere else on a 1 MB RISC OS 2 machine. Reporting statement
-    forms from that would be inventing them.
+    What stopped it, narrowed by a second attempt that replaced guesswork with a
+    search. Rather than assume where `PAGE` is, a line was typed carrying a
+    distinctive number and the whole of `&8000`–`&40000` was read back and
+    searched for it — an area that contains the application slot on a 1 MB
+    machine, so it contains BASIC's program wherever `PAGE` happens to sit. The
+    scan completed with every read answered and the number is not there. So
+    BASIC did not take the input, rather than the input having gone somewhere
+    unexpected.
 
-    What would finish it: a reliable way to see the screen, so the prompt can be
-    confirmed before anything is typed, and asking the machine for `PAGE` rather
-    than guessing at it.
+    Two things that are now ruled out. Focus is not the cause: `pressMachineKey`
+    writes scancodes straight into the core with `arc_webide_set_host_key`, so a
+    headless page that never received a click is irrelevant. And the frame is
+    not wedged: `read-memory` answered sixty-four times during that scan.
+
+    With the screen visible, the answer is plain and it is not about the
+    measurement at all: **RISC OS 2.00 does not boot on this A310 slice.** It
+    reaches `RISC OS 1024K / Acorn ADFS` and then raises two address exceptions
+    — `&0381EDA8` and `&0381E614`, both error `&80000003` — and drops to a
+    supervisor prompt that does not echo anything typed at it. The exceptions
+    are on screen before anything is typed, so they belong to the boot.
+
+    The control settles that this is the firmware and not the harness: the same
+    driver, the same core, the same steps, with RISC OS 3.11 in place of 2.00,
+    boots cleanly to the desktop with its icon bar. So the statement forms are
+    blocked behind a machine that does not start, which is a larger thing than
+    this item and is recorded as EMU-429.
+- [ ] **EMU-429 RISC OS 2.00 does not boot on the qualified A310 slice.** The
+  machine reaches `RISC OS 1024K / Acorn ADFS` and then raises two address
+  exceptions, at `&0381EDA8` and `&0381E614`, both error number `&80000003`,
+  and drops to a supervisor prompt that does not echo anything typed at it.
+  - [ ] It is the firmware rather than the harness, and the control says so: the
+    same driver, core and steps with RISC OS 3.11 in place of 2.00 boot cleanly
+    to the desktop, icon bar and all. RISC OS 3.00 and 3.10 have not been tried.
+  - [ ] The `riscos200` profile is offered in the machine picker and the vault
+    accepts its firmware, so a person can select a configuration that cannot
+    run. Either the core has to be made to run it or the profile has to say what
+    it does here, and saying nothing is the one option that is not honest.
+  - [ ] It blocks the RISC OS 2 BASIC statement forms above, which cannot be
+    measured on a machine that does not start.
+
+- [x] **EMU-428 `capture-screen` answered once per session and then stopped.** The
+  A310 runtime replies to the first `capture-screen` with a PNG blob and to
+  none of the later ones, in the same session, with no error and no rejection —
+  every other command keeps working, including sixty-four `read-memory` calls
+  after the last successful capture. `captureScreen` hands the work to
+  `canvas.toBlob`, whose callback simply does not run the second time.
+  - [x] It mattered well beyond a screenshot: the screen is the only way to see
+    where a machine has got to, and without it a driver has to infer the state
+    from memory, which is what stopped the RISC OS 2 measurement above.
+  - [x] **The guess was right and the answer was already in the repository.** A
+    WebGL canvas discards its drawing buffer at the end of every frame unless
+    asked not to, and SDL creates the context, so the attribute has to be forced
+    before anything can create one. The Elkulator runtime already did exactly
+    this and recorded the same reasoning; the A310 runtime did not. Measured
+    after the fix: eight captures across two sessions, every one answered, each
+    within three and a half seconds.
+  - [x] A second fault of my own was in the way of seeing it: the driver waited
+    a fixed 2.5 seconds for a reply from a machine running at about a fifth of
+    real speed, so even the captures that did work looked like failures. It
+    polls now, the same as the memory reads do.
+
   - [x] **Two runtime capabilities came out of the attempt and are worth having
     on their own.** The A310 keyboard could type letters, digits, space and six
     punctuation marks — enough for the `Run <path>` it was written for, and not

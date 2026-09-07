@@ -668,6 +668,28 @@
     Promise.resolve(receive(command)).catch((error) => { appendCrash('command', error); setStatus(error instanceof Error ? error.message : String(error), 'error'); send({ type: 'error', message: error instanceof Error ? error.message : String(error) }); if (started) snapshot('command error'); });
   });
   send({ type: 'listener-ready' });
+  /*
+   * A screen capture has to be the pixels the core produced, and a WebGL canvas
+   * throws its drawing buffer away at the end of every frame unless it is asked
+   * not to. SDL creates the context, so the attribute is forced here before
+   * anything can create one.
+   *
+   * Without it `capture-screen` answered the first request in a session and
+   * none of the later ones — `canvas.toBlob` simply never called back, with no
+   * error to say why — which left a driver with no way to see where a machine
+   * had got to. The Elkulator runtime already does this and records the same
+   * reasoning; this is that fix, in the runtime that was missing it.
+   */
+  const preserveDrawingBuffer = () => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function getContext(kind, attributes) {
+      if (kind === 'webgl' || kind === 'webgl2' || kind === 'experimental-webgl') {
+        return original.call(this, kind, { ...(attributes ?? {}), preserveDrawingBuffer: true });
+      }
+      return original.call(this, kind, attributes);
+    };
+  };
+  preserveDrawingBuffer();
   window.Module = {
     noInitialRun: true,
     canvas,

@@ -84,3 +84,46 @@ describe('pressing a function key', () => {
     expect(RUNTIME).toContain('pressMachineKey(57 + command.number');
   });
 });
+
+/*
+ * Capturing the screen more than once in a session.
+ *
+ * `capture-screen` answered the first request and none of the later ones, in
+ * the same session, with no error and no rejection — every other command kept
+ * working, including sixty-four `read-memory` calls after the last successful
+ * capture. `canvas.toBlob` simply never called back.
+ *
+ * A WebGL canvas discards its drawing buffer at the end of every frame unless
+ * asked not to, and SDL creates the context, so the attribute has to be forced
+ * before anything can create one. The Elkulator runtime already did this and
+ * recorded the same reasoning; the A310 runtime did not.
+ *
+ * It matters well beyond a screenshot. The screen is the only way to see where
+ * a machine has got to, and without it a driver has to infer the machine's
+ * state from memory — which is exactly what left the RISC OS 2 measurement
+ * unable to say whether BASIC was ever running.
+ */
+describe('capturing the A310 screen', () => {
+  const ELKULATOR = readFileSync(resolve(process.cwd(), 'public/elkulator-runtime.js'), 'utf8');
+
+  it('forces preserveDrawingBuffer before the core creates a context', () => {
+    expect(RUNTIME).toContain('preserveDrawingBuffer: true');
+    expect(RUNTIME).toMatch(/getContext[\s\S]{0,200}webgl2/);
+  });
+
+  it('does it the way the runtime that already solved this does', () => {
+    /* Two runtimes with the same problem should not grow two different answers
+     * to it; if one is corrected the other should be read alongside. */
+    expect(ELKULATOR).toContain('preserveDrawingBuffer: true');
+    for (const kind of ['webgl', 'webgl2', 'experimental-webgl']) {
+      expect(RUNTIME, `${kind} is not covered`).toContain(`'${kind}'`);
+      expect(ELKULATOR, `${kind} is not covered`).toContain(`'${kind}'`);
+    }
+  });
+
+  it('leaves a non-WebGL context alone', () => {
+    /* The patch is global to the page, so a 2D context must pass through
+     * untouched rather than gaining an attribute that means nothing to it. */
+    expect(RUNTIME).toMatch(/return original\.call\(this, kind, attributes\);/);
+  });
+});
