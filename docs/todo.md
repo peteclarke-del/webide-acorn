@@ -4179,15 +4179,38 @@ Current implemented increment:
     keywords, that a truncated two-byte keyword is reported rather than
     invented, and that the 6502 decode is unchanged — a decoder that looked for
     prefixes everywhere would quietly alter what every existing file says.
-  - [ ] **BASIC VI is still absent, and what it waits on is now known exactly.**
-    It is the same language with eight-byte reals, supplied as a separate
-    `BASIC64` module, and its tokens are widely said to be identical to BASIC
-    V's. Every ROM in this machine's firmware collection has now been searched
-    for one and none holds it: the Risc PC images carry BASIC V, and on those
-    versions BASIC64 shipped on disc rather than burnt into ROM. So this waits
-    on a BASIC64 image rather than on effort. Shipping a table on the strength
-    of what is said about it rather than what was measured is the thing this
-    work exists not to do.
+  - [x] **BASIC VI is in ROM after all, and the earlier note here was wrong.**
+    It said BASIC64 "shipped on disc rather than burnt into ROM". The user
+    challenged that directly, and they were right: it is a ROM module. What that
+    note actually rested on was a search of the images then held, which cover
+    RISC OS 2.00 to 4.39 — and BASIC64 genuinely is absent from all of those. A
+    local absence was turned into a claim about what Acorn shipped, which is not
+    a thing a search can establish.
+
+    Two traps had made the negative worse than it looked. Most Acorn ARM ROM
+    images are stored interleaved, so a plain string search reads scrambled
+    bytes: `BASIC` does not occur in the A310 or A5000 images at all until they
+    are de-interleaved four ways, and the Risc PC pairs need two-byte-wide
+    interleaving. Any absence reported from those images without de-interleaving
+    was worthless.
+
+    The user then supplied a 51 MB archive of every RISC OS ROM from 2.00 to
+    6.16, which settles it. **`BASIC64` appears in seven images, all of them
+    RISC OS 6** — ROM606, ROM610 (both builds), ROM614 (both), ROM616 (both) —
+    and in none of the twenty-eight earlier ones. In ROM616 it carries a module
+    header reading `BASIC64 / BASIC VI / 1.37 (05 Mar 2007)`, and the module's
+    own banner reads "BASIC VI (64 bit FP) assembled on 05 Mar 2007".
+  - [x] **Its token table is measured, and is identical to BASIC V's.** That was
+    the thing this item refused to take on trust, and it is now checked three
+    ways rather than asserted. Each RISC OS 6 image carries two token tables,
+    one in the `BASIC` module and one in `BASIC64`; the two are identical within
+    every image. All seven images give the same 161-entry table with the same
+    digest. And that table matches, position for position, the BASIC V table
+    this repository already ships — which was read independently out of RISC OS
+    3.11. So a BASIC VI dialect can be shipped as sharing BASIC V's table with
+    its own provenance, on the strength of what was measured rather than what is
+    widely said.
+
   - [x] The BASIC V table gained independent corroboration. It was read out of
     two further ROMs from a different machine and two later operating systems —
     the Risc PC's RISC OS 4.02 and 4.39 — both giving 161 entries ending at

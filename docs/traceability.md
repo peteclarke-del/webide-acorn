@@ -258,7 +258,7 @@ None. Every completed requirement records how it was verified.
 | BLD-329 | Implement ARM assembler/linker and RISC OS C adapters before the ARM vertical slice;… | 6 of 8 parts done |
 | BLD-330 | Implement target-native assertion runtime/result channel and test target output for each… | 5 of 6 parts done |
 | MED-304 | Implement ADFS image workflow for selected 8-bit/ARM profiles. The qualified A310… | 10 of 13 parts done |
-| ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 16 of 18 parts done |
+| ANL-309 | Add Atom BASIC and BBC BASIC I/IV/V/VI dialect adapters and golden… | 18 of 19 parts done |
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
