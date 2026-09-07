@@ -63,10 +63,22 @@ describe('the architecture document', () => {
   });
 
   it('names every module directory that exists, and none that does not', async () => {
+    /*
+     * Both directions, which the name has always promised and only half of
+     * which was checked. A table that names a directory nobody can open sends
+     * the reader looking for code that was moved or deleted, and it is exactly
+     * the kind of drift a document like this accumulates.
+     *
+     * `src/test` is the harness rather than a module and is not described.
+     */
     const directories = (await readdir(join(root, 'src'), { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory() && entry.name !== 'test' && entry.name !== 'theme')
+      .filter((entry) => entry.isDirectory() && entry.name !== 'test')
       .map((entry) => entry.name);
     for (const directory of directories) expect(architecture, directory).toContain(`\`src/${directory}\``);
+
+    const named = [...new Set([...architecture.matchAll(/`src\/([a-z0-9-]+)`/g)].map((match) => match[1]!))];
+    const gone = named.filter((directory) => !directories.includes(directory));
+    expect(gone, 'the architecture table names a module directory that is not there').toEqual([]);
   });
 
   it('names only commands the package actually defines', () => {

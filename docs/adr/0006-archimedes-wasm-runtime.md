@@ -1,7 +1,7 @@
 # ADR 0006: Archimedes browser runtime and firmware boundary
 
-- Status: accepted for implementation
-- Date: 2026-08-21
+Status: accepted for implementation  
+Date: 21 August 2026
 
 ## Context
 

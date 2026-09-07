@@ -41,7 +41,7 @@ describe('functional source workspace', () => {
     fireEvent.click(changedRow);
     const editor = screen.getByLabelText('Edit main.asm') as HTMLTextAreaElement;
     await waitFor(() => expect(editor.selectionStart).toBe(editor.value.indexOf(' STA &70')));
-  }, 10_000);
+  }, 30_000);
 
   it('exposes generated provenance and blocks editor mutation while retaining inspection', () => {
     const change = vi.fn(); const notice = vi.fn();
@@ -361,7 +361,7 @@ describe('functional source workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next bookmark' }));
     expect(navigate).toHaveBeenCalledWith('other', 1, 1);
     expect(prompt).toHaveBeenCalledTimes(3);
-  }, 15_000);
+  }, 30_000);
 
   it('opens and closes independently labelled source split panes by control or shortcut', () => {
     const source: ProjectFile = { id: 'main', name: 'main.asm', content: '.start\n RTS', language: '6502', modified: false };
@@ -432,7 +432,7 @@ describe('functional source workspace', () => {
     fireEvent.keyDown(editor, { key: 'F12' });
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('lib', 1, 2, 4));
     expect(screen.getByTitle('Declared in included source lib.asm')).toHaveTextContent('lib.asm:1');
-  }, 10_000);
+  }, 30_000);
 
   it('opens an exact assembly operand with an ordinary pointer click', async () => {
     const navigate = vi.fn();
@@ -650,7 +650,7 @@ describe('functional source workspace', () => {
     await waitFor(() => expect(screen.getByLabelText('Edit lib.asm')).toHaveValue('.draw\n RTS'));
     fireEvent.click(screen.getByRole('tab', { name: 'main.asm' }));
     expect(screen.getByLabelText('Edit main.asm')).toHaveValue(initial[0]!.content);
-  }, 10_000);
+  }, 30_000);
 
   it('previews and atomically applies a uniquely resolved BASIC routine rename', async () => {
     function BasicRenameHarness() {

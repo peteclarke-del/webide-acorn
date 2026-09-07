@@ -114,6 +114,7 @@ they are wired and idle rather than absent.
 | `src/research` | Imported reference packs: their schema, the library that holds them, search, cross-linking and licensed insertion. Separate from `src/language` because the two answer for different things — what this build maintains, and what somebody brought to it. |
 | `src/settings` | Layered settings: defaults, then the person's, then the project's. |
 | `src/testing` | Hardware test plans and their execution model. |
+| `src/theme` | The appearance choice — theme, contrast and type scale — and the audit that measures the palettes against WCAG rather than trusting them. Colours themselves live in `src/theme.css`; this decides which palette the document is shown, and holds it to a number. |
 | `src/commands` | The workbench command set and the one key-binding table every chord resolves from. |
 | `src/help` | The in-app help topics and their integrity checks. |
 | `src/platform` | The few places a browser capability is wrapped rather than used directly. |

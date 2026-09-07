@@ -74,7 +74,7 @@
     --theme-secondary-rgb: 98, 169, 255;
     --theme-accent: #f2c14e;
     --theme-accent-rgb: 242, 193, 78;
-    --theme-danger: #db6951;
+    --theme-danger: #ed7258;
     /* Text drawn on the danger colour. The interface ink gives 3.29:1 against
      * it, which is below the 4.5:1 that ordinary-sized text needs; this is dark
      * enough to read at 5.6:1 and is the same in every theme because the danger
@@ -96,13 +96,34 @@
     --theme-ink-strong: #fffbe8;
     --theme-muted: #a9b99d;
     --theme-faint: #899985;
-    --theme-disabled: #596356;
-
-    --theme-line: #3c473a;
+  
+    /*
+   * The line around a control, raised from #3c473a because it was not one.
+   *
+   * WCAG 1.4.11 asks the boundary that identifies a control to reach 3:1
+   * against what is behind it, and this measured between 1.39 and 1.98 against
+   * every surface it is drawn on — the border of about five hundred buttons,
+   * inputs and selects. It is one token rather than a control-only variant
+   * because the same hairline separates panels too, and two nearly identical
+   * greys would be the inconsistency this workbench is meant not to have.
+   */
+  --theme-line: #6e836b;
     --theme-line-strong: #66705f;
     --theme-grid-rgb: 107, 149, 105;
     --theme-focus: #c8f59f;
-    --theme-selection: #35492f;
+    /* Darkened from #35492f so that --theme-faint, which is set on it, clears
+   * 4.5:1 rather than the 3.24:1 it measured. */
+  --theme-selection: #202c1d;
+  /* The memory map's regions, which were two hard-coded greens and so could
+   * not follow a theme. `.memory-ram` already used a token; these two are its
+   * siblings and are named the same way. */
+  /* Ink for text drawn on the machine's own surfaces, which stay dark in every
+   * theme. Defined once and deliberately not overridden by the light theme,
+   * because the bezel it sits on is not overridden either. */
+  --theme-on-machine: #f4f0d7;
+  --theme-on-machine-muted: #b9c4ad;
+  --theme-memory-sideways: #5b6740;
+  --theme-memory-os: #4b6670;
     --theme-hover: #222c22;
 
     --theme-success: #73e0c1;
@@ -171,11 +192,25 @@
     --control-h-strip: 36px;
     --control-h-primary: 34px;
     --control-pad-x: 9px;
+  /*
+   * How much a disabled control is dimmed, in one place.
+   *
+   * There were nine different answers to that question — .35, .38, .4, .42,
+   * .45, .55, .58, .7 — across forty-six rules, so the same state looked
+   * different depending on which panel it was in. The figure is a compromise:
+   * far enough down to read as inactive, not so far that somebody who finds
+   * small dim text hard to read cannot tell what the control says.
+   */
+  --control-disabled-opacity: .55;
   }
 
   :root[data-theme='light'] {
     color-scheme: light;
-    --theme-background: #c9ba9b;
+    /* Lightened from #c9ba9b. It was the darkest surface in the light theme by
+     * a wide margin, and a great deal of text is drawn straight onto it —
+     * eyebrows, state pills, filenames in code voice — which measured between
+     * 2.7 and 4.2 to one when the page was actually rendered and looked at. */
+    --theme-background: #ddd2b8;
     --theme-background-end: #f1ead9;
     --theme-surface-0: #e9dfca;
     --theme-surface-1: #f5eedc;
@@ -186,10 +221,9 @@
     --theme-overlay: rgba(35, 29, 22, .56);
     --theme-ink: #241f19;
     --theme-ink-strong: #15120f;
-    --theme-muted: #6d6458;
-    --theme-faint: #706554;
-    --theme-disabled: #a79c89;
-    --theme-line: #a99a83;
+    --theme-muted: #4b443c;
+    --theme-faint: #4c4439;
+    --theme-line: #675e50;
     --theme-line-strong: #776a58;
     --theme-focus: #285f49;
     --theme-selection: #e4c66a;
@@ -199,5 +233,110 @@
     --theme-emulator-bezel: #20251f;
     --theme-shadow-sm: 0 4px 14px rgba(44, 35, 24, .14);
     --theme-shadow-md: 0 18px 50px rgba(44, 35, 24, .2);
+    /*
+     * The foregrounds, which this block used not to declare at all.
+     *
+     * It overrode the surfaces and inherited every ink and accent from `:root`,
+     * so colours picked against a near-black editor were being set on cream.
+     * `--theme-primary-light`, which sets emphasis text in a hundred and
+     * fourteen places, measured 1.01:1 — the same colour as the paper. Each of
+     * these keeps the hue it had and is darkened until it clears 5:1, a little
+     * above the 4.5 it must reach so that a later change to a surface does not
+     * quietly put it back under.
+     */
+    --theme-primary: #3d5d23;
+    --theme-primary-light: #35511e;
+    --theme-primary-dark: #2c4418;
+    --theme-secondary: #325682;
+    --theme-accent: #665121;
+    --theme-danger: #864032;
+    --theme-success: #2f5c50;
+    --theme-warning: #665121;
+    --theme-info: #495084;
+    --syntax-comment: #505649;
+    --syntax-label: #3d5d23;
+    --syntax-opcode: #665121;
+    --syntax-number: #3f5862;
+    --syntax-address: #76493b;
+    --syntax-symbol: #614e63;
+    /* A fill that was light in the dark theme is dark here, so the label on it
+     * has to invert too, or a primary button reads black on dark green. */
+    --theme-on-accent: #fffaf0;
+    --theme-danger-ink: #fffaf0;
+    --theme-memory-sideways: #6f7d4c;
+    --theme-memory-os: #5a7b86;
+  }
+
+  /*
+   * High contrast, which UX-005 asks for and which nothing here provided.
+   *
+   * The standard palettes are held to WCAG AA — 4.5:1 for text and 3:1 for the
+   * border that identifies a control. These raise both to the AAA figures, 7:1
+   * and 4.5:1, keeping every hue so the workbench is the same interface rather
+   * than a second design. Only the tokens that had to move are listed: several
+   * of the dark theme's syntax colours already measure above 10:1 against the
+   * editor and repeating them here would be two places to change one colour.
+   *
+   * `data-contrast` is set from script rather than by a media query, for the
+   * same reason `data-theme` is: a media query cannot join a selector list, so
+   * doing it in CSS would need a second copy of each palette.
+   */
+  :root[data-contrast='more'] {
+    --theme-muted: #b2c4a5;
+    --theme-faint: #b0c4ab;
+    --theme-line: #839c7f;
+    --theme-line-strong: #8b9982;
+    --syntax-comment: #b4c3a5;
+    --theme-secondary: #6ebeff;
+    --theme-danger: #ff9e7a;
+    --theme-info: #a3b3ff;
+  }
+
+  :root[data-theme='light'][data-contrast='more'] {
+    --theme-muted: #423b34;
+    --theme-faint: #423b32;
+    --theme-line: #524b40;
+    --theme-line-strong: #534a3e;
+    --theme-focus: #22513e;
+    --theme-selection: #efd06f;
+    --theme-primary: #2c4219;
+    --theme-primary-light: #2b4219;
+    --theme-primary-dark: #24360f;
+    --theme-secondary: #243d5d;
+    --theme-accent: #4a3a18;
+    --theme-warning: #4a3a18;
+    --theme-danger: #602e24;
+    --theme-success: #22423a;
+    --theme-info: #34395f;
+    --syntax-comment: #393e34;
+    --syntax-label: #2c4219;
+    --syntax-opcode: #4a3a18;
+    --syntax-number: #2d3f47;
+    --syntax-address: #55342a;
+    --syntax-symbol: #453847;
+  }
+
+  /*
+   * Reduced transparency, also from UX-005.
+   *
+   * Somebody who has asked their machine for less transparency is asking for
+   * fewer things showing through other things, so the modal backdrop becomes
+   * opaque and the display's imitation of a CRT — scanlines, shadow-mask
+   * grille and vignette, all of which are translucent overlays on top of the
+   * picture — is turned off. This one stays a media query: it changes four
+   * values rather than duplicating a palette.
+   */
+  @media (prefers-reduced-transparency: reduce) {
+    :root {
+      --theme-overlay: #040805;
+      --theme-display-scanline: transparent;
+      --theme-display-grille-red: transparent;
+      --theme-display-grille-green: transparent;
+      --theme-display-vignette: transparent;
+      --theme-inset: none;
+    }
+    :root[data-theme='light'] {
+      --theme-overlay: #231d16;
+    }
   }
 }

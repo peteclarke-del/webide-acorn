@@ -5,6 +5,8 @@ import { createArmAssemblySource, verifyArmAssemblySource, type ArmAssemblyVerif
 import { correlateRuntimeCoverage, rowCoverageLabel, type RuntimeCoverage } from './analysis/runtimeCoverage';
 import { DiskSetWorkspace, type DiskSetSourceArtifact } from './components/DiskSetWorkspace';
 import { SettingsLayersPanel } from './components/SettingsLayersPanel';
+import { AppearancePanel } from './components/AppearancePanel';
+import { applyAppearance, applyScaleToFrames, readAppearance, saveAppearance, syncFrameScale, watchSystemAppearance, type Appearance } from './theme/appearance';
 import { LimitsPanel } from './components/LimitsPanel';
 import { SystemStatusPanel } from './components/SystemStatusPanel';
 import { ReferenceLibraryPanel } from './components/ReferenceLibraryPanel';
@@ -449,6 +451,25 @@ function App() {
   );
   const [runtimeState, setRuntimeState] = useState<CpuSnapshot | null>(null);
   const [romReady, setRomReady] = useState(false);
+  /*
+   * How the workbench looks, which is a choice about legibility rather than
+   * taste and so is applied to the document as it is made.
+   */
+  const [appearance, setAppearance] = useState<Appearance>(() => readAppearance(typeof localStorage === 'undefined' ? null : localStorage));
+  useEffect(() => {
+    const apply = () => {
+      applyAppearance(document.documentElement, appearance, (feature) => window.matchMedia(feature));
+      /* The framed runtimes carry their own copy of the type scale, so the
+       * choice has to be carried into them or the machine's own status line
+       * stays at the shipped size. */
+      applyScaleToFrames(document);
+    };
+    apply();
+    saveAppearance(typeof localStorage === 'undefined' ? null : localStorage, appearance);
+    /* `Match the system` has to keep matching it, so the machine's own settings
+     * are followed while the tab is open rather than read once at startup. */
+    return watchSystemAppearance(typeof window === 'undefined' ? null : window.matchMedia.bind(window), apply);
+  }, [appearance]);
   const [resolvedRomRecords, setResolvedRomRecords] = useState<StoredRom[]>([]);
   const [romInventoryRevision, setRomInventoryRevision] = useState(0);
   const [machineCommand, setMachineCommand] = useState<MachineCommand>();
@@ -2487,7 +2508,7 @@ function App() {
                     <button type="button" onClick={() => { clearQuarantinedSnapshot(); setUnreadableSnapshot(null); setNotice('The preserved copy has been discarded at your request'); }}>Discard it</button>
                   </div>
                 </section>
-              )}<SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProjectStorePanel projectName={project.name} files={storedProjectFiles} onNotice={setNotice} onOpenFiles={(opened) => { for (const file of opened) if (!isStoreManifest(file.name)) addSourceFile(file.name, file.content); }} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><ProfileComparisonPanel /><SystemStatusPanel /><ConformancePanel machineId={machine.id} capabilities={enabledCapabilities} romSetId={resolved.rom.id} /><ReferenceLibraryPanel library={packLibrary} target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }} onNotice={setNotice} onChange={(next) => { setPackLibrary(next); const failure = savePackLibrary(next); if (failure) setNotice(failure); }} /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
+              )}<AppearancePanel appearance={appearance} onChange={setAppearance} /><SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProjectStorePanel projectName={project.name} files={storedProjectFiles} onNotice={setNotice} onOpenFiles={(opened) => { for (const file of opened) if (!isStoreManifest(file.name)) addSourceFile(file.name, file.content); }} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><ProfileComparisonPanel /><SystemStatusPanel /><ConformancePanel machineId={machine.id} capabilities={enabledCapabilities} romSetId={resolved.rom.id} /><ReferenceLibraryPanel library={packLibrary} target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }} onNotice={setNotice} onChange={(next) => { setPackLibrary(next); const failure = savePackLibrary(next); if (failure) setNotice(failure); }} /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
             ) : workspaceTab === 'Help' ? (
               <HelpWorkspace />
             ) : workspaceTab === 'Sound' ? (
@@ -8082,7 +8103,12 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
               title={`${machine} hardware emulator`}
               sandbox="allow-scripts allow-same-origin"
               allow="fullscreen; autoplay"
-              onLoad={() => setFrameLoaded(true)}
+              onLoad={(event) => {
+                setFrameLoaded(true);
+                /* A machine that has just arrived gets the text size that is in
+                 * force, rather than the one its own page shipped with. */
+                syncFrameScale(event.currentTarget, document.documentElement);
+              }}
               style={scaledViewport}
             />
             <button

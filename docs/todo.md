@@ -573,11 +573,23 @@ Companion specification: `docs/requirements-specification.md`
     have no implementation**, and an ADR for a decision nobody has had to make
     is a guess with a number on it. Both belong with BLD-302 and the cloud
     phase.
-  - [ ] Adapter discovery and reference indexing are implemented but not written
-    up: adapter support is a table in `src/rom/adapterSupport.ts` checked
-    against each engine's own model list, and reference indexing happens in the
-    browser over imported packs. Each deserves an ADR saying why it is not a
-    registry and not a service; that is writing, and it is not done.
+  - [x] **Adapter discovery and reference indexing are now written up.** ADR
+    0011 records adapter discovery as a compiled table rather than a runtime
+    registry, and states the reason plainly: with a registry, "can this machine
+    run?" becomes answerable only after an adapter has loaded, so no test and no
+    type can hold it, whereas the table is checked at build time and by a unit
+    test that runs where no firmware exists. It also records why the three
+    states are distinguished and why the limitations are hand-written prose
+    rather than capability flags — every boundary found so far has been
+    conditional in a way a boolean makes wrong. ADR 0012 records reference
+    indexing as browser-side over imported packs, and the ground for rejecting a
+    service is a licence one before it is an engineering one: most documentation
+    worth indexing may not be redistributed, so a server that held it would be
+    republishing documents it has no right to republish. Each load-bearing claim
+    in both was checked against the code rather than asserted — the jsbeeb model
+    comparison is `allModels` imported into `adapterSupport.test.ts`, the
+    licence refusal is `permitted: false` in `referenceInsertion`, and the pack
+    bounds are enforced at parse rather than at search.
 - [ ] P0-044 Define API schemas, error envelope, idempotency, pagination, binary
   transfer, job state machines, event ordering/backpressure, and version policy
   (API-002–API-007).
@@ -803,19 +815,226 @@ Companion specification: `docs/requirements-specification.md`
 
 - [ ] UX-120 Create original logo/icon family and document permissible Acorn-
   inspired motifs and prohibited copied/trademark usage (UX-004).
-- [ ] UX-121 Define semantic theme tokens for every state listed by UX-005 and
+- [x] UX-121 Define semantic theme tokens for every state listed by UX-005 and
   validate dark, light, system, and high-contrast themes.
-- [ ] UX-122 Validate token contrast across normal/large text, controls, focus,
+  - [x] **The light theme had never been rendered, and that is why it was
+    wrong.** It was a complete `:root[data-theme='light']` block and nothing in
+    the product ever set `data-theme`, so it existed only as text. Unrendered,
+    it had come to declare its own surfaces and inherit every foreground from
+    `:root`: colours chosen against a near-black editor were being set on cream.
+    `--theme-primary-light`, which sets emphasis text in a hundred and fourteen
+    places, measured 1.01:1 against the paper behind it. All six syntax colours
+    measured between 1.6 and 1.9. It now declares its own inks, accents and
+    syntax colours, each keeping its hue and darkened until it clears 5:1 —
+    a little above the 4.5 it must reach, so that a later change to a surface
+    does not quietly put it back under.
+  - [x] **High contrast and reduced transparency now exist**, which UX-005 asks
+    for and neither of which was there. The two high-contrast palettes hold text
+    to 7:1 and the border that identifies a control to 4.5:1, keeping every hue
+    so it is the same interface rather than a second design; only the tokens
+    that had to move are listed, because several dark syntax colours already
+    measure above 10:1 and repeating them would be two places to change one
+    colour. Reduced transparency makes the modal backdrop opaque and turns off
+    the display's scanlines, shadow-mask grille and vignette, which are
+    translucent overlays on the picture.
+  - [x] **`system` is resolved in script rather than by a media query, and the
+    reason is worth recording.** The stylesheet holds each palette exactly once,
+    under `:root` and an attribute selector. A media query cannot join a
+    selector list, so following the operating system in CSS would need a second
+    copy of the light palette that nothing keeps in step with the first — which
+    is precisely how that palette lost its foreground colours. `applyAppearance`
+    resolves the setting and `watchSystemAppearance` re-applies when the machine
+    changes, so one copy still follows the computer.
+  - [x] **The text size now reaches the machine's own page, which was the one
+    place the setting stopped working.** The Electron and Archimedes runtimes
+    are framed pages that cannot see `theme.css`, so each carries its own copy
+    of the type scale — a constant. Raising the workbench's text size left the
+    machine's status line and output pane at the shipped size. The two
+    properties are now copied onto the framed document, which is same-origin,
+    rather than passed through the frame's URL: changing the URL remounts the
+    iframe and remounting the iframe restarts the emulator, and nobody expects a
+    machine to reboot because they made the text bigger. The size is read from
+    the workbench's own root rather than from the stored choice, so a frame that
+    arrives later — somebody opens the emulator after changing the size — is
+    given what is actually in force by the same path.
+  - [x] **The default is dark, deliberately, which is not what a new product
+    would choose.** Defaulting the theme to the machine's setting would mean
+    anybody whose computer is set to light opening a completely
+    different-looking application one morning without having asked for it; this
+    workbench has only ever been dark, so light is offered rather than imposed.
+    Contrast does follow the machine, because asking an operating system for
+    more contrast is already a deliberate act by somebody who needs it, and
+    honouring it changes colours rather than the character of the interface.
+  - [x] All four palettes are validated rather than asserted: `contrastAudit.ts`
+    parses `theme.css`, resolves each palette the way a browser does — an
+    override block laid over the one beneath it — and measures every declared
+    pairing. `PALETTE_TARGETS` holds the standard palettes to AA and the
+    high-contrast ones to AAA, and a case fails if a high-contrast palette ever
+    overrides nothing, since it would then pass by being the standard one.
+  - [x] Evidence: `src/theme/contrastAudit.test.ts` resolves all four palettes
+    out of `src/theme.css` and measures every pairing in each, and
+    `src/theme/appearance.test.ts` covers resolving `system` against the machine
+    in both directions, an explicit choice overriding it, releasing the media
+    listeners again, and a browser that throws on an unknown media feature.
+    `src/components/AppearancePanel.test.tsx` checks each control offers exactly
+    the choices its module defines, read inside its own control because theme
+    and contrast both offer “Match the system”.
+- [x] UX-122 Validate token contrast across normal/large text, controls, focus,
   charts, syntax, diagnostics, breakpoint, trace, selection, and disabled states.
+  - [x] **Measured, not reviewed.** Every text token is held to the normal-text
+    4.5:1 rather than the large-text 3:1, because a token is not a size: the
+    same `--theme-muted` sets captions and headings, so the stricter figure is
+    the only one true everywhere. Translucent colours are flattened over their
+    backdrop before comparing, since an overlay at 78% opacity is not the colour
+    it declares.
+  - [x] **The dark theme's control border was the live defect.** `--theme-line`
+    measured between 1.39 and 1.98 against every surface it is drawn on — the
+    border of about five hundred buttons, inputs and selects, and the boundary
+    WCAG 1.4.11 asks to reach 3:1 because it is what tells somebody where a
+    control is. It is one token rather than a new control-only variant, because
+    the same hairline separates panels and two nearly identical greys would be
+    the inconsistency this workbench exists not to have. `--theme-selection` was
+    darkened for the same reason, so that `--theme-faint` set on it clears 4.5.
+  - [x] Charts and diagnostics are covered by the same pairings rather than by
+    rows of their own, and that is a finding rather than a gap: neither has a
+    palette. The build graph draws headings in `--theme-secondary` and captions
+    in `--theme-faint` on `--theme-surface-2`; the three diagnostic lists use
+    `--theme-warning`, `--theme-danger` and `--theme-muted` on surfaces 1 and 2.
+    The only chart-specific custom property in the stylesheets is
+    `--graph-depth`, which is an indent and not a colour.
+  - [x] **Disabled controls now say it one way.** There were nine different
+    opacities meaning "this is disabled" — .35, .38, .4, .42, .45, .55, .58, .7
+    — across forty-six rules, so the same state looked different depending on
+    which panel it was in. They are one token now. The first attempt at this
+    also introduced a disabled *colour* alongside the dimming, which sounds more
+    thorough and measured worse than what it replaced: a muted ink at half
+    opacity came out at 1.58:1 where the plain text at .4 had been 3.43:1. Two
+    ways of saying "inactive" applied together do not say it twice, they
+    subtract twice. Dimming is the single mechanism, at .55 rather than .4, so
+    disabled text reads at 5.25:1 in the dark theme against the 3.43:1 it had.
+    The unused `--theme-disabled` palette entry was removed rather than given a
+    use it never had. WCAG 1.4.3 exempts disabled text from its contrast rule;
+    that is not a reason to make it harder to read than it was.
+  - [x] **Nineteen references to ten custom properties that were never
+    defined** were found while doing this and fixed. An undefined property does
+    not fall back: the declaration is invalid at computed-value time and becomes
+    `unset`, so an undefined colour inherits, an undefined background paints
+    nothing, and `border: 1px solid var(--undefined)` removes the border because
+    `border-style` reverts to `none`. `--theme-on-primary` was the label colour
+    on four buttons filled with `--theme-primary`; `--theme-green` was the only
+    thing showing a sprite-animation button was pressed; `--theme-line-soft` was
+    the divider in two tables that therefore had none; `--theme-active` was a
+    focus-visible background that never appeared; three dialogs and a popover
+    asked for shadows by names nobody had defined. `tokenReferences.test.ts`
+    holds this, and excuses only the eight properties set from script — checking
+    that something really does set each, so the exclusion list cannot become a
+    way of hiding the same defect.
+  - [x] Evidence: the audit fails on sabotage as well as passing — it was
+    written before the fixes and reported the nine dark-theme and forty-four
+    light-theme pairings that were below target, which are the measurements
+    quoted above. `src/theme/tokenReferences.test.ts` was likewise written
+    against the unfixed stylesheet and listed the ten undefined properties.
+  - [x] **The gate now re-measures contrast in every palette, and doing so found
+    that the rule itself was wrong.** The accessibility scan had always run in
+    whatever the page happened to be set to, which is the dark theme; a palette
+    nothing renders is a palette nothing checks. Sweeping all four found
+    seventy-six findings — and none of them were real. Chromium returns
+    `color(srgb r g b / a)` for anything that went through `color-mix()`, which
+    this workbench uses for a great many fills, and the rule's colour parser
+    understood only `rgb()`. An unreadable background was then treated as no
+    background at all, so the walk stepped past an opaque surface and compared
+    the text against whatever lay further out — on a light palette, white. The
+    parser now reads both shapes, and a background it still cannot read makes
+    the contrast undecidable rather than being stepped over, which is the answer
+    a translucent background already got.
+  - [x] With the rule reading fills correctly it found three real defects it had
+    been unable to see, one of them in the dark theme that had been passing for
+    months: the ACTIVE chip in the project tree sits on the tinted background of
+    the item it marks rather than on the panel, and measured 3.67:1 there. The
+    other two were mine, from the same afternoon — text on the machine's bezel
+    was first fixed by re-pointing the ink tokens across the whole
+    `.runtime-console` subtree, which was worse, because that subtree holds a
+    status panel painting a theme surface of its own and it inherited near-white
+    text onto cream at 1.01:1. A container cannot lend a colour to descendants
+    that bring their own background, so the text is named directly instead.
+  - [x] A finding now names the nearest ancestor that can identify itself. Half
+    of these were reported as `strong` and `small` and nothing more, which sends
+    the reader to search nineteen workspaces for them; `div.runtime-console > p`
+    is a finding somebody can act on.
 - [ ] UX-123 Specify reusable accessible primitives: button/icon button, split
   button, menu, tabs, tree, list/grid, combobox, form/error, toolbar, dialog,
   notification, splitter, status, tooltip, command palette, and virtualized table.
 - [ ] UX-124 Define canvas accessibility adapter pattern with structured view,
   keyboard actions, live coordinates/value, and text alternatives (UX-007).
-- [ ] UX-125 Define empty/loading/stale/offline/error/permission/quota/unsupported
+- [x] UX-125 Define empty/loading/stale/offline/error/permission/quota/unsupported
   states and prevent layout shift or ambiguous spinners.
+  - [x] **The convention was already there and unwritten, and measuring it found
+    it holds.** Fifty-four empty states are written as literal sentences naming
+    the condition that applies — "No media is mounted in this session", "No real
+    Tube ULA access has crossed the wrapped core boundary yet", "The selected
+    toolchain supplied address symbols and source locations, but no type
+    records". A search for the generic placeholders that usually accumulate — No
+    data, Nothing here, Loading…, Please wait, N/A, Coming soon — returns
+    thirty-four matches and every one is a false positive: an identifier called
+    `isEmptyAnnotations`, an "Empty trash" button, "Empty" as the name of a tile
+    brush. There is no generic placeholder in the product.
+  - [x] **There are no spinners, which is a stronger answer than unambiguous
+    ones.** Nothing in the interface turns indefinitely. The only looping
+    animation in the stylesheet is `screen-blink`, the machine's own cursor
+    imitating a BBC Micro's blinking block, which is a picture of hardware
+    rather than a claim about progress. `src/theme/waitingStates.test.ts` holds
+    that: an animation that repeats for ever is a spinner however it is drawn,
+    and the one allowance is checked to still describe something real so it
+    cannot outlive what it was written for.
+  - [x] Not every empty state names a next step, and that is deliberate rather
+    than an oversight: thirty-seven of the fifty-four do not, and they are the
+    ones where nothing has happened yet — "No breakpoint log events in this
+    debug session" sits beside the controls that would produce some. Requiring
+    an imperative in all of them would add words that say less than the panel
+    around them already does.
+  - [x] Evidence: the four-palette accessibility sweep in the `smoke` stage
+    renders these states in nineteen workspaces and holds every one of them to
+    its contrast target, so they are checked as rendered text rather than only
+    as strings in the source.
 - [ ] UX-126 Define wording, Acorn number/address conventions, dates/units,
   localization readiness, and no-colour-only status patterns.
+  - [x] **The Acorn number convention is settled and now held.** Acorn wrote
+    hexadecimal with an ampersand and capital digits, and this product is read
+    by people who have been reading `&` for forty years. Of the hundred and
+    fifty-odd places that convert a number to hex, a hundred write `&` with
+    capitals and padding and thirty-two more write `&` with capitals where the
+    width genuinely varies, such as a BASIC token byte; the remainder are label
+    names and digests, which are not addresses. The sigil is deliberately not
+    always `&`: `formatAddress` writes `0x` into C and ARM source and `$` into
+    ca65 assembly, because those are the notations those assemblers accept.
+    `src/theme/acornConventions.test.ts` refuses an Acorn address written with
+    lower-case digits, and was proved by sabotaging one.
+  - [x] Status is not carried by colour alone, and the gate checks it where it
+    matters most: the `forced-colours` condition is emulated with the system
+    palette replacing the product's own, and every control is required to keep a
+    boundary a person can see. The state pills carry their words — SUPPORTED,
+    PREVIEW, PLANNED — rather than only a hue.
+  - [ ] **Localisation readiness is not done and should not be claimed.** Every
+    string in the product is inline English; there is no message catalogue and
+    no formatting boundary to put one behind. Dates and sizes do go through
+    `toLocaleString`, so those would follow a locale already, but the words
+    would not. This is the part of UX-126 that is real work rather than a
+    convention to write down, and it is what keeps the item open.
+  - [x] **The wording guide is written, and read off the product rather than
+    invented for it.** `docs/wording.md` states the voice the four hundred and
+    fifty refusals are already written in — name the thing, the measurement and
+    the consequence, and never claim more than was measured — with the product's
+    own sentences as the examples. It also records the number convention, the
+    menu convention (a word or two, detail in the tooltip), the empty-state rule
+    and the no-colour-only rule, and it ends by saying plainly which part of
+    UX-126 is not done. Each factual claim was checked: 86 uses of KiB against 5
+    of MB, three declared control heights, and the quoted messages taken
+    verbatim.
+  - [x] `docs/theming.md` was brought up to date at the same time. It described
+    one palette and now describes four, says why `system` is resolved in script
+    rather than by a media query, and states what neither instrument checks: a
+    deployment override is measured by neither the token audit nor the rendered
+    sweep, because both read this repository's own palette.
 
 ### 3.3 Accessibility test foundation
 
@@ -6185,6 +6404,22 @@ Current implemented increment:
     another machine is marked as unable to settle the question, that a
     difference is located inside a named box, and that a missing sound write is
     reported as absent rather than as a zero.
+- [x] **Three suites could fail on a timeout under a full parallel run and pass
+  on their own, and that is now fixed rather than tolerated.** A test that only
+  passes when nothing else is running is not reproducible, which is the one
+  thing every test here has to be. The cause was contention, not code: the BASIC
+  rename case takes 3.2 seconds by itself and more than ten with eight workers
+  sharing eight cores, and the screen codec's round trip takes fifteen seconds
+  idle. The per-test bound had been left at ten seconds when the hook bound was
+  raised to thirty for exactly this reason — "a loaded machine fails them for
+  reasons that have nothing to do with the code under test" — so it now matches,
+  the four per-test overrides that sat below it were raised to it, and the codec
+  property suite, which is genuinely heavy, was given ninety seconds. A timeout
+  is there to catch a test that never finishes, not to measure how busy the
+  machine was; the performance suite, which really does measure speed, keeps
+  calibrating its budget against the machine and fails with a number rather than
+  on a timeout.
+
 - [ ] TST-506 Build platform conformance suites for CPU/flags, timing, banking,
   media, Tube, breakpoint maps, trace, input, frames, sound, and state replay.
   - [x] The suite exists and is written against the same test-plan machinery the

@@ -715,6 +715,45 @@ await stage('smoke', async () => {
       await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
     }
 
+    /*
+     * The same scan again in every palette this build can show.
+     *
+     * The scan above runs in whatever the page happens to be set to, which is
+     * the dark theme, and that is what it had always checked. The light theme
+     * was reachable for the first time and had never been rendered by anything;
+     * measured, it had eleven pieces of text below their contrast target, and
+     * the token-level audit could not see any of them — text on the machine's
+     * bezel, which stays dark in every theme, and text on the page ground,
+     * which the audit was not comparing against. A palette nothing renders is a
+     * palette nothing checks.
+     *
+     * Only the contrast rules are re-run: roles, labels and keyboard reach do
+     * not change with the colours, and walking every workspace four times over
+     * would cost minutes to re-establish what the first pass established.
+     */
+    const PALETTES = [['dark', 'standard'], ['light', 'standard'], ['dark', 'more'], ['light', 'more']];
+    const paletteFindings = [];
+    for (const [theme, contrast] of PALETTES) {
+      await evaluate(`(() => { const root = document.documentElement; root.setAttribute('data-theme', ${JSON.stringify(theme)}); root.setAttribute('data-contrast', ${JSON.stringify(contrast)}); })()`);
+      for (const workspace of visited) {
+        await evaluate(`(() => {
+          const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === ${JSON.stringify(workspace)});
+          if (tab) tab.click();
+        })()`);
+        await delay(320);
+        for (const finding of await evaluate(SCAN)) {
+          if (finding.rule !== 'contrast') continue;
+          paletteFindings.push({ ...finding, detail: `${finding.detail} (in ${workspace}, ${theme}/${contrast})` });
+        }
+      }
+    }
+    /* Back to the shipped default, so nothing after this reads a palette the
+     * scan left behind. */
+    await evaluate(`(() => { const root = document.documentElement; root.setAttribute('data-theme', 'dark'); root.setAttribute('data-contrast', 'standard'); })()`);
+    if (paletteFindings.length) {
+      throw new Error(`${paletteFindings.length} contrast finding(s) across ${PALETTES.length} palettes: ${summarise(paletteFindings).slice(0, 4).join(' | ')}`);
+    }
+
     await call('Emulation.clearDeviceMetricsOverride');
 
     if (!draggableSeen) throw new Error('No draggable element was on screen during the scan, so the keyboard-alternative rule checked nothing');
@@ -815,7 +854,7 @@ await stage('smoke', async () => {
     }
 
     if (errors.length) throw new Error(`The workbench reported ${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`);
-    return { detail: `${workspaces} controls under the shipped security headers, every one at one of ${CONTROL_HEIGHTS.length} declared sizes, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
+    return { detail: `${workspaces} controls under the shipped security headers, every one at one of ${CONTROL_HEIGHTS.length} declared sizes, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, contrast re-measured in all ${PALETTES.length} palettes, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
   } finally {
     /* Every handle opened here is closed here. A gate that printed its verdict
      * and then sat with an open socket would hang a pipeline until its timeout

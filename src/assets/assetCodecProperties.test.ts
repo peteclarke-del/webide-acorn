@@ -141,7 +141,15 @@ const CODECS: Codec[] = [
 ];
 
 const DEFAULT_CASES = 60;
-const TIMEOUT_MS = 30_000;
+/*
+ * Generous, because this suite is genuinely heavy and the bound is there to
+ * catch a hang rather than to measure the machine. The screen codec's round
+ * trip takes fifteen seconds on an idle machine — it builds and re-parses whole
+ * framebuffers — and was seen to pass thirty under a full parallel run, which
+ * says nothing about the codec and only that eight workers were sharing eight
+ * cores. A test that passes alone and fails in company is not reproducible.
+ */
+const TIMEOUT_MS = 90_000;
 
 describe.each(CODECS)('$name codec properties', (codec) => {
   it('serializes, re-parses and regenerates identically', async () => {

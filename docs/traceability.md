@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 302 |
-| Complete | 204 |
-| Complete and traced | 127 |
+| Complete | 207 |
+| Complete and traced | 130 |
 | Complete and described | 77 |
 | Complete and untraced | 0 |
-| Open | 98 |
+| Open | 95 |
 
 ## By area
 
@@ -40,7 +40,7 @@ is the part a machine can settle.
 | ANL | 18 | 16 | 14 | 2 | 0 |
 | EMU | 18 | 12 | 3 | 9 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
-| UX | 16 | 0 | 0 | 0 | 0 |
+| UX | 16 | 3 | 3 | 0 | 0 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
 | DOC | 10 | 9 | 7 | 2 | 0 |
 | DOD | 10 | 8 | 2 | 6 | 0 |
@@ -89,6 +89,9 @@ None. Every completed requirement records how it was verified.
 | P0-042 | Write ADR for persistence using access patterns, consistency,… | 26 contracts in `backend/tests/Storage/ProjectStoreTest.php` for the access patterns and the stale-parent refusal, 5 in `backend/tests/Storage/StoreRecoveryTest.php` for backup, restore and integrity, and the… |
 | P0-046 | Define build/runtime sandbox: non-root identity, immutable image,… | 6 contracts in `scripts/sandboxDeployment.test.ts` audit the shipped Compose definition for exactly these properties, so a relaxation made in the deployment fails the gate rather than passing unnoticed, and the backend… |
 | P0-048 | Define privacy data inventory and retention/export/deletion/audit/… | the `hygiene` gate stage proves no firmware, capture or credential is tracked in 684 project files and 37 built ones, and the observability contracts under PLAT-204 cover the correlation identifier and the redaction. |
+| UX-121 | Define semantic theme tokens for every state listed by UX-005 and… | `src/theme/contrastAudit.test.ts` resolves all four palettes out of `src/theme.css` and measures every pairing in each, and `src/theme/appearance.test.ts` covers resolving `system` against the machine in both… |
+| UX-122 | Validate token contrast across normal/large text, controls, focus,… | the audit fails on sabotage as well as passing — it was written before the fixes and reported the nine dark-theme and forty-four light-theme pairings that were below target, which are the measurements quoted above.… |
+| UX-125 | Define empty/loading/stale/offline/error/permission/quota/unsupported… | the four-palette accessibility sweep in the `smoke` stage renders these states in nineteen workspaces and holds every one of them to its contrast target, so they are checked as rendered text rather than only as strings… |
 | A11Y-100 | Publish WCAG 2.2 AA conformance checklist mapped to components and… | 12 contracts covering the checked-in document matching the generator, internal consistency, all 55 criteria present exactly once, 4.1.1 absent because WCAG 2.2 removed it, all six criteria WCAG 2.2 added being present,… |
 | A11Y-101 | Add static linting and automated browser accessibility scans with… | 11 rule contracts driving the same expression the gate runs, covering every accepted way of giving a name, both exemption paths, the boundary at exactly the minimum size, something that cannot be hit at its own centre,… |
 | A11Y-102 | Build keyboard-only scripts for each workbench surface and all… | 7 further contracts covering an unreachable group, a roving tab stop being accepted, a page with no tab stop at all, dragging with no alternative, an alternative claimed without being stated, a stated one, and a… |
@@ -224,7 +227,7 @@ None. Every completed requirement records how it was verified.
 | P0-025 | Model Master 128, Turbo, 512, and Compact as host/expansion profiles rather than names… | 2 of 3 parts done |
 | P0-029 | Define host-plus-parasite Tube schema, clocks/address spaces, ULA channels, emulator… | 2 of 3 parts done |
 | P0-030 | Review every profile with machine specialists and cite technical sources; create… | not started |
-| P0-043 | Write ADRs for job/event delivery, object storage, real-time debug transport,… | 1 of 3 parts done |
+| P0-043 | Write ADRs for job/event delivery, object storage, real-time debug transport,… | 2 of 3 parts done |
 | P0-044 | Define API schemas, error envelope, idempotency, pagination, binary transfer, job state… | 5 of 6 parts done |
 | P0-045 | Threat-model all assets and boundaries in SEC-001 and assign controls, test strategy,… | 2 of 3 parts done |
 | P0-047 | Define capability/resource-scope catalogue and shared-admin integration (ARC-07, CLD-003,… | not started |
@@ -239,12 +242,9 @@ None. Every completed requirement records how it was verified.
 | UX-106 | Define command palette taxonomy and default/remappable shortcuts, including conflict… | 7 of 8 parts done |
 | UX-107 | User-test J-01, J-04, J-05, and J-07 prototypes with relevant personas and revise before… | not started |
 | UX-120 | Create original logo/icon family and document permissible Acorn- inspired motifs and… | not started |
-| UX-121 | Define semantic theme tokens for every state listed by UX-005 and validate dark, light,… | not started |
-| UX-122 | Validate token contrast across normal/large text, controls, focus, charts, syntax,… | not started |
 | UX-123 | Specify reusable accessible primitives: button/icon button, split button, menu, tabs,… | not started |
 | UX-124 | Define canvas accessibility adapter pattern with structured view, keyboard actions, live… | not started |
-| UX-125 | Define empty/loading/stale/offline/error/permission/quota/unsupported states and prevent… | not started |
-| UX-126 | Define wording, Acorn number/address conventions, dates/units, localization readiness,… | not started |
+| UX-126 | Define wording, Acorn number/address conventions, dates/units, localization readiness,… | 4 of 5 parts done |
 | A11Y-103 | Establish manual screen-reader matrix and recruit representative testers before feature… | not started |
 | UX-GATE | Stakeholders and accessibility reviewers accept an interactive prototype for desktop and… | not started |
 | PLAT-200 | Scaffold React/TypeScript/Vite client and supported PHP/Symfony services only after… | not started |
@@ -262,7 +262,7 @@ None. Every completed requirement records how it was verified.
 | ANL-310 | Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers behind processor-specific… | 3 of 4 parts done |
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable… | not started |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
-| EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 53 of 60 parts done |
+| EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 54 of 61 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,… | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |

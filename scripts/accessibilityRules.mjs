@@ -53,12 +53,24 @@ export const CONTRAST_LARGE = 3;
 export const SCAN = `(() => {
   const findings = [];
   const add = (rule, criterion, element, detail) => {
-    const identity = element
-      ? element.tagName.toLowerCase()
-        + (element.id ? '#' + element.id : '')
-        + (element.className && element.className.toString ? '.' + element.className.toString().trim().split(/\\s+/).slice(0, 2).join('.') : '')
-      : 'document';
-    findings.push({ rule, criterion, element: identity.slice(0, 80), detail });
+    /* A bare tag name is not something anybody can act on. Plenty of the
+     * elements these rules catch carry no id and no class of their own — a
+     * <strong> inside a panel — and a finding that says only "strong" sends the
+     * reader to search the page for it. So where the element cannot name
+     * itself, the nearest ancestor that can is named in front of it. */
+    const nameOf = (node) => node.tagName.toLowerCase()
+      + (node.id ? '#' + node.id : '')
+      + (node.className && node.className.toString ? '.' + node.className.toString().trim().split(/\\s+/).filter(Boolean).slice(0, 2).join('.') : '');
+    let identity = 'document';
+    if (element) {
+      identity = nameOf(element);
+      if (!element.id && !(element.className && element.className.toString().trim())) {
+        for (let parent = element.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+          if (parent.id || (parent.className && parent.className.toString().trim())) { identity = nameOf(parent) + ' > ' + identity; break; }
+        }
+      }
+    }
+    findings.push({ rule, criterion, element: identity.slice(0, 110), detail });
   };
 
   const shown = (node) => typeof node.checkVisibility === 'function'
@@ -137,11 +149,33 @@ export const SCAN = `(() => {
   }
 
   /* --- contrast --------------------------------------------------------- */
+  /*
+   * A computed colour, in either shape a browser gives back.
+   *
+   * Chromium returns rgb() for most declarations and color(srgb r g b / a)
+   * for anything that went through color-mix() — which this workbench uses
+   * for a great many fills. Reading only the first shape made every one of
+   * those look like no colour at all, and the walk below then stepped past an
+   * opaque background as though it were not there and compared the text with
+   * whatever was further out. On a light palette that produced near-white text
+   * measured against white: seventy-six findings, none of them real, on
+   * elements whose actual background was dark.
+   */
   const parseColour = (value) => {
-    const match = /rgba?\\(([^)]+)\\)/.exec(value);
-    if (!match) return null;
-    const parts = match[1].split(',').map((part) => Number(part.trim()));
-    return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+    const functional = /rgba?\\(([^)]+)\\)/.exec(value);
+    if (functional) {
+      const parts = functional[1].split(/[,\\s/]+/).filter(Boolean).map((part) => Number(part));
+      if (parts.slice(0, 3).some((part) => Number.isNaN(part))) return null;
+      return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+    }
+    const predefined = /color\\(srgb ([^)]+)\\)/.exec(value);
+    if (predefined) {
+      const parts = predefined[1].split(/[\\s/]+/).filter(Boolean).map((part) => Number(part));
+      if (parts.slice(0, 3).some((part) => Number.isNaN(part))) return null;
+      /* Predefined-space components are 0–1 rather than 0–255. */
+      return { r: parts[0] * 255, g: parts[1] * 255, b: parts[2] * 255, a: parts.length > 3 ? parts[3] : 1 };
+    }
+    return null;
   };
   const luminance = ({ r, g, b }) => {
     const channel = (value) => {
@@ -158,6 +192,12 @@ export const SCAN = `(() => {
       const colour = parseColour(style.backgroundColor);
       if (colour && colour.a === 1) return colour;
       if (colour && colour.a > 0) return null;
+      /* A background this cannot read is not a background that is not there.
+       * Stepping past one reports the text against a surface it is not on, so
+       * an unreadable value makes the contrast undecidable, the same answer a
+       * translucent one gets. A transparent value parses, and rightly keeps
+       * walking. */
+      if (!colour && style.backgroundColor && style.backgroundColor !== 'transparent') return null;
     }
     return { r: 255, g: 255, b: 255, a: 1 };
   };

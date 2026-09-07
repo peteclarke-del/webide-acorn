@@ -21,6 +21,8 @@ them later is a legal question and not only an engineering one.
 | [0008](0008-elkjs-electron-adapter-and-gpl-position.md) | ElkJS Electron adapter, and the GPL position it creates | Accepted; **licence position pending sign-off** |
 | [0009](0009-risc-os-c-toolchain-candidate.md) | RISC OS C toolchain candidate boundary | Accepted direction; toolchain unavailable |
 | [0010](0010-project-storage-and-revisions.md) | Project storage, revisions and the single local identity | Accepted for the local storage and revision slice |
+| [0011](0011-adapter-discovery.md) | Adapter discovery as a compiled table, not a registry | Accepted; implemented |
+| [0012](0012-reference-indexing.md) | Reference indexing in the browser, over imported packs | Accepted; implemented |
 
 ## A note on numbering
 
