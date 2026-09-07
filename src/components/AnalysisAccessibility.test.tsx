@@ -208,7 +208,7 @@ describe('the ARM BASIC dialect control', () => {
     const select = screen.getByLabelText('ARM BASIC dialect');
     expect(select).toHaveValue('bbc-basic-5');
     expect(within(select).getAllByRole('option').map((option) => option.textContent))
-      .toEqual(['BASIC V · 5-byte reals', 'BASIC VI · 8-byte reals']);
+      .toEqual(['BASIC V · RISC OS 2', 'BASIC V · RISC OS 3 and later', 'BASIC VI · 8-byte reals']);
   });
 
   it('reports the choice, so a listing can be re-read as BASIC VI', () => {

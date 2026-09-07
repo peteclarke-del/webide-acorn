@@ -4236,61 +4236,57 @@ Current implemented increment:
     it a plain one-byte token, checked entry by entry with zero differences — so
     sharing the tables is still right. But "identical" was the wrong word and
     the keyword-only comparison was the wrong check to draw it from.
-- [ ] **ANL-311 A tokenised RISC OS 2 BASIC program is decoded wrongly, and
-  nothing says so.** Reading every ARM ROM in the archive found five distinct
-  BASIC keyword tables, not one: 157 entries in RISC OS 2.00 (ROM030, ROM110,
-  ROM120), 158 in ROM200, and 161 in three later variants. The product ships one
-  BASIC V table, read from RISC OS 3.11, and uses it for every ARM machine.
-  - [ ] **The tables are not additive, which is what makes this a defect rather
+- [x] **ANL-311 A tokenised RISC OS 2 BASIC program was decoded wrongly, and
+  nothing said so.** Reading every ARM ROM in the archive found five distinct
+  BASIC keyword tables, not one: 157 entries in RISC OS 2.00, 158 in one 2.01
+  build, and 161 in three later variants. The product shipped one table, read
+  from RISC OS 3.11, and used it for every ARM machine.
+  - [x] **The tables are not additive, which is what made it a defect rather
     than a gap.** RISC OS 3.11 inserted `CRUNCH` at `&C7 &90` and shifted every
-    two-byte token after it. So `&C7 &94` is `LOAD` on RISC OS 2 and `LIST` on
-    3.11; `&C7 &95` is `LVAR` and `LOAD`; `&C7 &96` is `NEW` and `LVAR`. A
-    RISC OS 2 program read with the shipped table prints keywords the program
-    does not contain, and prints them confidently.
-  - [ ] It is reachable rather than theoretical: the A310 is a machine this
-    build qualifies, and RISC OS 2 is what an A310 shipped with. Anyone
-    analysing a tokenised BASIC file off an early Archimedes hits it.
-  - [ ] The fix is a dialect per ROM generation rather than per language name,
-    which is what the evidence says the tables are. The five tables and the ROMs
-    that carry each are recorded above; the RISC OS 2 table needs generating and
-    offering beside BASIC V and VI in the Analyse workspace, which already has
-    the control for it.
+    two-byte token after it, so `&C7 &94` is `LOAD` on RISC OS 2 and `LIST` on
+    3.11, `&C7 &95` is `LVAR` and `LOAD`, `&C7 &96` is `NEW` and `LVAR`. A RISC
+    OS 2 program read with the later table printed keywords the program does not
+    contain, confidently. The A310 this build qualifies shipped with RISC OS 2.
+  - [x] `BBC_BASIC_5_RISCOS2` is read out of ROM030 by the same reader as the
+    others, and the reason to trust it on that image is that it reproduces the
+    shipped RISC OS 3.11 table exactly — every keyword, every token and every
+    two-byte group — from ROM311. It carries its own table rather than sharing
+    one, which is the opposite of what BASIC VI does and for the same reason:
+    both follow what was measured.
+  - [x] It is selectable. The Analyse workspace's ARM BASIC control now offers
+    RISC OS 2, RISC OS 3 and later, and BASIC VI.
+  - [x] **Two tables cover all five, and that is measured rather than hoped.**
+    The reassignment happens in exactly one place, the two-byte `&C7` group, and
+    it has exactly two shapes: fourteen entries in RISC OS 2.00 and 2.01, and
+    eighteen in every later ROM including the Pace variant. Comparing the token
+    maps of the pairs inside each shape finds no slot meaning a different
+    keyword — RISC OS 2.01 adds `OVERLAY` and reassigns nothing, and the Pace
+    2-era table reassigns nothing against 3.11. So the defect class is closed by
+    these two dialects rather than needing one per ROM.
+  - [x] The one residual is named rather than left implicit: a RISC OS 2.01
+    program using `OVERLAY` decodes against the 2.00 table as an unknown token
+    instead of a wrong keyword. Unknown is the failure this build prefers,
+    because it can be seen.
+  - [ ] Statement forms are not established for RISC OS 2 and nothing is
+    claimed. BASIC V's were not read from a ROM — a linear keyword table does
+    not carry them — but measured by typing into a running RISC OS 3.11 machine
+    on this build's own A310 core. Doing the same with ROM030 is what would
+    close this, and the ROM is now to hand.
+  - [x] **Dialect inference was rebuilt twice while this landed, and both times
+    for the same reason.** It asked which tokens exactly one dialect defines,
+    then which tokens exactly one table defines; each time a dialect was added
+    the evidence appeared to vanish, when what had actually happened is that it
+    reached less far. A token now maps to the set of dialects that define it: a
+    set of one names a dialect, a smaller-than-all set narrows to those, and
+    `&7F` still says a file is an ARM BASIC and none of the four 6502 ones.
+  - [x] **That rebuild exposed a mistake before it shipped.** Counting every
+    token as evidence would have convicted every ARM file that lists anything:
+    `&C6`, `&C7` and `&C8` are ordinary keywords on a 6502 BASIC — AUTO, DELETE,
+    LOAD — and the two-byte prefixes on an ARM one, and `&CF`–`&D3` are the 6502
+    pseudo-variables and BASIC V's statement forms. A byte that means a
+    different kind of thing in different dialects is ambiguous by construction
+    and is not evidence; nine are excluded by name, and four tokens narrow.
 
-  - [x] The BASIC V table gained independent corroboration. It was read out of
-    two further ROMs from a different machine and two later operating systems —
-    the Risc PC's RISC OS 4.02 and 4.39 — both giving 161 entries ending at
-    `WIDTH` and agreeing with the shipped table on 160 of them. The two
-    differences are the ones already explained: one ROM lists `COLOR` where
-    another lists `COLOUR` at the same &FB, and the six pseudo-variable and
-    second-`ELSE` forms are not in a ROM's linear keyword table because they
-    were measured on a running machine. Three ROMs across three operating
-    systems is stronger evidence than any published table, and a published table
-    checked against this one agreed with 21 of its 123 entries.
-  - [x] Evidence: 7 contracts in `scripts/extractBasicTokens.test.ts` covering
-    the terminator in both families, built as fixtures in the ROMs' own shape
-    rather than copied out of firmware, so they run everywhere. The reproduction
-    of the hand transcription still holds.
-  - [x] **Abbreviation expansion follows the ROM's own order.** `P.` is PRINT
-    because PRINT is what the table reaches first, not because it sorts first —
-    PAGE and PI come earlier alphabetically. Two dialects can legitimately
-    expand the same abbreviation differently and do: the US ROM lists `COLOR`
-    first and the Master lists `COLOUR`, so `COLO.` is a different keyword on
-    each machine. Nothing inside a string, a REM tail or a DATA payload is ever
-    expanded, an unterminated string protects the rest of its line, and a
-    prefix matching nothing is left as written with the reason said.
-  - [x] **Inference refuses, and the tables show why that is the common case.**
-    Of the four 6502-family BASICs read here, exactly one token belongs to a
-    single dialect — `&CE`, `EDIT`, which only BASIC IV has. Every other token
-    is shared, so a tokenised BBC BASIC file almost never says which ROM wrote
-    it, and an inference that answered anyway would be inventing a dialect for
-    nearly every file it saw. It names BASIC IV where `EDIT` proves it, names
-    Atom where a line label proves it, and otherwise says plainly that the
-    dialect has to come from the machine. A file carrying tokens from more than
-    one dialect is refused rather than resolved in favour of the commonest.
-  - [x] Evidence: 8 table contracts including the reproduction of the hand
-    transcription, 14 abbreviation contracts and 7 inference contracts — among
-    them one asserting that exactly one token distinguishes the four dialects,
-    so if that ever changes the thing that notices is a test rather than a user.
 - [ ] ANL-310 Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers
   behind processor-specific contracts and complete opcode golden suites
   (ANL-007, ANL-017).

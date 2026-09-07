@@ -9,46 +9,39 @@ import { inferTextDialect, inferTokenisedDialect } from './basicDialectInference
 const bytes = (...values: number[]) => Uint8Array.from(values);
 
 describe('how much a tokenised file can say about itself', () => {
-  it('has almost nothing to go on, and that is a fact about the ROMs', () => {
-    /* Exactly one token belongs to a single keyword *table*. Every refusal
-     * below rests on that, so this contract should be the thing that notices if
-     * it stops being true.
+  it('can narrow but never name, and says which bytes are not evidence at all', () => {
+    /*
+     * No token names a single dialect. Four narrow the answer, and nine bytes
+     * that look as though they would are excluded because they mean different
+     * kinds of thing in different dialects.
      *
-     * The unit is the table rather than the dialect because two dialects now
-     * share one: BASIC V and BASIC VI carry the identical table — measured in
-     * every RISC OS 6 ROM, which holds both modules — and differ only in how a
-     * real number is stored, which no token records. Counted by dialect the
-     * answer would be zero unique tokens, and that would say the evidence had
-     * vanished when it had only stopped naming one of two names for it. */
+     * That exclusion is the part worth pinning. &C6, &C7 and &C8 are ordinary
+     * keywords on a 6502 BASIC — AUTO, DELETE, LOAD — and are the two-byte
+     * prefixes on an ARM one. &CF to &D3 are the 6502 pseudo-variables and
+     * BASIC V's statement forms. Counting a raw &C7 as proof of a 6502 BASIC
+     * would convict every ARM file that lists anything, and the file would then
+     * look like it carried tokens from two dialects at once.
+     */
+    const ambiguous = new Set<number>();
+    for (const dialect of BASIC_DIALECTS) {
+      for (const prefix of Object.keys(dialect.extended ?? {})) ambiguous.add(Number(prefix));
+      for (const token of Object.keys(dialect.statementForms ?? {})) ambiguous.add(Number(token));
+    }
+    expect([...ambiguous].sort((a, b) => a - b)).toEqual([0xc6, 0xc7, 0xc8, 0xcc, 0xcf, 0xd0, 0xd1, 0xd2, 0xd3]);
+
     const owners = new Map<number, string[]>();
-    const tables = new Map<number, object[]>();
     for (const dialect of BASIC_DIALECTS) {
       for (const token of Object.keys(dialect.tokens).map(Number)) {
+        if (ambiguous.has(token)) continue;
         owners.set(token, [...(owners.get(token) ?? []), dialect.id]);
-        tables.set(token, [...(tables.get(token) ?? []), dialect.tokens]);
       }
     }
-    const unique = [...tables].filter(([, carried]) => new Set(carried).size === 1);
-    expect(unique).toHaveLength(1);
-    expect(unique[0]![0]).toBe(0x7f);
-    expect(owners.get(0x7f)).toEqual(['bbc-basic-5', 'bbc-basic-6']);
-  });
+    expect([...owners].filter(([, ids]) => ids.length === 1), 'no token names one dialect').toEqual([]);
 
-  it('narrows to the two dialects a distinguishing token proves, and names neither', () => {
-    /*
-     * &7F is OTHERWISE, which only the ARM BASIC table has. That rules out all
-     * four 6502 dialects, which is real and useful; what it cannot do is choose
-     * between BASIC V and BASIC VI, because they are one table under two names.
-     *
-     * This used to name BASIC V, and stopped when BASIC VI was added. Refusing
-     * to name one is the honest answer, and reporting both candidates keeps the
-     * fact that was actually established.
-     */
-    const inferred = inferTokenisedDialect(bytes(0x0d, 0x00, 0x0a, 0x7f, 0x0d));
-    expect(inferred.dialect).toBeNull();
-    expect(inferred.candidates).toEqual(['bbc-basic-5', 'bbc-basic-6']);
-    expect(inferred.reason).toMatch(/share one keyword table/);
-    expect(inferred.reason).toMatch(/BBC BASIC V and BBC BASIC VI/);
+    const narrowing = [...owners].filter(([, ids]) => ids.length < BASIC_DIALECTS.length).sort((a, b) => a[0] - b[0]);
+    expect(narrowing.map(([token]) => token)).toEqual([0x7f, 0x8e, 0xce, 0xff]);
+    expect(narrowing[0]![1], 'OTHERWISE rules out the 6502 family')
+      .toEqual(['bbc-basic-5-riscos2', 'bbc-basic-5', 'bbc-basic-6']);
   });
 
   it('no longer claims &CE proves BASIC IV, because BASIC V calls it something else', () => {
@@ -78,7 +71,7 @@ describe('how much a tokenised file can say about itself', () => {
      * not what it claims, or a reader that has lost its place. */
     const inferred = inferTokenisedDialect(bytes(0x7f));
     expect(inferred.dialect).toBeNull();
-    expect(inferred.candidates).toEqual(['bbc-basic-5', 'bbc-basic-6']);
+    expect(inferred.candidates).toEqual(['bbc-basic-5-riscos2', 'bbc-basic-5', 'bbc-basic-6']);
     /* And with nothing distinguishing at all, no claim and no candidates
      * narrowed either. */
     expect(inferTokenisedDialect(bytes()).dialect).toBeNull();

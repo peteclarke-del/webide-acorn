@@ -91,7 +91,7 @@ describe('BBC BASIC V, against what the machine actually did', () => {
      * of them was written first. A 6502 dialect leaves `extended` undefined
      * rather than empty, because having no two-byte tokens and having some
      * nobody has established are different things. */
-    const ARM_DIALECTS = ['bbc-basic-5', 'bbc-basic-6'];
+    const ARM_DIALECTS = ['bbc-basic-5-riscos2', 'bbc-basic-5', 'bbc-basic-6'];
     const arm = BASIC_DIALECTS.filter((dialect) => ARM_DIALECTS.includes(dialect.id));
     expect(arm.map((dialect) => dialect.id)).toEqual(ARM_DIALECTS);
     for (const dialect of BASIC_DIALECTS) {

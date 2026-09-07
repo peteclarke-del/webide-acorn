@@ -29,7 +29,7 @@ describe('what the ROMs say about a keyword', () => {
     /* COLOR is in the map for one ROM and an alias in the other; looking only
      * at the map would report it missing from the machine that has it. */
     const found = basicKeywordAvailability('COLOR')!;
-    expect(found.dialects.map((entry) => entry.id)).toEqual(['bbc-basic-3', 'bbc-basic-4', 'bbc-basic-5', 'bbc-basic-6']);
+    expect(found.dialects.map((entry) => entry.id)).toEqual(['bbc-basic-3', 'bbc-basic-4', 'bbc-basic-5-riscos2', 'bbc-basic-5', 'bbc-basic-6']);
     expect(found.dialects.every((entry) => entry.tokens.includes(0xfb))).toBe(true);
   });
 

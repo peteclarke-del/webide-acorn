@@ -26,7 +26,7 @@ describe('the generated tables against the hand transcription', () => {
      * to. */
     /* Named by which processor's BASIC they are rather than by id, so a new ARM
      * dialect is held to the ARM rule instead of quietly failing the 6502 one. */
-    const ARM_DIALECTS = ['bbc-basic-5', 'bbc-basic-6'];
+    const ARM_DIALECTS = ['bbc-basic-5-riscos2', 'bbc-basic-5', 'bbc-basic-6'];
     const sixtyFiveOhTwo = BASIC_DIALECTS.filter((candidate) => !ARM_DIALECTS.includes(candidate.id));
     const arm = BASIC_DIALECTS.filter((candidate) => ARM_DIALECTS.includes(candidate.id));
     expect(sixtyFiveOhTwo.length, 'there are still 6502 tables to check').toBeGreaterThan(2);

@@ -36,14 +36,23 @@
  * table because they were measured on a running machine. Three ROMs across
  * three operating systems is better corroboration than any published table.
  *
- * BASIC VI is still absent, and the reason is now specific rather than general.
- * It is the same language with eight-byte reals, supplied as a separate
- * `BASIC64` module, and no ROM held here contains one: the Risc PC images were
- * searched for it and it is not in them, because on these versions BASIC64 was
- * supplied on disc rather than burnt into the ROM. Its tokens are widely said
- * to be identical to BASIC V's, and shipping a table on the strength of what is
- * said about it rather than what was measured is the thing this file exists not
- * to do.
+ * BASIC VI is here, and the note that used to stand in its place was wrong. It
+ * said BASIC64 "was supplied on disc rather than burnt into the ROM", which is
+ * not something a search can establish: what had actually been searched was the
+ * images then held, RISC OS 2.00 to 4.39, and BASIC64 genuinely is absent from
+ * all of those. Worse, most Acorn ARM ROM images are stored interleaved, so a
+ * plain string search over them reads scrambled bytes — `BASIC` itself does not
+ * appear in the A310 or A5000 images until they are de-interleaved four ways.
+ *
+ * With a complete RISC OS ROM set, `BASIC64` appears in seven images, all of
+ * them RISC OS 6, carrying a module header that reads BASIC64 / BASIC VI /
+ * 1.37. Each of those images holds *two* keyword tables, one in the `BASIC`
+ * module and one in `BASIC64`, which is what makes the identity everybody
+ * asserts checkable rather than assumable: the two can be compared inside a
+ * single image. They are identical in all seven, and against the table above
+ * every keyword and every token agrees, with one flag byte that does not —
+ * `STRING$(` is &80 here and &82 there, at the same token, and nothing derived
+ * from the flag changes. So BASIC VI shares this table rather than copying it.
  *
  * Two spellings can share one token: `COLOUR` and `COLOR` are both &FB, and
  * which one a ROM lists first is which one that machine would list back. Both
@@ -55,7 +64,7 @@
  * tables, and the digests say which firmware each came from.
  */
 
-export type BasicDialectId = 'bbc-basic-1' | 'bbc-basic-2' | 'bbc-basic-3' | 'bbc-basic-4' | 'bbc-basic-5' | 'bbc-basic-6' | 'atom-basic';
+export type BasicDialectId = 'bbc-basic-1' | 'bbc-basic-2' | 'bbc-basic-3' | 'bbc-basic-4' | 'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6' | 'atom-basic';
 
 export interface BasicDialect {
   id: BasicDialectId;
@@ -851,6 +860,222 @@ const BBC_BASIC_5_STATEMENT_FORMS: Record<number, string> = {
 
 const BBC_BASIC_5_ORDER: string[] = ["AND", "ABS", "ACS", "ADVAL", "ASC", "ASN", "ATN", "AUTO", "APPEND", "BGET", "BPUT", "BEATS", "BEAT", "COLOUR", "CALL", "CASE", "CHAIN", "CHR$", "CLEAR", "CLOSE", "CLG", "CLS", "COS", "COUNT", "CIRCLE", "CRUNCH", "COLOR", "DATA", "DEG", "DEF", "DELETE", "DIV", "DIM", "DRAW", "ENDPROC", "EDIT", "ENDWHILE", "ENDCASE", "ENDIF", "END", "ENVELOPE", "ELSE", "EVAL", "ERL", "ERROR", "EOF", "EOR", "ERR", "EXP", "EXT", "ELLIPSE", "FOR", "FALSE", "FILL", "FN", "GOTO", "GET$", "GET", "GOSUB", "GCOL", "HIMEM", "HELP", "INPUT", "IF", "INKEY$", "INKEY", "INT", "INSTR(", "INSTALL", "LIST", "LINE", "LOAD", "LOMEM", "LOCAL", "LEFT$(", "LEN", "LET", "LOG", "LN", "LIBRARY", "LVAR", "MID$(", "MODE", "MOD", "MOVE", "MOUSE", "NEXT", "NEW", "NOT", "OLD", "ON", "OFF", "OF", "ORIGIN", "OR", "OPENIN", "OPENOUT", "OPENUP", "OSCLI", "OTHERWISE", "OVERLAY", "PRINT", "PAGE", "PTR", "PI", "PLOT", "POINT(", "POINT", "PROC", "POS", "QUIT", "RETURN", "REPEAT", "REPORT", "READ", "REM", "RUN", "RAD", "RESTORE", "RIGHT$(", "RND", "RECTANGLE", "RENUMBER", "STEP", "SAVE", "SGN", "SIN", "SQR", "SOUND", "SPC", "STR$", "STRING$(", "STOP", "STEREO", "SUM", "SWAP", "SYS", "TAN", "TAB(", "TEMPO", "TEXTLOAD", "TEXTSAVE", "THEN", "TIME", "TINT", "TO", "TRACE", "TRUE", "TWINO", "TWIN", "UNTIL", "USR", "VDU", "VAL", "VPOS", "VOICES", "VOICE", "WHILE", "WHEN", "WAIT", "WIDTH"];
 
+/*
+ * BBC BASIC V as RISC OS 2 shipped it, which is not the table above.
+ *
+ * The tables were assumed to be one table per language and they are one per ROM
+ * generation. Reading every ARM ROM held here found five distinct ones: 157
+ * entries in RISC OS 2.00, 158 in one RISC OS 2.01 build, and 161 in three
+ * later variants.
+ *
+ * That would be a gap and not a defect if the growth were additive, and it is
+ * not. RISC OS 3.11 inserted CRUNCH at &C7 &90 and shifted every two-byte token
+ * after it, so the same bytes mean different keywords on the two machines:
+ *
+ *   &C7 &94   RISC OS 2: LOAD    RISC OS 3.11: LIST
+ *   &C7 &95   RISC OS 2: LVAR    RISC OS 3.11: LOAD
+ *   &C7 &96   RISC OS 2: NEW     RISC OS 3.11: LVAR
+ *
+ * A tokenised RISC OS 2 program read with the later table therefore prints
+ * keywords the program does not contain, and prints them confidently. The A310
+ * this build qualifies is a machine that shipped with RISC OS 2, so it is
+ * somebody's actual file rather than a hypothetical one.
+ *
+ * Read by the same reader as the others, and the reason to trust it on this ROM
+ * is that it reproduces the RISC OS 3.11 table above exactly — every keyword,
+ * every token and every two-byte group — from a different image.
+ *
+ * The statement forms are absent rather than empty, which is the same thing the
+ * 6502 dialects say by leaving them out. BASIC V's were not read from a ROM at
+ * all: they were measured by typing into a running RISC OS 3.11 machine on this
+ * build's own A310 core, because a ROM's linear table does not carry them.
+ * Nobody has done that on RISC OS 2, so nothing is claimed. It would be done
+ * the same way, with ROM030 in place of ROM311.
+ */
+const BBC_BASIC_5_RISCOS2_TOKENS: Record<number, string> = {
+  0x7f: "OTHERWISE",
+  0x80: "AND",
+  0x81: "DIV",
+  0x82: "EOR",
+  0x83: "MOD",
+  0x84: "OR",
+  0x85: "ERROR",
+  0x86: "LINE",
+  0x87: "OFF",
+  0x88: "STEP",
+  0x89: "SPC",
+  0x8a: "TAB(",
+  0x8b: "ELSE",
+  0x8c: "THEN",
+  0x8e: "OPENIN",
+  0x8f: "PTR",
+  0x90: "PAGE",
+  0x91: "TIME",
+  0x92: "LOMEM",
+  0x93: "HIMEM",
+  0x94: "ABS",
+  0x95: "ACS",
+  0x96: "ADVAL",
+  0x97: "ASC",
+  0x98: "ASN",
+  0x99: "ATN",
+  0x9a: "BGET",
+  0x9b: "COS",
+  0x9c: "COUNT",
+  0x9d: "DEG",
+  0x9e: "ERL",
+  0x9f: "ERR",
+  0xa0: "EVAL",
+  0xa1: "EXP",
+  0xa2: "EXT",
+  0xa3: "FALSE",
+  0xa4: "FN",
+  0xa5: "GET",
+  0xa6: "INKEY",
+  0xa7: "INSTR(",
+  0xa8: "INT",
+  0xa9: "LEN",
+  0xaa: "LN",
+  0xab: "LOG",
+  0xac: "NOT",
+  0xad: "OPENUP",
+  0xae: "OPENOUT",
+  0xaf: "PI",
+  0xb0: "POINT(",
+  0xb1: "POS",
+  0xb2: "RAD",
+  0xb3: "RND",
+  0xb4: "SGN",
+  0xb5: "SIN",
+  0xb6: "SQR",
+  0xb7: "TAN",
+  0xb8: "TO",
+  0xb9: "TRUE",
+  0xba: "USR",
+  0xbb: "VAL",
+  0xbc: "VPOS",
+  0xbd: "CHR$",
+  0xbe: "GET$",
+  0xbf: "INKEY$",
+  0xc0: "LEFT$(",
+  0xc1: "MID$(",
+  0xc2: "RIGHT$(",
+  0xc3: "STR$",
+  0xc4: "STRING$(",
+  0xc5: "EOF",
+  0xc9: "WHEN",
+  0xca: "OF",
+  0xcb: "ENDCASE",
+  0xcd: "ENDIF",
+  0xce: "ENDWHILE",
+  0xd4: "SOUND",
+  0xd5: "BPUT",
+  0xd6: "CALL",
+  0xd7: "CHAIN",
+  0xd8: "CLEAR",
+  0xd9: "CLOSE",
+  0xda: "CLG",
+  0xdb: "CLS",
+  0xdc: "DATA",
+  0xdd: "DEF",
+  0xde: "DIM",
+  0xdf: "DRAW",
+  0xe0: "END",
+  0xe1: "ENDPROC",
+  0xe2: "ENVELOPE",
+  0xe3: "FOR",
+  0xe4: "GOSUB",
+  0xe5: "GOTO",
+  0xe6: "GCOL",
+  0xe7: "IF",
+  0xe8: "INPUT",
+  0xe9: "LET",
+  0xea: "LOCAL",
+  0xeb: "MODE",
+  0xec: "MOVE",
+  0xed: "NEXT",
+  0xee: "ON",
+  0xef: "VDU",
+  0xf0: "PLOT",
+  0xf1: "PRINT",
+  0xf2: "PROC",
+  0xf3: "READ",
+  0xf4: "REM",
+  0xf5: "REPEAT",
+  0xf6: "REPORT",
+  0xf7: "RESTORE",
+  0xf8: "RETURN",
+  0xf9: "RUN",
+  0xfa: "STOP",
+  0xfb: "COLOUR",
+  0xfc: "TRACE",
+  0xfd: "UNTIL",
+  0xfe: "WIDTH",
+  0xff: "OSCLI",
+};
+
+const BBC_BASIC_5_RISCOS2_EXTENDED: Record<number, Record<number, string>> = {
+  0xc6: {
+    0x8e: "SUM",
+    0x8f: "BEAT",
+  },
+  0xc7: {
+    0x8e: "APPEND",
+    0x8f: "AUTO",
+    0x90: "DELETE",
+    0x91: "EDIT",
+    0x92: "HELP",
+    0x93: "LIST",
+    0x94: "LOAD",
+    0x95: "LVAR",
+    0x96: "NEW",
+    0x97: "OLD",
+    0x98: "RENUMBER",
+    0x99: "SAVE",
+    0x9a: "TWIN",
+    0x9b: "TWINO",
+  },
+  0xc8: {
+    0x8e: "CASE",
+    0x8f: "CIRCLE",
+    0x90: "FILL",
+    0x91: "ORIGIN",
+    0x92: "POINT",
+    0x93: "RECTANGLE",
+    0x94: "SWAP",
+    0x95: "WHILE",
+    0x96: "WAIT",
+    0x97: "MOUSE",
+    0x98: "QUIT",
+    0x99: "SYS",
+    0x9a: "INSTALL",
+    0x9b: "LIBRARY",
+    0x9c: "TINT",
+    0x9d: "ELLIPSE",
+    0x9e: "BEATS",
+    0x9f: "TEMPO",
+    0xa0: "VOICES",
+    0xa1: "VOICE",
+    0xa2: "STEREO",
+  },
+};
+
+const BBC_BASIC_5_RISCOS2_ORDER: string[] = ["AND","ABS","ACS","ADVAL","ASC","ASN","ATN","AUTO","APPEND","BGET","BPUT","BEATS","BEAT","COLOUR","CALL","CASE","CHAIN","CHR$","CLEAR","CLOSE","CLG","CLS","COS","COUNT","CIRCLE","COLOR","DATA","DEG","DEF","DELETE","DIV","DIM","DRAW","ENDPROC","EDIT","ENDWHILE","ENDCASE","ENDIF","END","ENVELOPE","ELSE","EVAL","ERL","ERROR","EOF","EOR","ERR","EXP","EXT","ELLIPSE","FOR","FALSE","FILL","FN","GOTO","GET$","GET","GOSUB","GCOL","HIMEM","HELP","INPUT","IF","INKEY$","INKEY","INT","INSTR(","INSTALL","LIST","LINE","LOAD","LOMEM","LOCAL","LEFT$(","LEN","LET","LOG","LN","LIBRARY","LVAR","MID$(","MODE","MOD","MOVE","MOUSE","NEXT","NEW","NOT","OLD","ON","OFF","OF","ORIGIN","OR","OPENIN","OPENOUT","OPENUP","OSCLI","OTHERWISE","PRINT","PAGE","PTR","PI","PLOT","POINT(","POINT","PROC","POS","QUIT","RETURN","REPEAT","REPORT","READ","REM","RUN","RAD","RESTORE","RIGHT$(","RND","RECTANGLE","RENUMBER","STEP","SAVE","SGN","SIN","SQR","SOUND","SPC","STR$","STRING$(","STOP","STEREO","SUM","SWAP","SYS","TAN","TAB(","TEMPO","THEN","TIME","TINT","TO","TRACE","TRUE","TWINO","TWIN","UNTIL","USR","VDU","VAL","VPOS","VOICES","VOICE","WHILE","WHEN","WAIT","WIDTH"];
+
+export const BBC_BASIC_5_RISCOS2: BasicDialect = {
+  id: "bbc-basic-5-riscos2",
+  label: "BBC BASIC V (RISC OS 2)",
+  tokens: BBC_BASIC_5_RISCOS2_TOKENS,
+  extended: BBC_BASIC_5_RISCOS2_EXTENDED,
+  order: BBC_BASIC_5_RISCOS2_ORDER,
+  aliases: [{keyword: "COLOR", sameAs: "COLOUR", token: 251}],
+  provenance: {
+    source: "riscos200",
+    sha256: "259f6ed232d2b1f2dbbdaa5edbf62087eaca88b36c32da041400173728086d0d",
+    detail: "BBC BASIC V as shipped in RISC OS 2.00, read from ROM030. 157 entries ending at WIDTH. The same reader reproduces the RISC OS 3.11 table exactly from ROM311, which is why it is trusted on this one. Statement forms are not established for this ROM: BASIC V's were measured on a running machine rather than read, and that has not been done for RISC OS 2.",
+  },
+};
+
 export const BBC_BASIC_5: BasicDialect = {
   id: "bbc-basic-5",
   label: "BBC BASIC V",
@@ -896,7 +1121,7 @@ export const BBC_BASIC_6: BasicDialect = {
   },
 };
 
-export const BASIC_DIALECTS: BasicDialect[] = [BBC_BASIC_1, BBC_BASIC_2, BBC_BASIC_3, BBC_BASIC_4, BBC_BASIC_5, BBC_BASIC_6];
+export const BASIC_DIALECTS: BasicDialect[] = [BBC_BASIC_1, BBC_BASIC_2, BBC_BASIC_3, BBC_BASIC_4, BBC_BASIC_5_RISCOS2, BBC_BASIC_5, BBC_BASIC_6];
 
 export function basicDialect(id: BasicDialectId): BasicDialect | undefined {
   return BASIC_DIALECTS.find((dialect) => dialect.id === id);

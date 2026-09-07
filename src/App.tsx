@@ -421,7 +421,7 @@ function App() {
    * let the person say which they are looking at, and to default to the one
    * their machine shipped with.
    */
-  const [armBasicDialect, setArmBasicDialect] = useState<'bbc-basic-5' | 'bbc-basic-6'>('bbc-basic-5');
+  const [armBasicDialect, setArmBasicDialect] = useState<'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6'>('bbc-basic-5');
   const [analysisActivity, setAnalysisActivity] = useState<{ status: 'idle' | 'running' | 'failed'; message: string }>({ status: 'idle', message: '' });
   const analysisTaskRef = useRef<AnalysisTask | undefined>(undefined);
   const [buildArtifact, setBuildArtifact] = useState<BuildArtifact | null>(null);
@@ -2608,8 +2608,8 @@ export interface AnalysisWorkspaceProps {
   onEntryChange: (value: string) => void;
   onProcessorChange: (value: AnalysisProcessor) => void;
   /** Which ARM BASIC a tokenised file is read as; the file cannot say. */
-  armBasicDialect: 'bbc-basic-5' | 'bbc-basic-6';
-  onArmBasicDialectChange: (value: 'bbc-basic-5' | 'bbc-basic-6') => void;
+  armBasicDialect: 'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6';
+  onArmBasicDialectChange: (value: 'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6') => void;
   onOpen: () => void;
   /* What the project itself can offer, so reading a program the workbench just
    * built does not mean going and finding it on disk again. */
@@ -2952,9 +2952,10 @@ export function AnalysisWorkspace({
               <select
                 aria-label="ARM BASIC dialect"
                 value={armBasicDialect}
-                onChange={(event) => onArmBasicDialectChange(event.target.value as 'bbc-basic-5' | 'bbc-basic-6')}
+                onChange={(event) => onArmBasicDialectChange(event.target.value as 'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6')}
               >
-                <option value="bbc-basic-5">BASIC V · 5-byte reals</option>
+                <option value="bbc-basic-5-riscos2">BASIC V · RISC OS 2</option>
+                <option value="bbc-basic-5">BASIC V · RISC OS 3 and later</option>
                 <option value="bbc-basic-6">BASIC VI · 8-byte reals</option>
               </select>
             </label>

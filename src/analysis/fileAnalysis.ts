@@ -1,5 +1,5 @@
 import { decodePlainText, decodeTokenizedBasic, isProbablyText, type BasicDecodeTables } from './bbcBasic';
-import { BBC_BASIC_5, BBC_BASIC_6 } from './basicDialects';
+import { BBC_BASIC_5, BBC_BASIC_5_RISCOS2, BBC_BASIC_6 } from './basicDialects';
 import { disassemble6502 } from './disassembler6502';
 import { disassembleArm } from './disassemblerArm';
 import { decodePlainBasic, type PlainBasicDialect } from './plainBasic';
@@ -21,7 +21,7 @@ export interface AnalysisOptions {
    * it is what every 6502 Acorn shares; an ARM machine runs BASIC V, whose
    * two-byte keywords a BASIC II table would read as two wrong ones.
    */
-  tokenisedBasicDialect?: 'bbc-basic-2' | 'bbc-basic-5' | 'bbc-basic-6';
+  tokenisedBasicDialect?: 'bbc-basic-2' | 'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6';
   /* What the reader has recorded about this binary. Carried through the worker
    * boundary as a plain document, and validated there rather than trusted. */
   annotations?: AnalysisAnnotations;
@@ -123,7 +123,23 @@ const BASIC_VI_TABLES: BasicDecodeTables = {
   statementForms: BBC_BASIC_6.statementForms,
 };
 
+/*
+ * BASIC V as RISC OS 2 shipped it, which is a different table.
+ *
+ * RISC OS 3.11 inserted CRUNCH into the two-byte group and shifted every token
+ * after it, so &C7 &94 is LOAD on RISC OS 2 and LIST on 3.11. Reading one
+ * machine's file with the other's table prints keywords the program does not
+ * contain.
+ */
+const BASIC_V_RISCOS2_TABLES: BasicDecodeTables = {
+  label: 'BBC BASIC V',
+  tokens: BBC_BASIC_5_RISCOS2.tokens,
+  extended: BBC_BASIC_5_RISCOS2.extended,
+  statementForms: BBC_BASIC_5_RISCOS2.statementForms,
+};
+
 function tablesFor(dialect: AnalysisOptions['tokenisedBasicDialect']): BasicDecodeTables | undefined {
+  if (dialect === 'bbc-basic-5-riscos2') return BASIC_V_RISCOS2_TABLES;
   if (dialect === 'bbc-basic-5') return BASIC_V_TABLES;
   if (dialect === 'bbc-basic-6') return BASIC_VI_TABLES;
   return undefined;
