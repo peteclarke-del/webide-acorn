@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFile, SourceBookmark } from '../project/project';
@@ -1089,5 +1089,64 @@ describe('type hints decorated beside the source', () => {
     open();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
     expect(screen.getByLabelText('Type hints beside the source').children).toHaveLength(cFile.content.split('\n').length);
+  });
+});
+
+function renderEditor() {
+  const file: ProjectFile = { id: 'main', name: 'main.asm', saved: true, savedContent: 'LDA #1', content: 'LDA #1', language: '6502', modified: false };
+  render(<SourceWorkspace files={[file]} activeFileId="main" onSelectFile={() => undefined} onChange={() => undefined} onNewFile={() => undefined} onRenameFile={() => undefined} onDeleteFile={() => undefined} onDownloadFile={() => undefined} onSave={() => undefined} onCaretChange={() => undefined} onNotice={() => undefined} />);
+}
+
+/*
+ * Leaving the editor with the keyboard.
+ *
+ * The textarea takes Tab so that Tab indents, which is right for the person
+ * typing and was a keyboard trap for the person navigating: focus went in and
+ * could not come out, which is what WCAG 2.1.2 forbids. A real Tab walk through
+ * the built workbench found it stuck there. The criterion allows a component to
+ * take a key it would otherwise pass on, provided there is a way out and the
+ * person is told what it is.
+ */
+describe('leaving the editor with the keyboard', () => {
+  it('indents by default, because that is what Tab is for in a code editor', () => {
+    renderEditor();
+    const editor = screen.getByLabelText(/^Edit /);
+    const event = createEvent.keyDown(editor, { key: 'Tab' });
+    fireEvent(editor, event);
+    expect(event.defaultPrevented, 'Tab still indents').toBe(true);
+  });
+
+  it('lets the next Tab move focus once Escape has armed it', () => {
+    renderEditor();
+    const editor = screen.getByLabelText(/^Edit /);
+    fireEvent.keyDown(editor, { key: 'Escape' });
+    const event = createEvent.keyDown(editor, { key: 'Tab' });
+    fireEvent(editor, event);
+    expect(event.defaultPrevented, 'Tab is left to the browser, so focus leaves').toBe(false);
+  });
+
+  it('arms once only, so Tab goes back to indenting', () => {
+    renderEditor();
+    const editor = screen.getByLabelText(/^Edit /);
+    fireEvent.keyDown(editor, { key: 'Escape' });
+    fireEvent.keyDown(editor, { key: 'Tab' });
+    const again = createEvent.keyDown(editor, { key: 'Tab' });
+    fireEvent(editor, again);
+    expect(again.defaultPrevented).toBe(true);
+  });
+
+  it('is cancelled by typing, so Tab never silently stops indenting', () => {
+    renderEditor();
+    const editor = screen.getByLabelText(/^Edit /);
+    fireEvent.keyDown(editor, { key: 'Escape' });
+    fireEvent.keyDown(editor, { key: 'a' });
+    const event = createEvent.keyDown(editor, { key: 'Tab' });
+    fireEvent(editor, event);
+    expect(event.defaultPrevented, 'typing cancelled the way out').toBe(true);
+  });
+
+  it('says how to leave, on the control itself', () => {
+    renderEditor();
+    expect(screen.getByLabelText(/^Edit /).getAttribute('aria-keyshortcuts')).toMatch(/Escape\+Tab/);
   });
 });

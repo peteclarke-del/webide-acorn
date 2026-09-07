@@ -64,7 +64,23 @@ There is no `role="tooltip"` anywhere. Menu entries and icon buttons carry a
 focus and hover management an ARIA tooltip needs to get right. Where the detail
 matters more than that, it is on the page instead of in a tooltip.
 
+## Leaving a control that takes Tab
+
+The source editor takes Tab so that Tab indents. That is the case WCAG 2.1.2 has
+in mind when it allows a component to hold a key it would otherwise pass on, and
+it is allowed only with a way out that the person is told about. **Escape arms
+it; the next Tab moves focus.** Typing anything else disarms it again, so Tab
+never quietly stops indenting, and the control announces `Escape+Tab` in its
+`aria-keyshortcuts`.
+
+The gate walks the workbench with trusted Tab presses — a synthesised Tab event
+does not move focus, so a check built on one would walk nothing and report
+cleanly. Where a control does not pass Tab on, the advertised way out is used
+and checked to work, because an advertised escape that does nothing is worse
+than none at all.
+
 ## What is still open
+
 
 The command palette's taxonomy and its default shortcuts are a product decision
 rather than an implementation one, and UX-106 stays open for it.

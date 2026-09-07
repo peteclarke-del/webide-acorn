@@ -716,6 +716,92 @@ await stage('smoke', async () => {
     }
 
     /*
+     * Tab through the workbench with real key presses, looking for a trap.
+     *
+     * Reachability is already checked, and reachability is not the same
+     * question: a control can be reachable and still be somewhere a person
+     * cannot leave. A focus trap outside a dialog is one of the few defects that
+     * makes a product unusable rather than merely awkward — somebody navigating
+     * by keyboard has no way out but to reload the page.
+     *
+     * WCAG 2.1.2 does not say a component may never hold Tab. It says that if
+     * focus can be moved to a component with the keyboard it must be possible to
+     * move it away with the keyboard, and that where that takes more than an
+     * unmodified Tab the person has to be told how. A code editor holding Tab so
+     * that Tab indents is exactly the case the criterion has in mind. So a
+     * control that does not pass Tab on is asked whether it advertises a way
+     * out, and then the way out is used and checked to work — because an
+     * advertised escape that does nothing is worse than none at all.
+     *
+     * The presses are dispatched through the browser rather than synthesised in
+     * the page: a synthesised Tab event does not move focus, so the walk would
+     * cover nothing and report cleanly.
+     */
+    const pressKey = async (key, code, keyCode) => {
+      for (const type of ['rawKeyDown', 'keyUp']) {
+        await call('Input.dispatchKeyEvent', { type, key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode });
+      }
+    };
+    const pressTab = () => pressKey('Tab', 'Tab', 9);
+    const pressEscape = () => pressKey('Escape', 'Escape', 27);
+    /*
+     * Which element has focus, identified by where it is rather than by what it
+     * is called. The first attempt used the tag, classes and label, and the
+     * capability toggles are a column of bare `<input type="checkbox">` named by
+     * a wrapping <label> — so every one of them produced the same string and the
+     * walk reported that focus had not moved when it had moved on by one. A
+     * position in the tree is unique whether or not the element says anything
+     * about itself.
+     */
+    const focusedNow = () => evaluate(`(() => {
+      const node = document.activeElement;
+      if (!node || node === document.body) return { id: 'body', escape: '', markup: '' };
+      const steps = [];
+      for (let at = node; at && at !== document.documentElement; at = at.parentElement) {
+        steps.unshift(at.tagName.toLowerCase() + ':' + ([...(at.parentElement?.children ?? [])].indexOf(at)));
+      }
+      const named = node.tagName.toLowerCase()
+        + (node.id ? '#' + node.id : '')
+        + (node.className && node.className.toString ? '.' + node.className.toString().trim().split(/\\s+/).filter(Boolean).slice(0, 2).join('.') : '')
+        + '|' + (node.getAttribute('aria-label') ?? node.textContent ?? '').trim().slice(0, 24);
+      return { id: steps.join('>'), named, escape: node.getAttribute('aria-keyshortcuts') ?? '', markup: node.outerHTML.slice(0, 180) };
+    })()`);
+
+    await evaluate(`(() => { const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === 'Code'); if (tab) tab.click(); document.body.focus(); })()`);
+    await delay(400);
+    const seen = new Set();
+    const heldWithEscape = [];
+    let previous = null;
+    const STEPS = 240;
+    for (let step = 0; step < STEPS; step += 1) {
+      await pressTab();
+      const now = await focusedNow();
+      seen.add(now.id);
+      if (previous && now.id === previous) {
+        /* Tab was taken by this control. Is there a stated way out, and does it
+         * work? */
+        if (!/escape/i.test(now.escape)) {
+          throw new Error(`Focus stayed on ${now.named} when Tab was pressed and it advertises no way out, so it is a keyboard trap (WCAG 2.1.2): ${now.markup}`);
+        }
+        await pressEscape();
+        await pressTab();
+        const after = await focusedNow();
+        if (after.id === now.id) {
+          throw new Error(`${now.named} advertises "${now.escape}" as the way out of it and focus did not move when that was pressed, which is worse than advertising nothing`);
+        }
+        heldWithEscape.push(now.id);
+        previous = after.id;
+        seen.add(after.id);
+        continue;
+      }
+      previous = now.id;
+    }
+    if (seen.size < 20) {
+      throw new Error(`${STEPS} Tab presses reached only ${seen.size} distinct controls, so focus is cycling within a small part of the page rather than moving through it`);
+    }
+    const tabWalk = { presses: STEPS, distinct: seen.size, held: [...new Set(heldWithEscape)].length };
+
+    /*
      * The same scan again in every palette this build can show.
      *
      * The scan above runs in whatever the page happens to be set to, which is
@@ -854,7 +940,7 @@ await stage('smoke', async () => {
     }
 
     if (errors.length) throw new Error(`The workbench reported ${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`);
-    return { detail: `${workspaces} controls under the shipped security headers, every one at one of ${CONTROL_HEIGHTS.length} declared sizes, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, contrast re-measured in all ${PALETTES.length} palettes, ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
+    return { detail: `${workspaces} controls under the shipped security headers, every one at one of ${CONTROL_HEIGHTS.length} declared sizes, no console or policy errors, reflow clean at ${SIZES.length} sizes down to 320px, ${visited.length} workspaces scanned at 1600x1000 after a real build with no accessibility finding, contrast re-measured in all ${PALETTES.length} palettes, ${tabWalk.presses} Tab presses reached ${tabWalk.distinct} controls with no focus trap (${tabWalk.held} hold Tab and say how to leave), ${conditions.length} user conditions honoured, ${drawingSeen} drawing surfaces with alternatives` };
   } finally {
     /* Every handle opened here is closed here. A gate that printed its verdict
      * and then sat with an open socket would hang a pipeline until its timeout

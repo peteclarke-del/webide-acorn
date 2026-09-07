@@ -120,6 +120,20 @@ export function SourceWorkspace({
   const [activeHelp, setActiveHelp] = useState<LanguageItem>();
   const [hoverHelp, setHoverHelp] = useState<LanguageItem>();
   const [signatureHelp, setSignatureHelp] = useState<SignatureHelp>();
+  /*
+   * Whether the next Tab leaves the editor instead of indenting.
+   *
+   * A code editor that swallows Tab does the right thing for the person typing
+   * and the wrong thing for the person navigating: focus goes in and cannot come
+   * out, which is what WCAG 2.1.2 forbids. The criterion allows a component to
+   * take a key it would otherwise pass on, provided there is a way out and the
+   * person is told what it is.
+   *
+   * So Escape arms this, the next Tab moves focus and disarms it, and typing
+   * anything else disarms it too, so the editor is never left in a state where
+   * Tab has quietly stopped indenting.
+   */
+  const [tabLeavesEditor, setTabLeavesEditor] = useState(false);
   const [autoNumber, setAutoNumber] = useState(initialNumbering.enabled);
   const [basicStart, setBasicStart] = useState(String(initialNumbering.start));
   const [basicIncrement, setBasicIncrement] = useState(String(initialNumbering.increment));
@@ -785,6 +799,11 @@ export function SourceWorkspace({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    /* Any key that is not the way out cancels it, so the editor is never left
+     * in a state where Tab has quietly stopped indenting. */
+    if (tabLeavesEditor && event.key !== 'Tab' && event.key !== 'Escape' && !['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+      setTabLeavesEditor(false);
+    }
     const candidates = chordCandidates(event);
     const held = pendingEditorChord.current;
     const pending = held && Date.now() - held.at <= CHORD_SEQUENCE_TIMEOUT_MS ? held.chord : null;
@@ -818,7 +837,11 @@ export function SourceWorkspace({
       }
     }
     if (event.key === 'Escape' && signatureHelp) { event.preventDefault(); setSignatureHelp(undefined); return; }
+    /* Escape again, with no popup left to dismiss, arms the way out. */
+    if (event.key === 'Escape') { event.preventDefault(); setTabLeavesEditor(true); return; }
     if (event.key === 'Tab') {
+      /* Armed by Escape: let the browser move focus, and disarm. */
+      if (tabLeavesEditor) { setTabLeavesEditor(false); return; }
       event.preventDefault();
       const textarea = event.currentTarget;
       if (textarea.value.slice(textarea.selectionStart, textarea.selectionEnd).includes('\n') || event.shiftKey) runEditorCommand(event.shiftKey ? 'outdent-lines' : 'indent-lines');
@@ -926,7 +949,7 @@ export function SourceWorkspace({
             aria-controls="source-command-completion"
             aria-expanded={completionOpen}
             aria-activedescendant={completionOpen && suggestions[completionIndex] ? `source-completion-${completionIndex}` : undefined}
-            aria-keyshortcuts={editorAriaKeyShortcuts}
+            aria-keyshortcuts={`Escape+Tab ${editorAriaKeyShortcuts}`}
             onChange={(event) => {
               if (isReadOnly) { onNotice(`${file.name} is read-only; source was not changed`); return; }
               const next = event.target.value; const position = event.target.selectionStart;

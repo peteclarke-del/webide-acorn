@@ -721,6 +721,33 @@ Companion specification: `docs/requirements-specification.md`
   warnings, support badges, ROM prerequisites, and profile manifest summary.
 - [ ] UX-105 Define focus movement across docks, tabs, toolbars, trees, editor,
   emulator, canvas alternatives, inspector, modals, and notifications.
+  - [x] **The editor was a keyboard trap, and a Tab walk with real key presses
+    found it.** The textarea takes Tab so that Tab indents, which is right for
+    the person typing and was fatal for the person navigating: focus went in and
+    could not come out by any key, so somebody using the keyboard had no way out
+    but to reload the page. WCAG 2.1.2 permits a component to hold a key it
+    would otherwise pass on, but only where there is a way out and the person is
+    told what it is. Escape now arms the way out, the next Tab moves focus and
+    disarms it, typing anything else disarms it too so Tab never quietly stops
+    indenting, and `aria-keyshortcuts` announces `Escape+Tab` on the control.
+  - [x] **The gate now walks the workbench with trusted Tab presses**, because a
+    synthesised Tab event does not move focus — a check built on one would walk
+    nothing and report cleanly. It reaches 220 distinct controls in 240 presses.
+    Where a control does not pass Tab on, it is asked whether it advertises a
+    way out, and then that way out is used and checked to work: an advertised
+    escape that does nothing is worse than none at all. Proved by removing the
+    editor's escape, which produced exactly that message.
+  - [x] Two of my own mistakes are worth recording, because both are the same
+    mistake. The first rule required Tab always to move focus, which would have
+    demanded the editor stop indenting; the criterion does not say that. The
+    second identified the focused element by tag, class and label, and the
+    capability toggles are a column of bare `<input type="checkbox">` named by a
+    wrapping label — so every one produced the same string and the walk reported
+    a trap where focus had simply moved on by one. It identifies elements by
+    position in the tree now, which is unique whether or not an element says
+    anything about itself.
+  - [x] Focus order itself needs nothing: there is no positive `tabIndex`
+    anywhere in the product, only `0` and `-1`, so the order is document order.
 - [ ] UX-106 Define command palette taxonomy and default/remappable shortcuts,
   including conflict detection with browser and emulated keyboards (EDT-008).
   - [x] `src/commands/keyBindings.ts` is now the single declared inventory of
