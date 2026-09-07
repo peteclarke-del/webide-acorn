@@ -411,6 +411,17 @@ function App() {
   const [analysisOrigin, setAnalysisOrigin] = useState('&1900');
   const [analysisEntry, setAnalysisEntry] = useState('&1900');
   const [analysisProcessor, setAnalysisProcessor] = useState<AnalysisProcessor>(() => analysisProcessorForMachine(machine.cpu));
+  /*
+   * Which ARM BASIC a tokenised file is read as.
+   *
+   * It cannot be inferred from the file. BASIC V and BASIC VI share one keyword
+   * table — measured across seven RISC OS 6 ROMs, each of which carries both
+   * modules — and differ in how a real number is stored, five bytes against
+   * eight. Nothing in the tokens records that, so the only honest thing is to
+   * let the person say which they are looking at, and to default to the one
+   * their machine shipped with.
+   */
+  const [armBasicDialect, setArmBasicDialect] = useState<'bbc-basic-5' | 'bbc-basic-6'>('bbc-basic-5');
   const [analysisActivity, setAnalysisActivity] = useState<{ status: 'idle' | 'running' | 'failed'; message: string }>({ status: 'idle', message: '' });
   const analysisTaskRef = useRef<AnalysisTask | undefined>(undefined);
   const [buildArtifact, setBuildArtifact] = useState<BuildArtifact | null>(null);
@@ -1025,7 +1036,7 @@ function App() {
     const task = startAnalysisTask(
       bytes,
       name,
-      { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', tokenisedBasicDialect: processor === 'arm2' || processor === 'arm3' ? 'bbc-basic-5' : 'bbc-basic-2', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) },
+      { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', tokenisedBasicDialect: processor === 'arm2' || processor === 'arm3' ? armBasicDialect : 'bbc-basic-2', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) },
       /* Bytes the parser has settled, in its own words. A stale worker's
        * progress cannot reach here: the client drops anything whose request
        * identity is not the current one. */
@@ -2452,6 +2463,8 @@ function App() {
                 onOriginChange={setAnalysisOrigin}
                 onEntryChange={setAnalysisEntry}
                 onProcessorChange={setAnalysisProcessor}
+                armBasicDialect={armBasicDialect}
+                onArmBasicDialectChange={setArmBasicDialect}
                 onOpen={openAnalysisFile}
                 candidates={analysisPickerCandidates}
                 onChooseCandidate={chooseAnalysisCandidate}
@@ -2594,6 +2607,9 @@ export interface AnalysisWorkspaceProps {
   onOriginChange: (value: string) => void;
   onEntryChange: (value: string) => void;
   onProcessorChange: (value: AnalysisProcessor) => void;
+  /** Which ARM BASIC a tokenised file is read as; the file cannot say. */
+  armBasicDialect: 'bbc-basic-5' | 'bbc-basic-6';
+  onArmBasicDialectChange: (value: 'bbc-basic-5' | 'bbc-basic-6') => void;
   onOpen: () => void;
   /* What the project itself can offer, so reading a program the workbench just
    * built does not mean going and finding it on disk again. */
@@ -2639,7 +2655,7 @@ function ProjectAnalysisPicker({ candidates, onChoose, disabled }: { candidates:
 
 export function AnalysisWorkspace({
   file, origin, entryPoint, processor, activity, onOriginChange, onEntryChange,
-  onProcessorChange, onOpen, candidates, onChooseCandidate, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
+  onProcessorChange, armBasicDialect, onArmBasicDialectChange, onOpen, candidates, onChooseCandidate, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
   annotations, history, onAnnotationsChange, onHistoryMove, coverage,
 }: AnalysisWorkspaceProps) {
   const [filter, setFilter] = useState('');
@@ -2917,6 +2933,31 @@ export function AnalysisWorkspace({
             <label><span>CPU</span><select aria-label="Analysis processor" value={processor} onChange={(event) => onProcessorChange(event.target.value as AnalysisProcessor)}><option value="6502">NMOS 6502</option><option value="65c02">65C02 / 65C12</option><option value="arm2">ARM2 · 26-bit</option><option value="arm3">ARM3 · 26-bit</option></select></label>
             <label><span>Load</span><input aria-label="Load address" value={origin} onChange={(event) => onOriginChange(event.target.value)} /></label>
             <label><span>Entry</span><input aria-label="Entry address" value={entryPoint} onChange={(event) => onEntryChange(event.target.value)} /></label>
+            <button type="button" disabled={activity.status === 'running'} onClick={onReanalyse}>Re-analyse</button>
+          </div>
+        )}
+        {/*
+          * Which ARM BASIC this listing is being read as.
+          *
+          * Only for a tokenised BASIC file on an ARM, and only because the file
+          * cannot answer it: BASIC V and BASIC VI share one keyword table —
+          * measured across seven RISC OS 6 ROMs, each carrying both modules —
+          * and differ in how a real is stored, five bytes against eight. A
+          * reader that guessed would be guessing about numbers.
+          */}
+        {file.analysis.kind === 'bbc-basic' && (processor === 'arm2' || processor === 'arm3') && (
+          <div className="analysis-options" aria-label="BASIC options">
+            <label>
+              <span>BASIC</span>
+              <select
+                aria-label="ARM BASIC dialect"
+                value={armBasicDialect}
+                onChange={(event) => onArmBasicDialectChange(event.target.value as 'bbc-basic-5' | 'bbc-basic-6')}
+              >
+                <option value="bbc-basic-5">BASIC V · 5-byte reals</option>
+                <option value="bbc-basic-6">BASIC VI · 8-byte reals</option>
+              </select>
+            </label>
             <button type="button" disabled={activity.status === 'running'} onClick={onReanalyse}>Re-analyse</button>
           </div>
         )}

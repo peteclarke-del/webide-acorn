@@ -84,9 +84,18 @@ describe('BBC BASIC V, against what the machine actually did', () => {
     expect(BASIC_V_MEASUREMENT_SOURCE.firmware).toContain('BBC BASIC V 1.05');
   });
 
-  it('is the only dialect here with two-byte keywords, and the others say so by having none', () => {
+  it('shares its two-byte keywords with BASIC VI, and the 6502 dialects say so by having none', () => {
+    /* Two-byte keywords are an ARM BASIC thing. BASIC VI has them because it is
+     * BASIC V's table under another name — measured, not assumed — so the rule
+     * is about which processor's BASIC a dialect is, not about which single one
+     * of them was written first. A 6502 dialect leaves `extended` undefined
+     * rather than empty, because having no two-byte tokens and having some
+     * nobody has established are different things. */
+    const ARM_DIALECTS = ['bbc-basic-5', 'bbc-basic-6'];
+    const arm = BASIC_DIALECTS.filter((dialect) => ARM_DIALECTS.includes(dialect.id));
+    expect(arm.map((dialect) => dialect.id)).toEqual(ARM_DIALECTS);
     for (const dialect of BASIC_DIALECTS) {
-      if (dialect.id === 'bbc-basic-5') expect(Object.keys(dialect.extended ?? {})).toHaveLength(3);
+      if (ARM_DIALECTS.includes(dialect.id)) expect(Object.keys(dialect.extended ?? {}), dialect.label).toHaveLength(3);
       else expect(dialect.extended, dialect.label).toBeUndefined();
     }
   });

@@ -24,10 +24,19 @@ describe('the generated tables against the hand transcription', () => {
      * begins — and that it does is the same corroboration from the other
      * direction: the reader stops where each table stops, not where it was told
      * to. */
-    for (const dialect of BASIC_DIALECTS.filter((candidate) => candidate.id !== 'bbc-basic-5')) {
+    /* Named by which processor's BASIC they are rather than by id, so a new ARM
+     * dialect is held to the ARM rule instead of quietly failing the 6502 one. */
+    const ARM_DIALECTS = ['bbc-basic-5', 'bbc-basic-6'];
+    const sixtyFiveOhTwo = BASIC_DIALECTS.filter((candidate) => !ARM_DIALECTS.includes(candidate.id));
+    const arm = BASIC_DIALECTS.filter((candidate) => ARM_DIALECTS.includes(candidate.id));
+    expect(sixtyFiveOhTwo.length, 'there are still 6502 tables to check').toBeGreaterThan(2);
+    expect(arm.length, 'and ARM ones').toBe(ARM_DIALECTS.length);
+    for (const dialect of sixtyFiveOhTwo) {
       expect(dialect.order[dialect.order.length - 1], dialect.label).toBe('HIMEM');
     }
-    expect(BASIC_DIALECTS.find((dialect) => dialect.id === 'bbc-basic-5')!.order.at(-1)).toBe('WIDTH');
+    for (const dialect of arm) {
+      expect(dialect.order.at(-1), dialect.label).toBe('WIDTH');
+    }
   });
 
   it('records which firmware each table came from', () => {

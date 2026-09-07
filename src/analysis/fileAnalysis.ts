@@ -1,5 +1,5 @@
 import { decodePlainText, decodeTokenizedBasic, isProbablyText, type BasicDecodeTables } from './bbcBasic';
-import { BBC_BASIC_5 } from './basicDialects';
+import { BBC_BASIC_5, BBC_BASIC_6 } from './basicDialects';
 import { disassemble6502 } from './disassembler6502';
 import { disassembleArm } from './disassemblerArm';
 import { decodePlainBasic, type PlainBasicDialect } from './plainBasic';
@@ -21,7 +21,7 @@ export interface AnalysisOptions {
    * it is what every 6502 Acorn shares; an ARM machine runs BASIC V, whose
    * two-byte keywords a BASIC II table would read as two wrong ones.
    */
-  tokenisedBasicDialect?: 'bbc-basic-2' | 'bbc-basic-5';
+  tokenisedBasicDialect?: 'bbc-basic-2' | 'bbc-basic-5' | 'bbc-basic-6';
   /* What the reader has recorded about this binary. Carried through the worker
    * boundary as a plain document, and validated there rather than trusted. */
   annotations?: AnalysisAnnotations;
@@ -106,8 +106,31 @@ const BASIC_V_TABLES: BasicDecodeTables = {
   statementForms: BBC_BASIC_5.statementForms,
 };
 
+/*
+ * BASIC VI decodes with the same tables and says so with its own name.
+ *
+ * The two dialects were measured to share one keyword table — every RISC OS 6
+ * ROM carries both modules, and their tables are identical in all seven images
+ * read. What differs is the number format, eight-byte reals rather than five,
+ * which no keyword table records. So the tokens are shared and the label is not:
+ * a listing that came from a BASIC VI program should say so, because the person
+ * reading it is the one who has to know how its numbers are stored.
+ */
+const BASIC_VI_TABLES: BasicDecodeTables = {
+  label: 'BBC BASIC VI',
+  tokens: BBC_BASIC_6.tokens,
+  extended: BBC_BASIC_6.extended,
+  statementForms: BBC_BASIC_6.statementForms,
+};
+
+function tablesFor(dialect: AnalysisOptions['tokenisedBasicDialect']): BasicDecodeTables | undefined {
+  if (dialect === 'bbc-basic-5') return BASIC_V_TABLES;
+  if (dialect === 'bbc-basic-6') return BASIC_VI_TABLES;
+  return undefined;
+}
+
 export function analyseFile(bytes: Uint8Array, name: string, options: AnalysisOptions, onProgress?: AnalysisProgressReporter): FileAnalysis {
-  const basic = decodeTokenizedBasic(bytes, options.tokenisedBasicDialect === 'bbc-basic-5' ? BASIC_V_TABLES : undefined);
+  const basic = decodeTokenizedBasic(bytes, tablesFor(options.tokenisedBasicDialect));
   if (basic) return basic;
   if (isProbablyText(bytes)) {
     const text = decodePlainText(bytes);

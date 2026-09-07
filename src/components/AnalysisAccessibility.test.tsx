@@ -21,6 +21,7 @@ function renderWorkspace(overrides: Partial<AnalysisWorkspaceProps> = {}) {
     origin: '&1900', entryPoint: '&1900', processor: '6502',
     activity: { status: 'idle', message: '' },
     onOriginChange: vi.fn(), onEntryChange: vi.fn(), onProcessorChange: vi.fn(),
+    armBasicDialect: 'bbc-basic-5' as const, onArmBasicDialectChange: vi.fn(),
     onOpen: vi.fn(), candidates: [], onChooseCandidate: vi.fn(), onReanalyse: vi.fn(), onCancel: vi.fn(), onAddSource: vi.fn(), onResearch: vi.fn(),
     debugAvailable: false, onDebugAddress: vi.fn(), onNotice: vi.fn(),
     annotations: emptyAnalysisAnnotations(DIGEST),
@@ -171,5 +172,61 @@ describe('reaching the analyser from the project', () => {
   it('offers the project from the empty state too, so a first read needs no disk', () => {
     renderWorkspace({ candidates, file: null });
     expect(screen.getByRole('combobox', { name: 'Analyse a file from this project' })).toBeInTheDocument();
+  });
+});
+
+/*
+ * Choosing which ARM BASIC a tokenised listing is read as.
+ *
+ * BASIC V and BASIC VI share one keyword table — measured across seven RISC OS 6
+ * ROMs, each of which carries both modules — and differ in how a real number is
+ * stored, five bytes against eight. Nothing in the tokens records that, so the
+ * file cannot answer the question and the person has to.
+ *
+ * The control is only offered where the question arises: a tokenised BASIC file
+ * on an ARM. These cases exist because a dialect that is declared and cannot be
+ * chosen is a dialect nobody has, which is the state the light theme was in
+ * before anything rendered it.
+ */
+describe('the ARM BASIC dialect control', () => {
+  const basicFile = {
+    name: 'listing', bytes: BYTES,
+    analysis: {
+      kind: 'bbc-basic' as const,
+      dialect: 'BBC BASIC V' as const,
+      encoding: 'tokenized' as const,
+      lines: [{ lineNumber: 10, source: 'PRINT "HI"', offset: 0, byteLength: 12 }],
+      programLength: 12,
+      trailingByteCount: 0,
+      warnings: [],
+    },
+    metadata: { source: 'manual-default' as const, warnings: [] },
+  };
+
+  it('is offered for a tokenised BASIC file on an ARM', () => {
+    renderWorkspace({ file: basicFile, processor: 'arm2' });
+    const select = screen.getByLabelText('ARM BASIC dialect');
+    expect(select).toHaveValue('bbc-basic-5');
+    expect(within(select).getAllByRole('option').map((option) => option.textContent))
+      .toEqual(['BASIC V · 5-byte reals', 'BASIC VI · 8-byte reals']);
+  });
+
+  it('reports the choice, so a listing can be re-read as BASIC VI', () => {
+    const { props } = renderWorkspace({ file: basicFile, processor: 'arm2' });
+    fireEvent.change(screen.getByLabelText('ARM BASIC dialect'), { target: { value: 'bbc-basic-6' } });
+    expect(props.onArmBasicDialectChange).toHaveBeenCalledWith('bbc-basic-6');
+  });
+
+  it('is not offered for a BASIC listing on a 6502, which has no BASIC VI', () => {
+    renderWorkspace({ file: basicFile, processor: '6502' });
+    expect(screen.queryByLabelText('ARM BASIC dialect')).toBeNull();
+  });
+
+  it('is not offered for a disassembly, which is not a BASIC listing', () => {
+    renderWorkspace();
+    expect(screen.queryByLabelText('ARM BASIC dialect')).toBeNull();
+    /* And the disassembly's own processor control is still there, so this is
+     * measuring the condition rather than a workspace that failed to render. */
+    expect(screen.getByLabelText('Analysis processor')).toBeInTheDocument();
   });
 });

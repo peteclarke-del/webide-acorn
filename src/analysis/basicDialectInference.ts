@@ -36,16 +36,35 @@ export interface DialectInference {
   reason: string;
 }
 
-/** Tokens defined by exactly one of the tabled dialects, and by which. */
-function distinguishingTokens(): Map<number, BasicDialect> {
+/*
+ * Tokens defined by exactly one keyword table, and by the dialects that share it.
+ *
+ * Grouped by *table* rather than by dialect, which matters as soon as two
+ * dialects share one. BASIC V and BASIC VI do: they were measured to carry the
+ * same table in every RISC OS 6 ROM, differing only in how a real number is
+ * stored, which no token records. Counting owners by dialect made every token
+ * they share non-unique, and the inference went from naming BASIC V to naming
+ * nothing at all — losing the true and useful fact that the file is an ARM
+ * BASIC and none of the four 6502 ones.
+ *
+ * So a token unique to a table is still evidence. What it cannot do is choose
+ * between the dialects that share that table, and the answer says so rather
+ * than picking one.
+ */
+function distinguishingTokens(): Map<number, BasicDialect[]> {
   const owners = new Map<number, BasicDialect[]>();
   for (const dialect of BASIC_DIALECTS) {
     for (const token of Object.keys(dialect.tokens).map(Number)) {
       owners.set(token, [...(owners.get(token) ?? []), dialect]);
     }
   }
-  const unique = new Map<number, BasicDialect>();
-  for (const [token, dialects] of owners) if (dialects.length === 1) unique.set(token, dialects[0]!);
+  const unique = new Map<number, BasicDialect[]>();
+  for (const [token, dialects] of owners) {
+    /* One table, however many names it goes by: every dialect here has to be
+     * carrying the identical table object for the token to still count. */
+    const [first] = dialects;
+    if (first && dialects.every((candidate) => candidate.tokens === first.tokens)) unique.set(token, dialects);
+  }
 
   return unique;
 }
@@ -61,20 +80,36 @@ export function inferTokenisedDialect(bytes: Uint8Array): DialectInference {
   const unique = distinguishingTokens();
   const evidence: DialectEvidence[] = [];
   const seen = new Set<BasicDialectId>();
+  /* Each table that showed a token of its own, in the order they were met. */
+  const tables: BasicDialect[][] = [];
   for (const byte of bytes) {
-    const owner = unique.get(byte);
-    if (!owner || seen.has(owner.id)) continue;
-    seen.add(owner.id);
+    const owners = unique.get(byte);
+    if (!owners) continue;
+    const first = owners[0]!;
+    if (seen.has(first.id)) continue;
+    for (const owner of owners) seen.add(owner.id);
+    tables.push(owners);
+    const names = owners.map((owner) => owner.label);
     evidence.push({
-      dialect: owner.id,
-      detail: `Token &${byte.toString(16).toUpperCase().padStart(2, '0')} is ${owner.tokens[byte]}, which only ${owner.label} defines.`,
+      dialect: first.id,
+      detail: owners.length === 1
+        ? `Token &${byte.toString(16).toUpperCase().padStart(2, '0')} is ${first.tokens[byte]}, which only ${first.label} defines.`
+        : `Token &${byte.toString(16).toUpperCase().padStart(2, '0')} is ${first.tokens[byte]}, which only ${names.join(' and ')} define. They share one keyword table, so no token can tell them apart.`,
     });
   }
-  if (evidence.length === 1) {
+  if (tables.length === 1) {
+    const owners = tables[0]!;
     const only = evidence[0]!;
-    return { dialect: only.dialect, candidates: [only.dialect], evidence, reason: only.detail };
+    /* Named only when one dialect owns the table. Two dialects sharing it is
+     * not an ambiguity to resolve; it is a fact about the ROMs. */
+    return {
+      dialect: owners.length === 1 ? owners[0]!.id : null,
+      candidates: owners.map((owner) => owner.id),
+      evidence,
+      reason: only.detail,
+    };
   }
-  if (evidence.length > 1) {
+  if (tables.length > 1) {
     /* Tokens from two dialects in one file is not a dialect, it is a file that
      * is not what it claims — or a reader that has lost its place. Either way
      * it is not something to resolve by picking the commonest. */

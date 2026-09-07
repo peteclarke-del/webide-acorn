@@ -10,26 +10,45 @@ const bytes = (...values: number[]) => Uint8Array.from(values);
 
 describe('how much a tokenised file can say about itself', () => {
   it('has almost nothing to go on, and that is a fact about the ROMs', () => {
-    /* Of the four tabled BASICs exactly one token belongs to a single dialect.
-     * If that ever stops being true this contract should be the thing that
-     * notices, because every refusal below rests on it. */
+    /* Exactly one token belongs to a single keyword *table*. Every refusal
+     * below rests on that, so this contract should be the thing that notices if
+     * it stops being true.
+     *
+     * The unit is the table rather than the dialect because two dialects now
+     * share one: BASIC V and BASIC VI carry the identical table — measured in
+     * every RISC OS 6 ROM, which holds both modules — and differ only in how a
+     * real number is stored, which no token records. Counted by dialect the
+     * answer would be zero unique tokens, and that would say the evidence had
+     * vanished when it had only stopped naming one of two names for it. */
     const owners = new Map<number, string[]>();
+    const tables = new Map<number, object[]>();
     for (const dialect of BASIC_DIALECTS) {
       for (const token of Object.keys(dialect.tokens).map(Number)) {
         owners.set(token, [...(owners.get(token) ?? []), dialect.id]);
+        tables.set(token, [...(tables.get(token) ?? []), dialect.tokens]);
       }
     }
-    const unique = [...owners].filter(([, dialects]) => dialects.length === 1);
+    const unique = [...tables].filter(([, carried]) => new Set(carried).size === 1);
     expect(unique).toHaveLength(1);
     expect(unique[0]![0]).toBe(0x7f);
-    expect(unique[0]![1]).toEqual(['bbc-basic-5']);
+    expect(owners.get(0x7f)).toEqual(['bbc-basic-5', 'bbc-basic-6']);
   });
 
-  it('names the one dialect a distinguishing token proves', () => {
-    /* &7F, OTHERWISE, which only BASIC V has. */
+  it('narrows to the two dialects a distinguishing token proves, and names neither', () => {
+    /*
+     * &7F is OTHERWISE, which only the ARM BASIC table has. That rules out all
+     * four 6502 dialects, which is real and useful; what it cannot do is choose
+     * between BASIC V and BASIC VI, because they are one table under two names.
+     *
+     * This used to name BASIC V, and stopped when BASIC VI was added. Refusing
+     * to name one is the honest answer, and reporting both candidates keeps the
+     * fact that was actually established.
+     */
     const inferred = inferTokenisedDialect(bytes(0x0d, 0x00, 0x0a, 0x7f, 0x0d));
-    expect(inferred.dialect).toBe('bbc-basic-5');
-    expect(inferred.reason).toMatch(/only BBC BASIC V defines/);
+    expect(inferred.dialect).toBeNull();
+    expect(inferred.candidates).toEqual(['bbc-basic-5', 'bbc-basic-6']);
+    expect(inferred.reason).toMatch(/share one keyword table/);
+    expect(inferred.reason).toMatch(/BBC BASIC V and BBC BASIC VI/);
   });
 
   it('no longer claims &CE proves BASIC IV, because BASIC V calls it something else', () => {
@@ -58,8 +77,10 @@ describe('how much a tokenised file can say about itself', () => {
     /* Two dialects' worth of evidence is not a dialect. It is a file that is
      * not what it claims, or a reader that has lost its place. */
     const inferred = inferTokenisedDialect(bytes(0x7f));
-    expect(inferred.dialect).toBe('bbc-basic-5');
-    /* And with nothing distinguishing at all, no claim. */
+    expect(inferred.dialect).toBeNull();
+    expect(inferred.candidates).toEqual(['bbc-basic-5', 'bbc-basic-6']);
+    /* And with nothing distinguishing at all, no claim and no candidates
+     * narrowed either. */
     expect(inferTokenisedDialect(bytes()).dialect).toBeNull();
   });
 });

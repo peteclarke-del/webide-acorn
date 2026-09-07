@@ -4210,6 +4210,51 @@ Current implemented increment:
     3.11. So a BASIC VI dialect can be shipped as sharing BASIC V's table with
     its own provenance, on the strength of what was measured rather than what is
     widely said.
+  - [x] **BASIC VI now ships, and can be chosen.** `BBC_BASIC_6` shares BASIC
+    V's tables *by reference* rather than carrying a second copy, because two
+    copies of a table that has been shown to be one table is how the copies come
+    to disagree; it carries its own provenance, naming the RISC OS 6.16 ROM and
+    the BASIC VI 1.37 module, because the tables are shared and the measurement
+    is not. `src/analysis/basicVI.test.ts` holds both halves of that.
+  - [x] **It is reachable, which is the part that is easy to skip.** The two
+    dialects share one keyword table and differ in how a real is stored — five
+    bytes against eight — and nothing in the tokens records that, so a file
+    cannot answer which it is and the person has to. The Analyse workspace
+    offers the choice on a tokenised BASIC file on an ARM, and nowhere else,
+    because nowhere else is the question asked. A dialect that is declared and
+    cannot be chosen is a dialect nobody has, which is exactly the state the
+    light theme was in before anything rendered it.
+  - [x] The dialect test that ends every 6502 table at `HIMEM` now names the ARM
+    dialects as a set rather than excluding one id, so the next ARM BASIC is
+    held to the ARM rule instead of quietly failing the 6502 one.
+  - [x] **A correction to the sentence above about BASIC VI.** It said the RISC
+    OS 6 table matches the shipped BASIC V table "position for position", which
+    was measured on the keywords alone. Reading the whole archive found the raw
+    tables are not byte-identical: `STRING$(` carries flag `&80` in RISC OS 3.11
+    and `&82` in 6.16, at the same token `&C4`. It changes nothing the product
+    derives — `encodingOf` reads `&08`, `&04` and `&40`, and both values leave
+    it a plain one-byte token, checked entry by entry with zero differences — so
+    sharing the tables is still right. But "identical" was the wrong word and
+    the keyword-only comparison was the wrong check to draw it from.
+- [ ] **ANL-311 A tokenised RISC OS 2 BASIC program is decoded wrongly, and
+  nothing says so.** Reading every ARM ROM in the archive found five distinct
+  BASIC keyword tables, not one: 157 entries in RISC OS 2.00 (ROM030, ROM110,
+  ROM120), 158 in ROM200, and 161 in three later variants. The product ships one
+  BASIC V table, read from RISC OS 3.11, and uses it for every ARM machine.
+  - [ ] **The tables are not additive, which is what makes this a defect rather
+    than a gap.** RISC OS 3.11 inserted `CRUNCH` at `&C7 &90` and shifted every
+    two-byte token after it. So `&C7 &94` is `LOAD` on RISC OS 2 and `LIST` on
+    3.11; `&C7 &95` is `LVAR` and `LOAD`; `&C7 &96` is `NEW` and `LVAR`. A
+    RISC OS 2 program read with the shipped table prints keywords the program
+    does not contain, and prints them confidently.
+  - [ ] It is reachable rather than theoretical: the A310 is a machine this
+    build qualifies, and RISC OS 2 is what an A310 shipped with. Anyone
+    analysing a tokenised BASIC file off an early Archimedes hits it.
+  - [ ] The fix is a dialect per ROM generation rather than per language name,
+    which is what the evidence says the tables are. The five tables and the ROMs
+    that carry each are recorded above; the RISC OS 2 table needs generating and
+    offering beside BASIC V and VI in the Analyse workspace, which already has
+    the control for it.
 
   - [x] The BASIC V table gained independent corroboration. It was read out of
     two further ROMs from a different machine and two later operating systems —

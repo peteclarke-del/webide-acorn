@@ -55,7 +55,7 @@
  * tables, and the digests say which firmware each came from.
  */
 
-export type BasicDialectId = 'bbc-basic-1' | 'bbc-basic-2' | 'bbc-basic-3' | 'bbc-basic-4' | 'bbc-basic-5' | 'atom-basic';
+export type BasicDialectId = 'bbc-basic-1' | 'bbc-basic-2' | 'bbc-basic-3' | 'bbc-basic-4' | 'bbc-basic-5' | 'bbc-basic-6' | 'atom-basic';
 
 export interface BasicDialect {
   id: BasicDialectId;
@@ -862,7 +862,41 @@ export const BBC_BASIC_5: BasicDialect = {
   provenance: { source: "riscos311", sha256: "e916a0b84a2c8d96d43731ec9a02c9dff31312c95bca725b2b60e7eb3bfe7384", detail: "BBC BASIC V 1.05 inside the RISC OS 3.11 image, whose four byte-lane ROMs this build already interleaves for the A310 core." },
 };
 
-export const BASIC_DIALECTS: BasicDialect[] = [BBC_BASIC_1, BBC_BASIC_2, BBC_BASIC_3, BBC_BASIC_4, BBC_BASIC_5];
+/*
+ * BBC BASIC VI, which is BASIC V with eight-byte reals.
+ *
+ * It shares BASIC V's tables here, and that sharing is the measured result
+ * rather than the assumption it is usually stated as. Every RISC OS 6 ROM
+ * carries two keyword tables, one in the `BASIC` module and one in `BASIC64`,
+ * so the two can be compared inside a single image without trusting anything:
+ * they are identical in all seven images this was read from, all seven give the
+ * same 161-entry table, and that table matches the BASIC V table above position
+ * for position — which was itself read independently out of RISC OS 3.11.
+ *
+ * So the constants are shared rather than copied. Two copies of a table that
+ * has been shown to be one table is how the copies come to disagree.
+ *
+ * What differs between the two dialects is the number format, not the tokens:
+ * BASIC VI stores reals in eight bytes rather than five. Nothing in a keyword
+ * table says that, which is why this shares one and still needs its own entry —
+ * a reader has to know which it is looking at before it decodes a number.
+ */
+export const BBC_BASIC_6: BasicDialect = {
+  id: "bbc-basic-6",
+  label: "BBC BASIC VI",
+  tokens: BBC_BASIC_5_TOKENS,
+  extended: BBC_BASIC_5_EXTENDED,
+  statementForms: BBC_BASIC_5_STATEMENT_FORMS,
+  order: BBC_BASIC_5_ORDER,
+  aliases: [{keyword: "COLOR", sameAs: "COLOUR", token: 251}],
+  provenance: {
+    source: "riscos616",
+    sha256: "b79498e1d5cdf0dd184ea11b070fb224f3f0c86bc558f57d6dd5154fa255db2b",
+    detail: "BASIC VI 1.37 (05 Mar 2007), read from the BASIC64 module of the RISC OS 6.16 ROM. The module header reads BASIC64 / BASIC VI / 1.37 and its banner reads \"BASIC VI (64 bit FP) assembled on 05 Mar 2007.\". Corroborated against ROM606, both ROM610 builds, both ROM614 builds and both ROM616 builds, which give the same table.",
+  },
+};
+
+export const BASIC_DIALECTS: BasicDialect[] = [BBC_BASIC_1, BBC_BASIC_2, BBC_BASIC_3, BBC_BASIC_4, BBC_BASIC_5, BBC_BASIC_6];
 
 export function basicDialect(id: BasicDialectId): BasicDialect | undefined {
   return BASIC_DIALECTS.find((dialect) => dialect.id === id);

@@ -4,13 +4,15 @@
  * about the ones nobody has written prose for. */
 import { describe, expect, it } from 'vitest';
 import { basicKeywordAvailability, catalogueCoverage } from './basicKeywordAvailability';
+import { BASIC_DIALECTS } from './basicDialects';
 import { basicLanguageItems } from '../language/acornLanguageReference';
 
 describe('what the ROMs say about a keyword', () => {
   it('reports a keyword every tabled BASIC has', () => {
     const found = basicKeywordAvailability('PRINT')!;
     expect(found.everywhere).toBe(true);
-    expect(found.dialects).toHaveLength(5);
+    /* Derived, so adding a dialect does not need this number editing. */
+    expect(found.dialects).toHaveLength(BASIC_DIALECTS.length);
     expect(found.summary).toMatch(/every BBC BASIC this build has a table for, token &F1/);
   });
 
@@ -27,7 +29,7 @@ describe('what the ROMs say about a keyword', () => {
     /* COLOR is in the map for one ROM and an alias in the other; looking only
      * at the map would report it missing from the machine that has it. */
     const found = basicKeywordAvailability('COLOR')!;
-    expect(found.dialects.map((entry) => entry.id)).toEqual(['bbc-basic-3', 'bbc-basic-4', 'bbc-basic-5']);
+    expect(found.dialects.map((entry) => entry.id)).toEqual(['bbc-basic-3', 'bbc-basic-4', 'bbc-basic-5', 'bbc-basic-6']);
     expect(found.dialects.every((entry) => entry.tokens.includes(0xfb))).toBe(true);
   });
 
@@ -74,6 +76,6 @@ describe('how much of the language the written reference covers', () => {
 
   it('counts every dialect, so a keyword added only to the Master is not lost', () => {
     expect(catalogueCoverage([]).map((entry) => entry.dialect))
-      .toEqual(['bbc-basic-1', 'bbc-basic-2', 'bbc-basic-3', 'bbc-basic-4', 'bbc-basic-5']);
+      .toEqual(BASIC_DIALECTS.map((dialect) => dialect.id));
   });
 });

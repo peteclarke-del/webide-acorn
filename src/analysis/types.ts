@@ -13,7 +13,7 @@ export interface BasicLine {
 
 export interface BasicListing {
   kind: 'bbc-basic';
-  dialect: 'BBC BASIC II' | 'BBC BASIC V' | 'Atom BASIC';
+  dialect: 'BBC BASIC II' | 'BBC BASIC V' | 'BBC BASIC VI' | 'Atom BASIC';
   encoding: 'tokenized' | 'plain-text' | 'atom-text';
   lines: BasicLine[];
   programLength: number;

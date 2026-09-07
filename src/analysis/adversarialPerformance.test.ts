@@ -78,11 +78,21 @@ function calibrationMs(): number {
  * way. Four hundred, because the slowest of these readers legitimately costs
  * about two hundred times the calibration and the budget has to leave room
  * above that rather than sit on it; twenty seconds is the cap, well inside the
- * timeout below, and four seconds the floor, which is what the fixed ceiling
- * used to be.
+ * timeout below.
+ *
+ * The floor was four seconds, which is what the fixed ceiling used to be, and
+ * it was still the fixed ceiling for any machine fast enough for the multiple
+ * to fall below it — which is how the call-heavy 6502 case came to fail a full
+ * parallel run at 4,963 ms and pass on its own. The calibration is taken once
+ * and kept, deliberately, because measuring it beside all forty-eight
+ * assertions starved the reporter; the cost of keeping it is that a quiet first
+ * test can budget for a busy later one, and the floor is what absorbs that. So
+ * the floor is twelve seconds: still an order of magnitude under what a reader
+ * gone quadratic would take, and no longer a number that ordinary contention on
+ * eight cores can cross.
  */
 function ceilingMs(): number {
-  return Math.min(20_000, Math.max(4_000, calibrationMs() * 1_200));
+  return Math.min(20_000, Math.max(12_000, calibrationMs() * 1_200));
 }
 
 /* Room for the budget to be what fails, rather than the timeout around it. */
