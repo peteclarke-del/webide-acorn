@@ -4294,11 +4294,45 @@ Current implemented increment:
     reads both, and that is the case here: Arthur cannot use `OVERLAY` because
     Arthur has no such keyword, so nothing in an Arthur program decodes wrongly
     against the RISC OS 2.00 table.
-  - [ ] Statement forms are not established for RISC OS 2 and nothing is
-    claimed. BASIC V's were not read from a ROM — a linear keyword table does
-    not carry them — but measured by typing into a running RISC OS 3.11 machine
-    on this build's own A310 core. Doing the same with ROM030 is what would
-    close this, and the ROM is now to hand.
+  - [ ] **Statement forms are still not established for RISC OS 2, and the
+    attempt is worth recording because it got most of the way and stopped.**
+    BASIC V's were not read from a ROM — a linear keyword table does not carry
+    them — but measured by typing into a running RISC OS 3.11 machine on this
+    build's own A310 core.
+
+    What now works: the A310 boots RISC OS 2.00 through the product's own path,
+    from the four byte-lane ROMs and the RISC OS 2 CMOS, with the vault
+    reporting a local set ready. The frame accepts commands once they carry the
+    session and a sequence number that advances, which is the isolation the
+    product enforces and which the measurement observes rather than bypasses.
+    `read-memory` answers, `inject-text` is queued and acknowledged, and two
+    capabilities the runtime lacked were added to get that far.
+
+    What stopped it: nothing confirms the machine reached a BASIC prompt. The
+    screen capture answered once early in a session and not afterwards, so there
+    is no picture of where the machine is, and the addresses tried for `PAGE`
+    read as zero — which is equally consistent with BASIC not running and with
+    `PAGE` being somewhere else on a 1 MB RISC OS 2 machine. Reporting statement
+    forms from that would be inventing them.
+
+    What would finish it: a reliable way to see the screen, so the prompt can be
+    confirmed before anything is typed, and asking the machine for `PAGE` rather
+    than guessing at it.
+  - [x] **Two runtime capabilities came out of the attempt and are worth having
+    on their own.** The A310 keyboard could type letters, digits, space and six
+    punctuation marks — enough for the `Run <path>` it was written for, and not
+    enough to type `HIMEM=1`. It now types the punctuation a BASIC line needs,
+    and only the characters whose key is in the same place on the UK layout the
+    machine boots with and the US layout SDL names its scancodes from: `"`, `@`
+    and `#` are deliberately still refused, because a wrong mapping types a
+    different character rather than failing, and a measurement built on one
+    records something the machine never saw.
+  - [x] `press-function-key` exposes what only the application launcher could
+    do. F12 is how anybody reaches a RISC OS supervisor prompt, and the keyboard
+    has no star key, so before this there was no way to a command line at all.
+    `src/emulator/archimedesKeyboard.test.ts` reads the runtime's own source for
+    both, including that the function-key numbering still agrees with the F12
+    scancode the launcher presses.
   - [x] **Dialect inference was rebuilt twice while this landed, and both times
     for the same reason.** It asked which tokens exactly one dialect defines,
     then which tokens exactly one table defines; each time a dialect was added

@@ -426,13 +426,48 @@
   }
 
   const wait = (durationMs) => new Promise((resolve) => setTimeout(resolve, durationMs));
-  const SDL_SCANCODE = { Enter: 40, F12: 69, Space: 44, Minus: 45, Period: 55, Semicolon: 51, Shift: 225 };
+  const SDL_SCANCODE = { Enter: 40, F12: 69, Space: 44, Minus: 45, Period: 55, Semicolon: 51, Shift: 225, Equals: 46, Comma: 54, Slash: 56, LeftBracket: 47, RightBracket: 48, Apostrophe: 52 };
 
   function scancodeForCharacter(character) {
     if (/^[a-z]$/i.test(character)) return { scancode: 4 + character.toUpperCase().charCodeAt(0) - 65, shift: character === character.toUpperCase() };
     if (/^[1-9]$/.test(character)) return { scancode: 29 + Number(character), shift: false };
     if (character === '0') return { scancode: 39, shift: false };
-    const symbol = { ' ': [SDL_SCANCODE.Space, false], '-': [SDL_SCANCODE.Minus, false], '_': [SDL_SCANCODE.Minus, true], '.': [SDL_SCANCODE.Period, false], ':': [SDL_SCANCODE.Semicolon, true], '!': [30, true], '$': [33, true] }[character];
+    /*
+   * The punctuation this keyboard can type.
+   *
+   * Only characters whose key is the same on the UK layout the machine boots
+   * with and the US layout SDL names its scancodes from. That rules out the
+   * ones that move — `"` is Shift-2 here and Shift-' there, `@` is the other
+   * way round, `#` and `~` are a UK key that US layouts do not have — because a
+   * mapping that is wrong produces a different character rather than an error,
+   * and a measurement that types one thing and records another is worse than no
+   * measurement.
+   *
+   * Each was added by typing it into the machine and reading back what BASIC
+   * stored, not by reading a scancode table.
+   */
+  const symbol = {
+    ' ': [SDL_SCANCODE.Space, false],
+    '-': [SDL_SCANCODE.Minus, false],
+    '_': [SDL_SCANCODE.Minus, true],
+    '.': [SDL_SCANCODE.Period, false],
+    ':': [SDL_SCANCODE.Semicolon, true],
+    ';': [SDL_SCANCODE.Semicolon, false],
+    '!': [30, true],
+    '$': [33, true],
+    '=': [SDL_SCANCODE.Equals, false],
+    '+': [SDL_SCANCODE.Equals, true],
+    ',': [SDL_SCANCODE.Comma, false],
+    '<': [SDL_SCANCODE.Comma, true],
+    '>': [SDL_SCANCODE.Period, true],
+    '/': [SDL_SCANCODE.Slash, false],
+    '?': [SDL_SCANCODE.Slash, true],
+    '(': [38, true],
+    ')': [39, true],
+    '*': [37, true],
+    '[': [SDL_SCANCODE.LeftBracket, false],
+    ']': [SDL_SCANCODE.RightBracket, false],
+  }[character];
     if (!symbol) throw new Error(`The A310 keyboard queue contains an unsupported character: ${character}`);
     return { scancode: symbol[0], shift: symbol[1] };
   }
@@ -567,6 +602,23 @@
     else if (command.type === 'focus-input') { canvas.focus(); send({ type: 'input-focus', captured: document.activeElement === canvas }); }
     else if (command.type === 'release-input') { ccall('arc_webide_clear_host_keys'); ccall('arc_webide_clear_host_mouse'); mouseButtons = 0; canvas.blur(); send({ type: 'input-focus', captured: false }); }
     else if (command.type === 'inject-text') await enterMachineText(command.text);
+    /*
+     * A function key on its own, which text cannot express.
+     *
+     * F12 is how anybody reaches the RISC OS command line, and the runtime
+     * already presses it when launching an application — but only as part of
+     * that, so nothing else could get to a supervisor prompt. Without it the
+     * only way in was a star command, and the keyboard has no star key mapped.
+     */
+    else if (command.type === 'press-function-key') {
+      if (!Number.isInteger(command.number) || command.number < 1 || command.number > 12) {
+        throw new Error('A function key is F1 to F12');
+      }
+      canvas.focus();
+      /* SDL numbers F1 to F12 from 58, with F12 at 69. */
+      await pressMachineKey(57 + command.number, Boolean(command.shift));
+      send({ type: 'command-accepted', command: 'press-function-key', number: command.number });
+    }
     else if (command.type === 'set-register') {
       if (!Number.isInteger(command.register) || command.register < 0 || command.register > 15 || !Number.isInteger(command.value) || command.value < 0 || command.value > 0xffffffff || (command.register === 15 && (command.value > 0x3fffffc || (command.value & 3)))) throw new Error('Register edits require R0–R14 unsigned values or an aligned 26-bit R15 execute address');
       if (!ccall('arc_webide_set_register', 'number', ['number', 'number'], [command.register, command.value])) throw new Error('The ARM core rejected the register edit; pause the machine and verify the value');
