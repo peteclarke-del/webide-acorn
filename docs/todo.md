@@ -4238,9 +4238,19 @@ Current implemented increment:
     the keyword-only comparison was the wrong check to draw it from.
 - [x] **ANL-311 A tokenised RISC OS 2 BASIC program was decoded wrongly, and
   nothing said so.** Reading every ARM ROM in the archive found five distinct
-  BASIC keyword tables, not one: 157 entries in RISC OS 2.00, 158 in one 2.01
-  build, and 161 in three later variants. The product shipped one table, read
-  from RISC OS 3.11, and used it for every ARM machine.
+  BASIC keyword tables, not one: 157 entries in the three Arthur ROMs, 158 in
+  RISC OS 2.00, and 161 in three later variants. The product shipped one table,
+  read from RISC OS 3.11, and used it for every ARM machine.
+
+  A correction to my own first attempt at this: the 157-entry table is Arthur's,
+  not RISC OS 2.00's. The archive names its images as the version times a
+  hundred, so ROM030 is Arthur 0.30, and the dialect was generated from it and
+  labelled RISC OS 2 before that was noticed. It is now read from the four
+  byte-lane ROMs the A310 core is actually given — the firmware this product's
+  `riscos200` profile boots — which gives 158 entries. Arthur's table is that
+  one less `OVERLAY`, with no token meaning anything different, which is why the
+  mistake produced no wrong keyword and why this one dialect reads an Arthur
+  program correctly as well.
   - [x] **The tables are not additive, which is what made it a defect rather
     than a gap.** RISC OS 3.11 inserted `CRUNCH` at `&C7 &90` and shifted every
     two-byte token after it, so `&C7 &94` is `LOAD` on RISC OS 2 and `LIST` on
@@ -4257,16 +4267,16 @@ Current implemented increment:
     RISC OS 2, RISC OS 3 and later, and BASIC VI.
   - [x] **Two tables cover all five, and that is measured rather than hoped.**
     The reassignment happens in exactly one place, the two-byte `&C7` group, and
-    it has exactly two shapes: fourteen entries in RISC OS 2.00 and 2.01, and
+    it has exactly two shapes: fourteen entries in Arthur and RISC OS 2.00, and
     eighteen in every later ROM including the Pace variant. Comparing the token
     maps of the pairs inside each shape finds no slot meaning a different
     keyword — RISC OS 2.01 adds `OVERLAY` and reassigns nothing, and the Pace
     2-era table reassigns nothing against 3.11. So the defect class is closed by
     these two dialects rather than needing one per ROM.
-  - [x] The one residual is named rather than left implicit: a RISC OS 2.01
-    program using `OVERLAY` decodes against the 2.00 table as an unknown token
-    instead of a wrong keyword. Unknown is the failure this build prefers,
-    because it can be seen.
+  - [x] Where a table is a strict subset with no reassignment, one dialect
+    reads both, and that is the case here: Arthur cannot use `OVERLAY` because
+    Arthur has no such keyword, so nothing in an Arthur program decodes wrongly
+    against the RISC OS 2.00 table.
   - [ ] Statement forms are not established for RISC OS 2 and nothing is
     claimed. BASIC V's were not read from a ROM — a linear keyword table does
     not carry them — but measured by typing into a running RISC OS 3.11 machine

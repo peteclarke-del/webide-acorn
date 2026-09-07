@@ -28,9 +28,14 @@ describe('BBC BASIC V as RISC OS 2 shipped it', () => {
   });
 
   it('is a shorter table that ends where the ARM tables end', () => {
-    expect(BBC_BASIC_5_RISCOS2.order).toHaveLength(157);
+    /* 158 rather than 157: the first attempt read this from a flat image named
+     * ROM030, in a collection whose names are the version times a hundred, so
+     * that was Arthur 0.30 and not RISC OS 2.00 at all. It is read from the
+     * byte-lane ROMs the A310 core is actually given now. */
+    expect(BBC_BASIC_5_RISCOS2.order).toHaveLength(158);
     expect(BBC_BASIC_5.order).toHaveLength(161);
     expect(BBC_BASIC_5_RISCOS2.order.at(-1)).toBe('WIDTH');
+    expect(BBC_BASIC_5_RISCOS2.order, 'RISC OS 2.00 has OVERLAY where Arthur does not').toContain('OVERLAY');
   });
 
   it('disagrees with the later table on the tokens 3.11 shifted', () => {

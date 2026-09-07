@@ -865,8 +865,8 @@ const BBC_BASIC_5_ORDER: string[] = ["AND", "ABS", "ACS", "ADVAL", "ASC", "ASN",
  *
  * The tables were assumed to be one table per language and they are one per ROM
  * generation. Reading every ARM ROM held here found five distinct ones: 157
- * entries in RISC OS 2.00, 158 in one RISC OS 2.01 build, and 161 in three
- * later variants.
+ * entries in the three Arthur ROMs, 158 in RISC OS 2.00, and 161 in three later
+ * variants.
  *
  * That would be a gap and not a defect if the growth were additive, and it is
  * not. RISC OS 3.11 inserted CRUNCH at &C7 &90 and shifted every two-byte token
@@ -884,6 +884,16 @@ const BBC_BASIC_5_ORDER: string[] = ["AND", "ABS", "ACS", "ADVAL", "ASC", "ASN",
  * Read by the same reader as the others, and the reason to trust it on this ROM
  * is that it reproduces the RISC OS 3.11 table above exactly — every keyword,
  * every token and every two-byte group — from a different image.
+ *
+ * It is read from the four byte-lane ROMs interleaved into the image the A310
+ * core is actually given, rather than from a flat dump, because that is the
+ * firmware this product boots for its `riscos200` profile. The first attempt
+ * was read from a flat image named ROM030 in a collection whose names are the
+ * version times a hundred — so ROM030 is Arthur 0.30, not RISC OS 2.00, and the
+ * table shipped for a moment under the wrong firmware's name. Arthur's table is
+ * this one less `OVERLAY`, with no token meaning anything different, so this
+ * dialect reads an Arthur program correctly too; that is measured rather than
+ * assumed, and it is why the mistake produced no wrong keyword.
  *
  * The statement forms are absent rather than empty, which is the same thing the
  * 6502 dialects say by leaving them out. BASIC V's were not read from a ROM at
@@ -1057,10 +1067,11 @@ const BBC_BASIC_5_RISCOS2_EXTENDED: Record<number, Record<number, string>> = {
     0xa0: "VOICES",
     0xa1: "VOICE",
     0xa2: "STEREO",
+    0xa3: "OVERLAY",
   },
 };
 
-const BBC_BASIC_5_RISCOS2_ORDER: string[] = ["AND","ABS","ACS","ADVAL","ASC","ASN","ATN","AUTO","APPEND","BGET","BPUT","BEATS","BEAT","COLOUR","CALL","CASE","CHAIN","CHR$","CLEAR","CLOSE","CLG","CLS","COS","COUNT","CIRCLE","COLOR","DATA","DEG","DEF","DELETE","DIV","DIM","DRAW","ENDPROC","EDIT","ENDWHILE","ENDCASE","ENDIF","END","ENVELOPE","ELSE","EVAL","ERL","ERROR","EOF","EOR","ERR","EXP","EXT","ELLIPSE","FOR","FALSE","FILL","FN","GOTO","GET$","GET","GOSUB","GCOL","HIMEM","HELP","INPUT","IF","INKEY$","INKEY","INT","INSTR(","INSTALL","LIST","LINE","LOAD","LOMEM","LOCAL","LEFT$(","LEN","LET","LOG","LN","LIBRARY","LVAR","MID$(","MODE","MOD","MOVE","MOUSE","NEXT","NEW","NOT","OLD","ON","OFF","OF","ORIGIN","OR","OPENIN","OPENOUT","OPENUP","OSCLI","OTHERWISE","PRINT","PAGE","PTR","PI","PLOT","POINT(","POINT","PROC","POS","QUIT","RETURN","REPEAT","REPORT","READ","REM","RUN","RAD","RESTORE","RIGHT$(","RND","RECTANGLE","RENUMBER","STEP","SAVE","SGN","SIN","SQR","SOUND","SPC","STR$","STRING$(","STOP","STEREO","SUM","SWAP","SYS","TAN","TAB(","TEMPO","THEN","TIME","TINT","TO","TRACE","TRUE","TWINO","TWIN","UNTIL","USR","VDU","VAL","VPOS","VOICES","VOICE","WHILE","WHEN","WAIT","WIDTH"];
+const BBC_BASIC_5_RISCOS2_ORDER: string[] = ["AND","ABS","ACS","ADVAL","ASC","ASN","ATN","AUTO","APPEND","BGET","BPUT","BEATS","BEAT","COLOUR","CALL","CASE","CHAIN","CHR$","CLEAR","CLOSE","CLG","CLS","COS","COUNT","CIRCLE","COLOR","DATA","DEG","DEF","DELETE","DIV","DIM","DRAW","ENDPROC","EDIT","ENDWHILE","ENDCASE","ENDIF","END","ENVELOPE","ELSE","EVAL","ERL","ERROR","EOF","EOR","ERR","EXP","EXT","ELLIPSE","FOR","FALSE","FILL","FN","GOTO","GET$","GET","GOSUB","GCOL","HIMEM","HELP","INPUT","IF","INKEY$","INKEY","INT","INSTR(","INSTALL","LIST","LINE","LOAD","LOMEM","LOCAL","LEFT$(","LEN","LET","LOG","LN","LIBRARY","LVAR","MID$(","MODE","MOD","MOVE","MOUSE","NEXT","NEW","NOT","OLD","ON","OFF","OF","ORIGIN","OR","OPENIN","OPENOUT","OPENUP","OSCLI","OTHERWISE","OVERLAY","PRINT","PAGE","PTR","PI","PLOT","POINT(","POINT","PROC","POS","QUIT","RETURN","REPEAT","REPORT","READ","REM","RUN","RAD","RESTORE","RIGHT$(","RND","RECTANGLE","RENUMBER","STEP","SAVE","SGN","SIN","SQR","SOUND","SPC","STR$","STRING$(","STOP","STEREO","SUM","SWAP","SYS","TAN","TAB(","TEMPO","THEN","TIME","TINT","TO","TRACE","TRUE","TWINO","TWIN","UNTIL","USR","VDU","VAL","VPOS","VOICES","VOICE","WHILE","WHEN","WAIT","WIDTH"];
 
 export const BBC_BASIC_5_RISCOS2: BasicDialect = {
   id: "bbc-basic-5-riscos2",
@@ -1071,8 +1082,8 @@ export const BBC_BASIC_5_RISCOS2: BasicDialect = {
   aliases: [{keyword: "COLOR", sameAs: "COLOUR", token: 251}],
   provenance: {
     source: "riscos200",
-    sha256: "259f6ed232d2b1f2dbbdaa5edbf62087eaca88b36c32da041400173728086d0d",
-    detail: "BBC BASIC V as shipped in RISC OS 2.00, read from ROM030. 157 entries ending at WIDTH. The same reader reproduces the RISC OS 3.11 table exactly from ROM311, which is why it is trusted on this one. Statement forms are not established for this ROM: BASIC V's were measured on a running machine rather than read, and that has not been done for RISC OS 2.",
+    sha256: "b2658bb1d30ea0d5e322dca2895ec969d9a28695f96726da119e08fb3aa068d3",
+    detail: "BBC BASIC V as shipped in RISC OS 2.00 (05 Oct 1988). 158 entries ending at WIDTH. Read from the four byte-lane ROMs 0283,022-01 to 0283,025-01 interleaved into the image the A310 core is given, which is the firmware this product's riscos200 profile actually boots; the digest is that reconstructed image. The same reader reproduces the RISC OS 3.11 table exactly from ROM311, which is why it is trusted here. Statement forms are not established for this ROM: BASIC V's were measured on a running machine rather than read, and that has not been done for RISC OS 2.",
   },
 };
 
