@@ -961,9 +961,43 @@ Companion specification: `docs/requirements-specification.md`
     of these were reported as `strong` and `small` and nothing more, which sends
     the reader to search nineteen workspaces for them; `div.runtime-console > p`
     is a finding somebody can act on.
-- [ ] UX-123 Specify reusable accessible primitives: button/icon button, split
+- [x] UX-123 Specify reusable accessible primitives: button/icon button, split
   button, menu, tabs, tree, list/grid, combobox, form/error, toolbar, dialog,
   notification, splitter, status, tooltip, command palette, and virtualized table.
+  - [x] **`docs/primitives.md` states all sixteen, read off the source rather
+    than proposed for it**, with the contract each is held to and — where a
+    pattern is deliberately not used — the reason. Declaring a role the product
+    does not honour is worse than not declaring it.
+  - [x] **Writing it down found the pixel editors were malformed grids.** Cells
+    carried `role="gridcell"` directly inside `role="grid"` with no rows between
+    them, 448 of them on one workspace. WAI-ARIA gives `gridcell` a required
+    context and without it a screen reader has nothing to count position within,
+    so it cannot say which row and column the caret is in — the two facts that
+    matter most when editing artwork pixel by pixel. Both grids now own rows,
+    laid out with `display: contents` so the grid still performs the layout and
+    nothing moved on screen. That technique has historically dropped elements
+    from the accessibility tree, so it was checked rather than assumed: Chromium
+    reports a grid with 8 rows and 64 cells for a character and 16 rows and 256
+    cells for a sprite.
+  - [x] **A new gate rule holds every role to its required context**, which is
+    how the grids were found. It checks only elements carrying an explicit role
+    and accepts a native element that already implies the container, so a cell
+    inside a real `<tr>` is right even though nothing wrote `role="row"`.
+  - [x] **Fourteen toolbars are now labelled groups.** They were bare `<div>`s
+    and `<header>`s, so a screen reader could reach every button and could not
+    tell where one bar ended and the next began. They are deliberately not
+    `role="toolbar"`: that pattern promises arrow-key navigation with a roving
+    tabindex, and declaring it without implementing it would tell somebody their
+    arrow keys do something they do not. A labelled group claims what is true.
+  - [x] Two named patterns are not used and say so: there is no split button,
+    because where a default action exists it is its own button beside the menu;
+    and there is no `role="tooltip"`, because the native `title` is positioned,
+    dismissed and exposed by the browser without the focus and hover management
+    an ARIA tooltip has to get right.
+  - [x] Evidence: `src/components/FontWorkspace.test.tsx` asserts every cell is
+    inside a row and that the rows and columns are numbered; the `smoke` stage
+    applies the role-context rule across nineteen workspaces, and it was proved
+    by the 448 findings it produced before the grids were fixed.
 - [ ] UX-124 Define canvas accessibility adapter pattern with structured view,
   keyboard actions, live coordinates/value, and text alternatives (UX-007).
 - [x] UX-125 Define empty/loading/stale/offline/error/permission/quota/unsupported

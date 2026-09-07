@@ -222,6 +222,43 @@ export const SCAN = `(() => {
     }
   }
 
+  /* --- roles in their required context ------------------------------------ */
+  /*
+   * A role that only means something inside another one, checked to be inside
+   * it. WAI-ARIA gives several roles a required context: a tab belongs to a
+   * tablist, an option to a listbox, a treeitem to a tree. Out of context they
+   * are not merely untidy, they are announced wrongly — a screen reader tells
+   * somebody "tab 1 of 1" for a control that is one of six, or says nothing at
+   * all about position because there is nothing to count within.
+   *
+   * Only elements carrying an explicit role attribute are checked, and a native
+   * element that already implies the container counts as the container: a <tr>
+   * is a row and a <ul> is a list, so a cell inside a real table row is right
+   * even though nothing wrote role="row".
+   */
+  const REQUIRED_CONTEXT = {
+    tab: '[role="tablist"]',
+    option: '[role="listbox"], select, datalist',
+    treeitem: '[role="tree"], [role="group"]',
+    menuitem: '[role="menu"], [role="menubar"]',
+    menuitemradio: '[role="menu"], [role="menubar"]',
+    menuitemcheckbox: '[role="menu"], [role="menubar"]',
+    listitem: '[role="list"], ul, ol, menu',
+    cell: '[role="row"], tr',
+    gridcell: '[role="row"], tr',
+    columnheader: '[role="row"], tr',
+    rowheader: '[role="row"], tr',
+    row: '[role="table"], [role="grid"], [role="treegrid"], [role="rowgroup"], table, thead, tbody, tfoot',
+    rowgroup: '[role="table"], [role="grid"], [role="treegrid"], table',
+  };
+  for (const [role, context] of Object.entries(REQUIRED_CONTEXT)) {
+    for (const node of document.querySelectorAll('[role="' + role + '"]')) {
+      if (!shown(node)) continue;
+      if (node.parentElement && node.parentElement.closest(context)) continue;
+      add('role-context', '1.3.1', node, 'has role ' + role + ', which only means something inside ' + context.split(',')[0].trim());
+    }
+  }
+
   /* --- target size ------------------------------------------------------- */
   for (const node of document.querySelectorAll('button, a[href], input, select, [role="button"], [role="tab"], [role="option"]')) {
     if (!shown(node) || node.disabled) continue;

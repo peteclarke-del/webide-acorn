@@ -59,7 +59,7 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
 
   return (
     <section className="song-workspace" aria-label="Song editor">
-      <header className="song-toolbar">
+      <header className="song-toolbar" role="group" aria-label="Song tools">
         {!!openable.length && (
           <label className="project-source-picker"><span>From this project</span>
             <select aria-label="Open a song from this project" value="" onChange={(event) => {

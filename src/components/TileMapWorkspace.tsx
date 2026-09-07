@@ -341,7 +341,7 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
 
   return (
     <section className="tile-map-workspace" aria-label="Tile map editor">
-      <header className="tile-map-toolbar">
+      <header className="tile-map-toolbar" role="group" aria-label="Tile map tools">
         <div><span className="eyebrow">TILE MAP · SCHEMA 1</span><h2>Map editor</h2></div>
         {/* The document's own actions, in a menu rather than a row: the four
           * imports and exports were spending a quarter of the panel's height on

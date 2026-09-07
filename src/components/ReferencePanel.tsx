@@ -133,7 +133,7 @@ export function ReferencePanel({
 
   return (
     <section className="reference-panel" aria-label="Imported reference search">
-      <div className="research-toolbar">
+      <div className="research-toolbar" role="group" aria-label="Reference tools">
         <form
           role="search"
           onSubmit={(event) => { event.preventDefault(); run(query); }}

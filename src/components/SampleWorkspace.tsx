@@ -138,7 +138,7 @@ export function SampleWorkspace({ machineId, machineLabel, projectFiles = [], on
 
   return (
     <section className="sample-workspace" aria-label="Sample editor">
-      <header className="sample-toolbar">
+      <header className="sample-toolbar" role="group" aria-label="Sample tools">
         {!!openable.length && (
           <label className="project-source-picker"><span>From this project</span>
             <select aria-label="Open a sample from this project" value="" onChange={(event) => {

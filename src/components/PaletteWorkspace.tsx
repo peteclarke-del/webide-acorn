@@ -42,7 +42,7 @@ export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, 
 
   return (
     <section className="palette-workspace" aria-label="Palette editor">
-      <header className="palette-toolbar">
+      <header className="palette-toolbar" role="group" aria-label="Palette tools">
         <label><span>Name</span><input aria-label="Palette name" value={document.name} onChange={(event) => guard(() => parsePaletteDocument({ ...document, name: event.target.value || 'untitled-palette' }))} /></label>
         <label>
           <span>Display mode</span>

@@ -70,7 +70,7 @@ export function FontWorkspace({ projectPalette, projectFiles = [], onAddSource, 
 
   return (
     <section className="font-workspace" aria-label="Character set editor">
-      <header className="font-toolbar">
+      <header className="font-toolbar" role="group" aria-label="Character set tools">
         {!!openable.length && (
           <label className="project-source-picker"><span>From this project</span>
             <select aria-label="Open a font from this project" value="" onChange={(event) => {
@@ -101,20 +101,33 @@ export function FontWorkspace({ projectPalette, projectFiles = [], onAddSource, 
         <section aria-label="Character grid">
           <h2>Character {glyph.code}</h2>
           <div className="font-grid" role="grid" data-essential-target-size="A cell in this grid is one pixel of the artwork. Enlarging it past the artwork would change what the editor edits, so WCAG 2.2 AA 2.5.8 is met by its essential exception. The surrounding tools are full-size targets." aria-label={`Pixels of character ${glyph.code}`} style={{ background: paper }}>
-            {pixels.map((on, index) => {
-              const x = index % 8; const y = Math.floor(index / 8);
-              return (
-                <button
-                  key={index}
-                  type="button"
-                  role="gridcell"
-                  aria-label={`Row ${y + 1} column ${x + 1}, ${on ? 'set' : 'clear'}`}
-                  aria-pressed={on}
-                  style={{ background: on ? ink : paper }}
-                  onClick={() => guard(() => setGlyphPixel(document, glyph.code, x, y, !on))}
-                />
-              );
-            })}
+            {/*
+              * The cells are wrapped a row at a time. A grid whose cells are not
+              * inside rows is malformed: WAI-ARIA gives `gridcell` a required
+              * context, and without it a screen reader has nothing to count
+              * position within, so it cannot say which row and column the caret
+              * is in — the two facts that matter most when editing a character
+              * cell by cell.
+              *
+              * `display: contents` keeps the row out of the layout, so the eight
+              * columns are still laid out by the grid itself and nothing moves.
+              */}
+            {Array.from({ length: 8 }, (_row, y) => (
+              <div key={`row-${y}`} role="row" aria-rowindex={y + 1} style={{ display: 'contents' }}>
+                {pixels.slice(y * 8, y * 8 + 8).map((on, x) => (
+                  <button
+                    key={x}
+                    type="button"
+                    role="gridcell"
+                    aria-colindex={x + 1}
+                    aria-label={`Row ${y + 1} column ${x + 1}, ${on ? 'set' : 'clear'}`}
+                    aria-pressed={on}
+                    style={{ background: on ? ink : paper }}
+                    onClick={() => guard(() => setGlyphPixel(document, glyph.code, x, y, !on))}
+                  />
+                ))}
+              </div>
+            ))}
           </div>
           <div className="font-rows" aria-label="Row bytes of the current character">
             {glyph.rows.map((row, index) => (

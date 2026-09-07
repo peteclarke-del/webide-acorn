@@ -251,7 +251,7 @@ export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource
 
   return (
     <section className="screen-workspace" aria-label="Screen editor">
-      <header className="screen-toolbar">
+      <header className="screen-toolbar" role="group" aria-label="Screen tools">
         <div><span className="eyebrow">SCREEN · SCHEMA 1</span><h2>Screen editor</h2></div>
         {/* The same reasoning as the map and the sprite editors: the actions
           * somebody takes once a session were spending a quarter of the panel's
