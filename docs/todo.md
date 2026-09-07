@@ -8093,6 +8093,28 @@ Current implemented increment:
 - [ ] A11Y-900 Complete automated and manual WCAG 2.2 AA audit of J-01–J-08 in
   dark/light/high-contrast, 200% zoom, 320 CSS px reflow, keyboard-only, reduced
   motion, and supported screen readers (QLT-005).
+  - [x] **The automated half runs on every build.** The `smoke` stage walks
+    nineteen workspaces after a real build and checks accessible names, heading
+    order, landmark labels, duplicate ids, target size and roles in their
+    required context; it re-measures contrast in all four palettes, dark and
+    light at AA and both high-contrast palettes at AAA; it reflows at five sizes
+    down to 320 CSS px, which covers 200% and 400% page zoom; it walks the
+    workbench with trusted Tab presses and refuses a focus trap; and it emulates
+    five user conditions including reduced motion and forced colours.
+  - [x] **200% text zoom is checked as its own criterion**, which page zoom does
+    not cover: 1.4.4 is about resizing the text and not the page. The type-scale
+    control makes it checkable, and checking it is also the only way to know the
+    control is worth having — a setting that enlarges the interface and pushes
+    half of it out of reach is worse than no setting, because the person who
+    needs it cannot find the control they can no longer see. Measured: 81
+    controls stay reachable with text at 2x, at 26px, with no horizontal scroll
+    and nothing clipped. The check fails first if the scale did not take effect,
+    so it cannot pass by changing nothing.
+  - [ ] **The manual half needs people and is the honest remainder.** A scan
+    cannot decide whether a name is meaningful or whether a reading order makes
+    sense, and no automated check substitutes for a screen-reader user. That is
+    A11Y-103, which recruits the testers, and this item stays open until their
+    results are recorded rather than claiming an audit that was not done.
 - [ ] A11Y-901 Resolve all A/AA blockers and document any AAA enhancements.
 - [ ] A11Y-902 Verify structured alternatives for graphics, map, waveform,
   memory, trace, profiler, and hardware-register visualizations.

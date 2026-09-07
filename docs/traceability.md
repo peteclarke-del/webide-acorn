@@ -283,7 +283,7 @@ None. Every completed requirement records how it was verified.
 | OPS-906 | Verify migration deploy/rollback or roll-forward procedure and compatibility across… | not started |
 | SEC-900 | Resolve threat-model controls and rerun abuse cases for builds, parsers, emulators,… | not started |
 | SEC-901 | Run SAST, dependency/container/secret/licence scans, SBOM review, DAST, fuzz/property… | 4 of 5 parts done |
-| A11Y-900 | Complete automated and manual WCAG 2.2 AA audit of J-01–J-08 in dark/light/high-contrast,… | not started |
+| A11Y-900 | Complete automated and manual WCAG 2.2 AA audit of J-01–J-08 in dark/light/high-contrast,… | 2 of 3 parts done |
 | A11Y-901 | Resolve all A/AA blockers and document any AAA enhancements. | not started |
 | A11Y-902 | Verify structured alternatives for graphics, map, waveform, memory, trace, profiler, and… | 5 of 6 parts done |
 | A11Y-903 | Test current/previous major Chromium, Firefox, and Safari including file system, audio,… | 8 of 11 parts done |
