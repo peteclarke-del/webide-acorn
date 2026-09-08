@@ -112,8 +112,8 @@ export function chordFromEvent(event: KeyChordEventLike): string | null {
  *
  * Command and Control share a role by default, which is what a person moving
  * between an Apple keyboard and any other expects. But they are different keys,
- * and a binding that wants one of them specifically — because the other is
- * taken, or because the machine below needs it — has no way to say so while
+ * and a binding that wants one of them specifically (because the other is
+ * taken, or because the machine below needs it) has no way to say so while
  * they are collapsed into one name on the way in.
  *
  * So a press of Command produces `Cmd+X` first and `Ctrl+X` second: a binding
@@ -146,7 +146,7 @@ export function parseChord(text: unknown): string | null {
     const token = part.toLowerCase();
     /* `Cmd` names the Command key itself. `Ctrl` keeps meaning "the Control
      * role", which is Command on an Apple keyboard and Control everywhere
-     * else — every binding written before Command could be named on its own
+     * else. Every binding written before Command could be named on its own
      * means that, and has to keep meaning it. */
     if (token === 'cmd' || token === 'command' || token === 'meta' || token === 'super') { command = true; continue; }
     if (token === 'ctrl' || token === 'control') { ctrl = true; continue; }
@@ -163,8 +163,8 @@ export function parseChord(text: unknown): string | null {
  * Two-stroke sequences, separated by a comma.
  *
  * A comma rather than a space, which is what most editors use, because the
- * single-chord parser above already accepts a space between modifiers — "ctrl
- * shift p" is one chord — so a space cannot also mean "then" without making
+ * single-chord parser above already accepts a space between modifiers, "ctrl
+ * shift p" is one chord, so a space cannot also mean "then" without making
  * every existing binding ambiguous.
  */
 export const CHORD_SEQUENCE_SEPARATOR = ',';
@@ -230,13 +230,13 @@ const BROWSER_RESERVED: Record<string, string> = {
  * keyboard handler takes every key press: `keyDown` in the pinned jsbeeb's
  * `src/keyboard.js` calls `evt.preventDefault()` before it has looked at any
  * modifier, and then hands the key to the machine as
- * `keyInterface.keyDown(code, evt.shiftKey)` — carrying Shift and nothing
+ * `keyInterface.keyDown(code, evt.shiftKey)`, carrying Shift and nothing
  * else. So a chord pressed while the machine has focus does two things nobody
  * would guess: it does not reach the workbench at all, and the machine
  * receives it as the *unmodified* key. Ctrl+S over a BASIC prompt types S.
  *
  * That is worth saying about every chord rather than about a chosen few,
- * because the surprising part is not which chords collide — they all do — but
+ * because the surprising part is not which chords collide, they all do, but
  * what the machine types instead. A chord whose key the Acorn keyboard does
  * not have is still swallowed, and saying so is the honest answer.
  *
@@ -277,7 +277,7 @@ export function emulatedKeyboardConflict(chord: string | null): EmulatedKeyboard
     machineKey,
     note: machineKey === null
       ? `${swallowed} The machine takes the key and does nothing with it, because the Acorn keyboard has no ${key}.`
-      : `${swallowed} The machine receives ${machineKey} instead — modifiers other than Shift are not passed on — so this types ${machineKey} into whatever is running.`,
+      : `${swallowed} The machine receives ${machineKey} instead, modifiers other than Shift are not passed on, so this types ${machineKey} into whatever is running.`,
   };
 }
 
@@ -299,7 +299,7 @@ export function chordAssignmentError(chord: string | null): string | null {
     const isFunctionKey = /^F([1-9]|1[0-2])$/.test(key);
     /* Only the first stroke has to keep clear of ordinary typing. A second
      * stroke is only ever read while a prefix is held open, so a bare letter
-     * there captures nothing — which is what makes a sequence worth having. */
+     * there captures nothing, which is what makes a sequence worth having. */
     if (index === 0 && !hasCtrl && !hasAlt && !isFunctionKey) return 'Use Ctrl, Alt or a function key so the chord cannot capture ordinary typing.';
     if (key === 'Tab' && (hasCtrl || hasAlt)) return 'Tab chords are reserved for focus movement.';
   }
@@ -446,7 +446,7 @@ export function chordPrefixes(resolved: readonly ResolvedKeyBinding[], scope: Bi
 export type KeyBindingMatch =
   | { kind: 'command'; commandId: string; chord: string }
   /* The first stroke of a sequence landed. The dispatcher holds it, and the
-   * next key press either completes a binding or cancels — a held prefix that
+   * next key press either completes a binding or cancels, a held prefix that
    * swallowed unrelated keys forever would be worse than no sequences. */
   | { kind: 'pending'; chord: string }
   | { kind: 'none' };

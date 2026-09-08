@@ -7,7 +7,7 @@ import { ROM_SETS } from './romProfiles';
  * The names the Elkulator core opens, and the names the profile supplies.
  *
  * The core is a C program compiled to WebAssembly. It opens its firmware by
- * filename from its own working directory — `os`, `basic.rom`, `plus1.rom` —
+ * filename from its own working directory, `os`, `basic.rom`, `plus1.rom`,
  * and a name it cannot find is an expansion that is not fitted rather than a
  * machine that will not start. That is the right behaviour and it is also
  * silent: a profile that supplies `acorn-adfs.rom` when the core opens
@@ -16,7 +16,7 @@ import { ROM_SETS } from './romProfiles';
  *
  * That is what had happened. The first end-to-end run with the expanded set in
  * the vault booted the Electron, fitted the Plus 1 and the DFS, and reported
- * "No ROM file 'adfs.rom'; that expansion is not fitted" — with a supplied,
+ * "No ROM file 'adfs.rom'; that expansion is not fitted", with a supplied,
  * verified ADFS sitting in the vault under a name nothing would ever ask for.
  *
  * So the names are read from the core's own build script rather than restated
@@ -43,7 +43,7 @@ describe('the firmware an Elkulator machine is given', () => {
    *
    * The core opens five files by name and puts them in dedicated slots. Every
    * other expansion this profile offers is a sideways ROM, and this build does
-   * not drive sideways banks on the Electron — the workbench says so in its own
+   * not drive sideways banks on the Electron. The workbench says so in its own
    * words, and each is marked planned for that reason. That boundary is real
    * and is pinned here, so a new expansion added on the strength of having a
    * ROM is caught rather than sitting in the vault doing nothing.
@@ -79,7 +79,7 @@ describe('the firmware an Elkulator machine is given', () => {
 
   it('never hands the core a ROM it has no socket for', () => {
     /*
-     * The core refuses a name it does not have, rightly — a ROM written and
+     * The core refuses a name it does not have, rightly, a ROM written and
      * never read would be a lie. But once the runtime started being given
      * everything fitted rather than only what the machine needs, supplying MMFS
      * with a Plus 1 fitted made it answer "emmfs is not a ROM socket this

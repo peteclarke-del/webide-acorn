@@ -54,8 +54,8 @@ export const SCAN = `(() => {
   const findings = [];
   const add = (rule, criterion, element, detail) => {
     /* A bare tag name is not something anybody can act on. Plenty of the
-     * elements these rules catch carry no id and no class of their own — a
-     * <strong> inside a panel — and a finding that says only "strong" sends the
+     * elements these rules catch carry no id and no class of their own, a
+     * <strong> inside a panel, and a finding that says only "strong" sends the
      * reader to search the page for it. So where the element cannot name
      * itself, the nearest ancestor that can is named in front of it. */
     const nameOf = (node) => node.tagName.toLowerCase()
@@ -153,7 +153,7 @@ export const SCAN = `(() => {
    * A computed colour, in either shape a browser gives back.
    *
    * Chromium returns rgb() for most declarations and color(srgb r g b / a)
-   * for anything that went through color-mix() — which this workbench uses
+   * for anything that went through color-mix(), which this workbench uses
    * for a great many fills. Reading only the first shape made every one of
    * those look like no colour at all, and the walk below then stepped past an
    * opaque background as though it were not there and compared the text with
@@ -172,7 +172,7 @@ export const SCAN = `(() => {
     if (predefined) {
       const parts = predefined[1].split(/[\\s/]+/).filter(Boolean).map((part) => Number(part));
       if (parts.slice(0, 3).some((part) => Number.isNaN(part))) return null;
-      /* Predefined-space components are 0–1 rather than 0–255. */
+      /* Predefined-space components are 0-1 rather than 0-255. */
       return { r: parts[0] * 255, g: parts[1] * 255, b: parts[2] * 255, a: parts.length > 3 ? parts[3] : 1 };
     }
     return null;
@@ -227,7 +227,7 @@ export const SCAN = `(() => {
    * A role that only means something inside another one, checked to be inside
    * it. WAI-ARIA gives several roles a required context: a tab belongs to a
    * tablist, an option to a listbox, a treeitem to a tree. Out of context they
-   * are not merely untidy, they are announced wrongly — a screen reader tells
+   * are not merely untidy, they are announced wrongly, a screen reader tells
    * somebody "tab 1 of 1" for a control that is one of six, or says nothing at
    * all about position because there is nothing to count within.
    *
@@ -282,7 +282,7 @@ export const SCAN = `(() => {
      * glyph grid is one pixel of the artwork, and enlarging it past the
      * artwork would change what the editor edits. The exemption is declared in
      * the markup with its reason rather than guessed here from a class name,
-     * so it is reviewable where it is claimed — and an exemption claimed
+     * so it is reviewable where it is claimed, and an exemption claimed
      * without a reason is itself reported. */
     const essential = node.closest('[data-essential-target-size]');
     if (essential) {
@@ -408,7 +408,7 @@ export const FOCUS_VISIBILITY = `(() => {
  * this is not an AA obligation and is not claimed as one. It is checked
  * because honouring a preference a person has set in their operating system is
  * a commitment worth keeping regardless of what the level requires, and
- * because the AA criterion that does apply — 2.2.2 Pause, Stop, Hide — is
+ * because the AA criterion that does apply (2.2.2 Pause, Stop, Hide) is
  * satisfied trivially by there being nothing that moves for five seconds.
  *
  * Run with the preference emulated. Anything still animating or transitioning
@@ -445,7 +445,7 @@ export const REDUCED_MOTION = `(() => {
  *
  * When the system supplies the colours, anything that conveyed meaning only
  * through its own colour stops conveying it. This checks that controls still
- * have a boundary a person can see — a border or an outline — rather than
+ * have a boundary a person can see, a border or an outline, rather than
  * relying on a background that the browser has just replaced.
  */
 export const FORCED_COLOURS = `(() => {
@@ -490,7 +490,7 @@ export const FORCED_COLOURS = `(() => {
  * written: of every translucent element in the built workbench, all of them
  * were disabled or unavailable controls, and there was no translucent
  * background and no backdrop filter anywhere. This rule is what keeps that
- * true — the moment it stops being true, the check says so.
+ * true. The moment it stops being true, the check says so.
  *
  * Decorative translucency is exempted where it says so, with the
  * `data-decorative` attribute. Nothing is exempt for being small or for being
@@ -566,7 +566,7 @@ export const KEYBOARD_REACHABILITY = `(() => {
   const stops = [...document.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')].filter(focusable);
   if (!stops.length) return [{ element: 'document', detail: 'offers no keyboard tab stop at all' }];
 
-  /* A composite widget — a tree, a grid, a tab strip — is entered once and
+  /* A composite widget (a tree, a grid, a tab strip) is entered once and
    * moved through with the arrow keys, so its one tab stop serves every part of
    * it. A group inside such a widget is a subdivision of it rather than a
    * separate destination, and requiring each subdivision to hold its own stop
@@ -611,7 +611,7 @@ export const KEYBOARD_REACHABILITY = `(() => {
  * Dragging cannot be done without a pointer, so anything draggable has to say
  * what to do instead. The alternative is declared in the markup, next to the
  * thing that needs it, rather than listed somewhere a reviewer has to go and
- * find — and an alternative claimed without saying what it is fails, because
+ * find, and an alternative claimed without saying what it is fails, because
  * a claim nobody can check is not an alternative.
  *
  * A destructive action must be reachable and named. A delete that can only be
@@ -666,8 +666,8 @@ export const POINTER_ALTERNATIVES = `(() => {
  *
  * A panel taller than the space it is given is not a cosmetic problem: the
  * entries past the fold cannot be read, reached or operated by anyone, with a
- * pointer or without. The settings column did this — ten panels stacked in a
- * pane with `overflow: hidden` and no scroller — and the list simply ended
+ * pointer or without. The settings column did this, ten panels stacked in a
+ * pane with `overflow: hidden` and no scroller, and the list simply ended
  * partway down with no indication that there was more.
  *
  * An element is reported when its own content overflows it and neither it nor
@@ -776,7 +776,7 @@ export const VISUAL_ALTERNATIVES = `(() => {
 /*
  * The sizes a control is allowed to be, and a check that every one of them is.
  *
- * The workbench had eleven button heights across fifty-one rules — three of
+ * The workbench had eleven button heights across fifty-one rules, three of
  * them inside a single dialog, so two buttons side by side were different
  * sizes. Nothing noticed, because no rule was wrong on its own; the product
  * simply had no shared answer to how large a control is. It has three now, and

@@ -5,7 +5,7 @@
  * Generating types from a description proves nothing on its own: a client can
  * import the generated module and still build its URLs from string literals,
  * which is what every client here did before. So the checks that matter are
- * about what the product does, not about what was generated — no caller may
+ * about what the product does, not about what was generated, no caller may
  * spell an API path itself, every path a caller uses must be one the server
  * routes, and the generated module must match the description it came from.
  */

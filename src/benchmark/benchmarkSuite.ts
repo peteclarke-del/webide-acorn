@@ -5,7 +5,7 @@
  * performs rather than a function that happens to be easy to time, and carries
  * a ceiling rather than a target.
  *
- * The ceilings are deliberately generous — roughly ten times what the operation
+ * The ceilings are deliberately generous. Roughly ten times what the operation
  * costs on the slower of the two engines measured, not a factor of two. A
  * benchmark suite that failed on a loaded laptop would be turned off within a
  * week, and a suite nobody runs measures nothing. What these catch is the
@@ -90,8 +90,8 @@ export interface BenchmarkBrowser {
  * The browsers this product supports, from the requirement.
  *
  * Safari is declared and cannot be measured on this machine: WebKit's browser
- * does not run on Linux, and measuring a different WebKit — a GTK build, or a
- * remote service — would be measuring something else and reporting it under
+ * does not run on Linux, and measuring a different WebKit (a GTK build, or a
+ * remote service) would be measuring something else and reporting it under
  * Safari's name. The report says which of these were measured and which were
  * not, so the matrix cannot be read as covered when it is not.
  */
@@ -176,7 +176,7 @@ export const BENCHMARK_CASES: readonly BenchmarkCase[] = Object.freeze([
   },
 ]);
 
-/** Every area with no case, and why — an empty answer is the finding. */
+/** Every area with no case, and why. An empty answer is the finding. */
 export function unmeasuredAreas(cases: readonly BenchmarkCase[] = BENCHMARK_CASES): Array<{ area: BenchmarkArea; reason: string }> {
   return BENCHMARK_AREAS
     .filter((area) => !cases.some((item) => item.area === area))

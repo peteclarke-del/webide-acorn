@@ -1,9 +1,9 @@
-# Acorn Web IDE — Product Requirements Specification
+# Acorn Web IDE: Product Requirements Specification
 
-Status: Draft for stakeholder review  
-Version: 0.1  
-Date: 20 August 2026  
-Owner: Product and engineering  
+Status: Draft for stakeholder review
+Version: 0.1
+Date: 20 August 2026
+Owner: Product and engineering
 Implementation gate: **No product code is to be written until this specification and the accompanying backlog are reviewed and accepted.**
 
 ## 1. Purpose
@@ -40,8 +40,8 @@ referenced by design records, issues, tests, and release evidence.
   instruction set, memory map, ROM assumptions, display and sound hardware,
   filing system, peripherals, build options, emulator, debugger, examples, and
   documentation.
-- G-03: Advanced configurations—sideways ROM/RAM, shadow RAM, filing systems,
-  Tube processors, expansions, and storage devices—are composable, validated,
+- G-03: Advanced configurations, sideways ROM/RAM, shadow RAM, filing systems,
+  Tube processors, expansions, and storage devices, are composable, validated,
   saved with the project, and reproducible.
 - G-04: The IDE is equally credible for code, graphics, maps, sound, testing,
   and low-level investigation.
@@ -361,7 +361,7 @@ The catalogue is a scope commitment; rollout priority is defined in the TODO.
 - EDT-024: BASIC renumber MUST support a selected range or complete program,
   configurable start/increment, collision/overflow detection, preview, cancel,
   and atomic undo. It MUST update every syntactically recognized line-number
-  reference—including lists in computed branches—while preserving numbers in
+  reference, including lists in computed branches, while preserving numbers in
   strings, comments, data, binary payloads, and other non-reference contexts.
   Unresolved or dynamically computed targets MUST be reported for manual review.
 - EDT-025: BASIC line-number navigation MUST allow direct go-to-line, click or
@@ -473,7 +473,7 @@ The catalogue is a scope commitment; rollout priority is defined in the TODO.
   capability API: create, load configuration, mount media, load artifact, start,
   pause, resume, reset types, power off, step, serialize state, restore state,
   capture frame/audio, inject input, inspect state, and destroy.
-- EMU-002: Candidate upstreams—including browser-native emulators—MUST undergo
+- EMU-002: Candidate upstreams, including browser-native emulators, MUST undergo
   accuracy, licence, ROM, security, accessibility, maintenance, performance,
   debugger-hook, and embedding review before selection.
 - EMU-003: The selected emulator instance MUST use the exact resolved machine
@@ -532,7 +532,7 @@ The catalogue is a scope commitment; rollout priority is defined in the TODO.
   effective address where available.
 - DBG-021: 65C02 views MUST reflect the selected core's actual instruction and
   interrupt behavior rather than presenting a generic 6502 label.
-- DBG-022: ARM views MUST show visible R0–R15, PC pipeline interpretation,
+- DBG-022: ARM views MUST show visible R0-R15, PC pipeline interpretation,
   status flags/mode, banked registers and SPSR where applicable, interrupt state,
   current instruction, and CPU generation/coprocessor facts supported by the
   selected Archimedes profile.
@@ -983,7 +983,7 @@ A machine profile is production-ready only when all are true:
 - ACC-001: BBC Model B and one other materially different 8-bit profile complete
   the full create/build/run/debug/test/export journey.
 - ACC-002: One ARM Archimedes profile completes an explicitly scoped vertical
-  journey before the product claims general “Acorn line” production support.
+  journey before the product claims general "Acorn line" production support.
 - ACC-003: Sideways memory and at least one Tube configuration are demonstrated
   end to end, or are clearly labelled preview with no production claim.
 - ACC-004: Character/sprite or software-object, tile/block, map, screen/palette,
@@ -1002,7 +1002,7 @@ A machine profile is production-ready only when all are true:
 These are deliberate discovery items, not permission to omit capability:
 
 - DEC-001: Product name, original brand system, and permissible Acorn references.
-- DEC-002: Exact machine rollout and what “Archimedes” compatibility tier means
+- DEC-002: Exact machine rollout and what "Archimedes" compatibility tier means
   for ARM2, ARM3, later ARM systems, and RISC OS versions.
 - DEC-003: Emulator adapter selection per family and whether integration is
   forked, upstreamed, embedded as a library, or isolated.

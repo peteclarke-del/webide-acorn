@@ -6,8 +6,8 @@
  * coverage for. Two declarations of that would eventually disagree about what
  * was actually proved, which for a conformance suite is the whole game.
  *
- * The module is TypeScript, so it is bundled with esbuild — which vite already
- * brings — and imported. An earlier version of this script read the source with
+ * The module is TypeScript, so it is bundled with esbuild, which vite already
+ * brings, and imported. An earlier version of this script read the source with
  * a regular expression and silently dropped two of the six cases; a generator
  * that quietly writes a smaller suite than it was given is worse than no
  * generator, so the count is checked against the module at the end.
@@ -37,7 +37,7 @@ try {
   const all = suite.CONFORMANCE_CASES;
   /*
    * The project enables what the applicable cases declare they need, rather
-   * than a list somebody kept in step by hand — but only where the machine
+   * than a list somebody kept in step by hand, but only where the machine
    * actually offers it. A case cannot conjure a capability the profile calls
    * planned: doing that ran the Tube case against a BBC B whose Tube this
    * build no longer claims, and reported a failure about the machine as though
@@ -80,7 +80,7 @@ try {
        * that says nothing about the filing system. That is what happened.
        *
        * So a project carrying a disc retains media throughout, and says so.
-       * The alternative — ordering disc cases first — would work today and
+       * The alternative, ordering disc cases first, would work today and
        * break silently the moment somebody reordered the suite.
        */
       setup: { reset: 'hard', media: carriesDisc ? 'retain' : 'eject' },
@@ -113,7 +113,7 @@ try {
     const discPath = join(dirname(output), `${item.id}.ssd`);
     await writeFile(discPath, created.image);
     discs.push({ id: item.id, drive: item.disc.drive, path: discPath, bytes: created.image.length });
-    console.log(`Disc for ${item.id}: drive ${item.disc.drive}, ${created.image.length} bytes, catalogue "${created.catalogue.title}" holding ${created.catalogue.files.length} file(s) — ${discPath}`);
+    console.log(`Disc for ${item.id}: drive ${item.disc.drive}, ${created.image.length} bytes, catalogue "${created.catalogue.title}" holding ${created.catalogue.files.length} file(s), ${discPath}`);
   }
   if (discs.length) console.log(`Mount with: ${discs.map((disc) => `--disc-${disc.drive} ${disc.path}`).join(' ')}`);
   if (carriesDisc) console.log('Every plan retains media, because ejecting before a case would take the disc away from the cases that need one.');
@@ -130,7 +130,7 @@ try {
   console.log(`Capabilities enabled by what the cases need: ${capabilities.join(', ')}`);
   if (skipped) {
     for (const item of all.filter((candidate) => !applicable.includes(candidate))) {
-      console.log(`Not applicable: ${item.id} — ${suite.caseApplies(item, { machineId, capabilities, romSetId: romId }).reason}`);
+      console.log(`Not applicable: ${item.id}, ${suite.caseApplies(item, { machineId, capabilities, romSetId: romId }).reason}`);
     }
   }
 } finally {

@@ -68,7 +68,7 @@ export default defineConfig({
      * BASIC rename case takes 3.2 seconds by itself and more than ten with
      * eight workers competing for eight cores. A timeout is there to catch a
      * test that never finishes, not to measure how busy the machine was, and a
-     * test that only passes when nothing else is running is not reproducible —
+     * test that only passes when nothing else is running is not reproducible,
      * which is the one thing every test here has to be.
      */
     testTimeout: 30_000,

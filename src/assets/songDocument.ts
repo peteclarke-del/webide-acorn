@@ -22,7 +22,7 @@ export const ATOM_CHANNELS = 1;
  * The Acorn Electron has one tone generator in its ULA and that is the whole of
  * its sound hardware. It is not a reduced SN76489: a note sent to a second
  * channel does not queue behind the first, it replaces it. Measured on a real
- * Electron — `SOUND 1,-15,53,10:SOUND 2,-15,197,10` sounded only the second
+ * Electron, `SOUND 1,-15,53,10:SOUND 2,-15,197,10` sounded only the second
  * note, and the first was lost without a word. So the editor gives this machine
  * one channel, because a grid with more would let somebody write music the
  * machine silently drops half of.

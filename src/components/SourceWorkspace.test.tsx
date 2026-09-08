@@ -267,7 +267,7 @@ describe('functional source workspace', () => {
     fireEvent.focus(screen.getByRole('button', { name: 'SOUND' }));
     const help = screen.getByLabelText('SOUND token help');
     expect(help).toHaveTextContent(/SUPPORTED.*BBC BASIC II.*BBC Micro Model B/);
-    expect(help).toHaveTextContent(/channel.*Simple form 0–3/);
+    expect(help).toHaveTextContent(/channel.*Simple form 0-3/);
     fireEvent.click(screen.getByRole('button', { name: 'Select Atom' }));
     await waitFor(() => expect(screen.getByLabelText('SOUND token help')).toHaveTextContent('INCOMPATIBLE'));
     expect(screen.getByLabelText('SOUND token help')).toHaveTextContent(/not compatible with the selected Acorn Atom profile/);
@@ -315,7 +315,7 @@ describe('functional source workspace', () => {
     fireEvent.click(editor);
     await waitFor(() => expect(screen.getByLabelText('CALL alternative forms')).toBeVisible());
     expect(screen.getByText('SIGNATURE 2/2')).toBeVisible();
-    expect(screen.getByLabelText('Active parameter 2 of 2')).toHaveTextContent('variable…');
+    expect(screen.getByLabelText('Active parameter 2 of 2')).toHaveTextContent('variable...');
     expect(screen.getByLabelText('Active parameter 2 of 2')).toHaveTextContent('optional or repeated');
     expect(document.activeElement).toBe(editor);
     fireEvent.click(screen.getByRole('button', { name: 'Previous signature form' }));
@@ -952,7 +952,7 @@ describe('functional source workspace', () => {
 describe('the outline and issues that the language adapter provides', () => {
   const workspace = (file: ProjectFile) => render(<SourceWorkspace files={[file]} activeFileId={file.id} onSelectFile={() => undefined} onChange={() => undefined} onNewFile={() => undefined} onRenameFile={() => undefined} onDeleteFile={() => undefined} onDownloadFile={() => undefined} onSave={() => undefined} onCaretChange={() => undefined} onNotice={() => undefined} />);
 
-  it('nests what a 6502 label owns under it, and shows a constant’s value beside it', () => {
+  it("nests what a 6502 label owns under it, and shows a constant's value beside it", () => {
     workspace({
       id: 'main', name: 'main.asm', language: '6502', modified: false,
       content: 'INCLUDE "lib.asm"\n.start\nscreen = &7C00\n  RTS\n',

@@ -428,7 +428,7 @@ function App() {
    * Buttons rather than a drag. A drag is the obvious gesture and it is the one
    * that cannot be done without a pointer; these can be reached by Tab and
    * pressed by Space, and they say where the panel will go rather than
-   * requiring somebody to try it. A drag could be added on top later — it
+   * requiring somebody to try it. A drag could be added on top later, it
    * cannot be added underneath.
    *
    * The control disappears rather than sitting there disabled when a panel is
@@ -489,8 +489,8 @@ function App() {
    * Which ARM BASIC a tokenised file is read as.
    *
    * It cannot be inferred from the file. BASIC V and BASIC VI share one keyword
-   * table — measured across seven RISC OS 6 ROMs, each of which carries both
-   * modules — and differ in how a real number is stored, five bytes against
+   * table (measured across seven RISC OS 6 ROMs, each of which carries both
+   * modules), and differ in how a real number is stored, five bytes against
    * eight. Nothing in the tokens records that, so the only honest thing is to
    * let the person say which they are looking at, and to default to the one
    * their machine shipped with.
@@ -916,7 +916,7 @@ function App() {
     setWorkspaceTab('Code');
     /* A name that had to change is said out loud with the reason, so nobody
      * goes looking for the file under the name they typed. */
-    setNotice(reason ? `${created.name} added — the name was changed because ${reason}` : `${created.name} added`);
+    setNotice(reason ? `${created.name} added. The name was changed because ${reason}` : `${created.name} added`);
   };
 
   const addLivePixelAsset = (requestedStem: string, content: string) => {
@@ -1031,7 +1031,7 @@ function App() {
     if (!requested || requested.trim() === file.name) return;
     const { name, reason } = namedForProject(requested, project.files.filter((candidate) => candidate.id !== id));
     setProject((current) => ({ ...current, files: current.files.map((candidate) => candidate.id === id ? { ...candidate, name, language: languageForFilename(name), modified: projectFileIsModified(candidate, name, candidate.content) } : candidate) }));
-    setNotice(reason ? `${file.name} renamed to ${name} — the name was changed because ${reason}` : `${file.name} renamed to ${name}`);
+    setNotice(reason ? `${file.name} renamed to ${name}. The name was changed because ${reason}` : `${file.name} renamed to ${name}`);
   };
 
   /* Deleting moves the file to the project's trash together with the build
@@ -1116,7 +1116,7 @@ function App() {
        * identity is not the current one. */
       (progress) => { if (analysisTaskRef.current === task) setAnalysisActivity({ status: 'running', message: describeProgress(progress) }); },
     );
-    analysisTaskRef.current = task; setAnalysisActivity({ status: 'running', message: `Analysing ${bytes.length.toLocaleString()} bytes in an isolated browser worker…` }); setWorkspaceTab('Analyse');
+    analysisTaskRef.current = task; setAnalysisActivity({ status: 'running', message: `Analysing ${bytes.length.toLocaleString()} bytes in an isolated browser worker...` }); setWorkspaceTab('Analyse');
     void task.promise.then((analysis) => {
       if (analysisTaskRef.current !== task) return;
       analysisTaskRef.current = undefined; setAnalysisActivity({ status: 'idle', message: '' });
@@ -1934,31 +1934,31 @@ function App() {
   }));
   const commandDefinitions: WorkbenchCommand[] = [
     { id: 'project-new', label: 'Create new project', short: 'New project', icon: 'new', category: 'Project', keywords: ['clear', 'start'], enabled: true, run: newLocalProject },
-    { id: 'project-open', label: 'Open portable project', short: 'Open project…', icon: 'open', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
-    { id: 'project-start', label: 'Start a project from a sample or a template', short: 'Start from a sample…', icon: 'layers', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => { setStartProjectTab('samples'); setStartProjectOpen(true); } },
+    { id: 'project-open', label: 'Open portable project', short: 'Open project...', icon: 'open', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
+    { id: 'project-start', label: 'Start a project from a sample or a template', short: 'Start from a sample...', icon: 'layers', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => { setStartProjectTab('samples'); setStartProjectOpen(true); } },
     /* Its own entry rather than a tab somebody has to know is there: opening a
      * codebase is a different intent from starting from a sample, and the menu
      * offered no way to say so. */
-    { id: 'project-import-codebase', label: 'Start a project from an existing codebase folder', short: 'Open a codebase…', icon: 'folder', category: 'Project', keywords: ['import', 'folder', 'existing', 'source', 'game', 'codebase'], enabled: true, run: () => { setStartProjectTab('folder'); setStartProjectOpen(true); } },
+    { id: 'project-import-codebase', label: 'Start a project from an existing codebase folder', short: 'Open a codebase...', icon: 'folder', category: 'Project', keywords: ['import', 'folder', 'existing', 'source', 'game', 'codebase'], enabled: true, run: () => { setStartProjectTab('folder'); setStartProjectOpen(true); } },
     { id: 'file-save', label: 'Save current source in browser', short: 'Save', icon: 'save', category: 'File', keywords: ['persist', 'local', 'dirty'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: saveCurrentSource },
     { id: 'project-save-all', label: 'Save all project files in browser', short: 'Save all', icon: 'save', category: 'Project', keywords: ['persist', 'local', 'dirty'], enabled: true, run: saveLocalProject },
     { id: 'project-write-folder', label: 'Write project files back to the connected folder', short: 'Write to folder', icon: 'folder', category: 'Project', keywords: ['folder', 'disk', 'save', 'write'], enabled: !!connectedFolder, run: () => { void writeProjectToFolder(); } },
-    { id: 'project-export', label: 'Export portable project', short: 'Export…', icon: 'download', category: 'Project', keywords: ['download', 'bundle', 'private', 'redact'], enabled: true, run: () => setProjectExportOpen(true) },
+    { id: 'project-export', label: 'Export portable project', short: 'Export...', icon: 'download', category: 'Project', keywords: ['download', 'bundle', 'private', 'redact'], enabled: true, run: () => setProjectExportOpen(true) },
     { id: 'file-new', label: 'Create new source file', short: 'New file', icon: 'new', category: 'File', keywords: ['add'], enabled: true, run: () => addSourceFile() },
-    { id: 'file-import', label: 'Import source files', short: 'Import files…', icon: 'open', category: 'File', keywords: ['open', 'multiple'], enabled: true, run: () => sourceInputRef.current?.click() },
-    { id: 'file-analyse', label: 'Analyse local binary or BASIC file', short: 'Analyse a file…', icon: 'terminal', category: 'Analysis', keywords: ['disassemble', 'list', 'inspect'], enabled: true, run: openAnalysisFile },
+    { id: 'file-import', label: 'Import source files', short: 'Import files...', icon: 'open', category: 'File', keywords: ['open', 'multiple'], enabled: true, run: () => sourceInputRef.current?.click() },
+    { id: 'file-analyse', label: 'Analyse local binary or BASIC file', short: 'Analyse a file...', icon: 'terminal', category: 'Analysis', keywords: ['disassemble', 'list', 'inspect'], enabled: true, run: openAnalysisFile },
     { id: 'file-close-editor', label: 'Close current source editor', short: 'Close editor', icon: 'close', category: 'File', keywords: ['tab', 'document'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: () => activeSource && closeSourceEditor(activeSource.id) },
     { id: 'file-close-other-editors', label: 'Close other source editors', short: 'Close others', category: 'File', keywords: ['tabs', 'documents'], enabled: !!activeSource && documents.openIds.length > 1, disabledReason: activeSource ? 'No other source editors are open' : 'No source editor is open', run: () => activeSource && closeOtherSourceEditors(activeSource.id) },
     { id: 'file-close-all-editors', label: 'Close all source editors', short: 'Close all', category: 'File', keywords: ['tabs', 'documents'], enabled: documents.openIds.length > 0, disabledReason: 'No source editors are open', run: closeAllSourceEditors },
     { id: 'file-reopen-editor', label: 'Reopen recently closed source editor', short: 'Reopen editor', category: 'File', keywords: ['tab', 'document', 'history'], enabled: canReopenClosed, disabledReason: 'No recently closed project file is available', run: reopenClosedSourceEditor },
     { id: 'file-revert-editor', label: 'Revert current source to last save', short: 'Revert', category: 'File', keywords: ['discard', 'restore', 'baseline'], enabled: !!activeSource && activeSource.saved !== false && activeSource.content !== (activeSource.savedContent ?? activeSource.content), disabledReason: activeSource?.saved === false ? 'Current source has never been explicitly saved' : activeSource ? 'Current source matches its saved content' : 'No source editor is open', run: () => activeSource && revertSourceFile(activeSource.id) },
-    { id: 'editor-find', label: 'Find and replace in current file', short: 'Find…', icon: 'search', category: 'Editor', keywords: ['search'], enabled: !!activeSource, disabledReason: 'No active source file', run: findInCurrentFile },
-    { id: 'editor-search-project', label: 'Search and replace project', short: 'Search project…', icon: 'search', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
-    { id: 'editor-go-line', label: 'Go to line or project symbol', short: 'Go to line…', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
+    { id: 'editor-find', label: 'Find and replace in current file', short: 'Find...', icon: 'search', category: 'Editor', keywords: ['search'], enabled: !!activeSource, disabledReason: 'No active source file', run: findInCurrentFile },
+    { id: 'editor-search-project', label: 'Search and replace project', short: 'Search project...', icon: 'search', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
+    { id: 'editor-go-line', label: 'Go to line or project symbol', short: 'Go to line...', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
     { id: 'build-active', label: 'Build selected target', short: 'Build', icon: 'build', category: 'Build', keywords: ['compile', 'assemble', 'tokenize'], enabled: canBuild, disabledReason: buildTargetErrors[0] ?? 'Build target is invalid', run: () => { buildActiveSource(); } },
     { id: 'run-active', label: 'Build and run selected target', short: 'Build and run', icon: 'play', category: 'Run', keywords: ['execute', 'emulator'], enabled: canRun, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before running BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: runProgram },
     { id: 'debug-active', label: 'Build and debug selected target', short: 'Build and debug', icon: 'debug', category: 'Debug', keywords: ['breakpoint', 'inspect'], enabled: canDebug, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before debugging BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: () => void startDebugger() },
-    { id: 'debug-run-to', label: 'Debugger: run to address', short: 'Run to address…', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
+    { id: 'debug-run-to', label: 'Debugger: run to address', short: 'Run to address...', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
     { id: 'debug-pause', label: 'Debugger: pause', short: 'Pause', icon: 'pause', category: 'Debug', keywords: ['break', 'suspend'], enabled: debugAttached && !!debugCoreState?.running, disabledReason: !debugAttached ? 'Start a debug session first' : 'The attached core is already paused', run: debugPauseCommand },
     { id: 'debug-stop', label: 'Debugger: stop session', short: 'Stop', icon: 'stop', category: 'Debug', keywords: ['terminate', 'end'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: stopDebugSession },
     { id: 'debug-restart', label: 'Debugger: restart bound machine', short: 'Restart machine', icon: 'reset', category: 'Debug', keywords: ['reset', 'reboot'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: debugRestartCommand },
@@ -1967,7 +1967,7 @@ function App() {
     { id: 'debug-step-source-over', label: 'Debugger: source step over', short: 'Step over', category: 'Debug', keywords: ['line', 'call'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('over') },
     { id: 'debug-step-source-out', label: 'Debugger: source step out', short: 'Step out', category: 'Debug', keywords: ['return', 'stack', 'r14'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('out') },
     { id: 'debug-run-cursor', label: 'Debugger: run to cursor', short: 'Run to cursor', category: 'Debug', keywords: ['line', 'source'], enabled: debugPaused && !!currentMachineArtifact && !!activeSource, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact and active file are required', run: runToCursorCommand },
-    { id: 'debug-run-symbol', label: 'Debugger: run to symbol', short: 'Run to symbol…', category: 'Debug', keywords: ['label', 'function'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current artifact symbol table is required', run: runToSymbolCommand },
+    { id: 'debug-run-symbol', label: 'Debugger: run to symbol', short: 'Run to symbol...', category: 'Debug', keywords: ['label', 'function'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current artifact symbol table is required', run: runToSymbolCommand },
     { id: 'runtime-continue', label: 'Runtime: continue execution', short: 'Continue', icon: 'play', category: 'Run', keywords: ['resume', 'play'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Hardware CPU is already running' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'run' }) : continueProgram() },
     { id: 'runtime-step', label: 'Runtime: step one instruction', short: 'Step', category: 'Debug', keywords: ['cpu', 'instruction'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Pause the hardware CPU first' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'step' }) : stepProgram() },
     { id: 'runtime-reset', label: 'Runtime: reset machine or program', short: 'Reset', icon: 'reset', category: 'Run', keywords: ['restart'], enabled: !!hardwareState || !!runtimeState, disabledReason: 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'reset' }) : resetProgram() },
@@ -1988,7 +1988,7 @@ function App() {
         : `The project store did not accept this project: ${written.reason}`);
     })(); } },
     { id: 'project-close', label: 'Close this project', short: 'Close project', icon: 'close', category: 'Project', keywords: ['shut', 'discard', 'finish', 'delete', 'stored'], enabled: true, run: () => { void beginCloseProject(); } },
-    { id: 'store-open', label: 'Project store: open a project', short: 'Open from store…', icon: 'cloud', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
+    { id: 'store-open', label: 'Project store: open a project', short: 'Open from store...', icon: 'cloud', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
     { id: 'view-runtime', label: `${runtimeOpen ? 'Hide' : 'Show'} machine runtime`, short: 'Machine runtime', checked: runtimeOpen, category: 'View', keywords: ['emulator', 'screen', 'panel'], enabled: true, run: () => setRuntimeOpen((current) => !current) },
     { id: 'view-reset-panels', label: 'Reset panel sizes', short: 'Reset panel sizes', category: 'View', keywords: ['layout', 'width', 'resize', 'default'], enabled: true, run: () => { setPanelSizes({ ...DEFAULT_PANEL_SIZES }); try { writePanelSizes(DEFAULT_PANEL_SIZES, window.localStorage); } catch { /* the arrangement is lost, the session is not */ } setNotice('Panel sizes reset'); } },
     ...workspaceCommands,
@@ -2053,7 +2053,7 @@ function App() {
       items: [
         { id: 'menu-help-here', label: `Help for ${workspaceTab}`, icon: 'book', description: `Open the guide at the ${workspaceTab} workspace`, onSelect: () => openHelp(workspaceHelpTopic) },
         { id: 'menu-help-start', label: 'First run', icon: 'book', description: 'First run and workspace layout', onSelect: () => openHelp('first-run') },
-        { id: 'menu-help-search', label: 'Search the guide…', icon: 'search', description: 'Search and navigate this guide', onSelect: () => openHelp('using-help') },
+        { id: 'menu-help-search', label: 'Search the guide...', icon: 'search', description: 'Search and navigate this guide', onSelect: () => openHelp('using-help') },
         { id: 'menu-help-keys', label: 'Keyboard shortcuts', icon: 'settings', description: 'Review and rebind every workbench chord in Settings', separated: true, onSelect: () => setWorkspaceTab('Settings') },
         { id: 'menu-help-palette', label: 'Command palette', icon: 'terminal', description: 'Search every command the workbench offers', onSelect: () => setCommandPaletteOpen(true) },
       ],
@@ -2277,8 +2277,8 @@ function App() {
           * the two agreeing is the reason it can.
           *
           * Each panel keeps the guard it had. A panel can be open and still not
-          * have a column — that is what happens in a window too narrow to place
-          * them beside the editor, where it overlays instead — so the separator
+          * have a column (that is what happens in a window too narrow to place
+          * them beside the editor, where it overlays instead), so the separator
           * follows `laidOutSlots`, which counts only the panels the grid places,
           * while the panel itself follows its own open state.
           */}
@@ -2773,7 +2773,7 @@ function ProjectAnalysisPicker({ candidates, onChoose, disabled }: { candidates:
         disabled={disabled}
         onChange={(event) => { const chosen = event.target.value; if (chosen) onChoose(chosen); }}
       >
-        <option value="">Choose a file…</option>
+        <option value="">Choose a file...</option>
         {candidates.map((candidate) => (
           <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.detail}</option>
         ))}
@@ -2936,7 +2936,7 @@ export function AnalysisWorkspace({
     if (end < selectedAddress) { onNotice('The end of a marked span cannot come before its start'); return; }
     editAnnotations(
       (base) => withRegion(base, { start: selectedAddress, end, kind }),
-      `Mark ${analysisAddress(selectedAddress)}–${analysisAddress(end)} as ${kind}`,
+      `Mark ${analysisAddress(selectedAddress)}-${analysisAddress(end)} as ${kind}`,
     );
   };
 
@@ -3069,8 +3069,8 @@ export function AnalysisWorkspace({
           * Which ARM BASIC this listing is being read as.
           *
           * Only for a tokenised BASIC file on an ARM, and only because the file
-          * cannot answer it: BASIC V and BASIC VI share one keyword table —
-          * measured across seven RISC OS 6 ROMs, each carrying both modules —
+          * cannot answer it: BASIC V and BASIC VI share one keyword table,
+          * measured across seven RISC OS 6 ROMs, each carrying both modules,
           * and differ in how a real is stored, five bytes against eight. A
           * reader that guessed would be guessing about numbers.
           */}
@@ -3097,7 +3097,7 @@ export function AnalysisWorkspace({
           <button type="button" onClick={exportListing}><Icon name="download" size={14} /> Listing</button>
           {disassembly && (processor === '6502' || processor === '65c02') && <button type="button" disabled={!assemblySource?.verified} title={assemblySource?.verificationMessage} onClick={exportAssemblySource}><Icon name="download" size={14} /> Verified source</button>}
           {disassembly && (processor === '6502' || processor === '65c02') && assemblySource?.verified && <button type="button" onClick={() => file && onAddSource(`${file.name}.${assemblySource.filenameExtension}`, assemblySource.source)}>Add source to project</button>}
-          {armAssemblySource && <button type="button" disabled={armVerifying} title={armVerification?.verificationMessage ?? 'Run the isolated native GNU ARM toolchain before download is enabled'} onClick={() => void verifyOrExportArmSource()}>{armVerification?.verified ? <Icon name="download" size={14} /> : null}{armVerifying ? 'Verifying…' : armVerification?.verified ? 'Verified source' : 'Verify ARM source'}</button>}
+          {armAssemblySource && <button type="button" disabled={armVerifying} title={armVerification?.verificationMessage ?? 'Run the isolated native GNU ARM toolchain before download is enabled'} onClick={() => void verifyOrExportArmSource()}>{armVerification?.verified ? <Icon name="download" size={14} /> : null}{armVerifying ? 'Verifying...' : armVerification?.verified ? 'Verified source' : 'Verify ARM source'}</button>}
           {armAssemblySource && armVerification?.verified && <button type="button" onClick={() => file && onAddSource(`${file.name}.${armAssemblySource.filenameExtension}`, armAssemblySource.source)}>Add source to project</button>}
           <button type="button" onClick={() => void exportStructuredAnalysis()}><Icon name="download" size={14} /> Analysis JSON</button>
         </div>
@@ -3152,7 +3152,7 @@ export function AnalysisWorkspace({
                 </span>
               )}
               <div className="analysis-view-switch" role="group" aria-label="Analysis byte view"><button type="button" aria-pressed={analysisView === 'listing'} onClick={() => setAnalysisView('listing')}>Listing</button><button type="button" aria-pressed={analysisView === 'hex'} onClick={() => setAnalysisView('hex')}>Hex + ASCII</button></div>
-              {analysisView === 'listing' && <label className="analysis-filter"><Icon name="search" size={13} /><span className="visually-hidden">Filter listing</span><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter address, label, instruction…" /></label>}
+              {analysisView === 'listing' && <label className="analysis-filter"><Icon name="search" size={13} /><span className="visually-hidden">Filter listing</span><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter address, label, instruction..." /></label>}
             </div>
             {file.analysis.warnings.map((warning) => <div className="analysis-warning" key={warning}>{warning}</div>)}
             {coverage && (
@@ -3267,7 +3267,7 @@ function AnalysisHexView({
   const rows = Array.from({ length: Math.ceil((end - start) / 16) }, (_, index) => start + index * 16);
   const selected = selectedOffset === null ? undefined : bytes[selectedOffset];
   return <div className="analysis-hex-view">
-    <div className="artifact-inspector-status" role="status">Showing offsets +&amp;{start.toString(16).toUpperCase()}–+&amp;{Math.max(start, end - 1).toString(16).toUpperCase()} of {bytes.length.toLocaleString()} bytes{selected === undefined ? '' : ` · selected ${formatAddress(origin + selectedOffset!, addressWidth)} = ${formatByte(selected)}`}</div>
+    <div className="artifact-inspector-status" role="status">Showing offsets +&amp;{start.toString(16).toUpperCase()}-+&amp;{Math.max(start, end - 1).toString(16).toUpperCase()} of {bytes.length.toLocaleString()} bytes{selected === undefined ? '' : ` · selected ${formatAddress(origin + selectedOffset!, addressWidth)} = ${formatByte(selected)}`}</div>
     <div className="artifact-hex-table" role="table" aria-label="Analysis hexadecimal bytes">
       <div className="artifact-hex-head" role="row"><span>Address</span><span>00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F</span><span>ASCII</span></div>
       {rows.map((offset) => {
@@ -3279,7 +3279,7 @@ function AnalysisHexView({
         </div>;
       })}
     </div>
-    <div className="artifact-window-nav"><button type="button" disabled={start === 0} onClick={() => onWindowChange(artifactWindowStart(start - windowBytes, bytes.length, windowBytes))}>Previous 256 bytes</button><span>{start.toLocaleString()}–{end.toLocaleString()} / {bytes.length.toLocaleString()}</span><button type="button" disabled={end >= bytes.length} onClick={() => onWindowChange(artifactWindowStart(start + windowBytes, bytes.length, windowBytes))}>Next 256 bytes</button></div>
+    <div className="artifact-window-nav"><button type="button" disabled={start === 0} onClick={() => onWindowChange(artifactWindowStart(start - windowBytes, bytes.length, windowBytes))}>Previous 256 bytes</button><span>{start.toLocaleString()}-{end.toLocaleString()} / {bytes.length.toLocaleString()}</span><button type="button" disabled={end >= bytes.length} onClick={() => onWindowChange(artifactWindowStart(start + windowBytes, bytes.length, windowBytes))}>Next 256 bytes</button></div>
   </div>;
 }
 
@@ -3363,7 +3363,7 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
   const [zoom, setZoom] = useState(1);
   /* The stage drew every cell at sixteen pixels whatever the size of the
    * artwork or of the panel it was in, and nothing in the editor could change
-   * it — the state was set once and never written again. A 32x32 sprite was
+   * it. The state was set once and never written again. A 32x32 sprite was
    * therefore drawn twice as tall as the stage that held it, and what fell off
    * the bottom could only be reached by scrolling a box most people would not
    * notice had scrolled. It fits what it has now, until somebody chooses a
@@ -3490,9 +3490,9 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
           { id: 'add-document', label: 'Add to project', icon: 'file', description: 'Write this editable document into the project', hint: `${stem}.asset.json`, onSelect: () => onAddSource(`${stem}.asset.json`, serializePixelAssetDocument(storedDocument)) },
           { id: 'add-equb', label: 'Add EQUB source', icon: 'code', description: 'Write the generated assembler source into the project', hint: `${stem}.asm`, onSelect: () => onAddSource(`${stem}.asm`, `${output.assembly}\n`) },
           { id: 'add-live-target', label: 'Add build target', icon: 'build', description: 'Create an editable document and a 6502 target that includes it with INCLUDEASSET, so edits stale the build', onSelect: () => onAddLiveAsset(stem, serializePixelAssetDocument(storedDocument)) },
-          { id: 'download-document', label: 'Save document…', icon: 'download', description: 'Download the editable document as a file', separated: true, onSelect: () => downloadBlob(new Blob([serializePixelAssetDocument(storedDocument)], { type: 'application/json' }), `${stem}.asset.json`) },
-          { id: 'download-binary', label: 'Save binary…', icon: 'download', description: 'Download the generated bytes exactly as the machine reads them', hint: `${output.bytes.length} bytes`, onSelect: downloadBinary },
-          ...(document.sprite ? ([{ id: 'download-mask', label: 'Save mask…', icon: 'download', description: 'Download the opacity mask as a separate binary', disabled: !output.maskBytes, onSelect: () => { if (output.maskBytes) downloadBlob(new Blob([output.maskBytes], { type: 'application/octet-stream' }), `${stem}.mask.bin`); } }] satisfies PanelMenuItem[]) : []),
+          { id: 'download-document', label: 'Save document...', icon: 'download', description: 'Download the editable document as a file', separated: true, onSelect: () => downloadBlob(new Blob([serializePixelAssetDocument(storedDocument)], { type: 'application/json' }), `${stem}.asset.json`) },
+          { id: 'download-binary', label: 'Save binary...', icon: 'download', description: 'Download the generated bytes exactly as the machine reads them', hint: `${output.bytes.length} bytes`, onSelect: downloadBinary },
+          ...(document.sprite ? ([{ id: 'download-mask', label: 'Save mask...', icon: 'download', description: 'Download the opacity mask as a separate binary', disabled: !output.maskBytes, onSelect: () => { if (output.maskBytes) downloadBlob(new Blob([output.maskBytes], { type: 'application/octet-stream' }), `${stem}.mask.bin`); } }] satisfies PanelMenuItem[]) : []),
         ] },
         { id: 'encoding', label: 'Encoding', items: [
           /* The generated byte order was a whole row of the editor for one
@@ -3526,7 +3526,7 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
       )}{!!openable.length && (
         <label className="project-source-picker"><span>From this project</span>
           <select aria-label={`Open a ${kindId} document from this project`} value="" onChange={(event) => { const chosen = event.target.value; if (chosen) openFromProject(chosen); }}>
-            <option value="">Choose a document…</option>
+            <option value="">Choose a document...</option>
             {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
           </select>
         </label>
@@ -3537,7 +3537,7 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
         * this canvas, and the heading had no room left for them. */}
       <div className="pixel-stage-tools">
         <div className="pixel-zoom" role="group" aria-label="Magnification">
-          <button type="button" aria-label="Show the artwork smaller" disabled={zoom <= PIXEL_ZOOM_STEPS[0]!} onClick={() => stepZoom(-1)}>−</button>
+          <button type="button" aria-label="Show the artwork smaller" disabled={zoom <= PIXEL_ZOOM_STEPS[0]!} onClick={() => stepZoom(-1)}>-</button>
           <span aria-live="off">{Math.round(zoom * 100)}%</span>
           <button type="button" aria-label="Show the artwork larger" disabled={zoom >= PIXEL_ZOOM_STEPS[PIXEL_ZOOM_STEPS.length - 1]!} onClick={() => stepZoom(1)}>+</button>
           <button type="button" aria-pressed={fitToStage} onClick={() => setFitToStage(true)}>Fit</button>
@@ -3549,11 +3549,11 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
       </div>
       <div className="pixel-pan" ref={panRef}><div className={`pixel-grid ${selectionMode ? 'selecting' : ''} ${editPlane === 'mask' ? 'editing-mask' : ''}`} role="grid" data-essential-target-size="A cell in this grid is one pixel of the artwork. Enlarging it past the artwork would change what the editor edits, so WCAG 2.2 AA 2.5.8 is met by its essential exception. The surrounding tools are full-size targets." aria-label={`${kind} pixel grid`} style={{ gridTemplateColumns: `repeat(${document.width}, 1fr)`, width: `${document.width * 16 * zoom}px`, height: `${document.height * 16 * zoom}px` }}>{/* Cells are wrapped a row at a time. A grid whose cells are not inside rows is malformed:
               WAI-ARIA gives `gridcell` a required context, and without it a screen reader has nothing to
-              count position within, so it cannot say which row and column the caret is in — the two facts
+              count position within, so it cannot say which row and column the caret is in, the two facts
               that matter most when editing artwork pixel by pixel. `display: contents` keeps the row out
               of the layout, so the columns are still laid out by the grid itself and nothing moves. */}{Array.from({ length: document.height }, (_row, y) => <div key={`pixel-row-${y}`} role="row" aria-rowindex={y + 1} style={{ display: 'contents' }}>{document.pixels.slice(y * document.width, y * document.width + document.width).map((pixel, x) => { const index = y * document.width + x; const point = { x, y }; const selected = selection ? selectionContains(selection, point.x, point.y) : false; const opaque = document.sprite?.mask[index] !== 0; const hotspot = document.sprite?.hotspot.x === point.x && document.sprite?.hotspot.y === point.y; return <button type="button" role="gridcell" aria-colindex={x + 1} aria-selected={selected} aria-label={`Pixel ${point.x + 1},${point.y + 1}, colour ${pixel}${document.sprite ? opaque ? ', opaque' : ', transparent' : ''}${hotspot ? ', hotspot' : ''}${selected ? ', selected' : ''}`} className={`pixel-cell ${selected ? 'selected' : ''} ${!opaque ? 'mask-transparent' : ''} ${hotspot ? 'sprite-hotspot' : ''}`} style={{ background: projectPalette.colours[pixel] ?? projectPalette.colours[0] }} key={index} onClick={() => selectionMode ? chooseSelectionPoint(point) : editPlane === 'mask' && document.sprite ? toggleMask(index) : paint(index)} onContextMenu={(event) => { event.preventDefault(); if (!selectionMode && editPlane === 'colour') paint(index, 0); }} />; })}</div>)}</div></div><p>{selectionMode ? selectionAnchor ? 'Choose the opposite corner of the rectangle.' : 'Choose the first corner of a rectangular selection.' : editPlane === 'mask' && document.sprite ? 'Click toggles independent opaque/transparent mask pixels.' : 'Left click paints; right click erases.'} Up to 100 changes are undoable; zoomed canvases pan with standard scrolling. {projectPalette.fileName ? `Previewed with ${projectPalette.fileName}.` : 'Previewed with the MODE 5 power-up palette; add a palette document to change it.'}{projectPalette.flashing.length ? ` Colours ${projectPalette.flashing.join(', ')} flash on the machine and only their first phase is shown.` : ''}</p></section>
       <TargetModePreview pixels={document.pixels} width={document.width} height={document.height} palette={projectPalette} {...(document.sprite ? { mask: document.sprite.mask } : {})} />
-      <section className="pixel-output"><h3>Generated output</h3><p className="pixel-encoding-note">{document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? 'Hardware bit-plane order · four pixels per byte' : 'Portable logical groups · choose a hardware codec before writing screen memory'}</p><div className="asset-summary"><span>{document.width} × {document.height}</span>{frames.length > 1 && <span>{frames.length} ordered frames</span>}<span>{output.bytes.length} colour bytes</span>{output.maskBytes && <span>{output.maskBytes.length} mask bytes</span>}<span>SHA-256 {output.manifest.sha256.slice(0, 12)}…</span>{output.manifest.maskSha256 && <span>Mask {output.manifest.maskSha256.slice(0, 12)}…</span>}</div><pre>{output.assembly}</pre></section>
+      <section className="pixel-output"><h3>Generated output</h3><p className="pixel-encoding-note">{document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? 'Hardware bit-plane order · four pixels per byte' : 'Portable logical groups · choose a hardware codec before writing screen memory'}</p><div className="asset-summary"><span>{document.width} × {document.height}</span>{frames.length > 1 && <span>{frames.length} ordered frames</span>}<span>{output.bytes.length} colour bytes</span>{output.maskBytes && <span>{output.maskBytes.length} mask bytes</span>}<span>SHA-256 {output.manifest.sha256.slice(0, 12)}...</span>{output.manifest.maskSha256 && <span>Mask {output.manifest.maskSha256.slice(0, 12)}...</span>}</div><pre>{output.assembly}</pre></section>
     </div>
   </div>;
 }
@@ -3679,7 +3679,7 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
   };
   const addHostFileToDfsProject = async () => {
     if (!dfsHostFile) return;
-    if (!dfsHostFile.size || dfsHostFile.size > 798 * 256) { onNotice('A DFS host file must contain 1–204,288 bytes'); return; }
+    if (!dfsHostFile.size || dfsHostFile.size > 798 * 256) { onNotice('A DFS host file must contain 1-204,288 bytes'); return; }
     const name = dfsHostFile.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_!]/g, '').toUpperCase().slice(0, 7) || 'FILE';
     const base = dfsProject ?? { title: dfsTitle, cycle: 0, bootOption: 0, files: [] };
     const identity = `$.${name}`.toUpperCase(); if (base.files.some((file) => `${file.directory ?? '$'}.${file.name}`.toUpperCase() === identity)) { onNotice(`DFS project already contains $.${name}; rename or remove it first`); return; }
@@ -4117,7 +4117,7 @@ function BuildWorkspace({ artifact, metadata, failure, artifactDocumentId, onArt
         {(graph.cycles.length > 0 || graph.missing.length > 0) && <div className="build-graph-errors" role="alert">{graph.cycles.map((cycle) => <span key={cycle.join('-')}>Cycle: {cycle.map((id) => targets.find((target) => target.id === id)?.name ?? id).join(' → ')}</span>)}{graph.missing.map((edge) => <span key={`${edge.targetId}-${edge.dependencyId}`}>Missing dependency {edge.dependencyId}</span>)}</div>}
       </section>
       <div className="build-policy-state" role="status"><span>{activeTarget.buildPolicy === 'manual' ? 'Build only when requested.' : activeTarget.buildPolicy === 'on-save' ? 'Build after an explicit save of the entry file or project.' : 'Build 650 ms after the latest target, source or machine change.'}</span><strong>{pinned ? 'Current artifact retained; background builds are blocked.' : 'Background builds may replace the current artifact.'}</strong></div>
-      <div className={`build-activity status-${activity.status}`} role="status" aria-label="Build activity"><strong>{activity.status.toUpperCase()}</strong><span>{activity.targetName || activeTarget.name} · {activity.trigger}</span><small>{activity.message}</small>{activity.startedAt && <code>{activity.finishedAt ? `${Math.max(0, activity.finishedAt - activity.startedAt)} ms` : 'running…'}</code>}</div>
+      <div className={`build-activity status-${activity.status}`} role="status" aria-label="Build activity"><strong>{activity.status.toUpperCase()}</strong><span>{activity.targetName || activeTarget.name} · {activity.trigger}</span><small>{activity.message}</small>{activity.startedAt && <code>{activity.finishedAt ? `${Math.max(0, activity.finishedAt - activity.startedAt)} ms` : 'running...'}</code>}</div>
       {errors.length > 0 && <div className="build-target-errors" role="alert">{errors.map((error) => <span key={error}>{error}</span>)}</div>}
       {failure && <section className="build-failure-result" aria-label="Normalized failed build result"><header><div><strong>{failure.exit.reason.replaceAll('-', ' ').toUpperCase()}</strong><span>No artifact was produced or implied.</span></div><button type="button" onClick={downloadFailure}><Icon name="download" size={14} /> Export failed result</button></header><div>{failure.diagnostics.map((diagnostic, index) => <button type="button" disabled={!diagnostic.fileId} onClick={() => diagnostic.fileId && onNavigate(diagnostic.fileId, diagnostic.line)} key={`${diagnostic.fileId}-${diagnostic.line}-${index}`}><strong>ERROR</strong><code>{diagnostic.fileName ? `${diagnostic.fileName}:${diagnostic.line}:${diagnostic.column}` : 'configuration'}</code><span>{diagnostic.message}</span></button>)}</div><footer><code>{failure.invocation.adapterId}@{failure.invocation.adapterVersion}</code><span>{failure.inputs.length} declared input{failure.inputs.length === 1 ? '' : 's'}</span><span>{failure.timing.durationMs.toFixed(2)} ms</span><span>cache {failure.cache.status}</span></footer></section>}
       {stale && <div className="build-stale" role="status">The displayed result is stale because its target, machine profile, or declared source inputs changed. Rebuild before download, run, debug, or test.</div>}
@@ -4125,7 +4125,7 @@ function BuildWorkspace({ artifact, metadata, failure, artifactDocumentId, onArt
       {artifact && <nav className="artifact-document-tabs" aria-label="Generated artifact documents"><button type="button" aria-current={!selectedDocument && !inspectorSelected ? 'page' : undefined} onClick={() => onArtifactDocumentChange(undefined)}>Overview</button><button type="button" aria-current={inspectorSelected ? 'page' : undefined} onClick={() => onArtifactDocumentChange('@byte-inspector')}>Byte inspector</button>{documents.map((document) => <button type="button" aria-current={selectedDocument?.id === document.id ? 'page' : undefined} onClick={() => onArtifactDocumentChange(document.id)} key={document.id}>{document.label} <small>RO</small></button>)}</nav>}
       {!artifact ? <div className="honest-empty runtime-empty">Configure a valid target and build it. Diagnostics, listing, symbols and a reproducible artifact identity will appear here.</div> : inspectorSelected ? <ArtifactInspector artifact={artifact} onNavigate={onNavigate} /> : selectedDocument ? <GeneratedArtifactDocumentView artifact={artifact} document={selectedDocument} onNavigate={onNavigate} /> : <>
         <div className="build-summary"><span><strong>{artifact.bytes.length}</strong> bytes</span>{isMachineCodeArtifact(artifact) ? <><span>Origin <strong>{formatAddress(artifact.origin, artifact.kind === 'arm-binary' ? 8 : 4)}</strong></span><span>Entry <strong>{formatAddress(artifact.entryPoint, artifact.kind === 'arm-binary' ? 8 : 4)}</strong></span><span><strong>{Object.keys(artifact.symbols).length}</strong> symbols</span><span><strong>{artifact.dependencies.length}</strong> inputs</span>{artifact.kind === 'arm-binary' && <span>Format <strong>ARM2 raw · not RISC OS</strong></span>}</> : <><span><strong>{artifact.lineCount}</strong> lines</span><span>Dialect <strong>{artifact.dialect}</strong></span></>}<span><strong>{artifact.diagnostics.length}</strong> diagnostics</span></div>
-        {artifact.provenance && <div className="build-provenance" aria-label="Build provenance"><span>Build <code>{artifact.provenance.fingerprint}</code></span><span>Output SHA-256 <code>{artifact.provenance.output.sha256.slice(0, 12)}…</code></span><span>{artifact.provenance.toolchain.label} <code>{artifact.provenance.toolchain.version}</code></span><span>{artifact.provenance.inputs.length} declared input{artifact.provenance.inputs.length === 1 ? '' : 's'}</span>{metadata && <span className={`cache-${metadata.cache.status}`}>Cache <strong>{metadata.cache.status.toUpperCase()}</strong> · {metadata.cache.hits} hit / {metadata.cache.misses} miss · {metadata.cache.entries} entr{metadata.cache.entries === 1 ? 'y' : 'ies'}{metadata.cache.corruptions ? ` · ${metadata.cache.corruptions} rejected` : ''}</span>}</div>}
+        {artifact.provenance && <div className="build-provenance" aria-label="Build provenance"><span>Build <code>{artifact.provenance.fingerprint}</code></span><span>Output SHA-256 <code>{artifact.provenance.output.sha256.slice(0, 12)}...</code></span><span>{artifact.provenance.toolchain.label} <code>{artifact.provenance.toolchain.version}</code></span><span>{artifact.provenance.inputs.length} declared input{artifact.provenance.inputs.length === 1 ? '' : 's'}</span>{metadata && <span className={`cache-${metadata.cache.status}`}>Cache <strong>{metadata.cache.status.toUpperCase()}</strong> · {metadata.cache.hits} hit / {metadata.cache.misses} miss · {metadata.cache.entries} entr{metadata.cache.entries === 1 ? 'y' : 'ies'}{metadata.cache.corruptions ? ` · ${metadata.cache.corruptions} rejected` : ''}</span>}</div>}
         {artifact.diagnostics.length > 0 && <div className="build-diagnostics" aria-label="Build diagnostics">{artifact.diagnostics.map((item, index) => <button type="button" disabled={!item.fileId} onClick={() => item.fileId && onNavigate(item.fileId, item.line)} className={`diagnostic-${item.severity}`} key={`${item.fileId}-${item.line}-${index}`}><strong>{item.severity.toUpperCase()}</strong><code>{item.fileName ? `${item.fileName}:` : 'line '}{item.line}:{item.column}</code><span>{item.message}</span></button>)}</div>}
         <div className="build-result-grid"><section><h3>Listing · activate a mapped row to open source</h3><div className="artifact-listing-rows" role="list" aria-label="Navigable build listing">{listingRows.map((row, index) => <button type="button" role="listitem" disabled={!row.source} onClick={() => row.source && onNavigate(row.source.fileId, row.source.line)} key={`${row.address}-${index}`}><code>{row.text}</code>{row.source && <small>{row.source.fileName}:{row.source.line}</small>}</button>)}</div></section>{isMachineCodeArtifact(artifact) ? <section><h3>Symbols &amp; immutable references</h3>{artifact.dependencies.length > 0 && <div className="build-dependencies"><span>Declared files</span>{artifact.dependencies.map((name) => <code key={name}>{name}</code>)}</div>}<div className="symbol-list">{Object.entries(artifact.symbols).sort((a, b) => a[1] - b[1]).map(([name, address]) => <button type="button" aria-pressed={selectedSymbol === name} onClick={() => setSelectedSymbol(name)} key={name}><code>{name}</code><strong>{formatAddress(address, artifact.kind === 'arm-binary' ? 8 : 4)}</strong></button>)}</div>{selectedSymbol && <div className="artifact-symbol-references"><h4>{selectedSymbol} · {symbolReferences.length} source occurrence{symbolReferences.length === 1 ? '' : 's'}</h4>{symbolReferences.length ? symbolReferences.map((reference) => <button type="button" onClick={() => onNavigate(reference.fileId, reference.line, reference.column, selectedSymbol.length)} key={`${reference.fileId}-${reference.line}-${reference.column}`}><strong>{reference.definition ? 'DEF' : 'REF'}</strong><span>{reference.fileName}:{reference.line}:{reference.column}</span></button>) : <p>Predefined/toolchain symbol; no project source occurrence.</p>}</div>}</section> : artifact.kind === 'atom-basic-text' ? <section><h3>Interpreter source artifact</h3><p className="honest-note">Atom BASIC stores program text rather than BBC-style keyword tokens. This bounded ASCII artifact can be downloaded or entered automatically through the real Atom keyboard/interpreter adapter.</p><pre className="build-listing">{new TextDecoder().decode(artifact.bytes)}</pre></section> : <section><h3>Tokenized program</h3><p className="honest-note">BBC BASIC II keywords and protected line references are encoded in the downloadable program. Execution will attach to the ROM-aware machine adapter.</p><pre className="build-listing">{Array.from(artifact.bytes.slice(0, 128)).map(formatByte).join(' ')}</pre></section>}</div>
       </>}
@@ -4196,7 +4196,7 @@ function ArtifactInspector({ artifact, onNavigate }: { artifact: BuildArtifact; 
       <button type="button" disabled={!search.result?.offsets.length} onClick={() => moveMatch(-1)}>Previous</button><button type="button" disabled={!search.result?.offsets.length} onClick={() => moveMatch(1)}>Next</button>
       <button type="button" onClick={exportWindow}><Icon name="download" size={13} /> Export window</button>
     </div>
-    <div className="artifact-inspector-status" role="status">{search.error || (searchQuery ? `${search.result?.total ?? 0} match${search.result?.total === 1 ? '' : 'es'}${search.result?.truncated ? ' · first 10,000 retained' : ''}` : `${artifact.bytes.length.toLocaleString()} bytes · showing offsets ${windowStart}–${Math.max(windowStart, visibleEnd - 1)}`)}</div>
+    <div className="artifact-inspector-status" role="status">{search.error || (searchQuery ? `${search.result?.total ?? 0} match${search.result?.total === 1 ? '' : 'es'}${search.result?.truncated ? ' · first 10,000 retained' : ''}` : `${artifact.bytes.length.toLocaleString()} bytes · showing offsets ${windowStart}-${Math.max(windowStart, visibleEnd - 1)}`)}</div>
     <div className="artifact-inspector-body">
       <div className="artifact-byte-view">
         {view === 'hex' ? <div className="artifact-hex-table" role="table" aria-label="Artifact hexadecimal bytes"><div className="artifact-hex-head" role="row"><span>Address</span><span>00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F</span><span>ASCII</span></div>{rows.map((offset) => <div role="row" className="artifact-hex-row" key={offset}><button type="button" disabled={!isMachineCodeArtifact(artifact) || !artifact.sourceLocations[origin + offset]} onClick={() => { const location = isMachineCodeArtifact(artifact) ? artifact.sourceLocations[origin + offset] : undefined; if (location) onNavigate(location.fileId, location.line); }}>{origin ? formatAddress(origin + offset) : `+&${offset.toString(16).toUpperCase().padStart(4, '0')}`}</button><span>{Array.from(artifact.bytes.slice(offset, Math.min(offset + 16, visibleEnd))).map((byte, index) => <button type="button" aria-label={`Select byte at ${origin ? formatAddress(origin + offset + index) : `offset ${offset + index}`}: ${formatByte(byte)}`} aria-pressed={selectedOffset === offset + index} className={search.result?.offsets.some((match) => offset + index >= match && offset + index < match + (search.result?.pattern.length ?? 0)) ? 'match' : ''} onClick={() => setSelectedOffset(offset + index)} key={index}>{formatByte(byte)}</button>)}</span><code>{Array.from(artifact.bytes.slice(offset, Math.min(offset + 16, visibleEnd)), (byte) => byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : '·').join('')}</code></div>)}</div> : <pre className="artifact-text-view" tabIndex={0}>{Array.from(artifact.bytes.slice(windowStart, visibleEnd), (byte) => byte === 10 || byte === 13 || byte === 9 ? String.fromCharCode(byte) : byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : '·').join('')}</pre>}
@@ -4321,7 +4321,7 @@ function TestInputEditor({
   /*
    * Recording a real controller.
    *
-   * A gamepad has no events — the browser only reports its state when asked —
+   * A gamepad has no events. The browser only reports its state when asked,
    * so it is polled, and only a change is written down. Recording the state on
    * every frame would fill the two-hundred-and-fifty-six input budget in four
    * seconds with entries that say nothing happened.
@@ -5450,8 +5450,8 @@ function ReplayHistoryPanel({ state, onMachineCommand }: { state: MachineBridgeS
   const toggle = () => {
     if (history.enabled) { onMachineCommand({ type: 'replay-config', enabled: false }); return; }
     const parsedInterval = Number(interval); const parsedCapacity = Number(capacity);
-    if (!Number.isInteger(parsedInterval) || parsedInterval < 1 || parsedInterval > 4096) { setError('Checkpoint interval must be 1–4,096 instructions'); return; }
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 2 || parsedCapacity > 64 || parsedInterval * parsedCapacity > 65536) { setError('Capacity must be 2–64 and retain no more than 65,536 instructions'); return; }
+    if (!Number.isInteger(parsedInterval) || parsedInterval < 1 || parsedInterval > 4096) { setError('Checkpoint interval must be 1-4,096 instructions'); return; }
+    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 2 || parsedCapacity > 64 || parsedInterval * parsedCapacity > 65536) { setError('Capacity must be 2-64 and retain no more than 65,536 instructions'); return; }
     setError(''); onMachineCommand({ type: 'replay-config', enabled: true, checkpointInterval: parsedInterval, checkpointCapacity: parsedCapacity });
   };
   return <section className={`replay-history ${history.enabled ? 'active' : ''}`} aria-label="Deterministic replay history"><div className="replay-controls"><label><span>Checkpoint every</span><select aria-label="Replay checkpoint interval" value={interval} disabled={history.enabled} onChange={(event) => setInterval(event.target.value)}>{[1, 4, 16, 64, 256, 1024, 4096].map((value) => <option value={value} key={value}>{value} instruction{value === 1 ? '' : 's'}</option>)}</select></label><label><span>Checkpoints</span><select aria-label="Replay checkpoint capacity" value={capacity} disabled={history.enabled} onChange={(event) => setCapacity(event.target.value)}>{[2, 4, 8, 16, 32, 64].map((value) => <option value={value} key={value}>{value}</option>)}</select></label><button type="button" disabled={state.running && !history.enabled} onClick={toggle}>{history.enabled ? 'Stop history' : 'Start history'}</button><button type="button" disabled={!history.canReverseStep} onClick={() => onMachineCommand({ type: 'reverse-step' })}>Step back</button><button type="button" disabled={!history.canReverseContinue} onClick={() => onMachineCommand({ type: 'reverse-continue' })}>Previous checkpoint</button>{error && <span role="alert">{error}</span>}</div><div className="replay-facts"><strong>{history.enabled ? 'Deterministic history active' : 'Reverse execution inactive'}</strong><span>{history.overhead}</span><small>Segment {history.segment} · instruction {history.currentInstruction.toLocaleString()} · {history.retainedInstructions.toLocaleString()} reversible · {history.checkpointCount}/{history.config.checkpointCapacity} checkpoints · {(history.checkpointBytes / 1048576).toFixed(1)} MiB measured state</small><p><b>Boundary:</b> {history.boundaryReason}</p><p><b>Verification:</b> {history.lastVerification}</p></div><div className="replay-checkpoints" aria-label="Retained replay checkpoints">{history.checkpoints.slice().reverse().map((checkpoint) => <div key={checkpoint.index}><strong>#{checkpoint.index.toLocaleString()}</strong><code>{formatAddress(checkpoint.pc)}</code><span>{checkpoint.symbol ?? (checkpoint.source ? `${checkpoint.source.fileName}:${checkpoint.source.line}` : `cycle ${checkpoint.cycle.toLocaleString()}`)}</span><small>{(checkpoint.bytes / 1048576).toFixed(2)} MiB</small></div>)}</div></section>;
@@ -5463,7 +5463,7 @@ function DebugSessionPanel({ session, onStop }: { session: DebugSessionRecord | 
   const addressWidth = binding.runProfile.processor.startsWith('arm') ? 8 : 4;
   return <section className="debug-session-binding" aria-label="Immutable debug session binding">
     <header><div><span className={`debug-lifecycle ${session.lifecycle}`}>{session.lifecycle.toUpperCase()}</span><strong>{binding.build.targetName}</strong><small>{session.reason}</small></div><button type="button" disabled={['terminated', 'disconnected'].includes(session.lifecycle)} title={session.lifecycle === 'terminated' ? 'This debug session is already terminated' : 'Pause the machine and terminate this debug session'} onClick={onStop}>Stop session</button></header>
-    <div className="debug-session-summary"><span>Build <code>{binding.build.fingerprint}</code></span><span>SHA-256 <code title={binding.build.outputSha256}>{binding.build.outputSha256.slice(0, 12)}…</code></span><span>{binding.adapter.id} <code>{binding.adapter.version.slice(0, 12)}</code></span><span>{binding.machineTarget.machineId} · {binding.machineTarget.variant}</span><span>Entry <code>{formatAddress(binding.runProfile.entryPoint, addressWidth)}</code></span><span>{binding.roms.length} bound ROM{binding.roms.length === 1 ? '' : 's'}</span></div>
+    <div className="debug-session-summary"><span>Build <code>{binding.build.fingerprint}</code></span><span>SHA-256 <code title={binding.build.outputSha256}>{binding.build.outputSha256.slice(0, 12)}...</code></span><span>{binding.adapter.id} <code>{binding.adapter.version.slice(0, 12)}</code></span><span>{binding.machineTarget.machineId} · {binding.machineTarget.variant}</span><span>Entry <code>{formatAddress(binding.runProfile.entryPoint, addressWidth)}</code></span><span>{binding.roms.length} bound ROM{binding.roms.length === 1 ? '' : 's'}</span></div>
     <details><summary>Exact immutable binding and availability reasons</summary><dl><div><dt>Session</dt><dd><code>{binding.id}</code> · created <time dateTime={binding.createdAt}>{new Date(binding.createdAt).toLocaleString()}</time></dd></div><div><dt>Build output</dt><dd>{binding.build.outputBytes.toLocaleString()} bytes · <code>{binding.build.outputSha256}</code></dd></div><div><dt>Toolchain</dt><dd><code>{binding.build.toolchainId}@{binding.build.toolchainVersion}</code></dd></div><div><dt>Machine manifest</dt><dd><code>{binding.machineTarget.platformClass}/{binding.machineTarget.machineId}/{binding.machineTarget.romId}</code> · {binding.runProfile.capabilities.join(', ') || 'no optional capabilities'}</dd></div><div><dt>Run profile</dt><dd>{binding.runProfile.processor} · origin {formatAddress(binding.runProfile.origin, addressWidth)} · entry {formatAddress(binding.runProfile.entryPoint, addressWidth)} · debug</dd></div><div><dt>Skip instruction</dt><dd>Unavailable. Skipping an arbitrary instruction can violate processor, stack, interrupt and device state, so this adapter does not expose an unsafe PC-only operation.</dd></div></dl><div className="debug-session-roms">{binding.roms.length ? binding.roms.map((rom) => <div key={rom.key}><strong>{rom.filename}</strong><span>{rom.key} · {rom.size.toLocaleString()} bytes</span><code>{rom.sha256}</code></div>) : <p>This session uses the bounded ROM-less diagnostic adapter and has no firmware binding.</p>}</div></details>
   </section>;
 }
@@ -5517,7 +5517,7 @@ function TubeAddressMap({ state }: { state: MachineBridgeSnapshot }) {
     { start: 0xfef8, end: 0xfeff, label: 'Tube ULA I/O', kind: 'io' },
     { start: 0xff00, end: 0xffff, label: 'Parasite RAM', kind: 'ram' },
   ];
-  const map = (label: string, pc: number, regions: Array<{ start: number; end: number; label: string; kind: string }>) => <section aria-label={`${label} 16-bit address map`}><div><strong>{label}</strong><code>PC {formatAddress(pc)}</code></div><div className="tube-map-bar">{regions.map((region, index) => <span className={`kind-${region.kind}`} style={{ flexGrow: region.end - region.start + 1 }} title={`${region.label} ${formatAddress(region.start)}–${formatAddress(region.end)}`} aria-label={`${region.label}, ${formatAddress(region.start)} to ${formatAddress(region.end)}`} key={`${region.start}-${index}`} />)}<i style={{ left: `${pc / 0xffff * 100}%` }} title={`PC ${formatAddress(pc)}`} /></div><div className="tube-map-legend">{regions.map((region, index) => <span key={`${region.label}-${index}`}><i className={`kind-${region.kind}`} />{region.label} {formatAddress(region.start)}–{formatAddress(region.end)}</span>)}</div></section>;
+  const map = (label: string, pc: number, regions: Array<{ start: number; end: number; label: string; kind: string }>) => <section aria-label={`${label} 16-bit address map`}><div><strong>{label}</strong><code>PC {formatAddress(pc)}</code></div><div className="tube-map-bar">{regions.map((region, index) => <span className={`kind-${region.kind}`} style={{ flexGrow: region.end - region.start + 1 }} title={`${region.label} ${formatAddress(region.start)}-${formatAddress(region.end)}`} aria-label={`${region.label}, ${formatAddress(region.start)} to ${formatAddress(region.end)}`} key={`${region.start}-${index}`} />)}<i style={{ left: `${pc / 0xffff * 100}%` }} title={`PC ${formatAddress(pc)}`} /></div><div className="tube-map-legend">{regions.map((region, index) => <span key={`${region.label}-${index}`}><i className={`kind-${region.kind}`} />{region.label} {formatAddress(region.start)}-{formatAddress(region.end)}</span>)}</div></section>;
   return <div className="tube-address-map" aria-label="Tube dual address map">{map('Host mapped CPU view', state.registers.pc, state.memoryMap.regions)}{map('Parasite logical CPU view', tube.registers.pc, parasite)}</div>;
 }
 
@@ -5539,8 +5539,8 @@ function TubeMemoryInspector({ state, memory, onMachineCommand }: { state: Machi
   const bounds = (selected: typeof space) => selected === 'tube-rom' ? { start: 0xf000, end: 0xffff } : { start: 0, end: 0xffff };
   const request = (override?: number) => {
     const address = override ?? parseHexAddress(addressText); const length = Number(lengthText); const range = bounds(space);
-    if (address === null || !Number.isInteger(length) || length < 1 || length > 4096 || address < range.start || address + length - 1 > range.end) { setMessage(`Enter 1–4,096 bytes wholly inside ${formatAddress(range.start)}–${formatAddress(range.end)}.`); return; }
-    if (space === 'tube-logical' && address <= 0xfeff && address + length - 1 >= 0xfef8) { setMessage('Logical reads cannot include Tube ULA I/O at &FEF8–&FEFF. Choose a range on one side of it.'); return; }
+    if (address === null || !Number.isInteger(length) || length < 1 || length > 4096 || address < range.start || address + length - 1 > range.end) { setMessage(`Enter 1-4,096 bytes wholly inside ${formatAddress(range.start)}-${formatAddress(range.end)}.`); return; }
+    if (space === 'tube-logical' && address <= 0xfeff && address + length - 1 >= 0xfef8) { setMessage('Logical reads cannot include Tube ULA I/O at &FEF8-&FEFF. Choose a range on one side of it.'); return; }
     setAddressText(formatAddress(address)); setMatches([]); setMessage(`Reading ${length.toLocaleString()} bytes from ${formatAddress(address)}.`);
     onMachineCommand({ type: 'read-tube-memory', address, length, addressSpace: space, requestId: `tube-memory-${crypto.randomUUID()}` });
   };
@@ -5670,7 +5670,7 @@ function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareSta
       {hardwareState && <RuntimePerformancePanel state={hardwareState.performance} />}
       {/*
         * A machine can be running perfectly and holding somebody else's
-        * program — the operating system, or a build from before. Breakpoints
+        * program. The operating system, or a build from before. Breakpoints
         * set against this build are then armed against nothing, and the only
         * clue was that pressing the machine's own Run resumed the ROM. Saying
         * which control puts this build on the machine is the difference
@@ -5753,11 +5753,11 @@ function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand, on
     const targetSpace = state.memoryMap.spaces.find((space) => space.id === spaceOverride);
     if (address === null || address === undefined) { setMessage('Address must be &hex, $hex, decimal, or a build symbol with one optional offset.'); return; }
     if (count === null) { setMessage('Length must be an integer from 1 to 4096 bytes.'); return; }
-    if (!targetSpace || address < targetSpace.start || address + count - 1 > targetSpace.end) { setMessage(`${targetSpace?.label ?? spaceOverride} reads must stay inside ${targetSpace ? `${formatAddress(targetSpace.start)}–${formatAddress(targetSpace.end)}` : 'its supported range'}.`); return; }
+    if (!targetSpace || address < targetSpace.start || address + count - 1 > targetSpace.end) { setMessage(`${targetSpace?.label ?? spaceOverride} reads must stay inside ${targetSpace ? `${formatAddress(targetSpace.start)}-${formatAddress(targetSpace.end)}` : 'its supported range'}.`); return; }
     if (addressOverride !== undefined) setQuery(formatAddress(addressOverride));
     setSelectedAddress(undefined);
     setSearchResults([]);
-    setMessage(`Reading ${count} bytes from ${formatAddress(address)}…`);
+    setMessage(`Reading ${count} bytes from ${formatAddress(address)}...`);
     onMachineCommand({ type: 'read-memory', address, length: count, addressSpace: spaceOverride, ...(targetSpace.banked ? { bank: bankOverride } : {}), requestId: `inspector-${spaceOverride}-${bankOverride}-${address}-${count}-${Date.now()}` });
   };
   const movePage = (direction: -1 | 1) => {
@@ -5789,7 +5789,7 @@ function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand, on
       if (parsed.some((byte) => byte === null)) throw new Error('RAM edits cannot contain wildcard bytes');
       const bytes = parsed as number[];
       if (address >= 0x8000 || address + bytes.length > 0x8000) throw new Error('RAM edits cannot cross into mapped I/O or ROM at &8000');
-      setMessage(`Writing ${bytes.length} byte${bytes.length === 1 ? '' : 's'} at ${formatAddress(address)}…`);
+      setMessage(`Writing ${bytes.length} byte${bytes.length === 1 ? '' : 's'} at ${formatAddress(address)}...`);
       onMachineCommand({ type: 'write-memory', address, bytes });
     } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
   };
@@ -5809,7 +5809,7 @@ function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand, on
     <h3>Live memory inspector <small>{memory ? `${memory.bytes.length} bytes · ${memory.addressSpaceLabel}${memory.bank === undefined ? '' : ` · bank ${memory.bank}`} · cycle ${memory.capturedAtCycles.toLocaleString()}` : 'no range loaded'}</small></h3>
     <div className="live-memory-map" aria-label={`${state.memoryMap.profile} live memory map`}>
       <div className="memory-map-registers"><strong>{state.memoryMap.profile.toUpperCase()}</strong>{state.memoryMap.romsel === undefined ? <span>No BBC ROMSEL register</span> : <span>ROMSEL &amp;{formatByte(state.memoryMap.romsel)} · bank {state.memoryMap.selectedBank} · {state.memoryMap.selectedBankWritable ? 'sideways RAM' : 'sideways ROM'}</span>}{state.memoryMap.acccon !== undefined && <span>ACCCON &amp;{formatByte(state.memoryMap.acccon)}</span>}</div>
-      <div className="memory-map-regions" role="list" aria-label="Mapped CPU regions">{state.memoryMap.regions.map((region) => <div role="listitem" className={`map-${region.kind}${region.active ? ' active' : ''}`} style={{ flexGrow: region.end - region.start + 1 }} title={`${formatAddress(region.start)}–${formatAddress(region.end)} · ${region.label}${region.detail ? ` · ${region.detail}` : ''}`} key={`${region.start}-${region.end}`}><strong>{region.label}</strong><small>{formatAddress(region.start)}–{formatAddress(region.end)}</small></div>)}</div>
+      <div className="memory-map-regions" role="list" aria-label="Mapped CPU regions">{state.memoryMap.regions.map((region) => <div role="listitem" className={`map-${region.kind}${region.active ? ' active' : ''}`} style={{ flexGrow: region.end - region.start + 1 }} title={`${formatAddress(region.start)}-${formatAddress(region.end)} · ${region.label}${region.detail ? ` · ${region.detail}` : ''}`} key={`${region.start}-${region.end}`}><strong>{region.label}</strong><small>{formatAddress(region.start)}-{formatAddress(region.end)}</small></div>)}</div>
       {state.memoryMap.accconFlags.length > 0 && <div className="memory-map-flags" aria-label="Master ACCCON flags">{state.memoryMap.accconFlags.map((flag) => <span className={flag.set ? 'set' : ''} title={flag.meaning} key={flag.bit}>{flag.bit}</span>)}</div>}
       {state.memoryMap.banks.length > 0 && <div className="sideways-bank-grid" aria-label="Sideways ROM and RAM banks">{state.memoryMap.banks.map((item) => <button type="button" className={`${item.selected ? 'hardware-selected ' : ''}${addressSpace === 'sideways' && bank === item.bank ? 'inspector-selected' : ''}`} aria-label={`Inspect sideways bank ${item.bank} ${item.writable ? 'RAM' : 'ROM'}${item.selected ? ', hardware selected' : ''}`} title={`Bank ${item.bank} · ${item.writable ? 'sideways RAM' : 'ROM'}${item.selected ? ' · current ROMSEL' : ''}`} onClick={() => { setAddressSpace('sideways'); setBank(item.bank); setQuery('&8000'); request(0x8000, 'sideways', item.bank); }} key={item.bank}><strong>{item.bank.toString(16).toUpperCase()}</strong><small>{item.writable ? 'RAM' : 'ROM'}</small></button>)}</div>}
     </div>
@@ -5864,7 +5864,7 @@ function HardwareDisassemblyPanel({ artifact, currentFiles, state, disassembly, 
     if (address === null || address === undefined) { setMessage('Use a 16-bit address, build symbol, or symbol with one bounded offset.'); return; }
     if (!Number.isInteger(count) || count < 1 || count > 256) { setMessage('Instruction count must be an integer from 1 to 256.'); return; }
     if (override !== undefined) setAddressText(formatAddress(override));
-    setMessage(`Decoding ${count} live instructions from ${formatAddress(address)}…`);
+    setMessage(`Decoding ${count} live instructions from ${formatAddress(address)}...`);
     onMachineCommand({ type: 'read-disassembly', address, instructionCount: count, requestId: `disassembly-${address}-${count}-${Date.now()}` });
   };
   useEffect(() => { if (artifact) request(artifact.entryPoint); }, [artifact?.entryPoint]);
@@ -5894,7 +5894,7 @@ function HardwareDisassemblyPanel({ artifact, currentFiles, state, disassembly, 
         {mixed && source && <button type="button" className="mixed-source-row" onClick={() => onNavigateSource(source.fileId, source.line)}><span>{source.fileName}:{source.line}</span><code>{source.text || ' '}</code><small>{staleFiles.includes(source.fileName) ? 'pinned · editor differs' : 'pinned build source'}</small></button>}
       </div>;
     }) ?? <div className="honest-empty">Decode a live range to inspect actual mapped machine bytes.</div>}</div>
-    <p className="disassembly-status" aria-live="polite">{message}</p><p className="honest-note">Bytes and decode come from the live jsbeeb CPU mapping. Source is pinned to the loaded artifact. “Captured” counts only records retained by the opt-in hardware trace; it is not presented as lifetime profiling.</p>
+    <p className="disassembly-status" aria-live="polite">{message}</p><p className="honest-note">Bytes and decode come from the live jsbeeb CPU mapping. Source is pinned to the loaded artifact. "Captured" counts only records retained by the opt-in hardware trace; it is not presented as lifetime profiling.</p>
   </div>;
 }
 
@@ -5946,8 +5946,8 @@ function HardwareTracePanel({ state, onMachineCommand }: { state: MachineBridgeS
     const opcodeValue = opcode.trim() ? parseHexAddress(opcode) : undefined;
     const parsedTriggerValue = triggerKind && triggerKind !== 'interrupt' ? parseHexAddress(triggerValue) : undefined;
     const parsedPre = Number(preTriggerRecords); const parsedPost = Number(postTriggerRecords);
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 64 || parsedCapacity > 4096) { setError('Capacity must be 64–4,096 records'); return; }
-    if (!Number.isInteger(parsedSampleEvery) || parsedSampleEvery < 1 || parsedSampleEvery > 1024) { setError('Sampling interval must be 1–1,024 instructions'); return; }
+    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 64 || parsedCapacity > 4096) { setError('Capacity must be 64-4,096 records'); return; }
+    if (!Number.isInteger(parsedSampleEvery) || parsedSampleEvery < 1 || parsedSampleEvery > 1024) { setError('Sampling interval must be 1-1,024 instructions'); return; }
     if (triggerKind && parsedSampleEvery !== 1) { setError('Independent triggers require every instruction to be sampled'); return; }
     if ((triggerKind === 'memory-read' || triggerKind === 'memory-write') && !captureBus) { setError('Memory triggers require data-bus capture'); return; }
     if (!eventKinds.length) { setError('Select at least one unified event kind'); return; }
@@ -6016,7 +6016,7 @@ function InstructionEffects({ state }: { state: MachineBridgeSnapshot }) {
       <div><span>Addressing</span><strong>{detail.addressingMode}</strong></div>
       <div><span>Effective address</span><strong>{detail.effectiveAddress === undefined ? 'not applicable' : formatAddress(detail.effectiveAddress)}</strong></div>
       <div><span>Operand value</span><strong>{detail.operandValue === undefined ? 'not available' : `&${formatByte(detail.operandValue)}`}</strong></div>
-      <div><span>Pointer / branch</span><strong>{detail.pointerAddress === undefined ? '—' : `ptr ${formatAddress(detail.pointerAddress)}`}{detail.pointerAddress !== undefined && detail.branchTarget !== undefined ? ' · ' : ''}{detail.branchTarget === undefined ? '' : `target ${formatAddress(detail.branchTarget)}`}</strong></div>
+      <div><span>Pointer / branch</span><strong>{detail.pointerAddress === undefined ? '-' : `ptr ${formatAddress(detail.pointerAddress)}`}{detail.pointerAddress !== undefined && detail.branchTarget !== undefined ? ' · ' : ''}{detail.branchTarget === undefined ? '' : `target ${formatAddress(detail.branchTarget)}`}</strong></div>
       <div><span>Page crossing</span><strong>{detail.pageCrossed ? 'yes' : 'no'}</strong></div>
     </div>
     <h3>Last exact step <small>step-in only</small></h3>
@@ -6055,7 +6055,7 @@ function HardwareInspectorPanel({ inspection, onRefresh }: { inspection: Hardwar
   const group = inspection?.groups.find((item) => item.id === selectedGroup) ?? inspection?.groups[0];
   return <div className="hardware-inspector-body">
     <div className="hardware-inspector-nav"><button type="button" className="hardware-refresh" onClick={onRefresh}>Refresh live state</button>{inspection?.groups.map((item) => <button type="button" className={item.id === group?.id ? 'selected' : ''} aria-pressed={item.id === group?.id} key={item.id} onClick={() => setSelectedGroup(item.id)}><strong>{item.label}</strong><small>{item.registers.filter((register) => register.changed).length} changed</small></button>)}</div>
-    {!inspection || !group ? <div className="honest-empty hardware-inspector-empty">Choose Refresh live state to capture authoritative peripheral latches and counters. Mapped I/O is never read.</div> : <><div className="hardware-inspector-table" role="table" aria-label={`${group.label} hardware registers`}><div className="hardware-inspector-head" role="row"><span>Name</span><span>Address</span><span>Current</span><span>Previous</span><span>Access</span><span>Bitfields</span></div>{group.registers.map((register) => <div className={register.changed ? 'hardware-register changed' : 'hardware-register'} role="row" key={register.id}><strong role="cell">{register.name}</strong><code role="cell">{register.address}</code><code role="cell">{formatHardwareValue(register.value, register.width)}</code><code role="cell">{register.previousValue === undefined ? '—' : formatHardwareValue(register.previousValue, register.width)}</code><span role="cell">{register.access}</span><span role="cell" className="hardware-bitfields">{register.bitfields.length ? register.bitfields.map((bit) => <small className={bit.active ? 'active' : ''} key={bit.label}>{bit.label}={bit.value}</small>) : '—'}</span></div>)}</div><aside className="hardware-inspector-source"><strong>{group.label}</strong><span>{group.source}</span><small>sample #{inspection.sequence} · {inspection.profile} profile · cycle {inspection.cycles.toLocaleString()}</small><p>Previous means the preceding explicit inspector sample. Highlighting does not poll the machine or alter interrupt, timer, data, palette, or selected-register state.</p></aside></>}
+    {!inspection || !group ? <div className="honest-empty hardware-inspector-empty">Choose Refresh live state to capture authoritative peripheral latches and counters. Mapped I/O is never read.</div> : <><div className="hardware-inspector-table" role="table" aria-label={`${group.label} hardware registers`}><div className="hardware-inspector-head" role="row"><span>Name</span><span>Address</span><span>Current</span><span>Previous</span><span>Access</span><span>Bitfields</span></div>{group.registers.map((register) => <div className={register.changed ? 'hardware-register changed' : 'hardware-register'} role="row" key={register.id}><strong role="cell">{register.name}</strong><code role="cell">{register.address}</code><code role="cell">{formatHardwareValue(register.value, register.width)}</code><code role="cell">{register.previousValue === undefined ? '-' : formatHardwareValue(register.previousValue, register.width)}</code><span role="cell">{register.access}</span><span role="cell" className="hardware-bitfields">{register.bitfields.length ? register.bitfields.map((bit) => <small className={bit.active ? 'active' : ''} key={bit.label}>{bit.label}={bit.value}</small>) : '-'}</span></div>)}</div><aside className="hardware-inspector-source"><strong>{group.label}</strong><span>{group.source}</span><small>sample #{inspection.sequence} · {inspection.profile} profile · cycle {inspection.cycles.toLocaleString()}</small><p>Previous means the preceding explicit inspector sample. Highlighting does not poll the machine or alter interrupt, timer, data, palette, or selected-register state.</p></aside></>}
   </div>;
 }
 
@@ -6071,10 +6071,10 @@ function RasterTimelinePanel({ state, onMachineCommand }: { state: MachineBridge
   const start = () => {
     const parsedCapacity = Number(capacity); const parsedSample = Number(sampleEvery);
     const x = breakX.trim() ? Number(breakX) : undefined; const y = breakY.trim() ? Number(breakY) : undefined;
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 64 || parsedCapacity > 4096) { setError('Capacity must be 64–4,096 events'); return; }
-    if (!Number.isInteger(parsedSample) || parsedSample < 0 || parsedSample > 625) { setError('Scanline interval must be 0–625'); return; }
-    if (y !== undefined && (!Number.isInteger(y) || y < -1 || y > 624)) { setError('Break Y must be -1–624'); return; }
-    if (x !== undefined && (!Number.isInteger(x) || x < -8 || x > 1023 || x % 8 !== 0 || y === undefined)) { setError('Break X must be -8–1,023 in 8-pixel steps and requires Y'); return; }
+    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 64 || parsedCapacity > 4096) { setError('Capacity must be 64-4,096 events'); return; }
+    if (!Number.isInteger(parsedSample) || parsedSample < 0 || parsedSample > 625) { setError('Scanline interval must be 0-625'); return; }
+    if (y !== undefined && (!Number.isInteger(y) || y < -1 || y > 624)) { setError('Break Y must be -1-624'); return; }
+    if (x !== undefined && (!Number.isInteger(x) || x < -8 || x > 1023 || x % 8 !== 0 || y === undefined)) { setError('Break X must be -8-1,023 in 8-pixel steps and requires Y'); return; }
     setError(''); onMachineCommand({ type: 'raster-monitor', enabled: true, capacity: parsedCapacity, recordHSync, sampleEveryScanlines: parsedSample, ...(breakEvent ? { breakEvent } : {}), ...(x === undefined ? {} : { breakX: x }), ...(y === undefined ? {} : { breakY: y }) });
   };
   const exportTimeline = (format: 'json' | 'text') => {
@@ -6100,8 +6100,8 @@ function PerformanceProfilerPanel({ state, onMachineCommand }: { state: MachineB
   const visibleRows = profile.addresses.filter((row) => !filter.trim() || `${formatAddress(row.address)} ${row.symbol ?? ''} ${row.source?.fileName ?? ''}`.toLowerCase().includes(filter.toLowerCase())).slice(0, 500);
   const start = () => {
     const addresses = Number(maxAddresses); const frames = Number(frameCapacity);
-    if (!Number.isInteger(addresses) || addresses < 256 || addresses > 16384) { setError('Address capacity must be 256–16,384'); return; }
-    if (!Number.isInteger(frames) || frames < 16 || frames > 1024) { setError('Frame capacity must be 16–1,024'); return; }
+    if (!Number.isInteger(addresses) || addresses < 256 || addresses > 16384) { setError('Address capacity must be 256-16,384'); return; }
+    if (!Number.isInteger(frames) || frames < 16 || frames > 1024) { setError('Frame capacity must be 16-1,024'); return; }
     setError(''); onMachineCommand({ type: 'profiler-config', enabled: true, maxAddresses: addresses, frameCapacity: frames, captureBus });
   };
   const exportProfile = (format: 'json' | 'text') => {
@@ -6113,8 +6113,8 @@ function PerformanceProfilerPanel({ state, onMachineCommand }: { state: MachineB
   const maximumFrameCycles = Math.max(1, ...profile.frames.map((frame) => frame.cycles));
   return <div className="profiler-body">
     <div className="profiler-controls"><label><span>Address capacity</span><select aria-label="Profiler address capacity" value={maxAddresses} disabled={profile.enabled} onChange={(event) => setMaxAddresses(event.target.value)}>{[256, 512, 1024, 2048, 4096, 8192, 16384].map((value) => <option key={value}>{value}</option>)}</select></label><label><span>Frame history</span><select aria-label="Profiler frame capacity" value={frameCapacity} disabled={profile.enabled} onChange={(event) => setFrameCapacity(event.target.value)}>{[16, 32, 64, 128, 256, 512, 1024].map((value) => <option key={value}>{value}</option>)}</select></label><label className="profiler-check"><input type="checkbox" checked={captureBus} disabled={profile.enabled} onChange={(event) => setCaptureBus(event.target.checked)} /><span>Capture all bus traffic</span></label><button type="button" onClick={profile.enabled ? () => onMachineCommand({ type: 'profiler-config', enabled: false }) : start}>{profile.enabled ? 'Stop profiler' : 'Start profiler'}</button><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => onMachineCommand({ type: 'profiler-clear' })}>Clear</button>{error && <div role="alert" className="profiler-error">{error}</div>}</div>
-    <aside className={`profiler-status ${profile.enabled ? 'active' : ''}`}><strong>{profile.enabled ? 'Profiling live execution' : 'Fast path active'}</strong><span>{profile.overhead}</span><p>{profile.source}.</p><dl><div><dt>Instructions</dt><dd>{profile.instructions.toLocaleString()}</dd></div><div><dt>Exact cycles</dt><dd>{profile.cycles.toLocaleString()}</dd></div><div><dt>Average CPI</dt><dd>{profile.instructions ? (profile.cycles / profile.instructions).toFixed(2) : '—'}</dd></div><div><dt>Addresses</dt><dd>{profile.uniqueAddresses.toLocaleString()} / {profile.config.maxAddresses.toLocaleString()}</dd></div><div><dt>Untracked</dt><dd>{profile.untrackedInstructions.toLocaleString()}</dd></div></dl><small>Build {profile.buildFingerprint}</small><div><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => setBaseline(structuredClone(profile))}>Set baseline</button><button type="button" disabled={!baseline} onClick={() => setBaseline(null)}>Clear baseline</button></div>{baseline && <small className="profiler-baseline">Compared with {baseline.buildFingerprint} · cycle Δ {(profile.cycles - baseline.cycles).toLocaleString()}</small>}<div><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => exportProfile('json')}>Export JSON</button><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => exportProfile('text')}>Export text</button></div></aside>
-    <div className="profiler-results"><div className="profiler-filter"><label><span>Hotspot filter</span><input aria-label="Profiler hotspot filter" value={filter} placeholder="address, symbol, or source" onChange={(event) => setFilter(event.target.value)} /></label><span>Cycles rank · {visibleRows.length} shown</span></div><div className="profiler-table" role="table" aria-label="Instruction cycle hot spots"><div className="profiler-head" role="row"><span>PC / symbol</span><span>Source</span><span>Instructions</span><span>Cycles / share</span><span>Avg · range</span><span>Δ cycles</span></div>{visibleRows.map((row) => { const base = baselineRows.get(row.address); const delta = row.cycles - (base?.cycles ?? 0); return <div className="profiler-row" role="row" key={row.address}><strong role="cell"><button type="button" onClick={() => onMachineCommand({ type: 'read-disassembly', address: row.address, instructionCount: 24, requestId: `profile-${row.address}-${Date.now()}` })}>{formatAddress(row.address)}</button>{row.symbol && <small>{row.symbol}</small>}</strong><span role="cell">{row.source ? `${row.source.fileName}:${row.source.line}` : 'runtime / ROM'}</span><code role="cell">{row.instructions.toLocaleString()}</code><span role="cell"><b>{row.cycles.toLocaleString()}</b><i style={{ width: `${profile.cycles ? Math.max(1, row.cycles / profile.cycles * 100) : 0}%` }} />{profile.cycles ? (row.cycles / profile.cycles * 100).toFixed(1) : '0.0'}%</span><code role="cell">{(row.cycles / row.instructions).toFixed(2)} · {row.minCycles}–{row.maxCycles}</code><code role="cell" className={delta > 0 ? 'worse' : delta < 0 ? 'better' : ''}>{baseline ? `${delta >= 0 ? '+' : ''}${delta.toLocaleString()}` : '—'}</code></div>})}{!visibleRows.length && <div className="honest-empty">Start profiling, run real code, then pause and stop capture to inspect complete hot spots.</div>}</div></div>
+    <aside className={`profiler-status ${profile.enabled ? 'active' : ''}`}><strong>{profile.enabled ? 'Profiling live execution' : 'Fast path active'}</strong><span>{profile.overhead}</span><p>{profile.source}.</p><dl><div><dt>Instructions</dt><dd>{profile.instructions.toLocaleString()}</dd></div><div><dt>Exact cycles</dt><dd>{profile.cycles.toLocaleString()}</dd></div><div><dt>Average CPI</dt><dd>{profile.instructions ? (profile.cycles / profile.instructions).toFixed(2) : '-'}</dd></div><div><dt>Addresses</dt><dd>{profile.uniqueAddresses.toLocaleString()} / {profile.config.maxAddresses.toLocaleString()}</dd></div><div><dt>Untracked</dt><dd>{profile.untrackedInstructions.toLocaleString()}</dd></div></dl><small>Build {profile.buildFingerprint}</small><div><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => setBaseline(structuredClone(profile))}>Set baseline</button><button type="button" disabled={!baseline} onClick={() => setBaseline(null)}>Clear baseline</button></div>{baseline && <small className="profiler-baseline">Compared with {baseline.buildFingerprint} · cycle Δ {(profile.cycles - baseline.cycles).toLocaleString()}</small>}<div><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => exportProfile('json')}>Export JSON</button><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => exportProfile('text')}>Export text</button></div></aside>
+    <div className="profiler-results"><div className="profiler-filter"><label><span>Hotspot filter</span><input aria-label="Profiler hotspot filter" value={filter} placeholder="address, symbol, or source" onChange={(event) => setFilter(event.target.value)} /></label><span>Cycles rank · {visibleRows.length} shown</span></div><div className="profiler-table" role="table" aria-label="Instruction cycle hot spots"><div className="profiler-head" role="row"><span>PC / symbol</span><span>Source</span><span>Instructions</span><span>Cycles / share</span><span>Avg · range</span><span>Δ cycles</span></div>{visibleRows.map((row) => { const base = baselineRows.get(row.address); const delta = row.cycles - (base?.cycles ?? 0); return <div className="profiler-row" role="row" key={row.address}><strong role="cell"><button type="button" onClick={() => onMachineCommand({ type: 'read-disassembly', address: row.address, instructionCount: 24, requestId: `profile-${row.address}-${Date.now()}` })}>{formatAddress(row.address)}</button>{row.symbol && <small>{row.symbol}</small>}</strong><span role="cell">{row.source ? `${row.source.fileName}:${row.source.line}` : 'runtime / ROM'}</span><code role="cell">{row.instructions.toLocaleString()}</code><span role="cell"><b>{row.cycles.toLocaleString()}</b><i style={{ width: `${profile.cycles ? Math.max(1, row.cycles / profile.cycles * 100) : 0}%` }} />{profile.cycles ? (row.cycles / profile.cycles * 100).toFixed(1) : '0.0'}%</span><code role="cell">{(row.cycles / row.instructions).toFixed(2)} · {row.minCycles}-{row.maxCycles}</code><code role="cell" className={delta > 0 ? 'worse' : delta < 0 ? 'better' : ''}>{baseline ? `${delta >= 0 ? '+' : ''}${delta.toLocaleString()}` : '-'}</code></div>})}{!visibleRows.length && <div className="honest-empty">Start profiling, run real code, then pause and stop capture to inspect complete hot spots.</div>}</div></div>
     <div className="profiler-detail"><section><h4>Opcode-proven JSR calls</h4>{profile.calls.length ? profile.calls.slice(0, 80).map((call) => <button type="button" key={call.target} onClick={() => onMachineCommand({ type: 'read-disassembly', address: call.target, instructionCount: 24, requestId: `profile-call-${call.target}-${Date.now()}` })}><strong>{call.symbol ?? formatAddress(call.target)}</strong><span>{call.count.toLocaleString()} calls</span></button>) : <div className="honest-empty">No executed JSR call sites.</div>}</section><section><h4>Frame-time timeline</h4>{profile.frames.length ? profile.frames.slice(-80).map((frame) => <div className="profiler-frame" key={frame.frame}><code>F{frame.frame}</code><i style={{ width: `${frame.cycles / maximumFrameCycles * 100}%` }} /><span>{frame.cycles.toLocaleString()}c · {frame.instructions.toLocaleString()}i</span></div>) : <div className="honest-empty">No completed video frame captured.</div>}</section><section><h4>Mapped bus events</h4><p>Reads include instruction and operand fetches.</p>{profile.bus.length ? profile.bus.map((entry) => <div className="profiler-bus" key={entry.region}><strong>{entry.region}</strong><span>{entry.reads.toLocaleString()} R · {entry.writes.toLocaleString()} W</span></div>) : <div className="honest-empty">Enable bus capture for genuine mapped read/write events.</div>}<small>Total {profile.busReads.toLocaleString()} reads · {profile.busWrites.toLocaleString()} writes</small></section></div>
   </div>;
 }
@@ -6131,7 +6131,7 @@ function HardwareRegisterEditor({ state, onMachineCommand }: { state: MachineBri
     for (const name of editableRegisters) {
       const value = parseHexAddress(values[name]);
       const maximum = name === 'pc' ? 0xffff : 0xff;
-      if (value === null || value > maximum) { setError(`${name.toUpperCase()} must be ${name === 'pc' ? '&0000–&FFFF' : '&00–&FF'}`); return; }
+      if (value === null || value > maximum) { setError(`${name.toUpperCase()} must be ${name === 'pc' ? '&0000-&FFFF' : '&00-&FF'}`); return; }
       registers[name] = value;
     }
     setError('');
@@ -6282,7 +6282,7 @@ function ArchimedesDebuggerWorkspace({ connected, state, memory, artifact, sourc
 
   const disassembly = useMemo(() => memory ? disassembleArm(new Uint8Array(memory.bytes), memory.address, state?.pc ?? memory.address, 'arm2') : null, [memory, state?.pc]);
   const status = state ? decodeArm26Status(state.status) : null;
-  const flags = status ? status.flags.map((flag) => `${flag.name}${flag.set ? 1 : 0}`).join(' ') : '—';
+  const flags = status ? status.flags.map((flag) => `${flag.name}${flag.set ? 1 : 0}`).join(' ') : '-';
   const installBreakpointSpecs = (specs: Array<Record<string, unknown>>) => {
     onMachineCommand({ type: 'set-breakpoints', breakpoints: specs });
     setMessage(`${specs.length} ARM breakpoint${specs.length === 1 ? '' : 's'} installed in the live core.`);
@@ -6434,7 +6434,7 @@ function ArchimedesMemoryInspector({ memory, state, artifact, persistedBreakpoin
     if (addressOverride !== undefined) setAddressText(formatAddress(address, 8));
     setSelectedAddress(undefined);
     setMatches([]);
-    setMessage(`Reading ${length.toLocaleString()} logical bytes from ${formatAddress(address, 8)}…`);
+    setMessage(`Reading ${length.toLocaleString()} logical bytes from ${formatAddress(address, 8)}...`);
     onMachineCommand({ type: 'read-memory', requestId: `arm-memory-${crypto.randomUUID()}`, address, length });
   };
   const movePage = (direction: -1 | 1) => {
@@ -6494,11 +6494,11 @@ function ArmMemoryMapPanel({ onMachineCommand }: { onMachineCommand: (message: R
     };
     window.addEventListener('message', receive); return () => window.removeEventListener('message', receive);
   }, []);
-  const refresh = () => { requestId.current = `arm-map-${crypto.randomUUID()}`; onMachineCommand({ type: 'read-memory-map', requestId: requestId.current }); setProvenance('Sampling the live MEMC page table…'); };
+  const refresh = () => { requestId.current = `arm-map-${crypto.randomUUID()}`; onMachineCommand({ type: 'read-memory-map', requestId: requestId.current }); setProvenance('Sampling the live MEMC page table...'); };
   const mapped = regions.filter((region) => region.kind !== 'unmapped');
   const filtered = mapped.filter((region) => (kindFilter === 'all' || region.kind === kindFilter) && (!query.trim() || `${formatAddress(region.logicalStart, 8)} ${formatAddress(region.logicalEnd, 8)} ${region.physicalStart === null ? '' : formatAddress(region.physicalStart, 8)}`.includes(query.trim().toUpperCase())));
   const pageCount = Math.max(1, Math.ceil(filtered.length / 100)); const visiblePage = Math.min(page, pageCount); const shown = filtered.slice((visiblePage - 1) * 100, visiblePage * 100);
-  return <section className="arm-memory-map" aria-label="ARM logical to physical memory map"><div><strong>Live MEMC map</strong><span>{mapped.length} mapped region{mapped.length === 1 ? '' : 's'}</span><button type="button" onClick={refresh}>Refresh map</button></div><p aria-live="polite">{provenance}</p>{regions.length ? <><div className="arm-memory-map-strip" aria-hidden="true">{regions.map((region) => <i className={`map-${region.kind}`} style={{ width: `${region.pages / 16384 * 100}%` }} key={region.logicalStart} />)}</div><div className="arm-memory-map-filters"><label><span>Backing</span><select aria-label="ARM memory map backing filter" value={kindFilter} onChange={(event) => { setKindFilter(event.target.value); setPage(1); }}><option value="all">All mapped</option><option value="ram">RAM</option><option value="rom">Main ROM</option><option value="support-rom">Support ROM</option><option value="extension-rom">Extension ROM</option><option value="other">Other</option></select></label><label><span>Address contains</span><input type="search" aria-label="Search ARM memory map" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="&00008000" /></label><span>{filtered.length.toLocaleString()} matches</span></div><div className="arm-memory-map-table" role="table" aria-label="Live ARM MEMC mapped regions">{shown.map((region) => <div role="row" key={region.logicalStart}><strong role="cell">{region.kind}</strong><code role="cell">{formatAddress(region.logicalStart, 8)}–{formatAddress(region.logicalEnd, 8)}</code><span role="cell">{region.physicalStart === null ? 'backing not classified' : `physical ${formatAddress(region.physicalStart, 8)}`}</span><small role="cell">{region.pages.toLocaleString()} × 4 KiB</small></div>)}</div><nav className="arm-memory-map-pages" aria-label="ARM memory map pages"><button type="button" disabled={visiblePage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button><span>Page {visiblePage} of {pageCount} · showing {shown.length}</span><button type="button" disabled={visiblePage === pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Next</button></nav></> : <div className="honest-empty">Refresh to classify all 16,384 live logical pages from Arculator's current mapping pointers.</div>}</section>;
+  return <section className="arm-memory-map" aria-label="ARM logical to physical memory map"><div><strong>Live MEMC map</strong><span>{mapped.length} mapped region{mapped.length === 1 ? '' : 's'}</span><button type="button" onClick={refresh}>Refresh map</button></div><p aria-live="polite">{provenance}</p>{regions.length ? <><div className="arm-memory-map-strip" aria-hidden="true">{regions.map((region) => <i className={`map-${region.kind}`} style={{ width: `${region.pages / 16384 * 100}%` }} key={region.logicalStart} />)}</div><div className="arm-memory-map-filters"><label><span>Backing</span><select aria-label="ARM memory map backing filter" value={kindFilter} onChange={(event) => { setKindFilter(event.target.value); setPage(1); }}><option value="all">All mapped</option><option value="ram">RAM</option><option value="rom">Main ROM</option><option value="support-rom">Support ROM</option><option value="extension-rom">Extension ROM</option><option value="other">Other</option></select></label><label><span>Address contains</span><input type="search" aria-label="Search ARM memory map" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="&00008000" /></label><span>{filtered.length.toLocaleString()} matches</span></div><div className="arm-memory-map-table" role="table" aria-label="Live ARM MEMC mapped regions">{shown.map((region) => <div role="row" key={region.logicalStart}><strong role="cell">{region.kind}</strong><code role="cell">{formatAddress(region.logicalStart, 8)}-{formatAddress(region.logicalEnd, 8)}</code><span role="cell">{region.physicalStart === null ? 'backing not classified' : `physical ${formatAddress(region.physicalStart, 8)}`}</span><small role="cell">{region.pages.toLocaleString()} × 4 KiB</small></div>)}</div><nav className="arm-memory-map-pages" aria-label="ARM memory map pages"><button type="button" disabled={visiblePage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button><span>Page {visiblePage} of {pageCount} · showing {shown.length}</span><button type="button" disabled={visiblePage === pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Next</button></nav></> : <div className="honest-empty">Refresh to classify all 16,384 live logical pages from Arculator's current mapping pointers.</div>}</section>;
 }
 
 function ArchimedesMemoryEditor({ state, artifact, onMachineCommand }: { state: ArchimedesBridgeSnapshot; artifact: ArmArtifact | null; onMachineCommand: (message: Record<string, unknown>) => void }) {
@@ -6544,7 +6544,7 @@ function ArchimedesRegisterEditor({ state, onMachineCommand }: { state: Archimed
       setPending(undefined);
     }
   }, [state.emulationMs, state.pc, state.registers, pending, register]);
-  return <div className="arm-register-editor" aria-label="ARM register editor"><strong>Paused register edit</strong><div><label><span>Register</span><select aria-label="ARM register to edit" value={registerText} onChange={(event) => { const next = Number(event.target.value); setRegisterText(event.target.value); setValueText(formatAddress(next === 15 ? state.pc : state.registers[next] ?? 0, 8)); }}>{Array.from({ length: 16 }, (_, index) => <option value={index} key={index}>{index === 15 ? 'PC / R15 execute address' : index === 14 ? 'R14 / LR' : index === 13 ? 'R13 / SP' : `R${index}`}</option>)}</select></label><label><span>Unsigned value</span><input aria-label="ARM register edit value" value={valueText} onChange={(event) => setValueText(event.target.value)} /></label><button type="button" disabled={state.running} onClick={apply}>Write &amp; verify</button><button type="button" onClick={() => setValueText(formatAddress(liveValue, 8))}>Use live</button></div><p aria-live="polite">{message}</p><small>R0–R14 accept 32-bit values. PC accepts an aligned 26-bit execute address and preserves flags, interrupt masks and mode while refilling the pipeline.</small></div>;
+  return <div className="arm-register-editor" aria-label="ARM register editor"><strong>Paused register edit</strong><div><label><span>Register</span><select aria-label="ARM register to edit" value={registerText} onChange={(event) => { const next = Number(event.target.value); setRegisterText(event.target.value); setValueText(formatAddress(next === 15 ? state.pc : state.registers[next] ?? 0, 8)); }}>{Array.from({ length: 16 }, (_, index) => <option value={index} key={index}>{index === 15 ? 'PC / R15 execute address' : index === 14 ? 'R14 / LR' : index === 13 ? 'R13 / SP' : `R${index}`}</option>)}</select></label><label><span>Unsigned value</span><input aria-label="ARM register edit value" value={valueText} onChange={(event) => setValueText(event.target.value)} /></label><button type="button" disabled={state.running} onClick={apply}>Write &amp; verify</button><button type="button" onClick={() => setValueText(formatAddress(liveValue, 8))}>Use live</button></div><p aria-live="polite">{message}</p><small>R0-R14 accept 32-bit values. PC accepts an aligned 26-bit execute address and preserves flags, interrupt masks and mode while refilling the pipeline.</small></div>;
 }
 
 function ArmLogpointPanel({ state, artifact, persistedBreakpoints, onPersistBreakpoints, onMachineCommand }: { state: ArchimedesBridgeSnapshot; artifact: ArmArtifact | null; persistedBreakpoints: PersistedArmBreakpointIntent[]; onPersistBreakpoints: (intents: PersistedArmBreakpointIntent[]) => void; onMachineCommand: (message: Record<string, unknown>) => void }) {
@@ -6575,9 +6575,9 @@ function ArmLogpointPanel({ state, artifact, persistedBreakpoints, onPersistBrea
   };
   return <section className="arm-logpoint-panel" aria-label="ARM logpoint editor">
     <div className="arm-logpoint-heading"><strong>ARM logpoints</strong><span>{state.logEvents.length} / 64 retained · {state.logEventsDropped} overwritten</span><button type="button" disabled={!state.logEvents.length} onClick={() => onMachineCommand({ type: 'clear-log-events' })}>Clear events</button></div>
-    <div className="arm-logpoint-controls"><label><span>Address / symbol</span><input aria-label="ARM logpoint address" value={addressText} onChange={(event) => setAddressText(event.target.value)} /></label><label><span>Action</span><select aria-label="ARM logpoint action" value={action} onChange={(event) => setAction(event.target.value as typeof action)}><option value="log">Log only</option><option value="pause-log">Pause and log</option></select></label><label><span>Register</span><select aria-label="ARM logpoint condition register" value={registerText} onChange={(event) => setRegisterText(event.target.value)}><option value="">Always</option>{Array.from({ length: 15 }, (_, register) => <option value={register} key={register}>R{register}</option>)}<option value="15">PC</option></select></label><label><span>Compare</span><select aria-label="ARM logpoint condition operator" disabled={!registerText} value={operator} onChange={(event) => setOperator(event.target.value as ArmBreakpointOperator)}><option value="eq">equals</option><option value="ne">not equal</option><option value="lt">less than</option><option value="lte">at most</option><option value="gt">greater than</option><option value="gte">at least</option></select></label><label><span>Value</span><input aria-label="ARM logpoint condition value" disabled={!registerText} value={valueText} onChange={(event) => setValueText(event.target.value)} /></label><label><span>Hit ≥</span><input aria-label="ARM logpoint hit target" type="number" min="1" max="1000000" value={hitTargetText} onChange={(event) => setHitTargetText(event.target.value)} /></label><label className="arm-logpoint-template"><span>Message · {'{pc} {r0}…{r14} {hits}'}</span><input aria-label="ARM logpoint message" maxLength={160} value={template} onChange={(event) => setTemplate(event.target.value)} /></label><button type="button" onClick={install}>Install logpoint</button></div>
+    <div className="arm-logpoint-controls"><label><span>Address / symbol</span><input aria-label="ARM logpoint address" value={addressText} onChange={(event) => setAddressText(event.target.value)} /></label><label><span>Action</span><select aria-label="ARM logpoint action" value={action} onChange={(event) => setAction(event.target.value as typeof action)}><option value="log">Log only</option><option value="pause-log">Pause and log</option></select></label><label><span>Register</span><select aria-label="ARM logpoint condition register" value={registerText} onChange={(event) => setRegisterText(event.target.value)}><option value="">Always</option>{Array.from({ length: 15 }, (_, register) => <option value={register} key={register}>R{register}</option>)}<option value="15">PC</option></select></label><label><span>Compare</span><select aria-label="ARM logpoint condition operator" disabled={!registerText} value={operator} onChange={(event) => setOperator(event.target.value as ArmBreakpointOperator)}><option value="eq">equals</option><option value="ne">not equal</option><option value="lt">less than</option><option value="lte">at most</option><option value="gt">greater than</option><option value="gte">at least</option></select></label><label><span>Value</span><input aria-label="ARM logpoint condition value" disabled={!registerText} value={valueText} onChange={(event) => setValueText(event.target.value)} /></label><label><span>Hit ≥</span><input aria-label="ARM logpoint hit target" type="number" min="1" max="1000000" value={hitTargetText} onChange={(event) => setHitTargetText(event.target.value)} /></label><label className="arm-logpoint-template"><span>Message · {'{pc} {r0}...{r14} {hits}'}</span><input aria-label="ARM logpoint message" maxLength={160} value={template} onChange={(event) => setTemplate(event.target.value)} /></label><button type="button" onClick={install}>Install logpoint</button></div>
     <p aria-live="polite">{message}</p>
-    <div className="arm-logpoint-events" role="log" aria-label="ARM logpoint event history">{state.logEvents.length ? state.logEvents.slice().reverse().map((event) => <div key={event.sequence}><code>#{event.sequence}</code><strong>{formatAddress(event.address, 8)}</strong><span>{renderArmLogpointMessage(event.logMessage, event)}</span><small>match {event.hits.toLocaleString()} · captured R0–R14 and execute-PC</small></div>) : <div className="honest-empty">No ARM logpoint has matched in this loaded debug session.</div>}</div>
+    <div className="arm-logpoint-events" role="log" aria-label="ARM logpoint event history">{state.logEvents.length ? state.logEvents.slice().reverse().map((event) => <div key={event.sequence}><code>#{event.sequence}</code><strong>{formatAddress(event.address, 8)}</strong><span>{renderArmLogpointMessage(event.logMessage, event)}</span><small>match {event.hits.toLocaleString()} · captured R0-R14 and execute-PC</small></div>) : <div className="honest-empty">No ARM logpoint has matched in this loaded debug session.</div>}</div>
   </section>;
 }
 
@@ -6877,8 +6877,8 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
    *
    * There are two of those cores and the ROM set chooses. Both speak the same
    * envelope and report the same state, so everything below treats them
-   * together; where they differ — the page, the channel and what each can be
-   * asked to do — is decided by this one flag. */
+   * together; where they differ (the page, the channel and what each can be
+   * asked to do) is decided by this one flag. */
   const electronRoute = electronRuntimeRoute(engineId);
   const electronMachine = isElectronEngine(engineId);
   const elkulatorMachine = engineId === 'elkulator';
@@ -6908,7 +6908,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
        * A sideways ROM has nowhere to go in this build.
        *
        * The core opens its firmware into named sockets and refuses a name it
-       * does not have — rightly, because a ROM it wrote and never read would be
+       * does not have. Rightly, because a ROM it wrote and never read would be
        * a lie. This build drives no sideways banks on the Electron, so handing
        * it one does not fit an expansion, it refuses the whole machine: with
        * MMFS supplied and a Plus 1 fitted, the runtime answered "emmfs is not a
@@ -7521,7 +7521,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
             className="icon-button"
             type="button"
             /* Always Pause, because it always shows a pause icon. It used to
-             * be called "Step instruction" when no machine was attached — a
+             * be called "Step instruction" when no machine was attached, a
              * pause icon that stepped, sharing its name with the step control
              * beside it, so two adjacent buttons announced themselves
              * identically and did the same thing. Stepping has its own control;

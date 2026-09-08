@@ -10,10 +10,10 @@ success criterion is listed with how it is verified.
 
 ## What the answers mean
 
-- **Automated** — a rule in the release gate decides it, and the rule is named. It runs on every build.
-- **Partly automated** — a rule decides part of it and the rest is manual. Both halves are stated rather than glossed.
-- **Manual** — only a person can decide it, and what they have to do is stated.
-- **Not applicable** — the product has no content the criterion applies to, with the reason. Each would stop being not applicable the day the product gained that kind of content.
+- **Automated** (a rule in the release gate decides it, and the rule is named. It runs on every build.
+- **Partly automated**) a rule decides part of it and the rest is manual. Both halves are stated rather than glossed.
+- **Manual** (only a person can decide it, and what they have to do is stated.
+- **Not applicable**) the product has no content the criterion applies to, with the reason. Each would stop being not applicable the day the product gained that kind of content.
 
 Of 55 Level A and AA success criteria: 13 are decided automatically, 9 partly, 22 by a person, and 11 do not apply.
 
@@ -51,7 +51,7 @@ how a product ends up believing it is accessible.
 | 2.1.4 | Character Key Shortcuts | A | Automated | Every workbench chord is declared in one binding table, every binding uses a modifier, and each can be changed or unbound in Settings. The table is contract-checked. |
 | 2.2.1 | Timing Adjustable | A | Not applicable | Nothing in the product has a time limit. A build, a run and a test each continue until they finish or are stopped. |
 | 2.2.2 | Pause, Stop, Hide | A | Automated | The gate rule reduced-motion reports anything animating for longer than a twentieth of a second once the preference is set, and nothing moves for five seconds unprompted. |
-| 2.3.1 | Three Flashes or Below Threshold | A | Manual | The interface itself does not flash. An emulated machine can flash because the program being written makes it, which is the program author’s content rather than this product’s; the help says so. |
+| 2.3.1 | Three Flashes or Below Threshold | A | Manual | The interface itself does not flash. An emulated machine can flash because the program being written makes it, which is the program author's content rather than this product's; the help says so. |
 | 2.4.1 | Bypass Blocks | A | Manual | A skip link to the editor is present and is verified by a person following it from a cold load. |
 | 2.4.2 | Page Titled | A | Automated | The gate rule document-title requires a non-empty title. |
 | 2.4.3 | Focus Order | A | Manual | Judged by a person tabbing through each workspace. A rule can say every group is reachable; it cannot say the order is sensible. |
@@ -85,7 +85,7 @@ how a product ends up believing it is accessible.
 ## What is not claimed
 
 Level AAA is out of scope for this claim. Where the product happens to meet
-a AAA criterion — honouring the reduced-motion preference, for one — it is
+a AAA criterion (honouring the reduced-motion preference, for one) it is
 not counted here, because meeting one criterion of a level is not conformance
 to it.
 

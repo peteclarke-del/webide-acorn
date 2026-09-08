@@ -5,7 +5,7 @@
  * A starter is the first thing somebody sees of a machine, so being nearly
  * right about it is worse than useless: a program that assembles cleanly and
  * calls the wrong addresses looks like a working example until it is run. And
- * the machines really do differ — the Atom's OSWRCH is at &FFF4 where the BBC's
+ * the machines really do differ. The Atom's OSWRCH is at &FFF4 where the BBC's
  * is at &FFEE, and a carriage return on an Atom returns to column zero without
  * moving down a line, so a program that writes one where a BBC would writes its
  * second line over its first.
@@ -31,7 +31,7 @@ export const RUNS = Object.freeze([
    * script that measures it boots it the same way and asks the same questions. */
   { templateId: 'bbc-bplus-shadow-6502', model: 'BPlus', origin: 0x1900, read: 'wrchv' },
   /* The Atom's characters do not pass through a vector this harness can watch,
-   * so its screen memory is read instead — in the Atom's own character codes,
+   * so its screen memory is read instead, in the Atom's own character codes,
    * where 0x00-0x1F are @A-Z[\]^_ and 0x20-0x3F the digits and punctuation. */
   { templateId: 'atom-text-6502', model: 'Atom-Tape', origin: 0x2900, read: 'screen' },
 ]);

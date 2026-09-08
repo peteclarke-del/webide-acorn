@@ -305,7 +305,7 @@ Open the exact retained artifact address and immutable source-occurrence evidenc
 - The build workspace highlights the requested symbol with aria-pressed state and a visible selected style.
 - The notice gives the name, address, lack of editable declaration and read-only artifact destination.
 - Source occurrences use immutable artifact source maps rather than a fresh text search.
-- A repeated open request is consumed after selection, so later visits to Build targets preserve the user’s current symbol choice.
+- A repeated open request is consumed after selection, so later visits to Build targets preserve the user's current symbol choice.
 - Changing source, target, machine, toolchain or build identity removes generated symbols from completion and navigation until a successful rebuild.
 
 **Limits**

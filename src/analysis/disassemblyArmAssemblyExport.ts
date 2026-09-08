@@ -68,8 +68,8 @@ export function createArmAssemblySource(disassembly: Disassembly, customLabels: 
     if (labels[row.address]) lines.push(`${labels[row.address]}:`);
     if (row.bytes.length === 4) {
       const description = row.kind === 'instruction'
-        ? `${row.mnemonic}${row.operand ? ` ${row.operand}` : ''}${row.comment ? ` — ${row.comment}` : ''}`
-        : `${row.mnemonic} ${row.operand} — ${row.comment ?? 'Unreached word'}`;
+        ? `${row.mnemonic}${row.operand ? ` ${row.operand}` : ''}${row.comment ? `, ${row.comment}` : ''}`
+        : `${row.mnemonic} ${row.operand}, ${row.comment ?? 'Unreached word'}`;
       lines.push(`  .inst ${hex(wordFor(row))} @ ${safeComment(description)}`);
     } else {
       lines.push(`  .byte ${row.bytes.map((byte) => hex(byte, 2)).join(', ')} @ ${safeComment(row.comment ?? 'Trailing bytes')}`);
@@ -133,7 +133,7 @@ export async function verifyArmAssemblySource(
     diagnostics: body.result?.diagnostics ?? [],
     toolchain,
     verificationMessage: verified
-      ? `Verified: pinned GNU ARM2 rebuilt ${bytes.length} bytes exactly at ${hex(disassembly.origin)} with entry ${hex(disassembly.entryPoint)}${disassembly.processor === 'arm3' ? '; .inst verification is byte-level and ARM3 semantics remain the analyser’s responsibility' : ''}.`
+      ? `Verified: pinned GNU ARM2 rebuilt ${bytes.length} bytes exactly at ${hex(disassembly.origin)} with entry ${hex(disassembly.entryPoint)}${disassembly.processor === 'arm3' ? "; .inst verification is byte-level and ARM3 semantics remain the analyser's responsibility" : ''}.`
       : `Verification failed: native GNU ARM output did not reproduce the original ${originalBytes.length}-byte image exactly.`,
   };
 }

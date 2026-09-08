@@ -119,7 +119,7 @@ describe('Elkulator Electron adapter declaration', () => {
     /* Media is offered now: the bridge writes the image into the emulator's own
      * filesystem and lets Elkulator's loaders decide what it is. Reading a disc
      * back out is still refused, and for a stated reason rather than by
-     * omission — an export would hand back the bytes that went in. */
+     * omission. An export would hand back the bytes that went in. */
     expect(elkulatorCommandRefusal('load-disc')).toBeNull();
     expect(elkulatorCommandRefusal('load-tape')).toBeNull();
     expect(elkulatorCommandRefusal('eject-tape')).toBeNull();
@@ -229,9 +229,11 @@ function elkulatorTestAssertionRefusals(runtime: string): Record<string, string>
   const end = runtime.indexOf('\n  };', start);
   const body = runtime.slice(start, end);
   const found: Record<string, string> = {};
-  for (const match of body.matchAll(/^\s*'?([a-z-]+)'?:\s*'((?:[^'\\]|\\.)*)'/gm)) {
+  /* Either quote style: which one a reason is written in is incidental, and a
+   * reason holding an apostrophe is written in the other one. */
+  for (const match of body.matchAll(/^\s*'?([a-z-]+)'?:\s*(['"])((?:(?!\2)[^\\]|\\.)*)\2/gm)) {
     if (match[1] === 'const TEST_ASSERTION_REFUSALS') continue;
-    found[match[1]!] = match[2]!;
+    found[match[1]!] = match[3]!;
   }
   return found;
 }

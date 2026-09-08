@@ -443,7 +443,7 @@ function stopInterruptMonitor() {
 
 function startInterruptMonitor(capacity: number) {
   if (!cpu) return;
-  if (!Number.isInteger(capacity) || capacity < 16 || capacity > 1024) throw new Error('Interrupt history capacity must be 16–1,024 events');
+  if (!Number.isInteger(capacity) || capacity < 16 || capacity > 1024) throw new Error('Interrupt history capacity must be 16-1,024 events');
   stopInterruptMonitor(); interruptMonitorCapacity = capacity; interruptMonitorEnabled = true;
   interruptMonitorPrevious = { pc: cpu.pc, opcode: cpu.peekmem(cpu.pc), s: cpu.s, p: cpu.p.asByte(), state: interruptState() };
   interruptMonitorHook = cpu.debugInstruction.add((pc, opcode) => {
@@ -1034,14 +1034,14 @@ function sourceStep(mode: 'in' | 'over' | 'out', instructionBudget = 100000) {
 /*
  * Running a program on the second processor.
  *
- * The parasite has no debug hook of its own — jsbeeb gives one to the host CPU
- * only — and it does not run on its own clock either: it executes as a side
+ * The parasite has no debug hook of its own, jsbeeb gives one to the host CPU
+ * only, and it does not run on its own clock either: it executes as a side
  * effect of the host executing. So a parasite test runs the host and watches
  * the parasite's program counter at host instruction boundaries.
  *
  * That has a consequence a test author has to know about, so it is stated here
  * and enforced by the failure message: the stop address must be an address the
- * parasite *stays* at — a branch to itself — and not one it passes through.
+ * parasite *stays* at, a branch to itself, and not one it passes through.
  * A parasite instruction between two host instructions would not be seen.
  */
 /* The boot ROM overlays &F000 upward while it is paged in, so a program that
@@ -1074,7 +1074,7 @@ function parasiteRegisters(): RegisterSnapshot {
  * One byte of the parasite's RAM.
  *
  * Read from the snapshot's memory rather than through `readmem`, because a
- * read at &FEF8 to &FEFF goes to the ULA and can consume FIFO state — an
+ * read at &FEF8 to &FEFF goes to the ULA and can consume FIFO state, an
  * assertion must not change what it is asserting about.
  */
 function parasitePeek(memory: Uint8Array, address: number): number {
@@ -1194,13 +1194,13 @@ function runUntilOperatingSystemReady(): { marker: number | null; ready: boolean
 
 function startHardwareTest(command: Extract<CommandPayload, { type: 'run-test' }>) {
   if (!cpu) return;
-  if (!command.name.trim() || command.name.length > 80) throw new Error('Test name must contain 1–80 characters');
+  if (!command.name.trim() || command.name.length > 80) throw new Error('Test name must contain 1-80 characters');
   const processor: TestProcessor = command.processor === 'parasite' ? 'parasite' : 'host';
   if (processor === 'parasite') requireParasite();
   if (command.programManifest?.mode !== 'test' || command.programManifest.build?.fingerprint !== command.buildFingerprint) throw new Error('Hardware test requires a matching immutable test-mode program manifest');
   if (!Number.isInteger(command.cycleBudget) || command.cycleBudget < 100 || command.cycleBudget > 10_000_000) throw new Error('Test cycle budget must be between 100 and 10,000,000');
   if (!Number.isInteger(command.stopAddress) || command.stopAddress < 0 || command.stopAddress > 0xffff) throw new Error('Test stop address must be a 16-bit address');
-  if (!Array.isArray(command.assertions) || command.assertions.length < 1 || command.assertions.length > 64) throw new Error('Tests require 1–64 assertions');
+  if (!Array.isArray(command.assertions) || command.assertions.length < 1 || command.assertions.length > 64) throw new Error('Tests require 1-64 assertions');
   /* Addresses named by EVENT[...] assertions, so the instruction hook only
    * looks for what this plan actually asked about. */
   const watchedEventAddresses: number[] = [];
@@ -1375,7 +1375,7 @@ function startHardwareTest(command: Extract<CommandPayload, { type: 'run-test' }
 
 function loadBasic(bytes: number[], autorun = true, format: 'bbc-basic-program' | 'atom-basic-text' = 'bbc-basic-program', programManifest?: ProgramLoadManifest) {
   if (!cpu || !keyboard) return;
-  if (!Array.isArray(bytes) || bytes.length < 1 || bytes.length > 32768 || bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) { send({ type: 'error', message: 'BASIC artifacts must contain 1–32,768 valid bytes' }); return; }
+  if (!Array.isArray(bytes) || bytes.length < 1 || bytes.length > 32768 || bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) { send({ type: 'error', message: 'BASIC artifacts must contain 1-32,768 valid bytes' }); return; }
   if (cpu.model.isAtom !== (format === 'atom-basic-text')) { send({ type: 'error', message: `${format === 'atom-basic-text' ? 'Atom BASIC text' : 'BBC BASIC tokens'} cannot be loaded into ${cpu.model.name}` }); return; }
   if (!runtimeSessionManifest) { send({ type: 'error', message: 'BASIC load requires an initialized runtime session manifest' }); return; }
   try {
@@ -1648,9 +1648,9 @@ function viaInspectorGroup(id: string, label: string, base: number, state: Recor
     hardwareRegister('ora', 'ORA / IRA', address(1), hardwareNumber(state, 'ora')),
     hardwareRegister('ddrb', 'Data direction B', address(2), hardwareNumber(state, 'ddrb'), 8, 'read/write', flagFields(hardwareNumber(state, 'ddrb'), Array.from({ length: 8 }, (_, bit) => [bit, `PB${bit}`]))),
     hardwareRegister('ddra', 'Data direction A', address(3), hardwareNumber(state, 'ddra'), 8, 'read/write', flagFields(hardwareNumber(state, 'ddra'), Array.from({ length: 8 }, (_, bit) => [bit, `PA${bit}`]))),
-    hardwareRegister('t1c', 'Timer 1 counter', `${address(4)}–${address(5)}`, hardwareNumber(state, 't1c') & 0xffff, 16, 'internal state'),
-    hardwareRegister('t1l', 'Timer 1 latch', `${address(6)}–${address(7)}`, hardwareNumber(state, 't1l') & 0xffff, 16),
-    hardwareRegister('t2c', 'Timer 2 counter', `${address(8)}–${address(9)}`, hardwareNumber(state, 't2c') & 0xffff, 16, 'internal state'),
+    hardwareRegister('t1c', 'Timer 1 counter', `${address(4)}-${address(5)}`, hardwareNumber(state, 't1c') & 0xffff, 16, 'internal state'),
+    hardwareRegister('t1l', 'Timer 1 latch', `${address(6)}-${address(7)}`, hardwareNumber(state, 't1l') & 0xffff, 16),
+    hardwareRegister('t2c', 'Timer 2 counter', `${address(8)}-${address(9)}`, hardwareNumber(state, 't2c') & 0xffff, 16, 'internal state'),
     hardwareRegister('sr', 'Shift register', address(10), hardwareNumber(state, 'sr')),
     hardwareRegister('acr', 'Auxiliary control', address(11), hardwareNumber(state, 'acr'), 8, 'read/write', [field('T1 mode', hardwareNumber(state, 'acr'), 0xc0, 6), field('T2 mode', hardwareNumber(state, 'acr'), 0x20, 5), field('shift mode', hardwareNumber(state, 'acr'), 0x1c, 2)]),
     hardwareRegister('pcr', 'Peripheral control', address(12), hardwareNumber(state, 'pcr'), 8, 'read/write', [field('CB2', hardwareNumber(state, 'pcr'), 0xe0, 5), field('CB1 edge', hardwareNumber(state, 'pcr'), 0x10, 4), field('CA2', hardwareNumber(state, 'pcr'), 0x0e, 1), field('CA1 edge', hardwareNumber(state, 'pcr'), 0x01)]),
@@ -1734,7 +1734,7 @@ function captureHardwareInspection(): HardwareInspection {
     const acia = cpu.acia?.snapshotState();
     if (acia) groups.push({ id: 'acia', label: '6850 ACIA · serial and cassette', source: 'jsbeeb ACIA.snapshotState() · data register is not consumed', registers: [hardwareRegister('status', 'Status', '&FE08', hardwareNumber(acia, 'sr'), 8, 'read-only', flagFields(hardwareNumber(acia, 'sr'), [[7, 'IRQ'], [3, 'DCD'], [2, 'TDRE'], [1, 'RDRF']])), hardwareRegister('control', 'Control', '&FE08', hardwareNumber(acia, 'cr'), 8, 'write-only latch'), hardwareRegister('data', 'Data latch', '&FE09', hardwareNumber(acia, 'dr'), 8, 'internal state'), hardwareRegister('transport', 'Cassette / serial selection', 'transport', (hardwareNumber(acia, 'rs423Selected') ? 2 : 0) | (hardwareNumber(acia, 'motorOn') ? 1 : 0), 8, 'internal state', flagFields((hardwareNumber(acia, 'rs423Selected') ? 2 : 0) | (hardwareNumber(acia, 'motorOn') ? 1 : 0), [[1, 'RS423'], [0, 'motor']])), hardwareRegister('rx-rate', 'Receive clock rate', 'serial clock', hardwareNumber(acia, 'serialReceiveRate'), 32, 'internal state'), hardwareRegister('tx-rate', 'Transmit clock rate', 'serial clock', hardwareNumber(acia, 'serialTransmitRate'), 32, 'internal state')] });
     const adc = cpu.adconverter?.snapshotState();
-    if (adc) { const base = cpu.model.isMaster ? 0xfe18 : 0xfec0; groups.push({ id: 'adc', label: 'Analogue-to-digital converter', source: 'jsbeeb ADC.snapshotState() · conversion is not started or acknowledged', registers: [hardwareRegister('status', 'Status / channel', `&${base.toString(16).toUpperCase()}`, hardwareNumber(adc, 'status'), 8, 'read-only'), hardwareRegister('result', 'Conversion result', `&${(base + 1).toString(16).toUpperCase()}–&${(base + 2).toString(16).toUpperCase()}`, ((hardwareNumber(adc, 'high') << 8) | hardwareNumber(adc, 'low')) & 0xffff, 16, 'read-only')] }); }
+    if (adc) { const base = cpu.model.isMaster ? 0xfe18 : 0xfec0; groups.push({ id: 'adc', label: 'Analogue-to-digital converter', source: 'jsbeeb ADC.snapshotState() · conversion is not started or acknowledged', registers: [hardwareRegister('status', 'Status / channel', `&${base.toString(16).toUpperCase()}`, hardwareNumber(adc, 'status'), 8, 'read-only'), hardwareRegister('result', 'Conversion result', `&${(base + 1).toString(16).toUpperCase()}-&${(base + 2).toString(16).toUpperCase()}`, ((hardwareNumber(adc, 'high') << 8) | hardwareNumber(adc, 'low')) & 0xffff, 16, 'read-only')] }); }
     const map = memoryMapState()!;
     groups.push({ id: 'memory-control', label: 'ROM and memory control', source: 'jsbeeb CPU romsel/acccon fields · no paging register access', registers: [
       hardwareRegister('romsel', 'ROMSEL / sideways bank', '&FE30', cpu.romsel, 8, cpu.model.isMaster ? 'read/write' : 'write-only latch', [field('bank', cpu.romsel, 0x0f), ...(cpu.model.isMaster ? flagFields(cpu.romsel, [[7, 'ANDY enable']]) : [])]),
@@ -1752,7 +1752,7 @@ function captureHardwareInspection(): HardwareInspection {
       hardwareRegister('data', 'Data latch', `&${(fdcBase + 7).toString(16).toUpperCase()}`, hardwareNumber(fdc, 'dataRegister'), 8, 'internal state'),
     ] : [
       hardwareRegister('status', 'Host status', '&FE80', hardwareNumber(fdc, 'status'), 8, 'read-only', flagFields(hardwareNumber(fdc, 'status'), [[7, 'NMI'], [3, 'need data'], [2, 'result full'], [1, 'command full'], [0, 'busy']])),
-      hardwareRegister('data', 'Internal data latch', '&FE84–&FE87', hardwareNumber(fdc, 'mmioData'), 8, 'internal state'),
+      hardwareRegister('data', 'Internal data latch', '&FE84-&FE87', hardwareNumber(fdc, 'mmioData'), 8, 'internal state'),
       hardwareRegister('drive', 'Drive output', 'controller pins', hardwareNumber(fdc, 'driveOut'), 8, 'internal state'),
     ]), ...driveStates.flatMap((drive, index) => [hardwareRegister(`drive-${index}-track`, `Drive ${index} track`, 'mechanism', hardwareNumber(drive, 'track'), 8, 'internal state'), hardwareRegister(`drive-${index}-state`, `Drive ${index} mechanics`, 'mechanism', (hardwareNumber(drive, 'spinning') ? 1 : 0) | (hardwareNumber(drive, 'isSideUpper') ? 2 : 0) | (hardwareNumber(drive, 'is40Track') ? 4 : 0), 8, 'internal state', flagFields((hardwareNumber(drive, 'spinning') ? 1 : 0) | (hardwareNumber(drive, 'isSideUpper') ? 2 : 0) | (hardwareNumber(drive, 'is40Track') ? 4 : 0), [[0, 'spinning'], [1, 'upper side'], [2, '40 track']]))])] });
     const sound = cpu.soundChip?.snapshotState();
@@ -1872,7 +1872,7 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
     } catch (error) { send({ type: 'error', message: error instanceof Error ? error.message : String(error) }); }
   } else if (command.type === 'read-memory' && cpu) {
     try {
-      if (typeof command.requestId !== 'string' || !command.requestId || command.requestId.length > 128) throw new Error('Memory request ID must contain 1–128 characters');
+      if (typeof command.requestId !== 'string' || !command.requestId || command.requestId.length > 128) throw new Error('Memory request ID must contain 1-128 characters');
       const map = memoryMapState()!;
       const addressSpace = command.addressSpace ?? 'mapped';
       const validated = validateMemorySpaceRead(map, addressSpace, command.address, command.length, command.bank);
@@ -1891,8 +1891,8 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
       if (typeof command.requestId !== 'string' || !command.requestId || command.requestId.length > 128) throw new Error('Tube memory request ID must contain 1 to 128 characters');
       const start = command.addressSpace === 'tube-rom' ? 0xf000 : 0;
       const end = 0xffff;
-      if (!Number.isInteger(command.address) || !Number.isInteger(command.length) || command.length < 1 || command.length > 4096 || command.address < start || command.address + command.length - 1 > end) throw new Error(`Tube ${command.addressSpace === 'tube-rom' ? 'boot ROM' : 'address-space'} reads require 1–4096 bytes wholly inside &${start.toString(16).toUpperCase().padStart(4, '0')}–&FFFF`);
-      if (command.addressSpace === 'tube-logical' && command.address <= 0xfeff && command.address + command.length - 1 >= 0xfef8) throw new Error('Logical Tube reads cannot include ULA I/O at &FEF8–&FEFF because a read could acknowledge or consume FIFO state');
+      if (!Number.isInteger(command.address) || !Number.isInteger(command.length) || command.length < 1 || command.length > 4096 || command.address < start || command.address + command.length - 1 > end) throw new Error(`Tube ${command.addressSpace === 'tube-rom' ? 'boot ROM' : 'address-space'} reads require 1-4096 bytes wholly inside &${start.toString(16).toUpperCase().padStart(4, '0')}-&FFFF`);
+      if (command.addressSpace === 'tube-logical' && command.address <= 0xfeff && command.address + command.length - 1 >= 0xfef8) throw new Error('Logical Tube reads cannot include ULA I/O at &FEF8-&FEFF because a read could acknowledge or consume FIFO state');
       const state = cpu.tube.snapshotState({ includeRoms: true }) as Record<string, unknown>;
       const memory = state.memory instanceof Uint8Array ? state.memory : new Uint8Array(0x10000);
       const rom = state.rom instanceof Uint8Array ? state.rom : new Uint8Array(0x1000);
@@ -1907,7 +1907,7 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
     } catch (error) { send({ type: 'error', message: error instanceof Error ? error.message : String(error) }); }
   } else if (command.type === 'write-memory' && cpu) {
     if (running) { send({ type: 'error', message: 'Pause the machine before editing memory' }); return; }
-    if (!Number.isInteger(command.address) || command.address < 0 || command.address >= 0x8000 || command.bytes.length < 1 || command.bytes.length > 256 || command.address + command.bytes.length > 0x8000 || command.bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) { send({ type: 'error', message: 'Memory edits are limited to 1–256 validated bytes in main RAM below &8000' }); return; }
+    if (!Number.isInteger(command.address) || command.address < 0 || command.address >= 0x8000 || command.bytes.length < 1 || command.bytes.length > 256 || command.address + command.bytes.length > 0x8000 || command.bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) { send({ type: 'error', message: 'Memory edits are limited to 1-256 validated bytes in main RAM below &8000' }); return; }
     watchpointsSuspended = true;
     try { command.bytes.forEach((byte, offset) => cpu!.writemem(command.address + offset, byte)); }
     finally { watchpointsSuspended = false; }

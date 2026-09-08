@@ -1,8 +1,8 @@
 # Native toolchain evaluation
 
-Status: Accepted; ca65/ld65 and BeebAsm local native slices implemented  
-Date: 21 August 2026  
-Scope: P0-013, P0-014, BLD-001–BLD-004, BLD-300–BLD-305, BLD-327,
+Status: Accepted; ca65/ld65 and BeebAsm local native slices implemented
+Date: 21 August 2026
+Scope: P0-013, P0-014, BLD-001-BLD-004, BLD-300-BLD-305, BLD-327,
 BLD-329, DEC-005 and DEC-010
 
 ## Decision

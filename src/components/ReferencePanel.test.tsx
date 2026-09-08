@@ -113,7 +113,7 @@ describe('history and bookmarks', () => {
   });
 });
 
-describe('inserting into somebody’s source', () => {
+describe("inserting into somebody's source", () => {
   it('refuses when the licence does not permit copying, and says which licence', () => {
     render(<ReferencePanel library={contested()} insertionLanguage="6502" onInsert={vi.fn()} onNotice={vi.fn()} />);
     search('OSWRCH');

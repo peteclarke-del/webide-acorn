@@ -12,7 +12,7 @@
  *
  * A pattern that misses these does not fail loudly. It offers `handler` as a
  * variable of type `void`, or offers nothing at all and the completion list is
- * simply short — which reads as "this file has no such symbol" and is wrong.
+ * simply short, which reads as "this file has no such symbol" and is wrong.
  *
  * So the declarator is parsed the way the C grammar actually reads it: find the
  * innermost identifier, then work outwards, applying each construct in the
@@ -91,8 +91,8 @@ interface Parsed {
 }
 
 /**
- * Read one declarator — everything after the base type and before the comma or
- * semicolon — into a name and a description of what surrounds it.
+ * Read one declarator, everything after the base type and before the comma or
+ * semicolon, into a name and a description of what surrounds it.
  *
  * The recursion mirrors the grammar: parentheses group, a suffix binds tighter
  * than a prefix `*`, and the innermost identifier is the thing being declared.
@@ -216,7 +216,7 @@ export function parseCDeclaration(text: string): CDeclarator[] | null {
   }
   if (!words.length) return null;
 
-  /* `struct sprite state;` — the tag is part of the type. */
+  /* `struct sprite state;`. The tag is part of the type. */
   if (['struct', 'union', 'enum'].includes(words[words.length - 1]!)) {
     const tag = /^([A-Za-z_][A-Za-z0-9_]*)\s*/.exec(rest);
     if (tag) { words.push(tag[1]!); rest = rest.slice(tag[0].length); }

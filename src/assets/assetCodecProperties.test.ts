@@ -144,8 +144,8 @@ const DEFAULT_CASES = 60;
 /*
  * Generous, because this suite is genuinely heavy and the bound is there to
  * catch a hang rather than to measure the machine. The screen codec's round
- * trip takes fifteen seconds on an idle machine — it builds and re-parses whole
- * framebuffers — and was seen to pass thirty under a full parallel run, which
+ * trip takes fifteen seconds on an idle machine, it builds and re-parses whole
+ * framebuffers, and was seen to pass thirty under a full parallel run, which
  * says nothing about the codec and only that eight workers were sharing eight
  * cores. A test that passes alone and fails in company is not reproducible.
  */

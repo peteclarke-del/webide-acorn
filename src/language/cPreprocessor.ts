@@ -4,7 +4,7 @@
  * BBC Master and an Archimedes, a debug build that defines extra symbols, a
  * header that guards itself. Until now every `#define` in a file was offered
  * for completion as though it were unconditional, which is wrong in the way
- * that matters most — it offers a symbol that will not exist when the code is
+ * that matters most. It offers a symbol that will not exist when the code is
  * built, and the failure appears at compile time with no connection back to
  * the suggestion that caused it.
  *
@@ -12,9 +12,9 @@
  * structure of a file and says, for any line, which conditions guard it. Given
  * the build target's own defines it then answers one of three things:
  *
- *   active    — this branch is compiled for this target
- *   inactive  — this branch is not, and offering its symbols would be wrong
- *   unknown   — the condition depends on something not known here
+ *   active   , this branch is compiled for this target
+ *   inactive , this branch is not, and offering its symbols would be wrong
+ *   unknown  . The condition depends on something not known here
  *
  * `unknown` is the important one and is never collapsed into either of the
  * others. A condition like `#if VERSION > 2` needs the value of `VERSION` and

@@ -1,9 +1,9 @@
 /* Which ADFS disc an image is, from the shape of the image itself.
  *
  * These geometries are not written from memory. They are the loader table in
- * the pinned Arculator core — `loaders[]` in `src/disc.c` and the
+ * the pinned Arculator core (`loaders[]` in `src/disc.c` and the
  * `adf_loadex(drive, file, sectors, size, sides, dblstep, density, offset)`
- * calls beside it — which is the code that will actually be asked to read
+ * calls beside it), which is the code that will actually be asked to read
  * whatever this build mounts. Taking them from anywhere else would mean this
  * build and the machine disagreeing about what a file is, and the machine
  * would be right.
@@ -42,20 +42,20 @@ export interface AdfsGeometry {
   catalogue: { readable: true; note?: string } | { readable: false; reason: string };
 }
 
-/* The old map — a free-space table in the first two sectors, and directories of
- * a different shape from the new-map ones — is what the S, M, L and D discs
+/* The old map (a free-space table in the first two sectors, and directories of
+ * a different shape from the new-map ones) is what the S, M, L and D discs
  * share and what this build's reader does not implement. The one exception is
  * the 800 KiB D disc, whose old map the reader does handle, because the E disc
  * it shares a size with forced both to be told apart anyway. */
 /*
  * S and M are read with the structure L was measured with.
  *
- * The three share one catalogue — an old free-space map and a 47-entry old
- * directory — and differ only in how much disc there is and whether it has two
+ * The three share one catalogue, an old free-space map and a 47-entry old
+ * directory, and differ only in how much disc there is and whether it has two
  * sides. L is the one that could be measured: RISC OS 3.11 formats F, E, D and
  * L and no others, which its own `*Help Format` says, so no S or M disc could be
  * produced on the machine this build runs. What makes reading them credible is
- * that nothing is assumed of a particular disc — both directory signatures, the
+ * that nothing is assumed of a particular disc, both directory signatures, the
  * sequence number at each end and the map's own checksums are all verified, so
  * a disc that is not this shape is refused rather than misread.
  */

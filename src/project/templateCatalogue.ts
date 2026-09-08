@@ -4,7 +4,7 @@
  * for proving the toolchain end to end, and the wrong thing for starting work:
  * someone who wants to write their own game has to delete a maze first.
  *
- * A template is the other half — a small, complete, buildable skeleton with the
+ * A template is the other half. A small, complete, buildable skeleton with the
  * machine it was written for recorded alongside it. "Target-aware" is the point
  * of the schema rather than a label on it: a template declares the machine,
  * variant, ROM set and hardware capabilities it needs, and the catalogue
@@ -448,7 +448,7 @@ export const TEMPLATE_CATALOGUE: readonly ProjectTemplate[] = Object.freeze([
     files: [{ name: 'main.asm', content: ELECTRON_ASM }],
     highlights: [
       'MODE 6 rather than MODE 7: the Electron has no teletext chip, so mode 7 is not a screen it can show',
-      'Uses the BBC entry points, which the Electron shares — OSWRCH, OSRDCH and OSNEWL are where a BBC program expects them',
+      'Uses the BBC entry points, which the Electron shares. OSWRCH, OSRDCH and OSNEWL are where a BBC program expects them',
       'Runs on the Elkulator core, which is the Electron with the instruction hook, so it can be stepped and broken on',
       'Leaves BASIC working after it returns, which was checked on the machine rather than assumed',
     ],
@@ -567,7 +567,7 @@ export const TEMPLATE_CATALOGUE: readonly ProjectTemplate[] = Object.freeze([
     outputName: 'TEMPLATE',
     files: [{ name: 'main.bas', content: DISK_BASIC }],
     highlights: [
-      'Reads a file’s catalogue entry with OSFILE A=5, which does not load the file',
+      "Reads a file's catalogue entry with OSFILE A=5, which does not load the file",
       'Prints the load address, execution address and length the disk records',
       'Keeps its control block and filename in the OS scratch area at &900',
       'One DEF PROC per job, so the structure survives being extended',

@@ -173,7 +173,7 @@ Insert documented machine addresses and RISC OS software interrupts in the exact
 3. Read the candidate detail and side-effect warning. Follow its maintained machine-manual citation before reading access-sensitive hardware.
 4. Accept the address. BeebAsm and BBC BASIC receive ampersand hexadecimal, ca65 receives dollar hexadecimal, and C or GNU ARM assembly receives 0x hexadecimal.
 5. For ARM RISC OS code, enter SWI followed by a name prefix, then press Ctrl+Space.
-6. Read the SWI number, entry registers, result registers, ROM compatibility and Programmer’s Reference Manual citation.
+6. Read the SWI number, entry registers, result registers, ROM compatibility and Programmer's Reference Manual citation.
 7. Accept the SWI. The editor inserts its numeric GNU as operand and leaves the descriptive name available in completion and help.
 
 **What should happen**

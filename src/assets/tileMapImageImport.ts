@@ -102,7 +102,7 @@ export function importImageIntoTileMap(
   }
 
   /* A map is at most 128 tiles each way, so an image with more is cropped from
-   * the right and bottom rather than resampled — resampling a tile grid would
+   * the right and bottom rather than resampled, resampling a tile grid would
    * invent artwork that is in no tile of the image. */
   const mapWidth = Math.min(MAX_MAP_DIMENSION, columns);
   const mapHeight = Math.min(MAX_MAP_DIMENSION, rows);

@@ -9,8 +9,8 @@
  * So a clipboard now carries two things it did not: what kind of grid the
  * values came from, and the bound they were valid against. Both are checked on
  * paste, and both refusals matter for the same reason. Tile indices pasted into
- * pixel data would be accepted silently by anything that only counted values —
- * they are small numbers either way — and would produce artwork nobody drew.
+ * pixel data would be accepted silently by anything that only counted values,
+ * they are small numbers either way, and would produce artwork nobody drew.
  * Sixteen-colour artwork pasted into a four-colour asset would either be
  * clamped, losing what somebody drew, or written out of range, producing a
  * build that does not match what the editor showed.
@@ -35,7 +35,7 @@ export interface GridClipboard {
   height: number;
   values: number[];
   /**
-   * The exclusive upper bound the values were valid against when copied — the
+   * The exclusive upper bound the values were valid against when copied, the
    * colour count of the mode, or the number of tiles in the set.
    */
   valueLimit: number;
@@ -118,8 +118,8 @@ export function parseGridClipboard(value: string | unknown): GridClipboard {
  * Put a clipboard down, or say exactly why it cannot go there.
  *
  * Anything outside the destination is trimmed, which is ordinary. What is not
- * ordinary — a different kind of grid, or a value the destination has no room
- * for — is refused, because both would produce something nobody drew.
+ * ordinary (a different kind of grid, or a value the destination has no room
+ * for) is refused, because both would produce something nobody drew.
  */
 export function pasteSelection(
   values: readonly number[],
@@ -148,7 +148,7 @@ export function pasteSelection(
   return result;
 }
 
-/** Set every cell of a rectangle to one value — the cut half of cut and paste. */
+/** Set every cell of a rectangle to one value. The cut half of cut and paste. */
 export function fillSelection(
   values: readonly number[],
   gridWidth: number,

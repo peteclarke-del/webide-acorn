@@ -82,7 +82,7 @@ final class NativeBuildServiceTest extends TestCase
          * The whole point of the cache is that a hit runs no process at all.
          *
          * A hit still answers with the invocation records of the build that
-         * produced the artifact, because those are its provenance — so their
+         * produced the artifact, because those are its provenance, so their
          * presence proves nothing. What proves it is that they are *identical*,
          * down to the sub-millisecond durations the first run measured. A
          * second run of the same assembler would not reproduce those to six
@@ -91,7 +91,7 @@ final class NativeBuildServiceTest extends TestCase
          * This used to assert that the second build was faster than the first,
          * which sounds like the same claim and is not. Elapsed time measures the
          * machine as much as the code, and on a loaded one a cache hit that ran
-         * nothing took 59.9ms against a first build's 51.4ms — so the gate
+         * nothing took 59.9ms against a first build's 51.4ms, so the gate
          * failed over a cache that had worked perfectly. A test that can fail
          * while the code is right is not evidence about the code.
          */

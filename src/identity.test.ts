@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 /*
  * The identity, held to the two things about it that can be checked.
  *
- * Most of UX-004 is judgement — whether a shape is too close to somebody's mark
+ * Most of UX-004 is judgement. Whether a shape is too close to somebody's mark
  * is not a thing a test decides, and `docs/identity.md` says so and leaves it
  * with the licence review. Two parts are not judgement.
  *
@@ -14,8 +14,8 @@ import { resolve } from 'node:path';
  * `<image>` or a base64 payload has acquired something from somewhere, and that
  * is the moment worth noticing rather than the moment it ships.
  *
- * The second is the words. The product may name the machines it targets — no
- * other words would say which machine somebody selected — and it may not claim
+ * The second is the words. The product may name the machines it targets, no
+ * other words would say which machine somebody selected, and it may not claim
  * a relationship with the people who made them.
  */
 const FAVICON = readFileSync(resolve(process.cwd(), 'public/favicon.svg'), 'utf8');
@@ -51,8 +51,8 @@ describe('the words', () => {
 
   it('claims no relationship with the people who made them', () => {
     /*
-     * Nominative use is naming a machine. This is the other thing — a word that
-     * turns naming into a claim — and none of it appears.
+     * Nominative use is naming a machine. This is the other thing, a word that
+     * turns naming into a claim, and none of it appears.
      */
     const shipped = [APP, readFileSync(resolve(process.cwd(), 'src/data/machines.ts'), 'utf8')].join('\n');
     for (const claim of ['officially licensed', 'official Acorn', 'endorsed by', 'approved by Acorn', 'in partnership with']) {

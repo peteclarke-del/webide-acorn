@@ -6,13 +6,13 @@
  * refuse them. That says nothing about what they cost. A reader that is correct
  * on every input and quadratic on one of them still hangs the analysis worker,
  * and the worker's twenty-second ceiling turns that into a refusal rather than
- * a crash — which is the right behaviour and the wrong outcome, because the
+ * a crash, which is the right behaviour and the wrong outcome, because the
  * person gets nothing.
  *
  * So each case here is built to be pathological in a specific, named way, and
  * two things are asserted about it. The first is that the reader did the work:
  * a case that quietly produced nothing would pass a timing check while proving
- * nothing at all. The second is a wall-clock ceiling, set generously — this
+ * nothing at all. The second is a wall-clock ceiling, set generously, this
  * catches an input that costs a hundred times what it should, not one that
  * costs twice as much on a slow machine.
  */
@@ -26,7 +26,7 @@ import { parseDfsCatalogue } from '../media/dfsCatalogue';
 
 /*
  * What these tests are for is an input that costs orders of magnitude more than
- * it should — a reader that goes quadratic on a pathological file. What they
+ * it should. A reader that goes quadratic on a pathological file. What they
  * are not for is measuring the machine they run on, and a fixed millisecond
  * ceiling does exactly that: four seconds is generous on an idle box and not
  * generous on a shared runner building four other things, where this failed a
@@ -82,7 +82,7 @@ function calibrationMs(): number {
  *
  * The floor was four seconds, which is what the fixed ceiling used to be, and
  * it was still the fixed ceiling for any machine fast enough for the multiple
- * to fall below it — which is how the call-heavy 6502 case came to fail a full
+ * to fall below it, which is how the call-heavy 6502 case came to fail a full
  * parallel run at 4,963 ms and pass on its own. The calibration is taken once
  * and kept, deliberately, because measuring it beside all forty-eight
  * assertions starved the reporter; the cost of keeping it is that a quiet first
@@ -175,7 +175,7 @@ describe('the ARM reader against its worst inputs', () => {
   it('handles a chain of branches that each reach a different word', () => {
     /* Every word decodes and every one names a target nothing else names, so
      * the queue and the reference map are both asked to hold one entry per
-     * instruction — the largest either can be made to be for a given size. */
+     * instruction. The largest either can be made to be for a given size. */
     const words = 48 * 1024;
     const bytes = armWords(Array.from({ length: words }, (_, index) =>
       armBranch(14, ORIGIN + index * 4, ORIGIN + Math.min(index + 2, words - 1) * 4)));

@@ -43,10 +43,10 @@ describe('saying what a failing assertion actually saw', () => {
 
   it('puts the failing assertions in the JUnit failure body, where a reader looks', () => {
     const xml = createJUnitTestReport([withAssertions()], 'bbc-b/x/y');
-    expect(xml).toContain('A = &amp;F0 — expected &amp;F0, got &amp;70');
+    expect(xml).toContain('A = &amp;F0. Expected &amp;F0, got &amp;70');
     /* Only the failing ones: a failure body listing what passed buries the
      * thing somebody opened it for. */
-    expect(xml).not.toContain('MEM[&amp;70] = &amp;F0 — expected');
+    expect(xml).not.toContain('MEM[&amp;70] = &amp;F0, expected');
   });
 
   it('says nothing extra when a result carries no assertions', () => {

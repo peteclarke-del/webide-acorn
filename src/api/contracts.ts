@@ -520,7 +520,7 @@ export interface ApiRequests {
  * A concrete path for an operation, with its parameters filled in.
  *
  * Every value is encoded. A project identifier with a slash in it would
- * otherwise address a different route, and the store refuses such a name — but
+ * otherwise address a different route, and the store refuses such a name, but
  * the client should not be the reason it never reaches the store to be refused.
  */
 export function apiPath<Id extends ApiOperationId>(id: Id, values: Record<string, string> = {}): string {

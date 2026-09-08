@@ -4,7 +4,7 @@
  * The tables are read out of ROMs rather than transcribed, so what has to be
  * checked is the reading. The strongest available check is that the same
  * method reproduces the BASIC II table this repository already carried,
- * transcribed independently and by hand — and that check runs here, without a
+ * transcribed independently and by hand, and that check runs here, without a
  * ROM, because the generated table is in the repository and the transcription
  * still is too.
  */
@@ -17,11 +17,11 @@ describe('the generated tables against the hand transcription', () => {
     expect(BBC_BASIC_2.tokens).toEqual(BBC_BASIC_II_TOKENS);
   });
 
-  it('ends every 6502 table at the same keyword, which is the table’s rule and not the reader’s', () => {
+  it("ends every 6502 table at the same keyword, which is the table's rule and not the reader's", () => {
     /* Four ROMs of different vintages stopping at the same place is
      * corroboration that the end was found rather than chosen. The ARM BASIC
-     * ends somewhere else — at WIDTH, where its own " unlistable token" message
-     * begins — and that it does is the same corroboration from the other
+     * ends somewhere else (at WIDTH, where its own " unlistable token" message
+     * begins), and that it does is the same corroboration from the other
      * direction: the reader stops where each table stops, not where it was told
      * to. */
     /* Named by which processor's BASIC they are rather than by id, so a new ARM

@@ -26,7 +26,7 @@ export function prepareAtomBasic(source: string): BasicArtifact {
     if (!match) { addDiagnostic(diagnostics, index + 1, 'Atom BASIC program lines must begin with a line number'); continue; }
     const lineNumber = Number(match[1]);
     const body = match[2]!;
-    if (lineNumber < 1 || lineNumber > 32767) { addDiagnostic(diagnostics, index + 1, `Atom BASIC line number ${lineNumber} is outside 1–32767`); continue; }
+    if (lineNumber < 1 || lineNumber > 32767) { addDiagnostic(diagnostics, index + 1, `Atom BASIC line number ${lineNumber} is outside 1-32767`); continue; }
     if (seen.has(lineNumber)) { addDiagnostic(diagnostics, index + 1, `Duplicate Atom BASIC line number ${lineNumber}`); continue; }
     if (lineNumber <= previous) addDiagnostic(diagnostics, index + 1, `Line ${lineNumber} is not greater than the previous line`, 'warning');
     const unsupported = Array.from(body).find((character) => character.charCodeAt(0) < 0x20 || character.charCodeAt(0) > 0x7e);
@@ -57,7 +57,7 @@ export function tokenizeBasic(source: string): BasicArtifact {
     const match = physical.match(/^\s*(\d{1,5})(?:\s?)(.*)$/);
     if (!match) { addDiagnostic(diagnostics, index + 1, 'BBC BASIC build lines must begin with a line number'); continue; }
     const lineNumber = Number(match[1]); const bodySource = match[2]!;
-    if (lineNumber < 0 || lineNumber > 32767) { addDiagnostic(diagnostics, index + 1, `Line number ${lineNumber} is outside 0–32767`); continue; }
+    if (lineNumber < 0 || lineNumber > 32767) { addDiagnostic(diagnostics, index + 1, `Line number ${lineNumber} is outside 0-32767`); continue; }
     if (seen.has(lineNumber)) { addDiagnostic(diagnostics, index + 1, `Duplicate BASIC line number ${lineNumber}`); continue; }
     if (lineNumber <= previous) addDiagnostic(diagnostics, index + 1, `Line ${lineNumber} is not greater than the previous line`, 'warning');
     seen.add(lineNumber); previous = lineNumber;

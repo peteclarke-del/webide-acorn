@@ -20,12 +20,12 @@ concurrency:
 # The action versions are pinned to the first major of each that runs on the
 # Node 24 the runner now provides. GitHub deprecated Node 20 for actions and was
 # forcing these onto 24 anyway, which put a warning annotation on every single
-# run — passing runs included, so the pipeline looked as though it had something
+# run. Passing runs included, so the pipeline looked as though it had something
 # wrong with it whenever anybody glanced at it.
 #
 # They are not all the same number, and that is measured rather than assumed:
 # checkout, setup-node and cache moved to Node 24 at v5, and upload-artifact did
-# not — its v5 is still Node 20, so it takes v6. Bumping everything to v5 would
+# not. Its v5 is still Node 20, so it takes v6. Bumping everything to v5 would
 # have looked right and left one of the four still warning.
 
 jobs:
@@ -91,8 +91,8 @@ jobs:
       # shared runner does not control wall clock: the ARM build failed three
       # times here reporting a timeout on a build that takes under 200ms on a
       # quiet machine, because the process was stalled by something else on the
-      # host. The limit is raised for this runner only — a developer's machine
-      # and the shipped default stay at five seconds — and the value in force is
+      # host. The limit is raised for this runner only, a developer's machine
+      # and the shipped default stay at five seconds, and the value in force is
       # published in the build manifest, so this is never a hidden change.
       # Firefox on this runner reports no WebGL, which the emulator cores
       # genuinely need: Elkulator and Arculator are Emscripten SDL builds that
@@ -141,7 +141,7 @@ jobs:
           GALLIUM_DRIVER: llvmpipe
         # Under a virtual display, so Firefox takes its ordinary graphics path
         # and software Mesa can answer it. Headless on a machine with no GPU it
-        # tried native GL, found none, and stopped — which it said in as many
+        # tried native GL, found none, and stopped, which it said in as many
         # words once the run was made to ask.
         run: xvfb-run -a --server-args="-screen 0 1600x1200x24" npm run ci
 

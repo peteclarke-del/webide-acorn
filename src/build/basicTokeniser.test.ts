@@ -32,6 +32,6 @@ describe('Atom BASIC source packer', () => {
 
   it('rejects invalid line numbers, duplicates and non-ASCII keyboard payloads', () => {
     const built = prepareAtomBasic('0 PRINT "NO"\n10 PRINT "OK"\n10 PRINT "DUP"\n20 PRINT "£"');
-    expect(built.diagnostics.filter((item) => item.severity === 'error').map((item) => item.message).join(' ')).toMatch(/outside 1–32767.*Duplicate.*printable ASCII/);
+    expect(built.diagnostics.filter((item) => item.severity === 'error').map((item) => item.message).join(' ')).toMatch(/outside 1-32767.*Duplicate.*printable ASCII/);
   });
 });

@@ -2,8 +2,8 @@
  *
  * A hand-written support table is a promise made once and then left behind by
  * the code. This one is derived from the same declarations the product runs
- * on — the machine profiles, the adapter support map, the toolchain registry
- * and the emulator adapter descriptors — and a contract test compares the
+ * on (the machine profiles, the adapter support map, the toolchain registry
+ * and the emulator adapter descriptors), and a contract test compares the
  * checked-in document against what this module produces. A support claim
  * therefore cannot outlive the thing it describes: change what the product
  * does and the document either changes with it or the release gate fails.
@@ -13,8 +13,8 @@
  *
  *   Runnable    a qualified emulator core in this build executes the machine,
  *               with firmware the person supplies.
- *   Described   the product models the machine — its variants, ROM sets and
- *               hardware — and no core in this build executes it. Nothing is
+ *   Described   the product models the machine (its variants, ROM sets and
+ *               hardware), and no core in this build executes it. Nothing is
  *               substituted for it.
  *   Fitted      a capability the machine has and this build drives.
  *   Preview     a capability that does something, with known gaps.
@@ -87,7 +87,7 @@ function table(headings: readonly string[], rows: ReadonlyArray<readonly string[
   ].join('\n');
 }
 
-const list = (values: readonly string[]) => values.length ? values.join(', ') : '—';
+const list = (values: readonly string[]) => values.length ? values.join(', ') : '-';
 
 /**
  * The document, as Markdown. Deterministic: the same catalogues always produce
@@ -110,11 +110,11 @@ export function renderCompatibilityMatrix(): string {
     '',
     '## What the words mean',
     '',
-    '- **Runnable** — a qualified emulator core in this build executes the machine, with firmware you supply yourself.',
-    '- **Described** — the product models the machine, its variants, ROM sets and hardware, and no core in this build executes it. Nothing is substituted for it.',
-    '- **Fitted** — a capability the machine has and this build drives.',
-    '- **Preview** — a capability that does something, with known gaps.',
-    '- **Planned** — not fitted. It is listed because the machine has it, not because this build does anything with it.',
+    '- **Runnable** (a qualified emulator core in this build executes the machine, with firmware you supply yourself.',
+    '- **Described**) the product models the machine, its variants, ROM sets and hardware, and no core in this build executes it. Nothing is substituted for it.',
+    '- **Fitted** (a capability the machine has and this build drives.',
+    '- **Preview**) a capability that does something, with known gaps.',
+    '- **Planned**: not fitted. It is listed because the machine has it, not because this build does anything with it.',
     '',
     'No firmware is distributed with this product. Every runnable machine needs',
     'ROM images you own and supply.',
@@ -145,7 +145,7 @@ export function renderCompatibilityMatrix(): string {
   sections.push([
     '## Known inaccuracies and limitations',
     '',
-    ...rows.map((row) => `- **${row.label}** — ${row.limitation}`),
+    ...rows.map((row) => `- **${row.label}**: ${row.limitation}`),
   ].join('\n'));
 
   sections.push([
@@ -161,7 +161,7 @@ export function renderCompatibilityMatrix(): string {
         toolchain.label,
         toolchain.version,
         toolchain.language,
-        toolchain.processor ?? '—',
+        toolchain.processor ?? '-',
         toolchain.artifactKind,
         toolchain.execution === 'browser-local' ? 'in this browser' : 'in the isolated container',
       ]),

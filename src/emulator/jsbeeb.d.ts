@@ -163,7 +163,7 @@ interface JsBeebCpu {
     snapshotState(options?: Record<string, unknown>): Record<string, unknown>;
     restoreState(state: unknown): void;
     /* The parasite's own bus. `writemem` reaches its RAM and, at &FEF8 to
-     * &FEFF, the ULA — so a loader has to keep out of that window. */
+     * &FEFF, the ULA, so a loader has to keep out of that window. */
     readmem(address: number): number;
     writemem(address: number, value: number): void;
     memory?: Uint8Array;

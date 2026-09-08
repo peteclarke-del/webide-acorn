@@ -2,8 +2,8 @@ export interface LiveDisassemblyRequest { address: number; instructionCount: num
 
 export function validateLiveDisassemblyRequest(input: LiveDisassemblyRequest) {
   if (!Number.isInteger(input.address) || input.address < 0 || input.address > 0xffff) throw new Error('Disassembly start must be a 16-bit address');
-  if (!Number.isInteger(input.instructionCount) || input.instructionCount < 1 || input.instructionCount > 256) throw new Error('Disassembly requires 1–256 instructions');
-  if (typeof input.requestId !== 'string' || !input.requestId || input.requestId.length > 128) throw new Error('Disassembly request ID must contain 1–128 characters');
+  if (!Number.isInteger(input.instructionCount) || input.instructionCount < 1 || input.instructionCount > 256) throw new Error('Disassembly requires 1-256 instructions');
+  if (typeof input.requestId !== 'string' || !input.requestId || input.requestId.length > 128) throw new Error('Disassembly request ID must contain 1-128 characters');
   return input;
 }
 
@@ -31,5 +31,5 @@ export function estimate6502Cycles(mnemonic: string, addressingMode: string) {
 }
 
 export function formatCycleEstimate(estimate: { minimum: number; maximum: number }) {
-  return estimate.minimum === estimate.maximum ? String(estimate.minimum) : `${estimate.minimum}–${estimate.maximum}`;
+  return estimate.minimum === estimate.maximum ? String(estimate.minimum) : `${estimate.minimum}-${estimate.maximum}`;
 }

@@ -257,7 +257,7 @@ describe('operating the product without a pointer', () => {
     /* The settings column did this: panels stacked in a pane with overflow
      * hidden and no scroller, so the list ended partway down with no sign that
      * there was more. */
-    document.body.innerHTML = '<div id="pane" style="height: 40px; overflow: hidden"><div id="tall" style="height: 400px">…</div></div>';
+    document.body.innerHTML = '<div id="pane" style="height: 40px; overflow: hidden"><div id="tall" style="height: 400px">...</div></div>';
     const pane = document.getElementById('pane')!;
     Object.defineProperty(pane, 'clientHeight', { value: 40, configurable: true });
     Object.defineProperty(pane, 'clientWidth', { value: 300, configurable: true });
@@ -279,7 +279,7 @@ describe('operating the product without a pointer', () => {
      * moved in step with the text beside it rather than by a scrollbar of its
      * own. It says so in the markup, which is what tells a reader as well as
      * this check. */
-    document.body.innerHTML = '<div id="gutter" style="height: 40px; overflow: hidden" data-scroll-follows="#text"><span>1…400</span></div>'
+    document.body.innerHTML = '<div id="gutter" style="height: 40px; overflow: hidden" data-scroll-follows="#text"><span>1...400</span></div>'
       + '<textarea id="text" style="height: 40px; overflow: auto"></textarea>';
     const gutter = document.getElementById('gutter')!;
     Object.defineProperty(gutter, 'clientHeight', { value: 40, configurable: true });
@@ -291,7 +291,7 @@ describe('operating the product without a pointer', () => {
   });
 
   it('refuses the claim when the thing it names cannot scroll either', () => {
-    document.body.innerHTML = '<div id="gutter" style="height: 40px; overflow: hidden" data-scroll-follows="#text"><span>1…400</span></div>'
+    document.body.innerHTML = '<div id="gutter" style="height: 40px; overflow: hidden" data-scroll-follows="#text"><span>1...400</span></div>'
       + '<textarea id="text" style="height: 40px; overflow: hidden"></textarea>';
     const gutter = document.getElementById('gutter')!;
     Object.defineProperty(gutter, 'clientHeight', { value: 40, configurable: true });
@@ -304,7 +304,7 @@ describe('operating the product without a pointer', () => {
 
   it('accepts a pane that clips nothing, and one that can be scrolled', () => {
     document.body.innerHTML = '<div id="fits" style="height: 40px; overflow: hidden"></div>'
-      + '<div id="scrolls" style="height: 40px; overflow: auto"><div style="height: 400px">…</div></div>';
+      + '<div id="scrolls" style="height: 40px; overflow: auto"><div style="height: 400px">...</div></div>';
     const fits = document.getElementById('fits')!;
     Object.defineProperty(fits, 'clientHeight', { value: 40, configurable: true });
     Object.defineProperty(fits, 'scrollHeight', { value: 40, configurable: true });
@@ -315,7 +315,7 @@ describe('operating the product without a pointer', () => {
   });
 
   it('accepts content an ancestor can scroll, which is where a page usually puts it', () => {
-    document.body.innerHTML = '<div id="outer" style="height: 40px; overflow: auto"><div id="inner" style="height: 400px; overflow: hidden"><p>…</p></div></div>';
+    document.body.innerHTML = '<div id="outer" style="height: 40px; overflow: auto"><div id="inner" style="height: 400px; overflow: hidden"><p>...</p></div></div>';
     const outer = document.getElementById('outer')!;
     Object.defineProperty(outer, 'clientHeight', { value: 40, configurable: true });
     Object.defineProperty(outer, 'scrollHeight', { value: 400, configurable: true });

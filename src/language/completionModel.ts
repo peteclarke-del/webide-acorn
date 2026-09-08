@@ -32,8 +32,8 @@ export interface FuzzyMatch {
  * Typing every character of `draw_sprite` to reach it is not how anyone works;
  * `dsp` should find it. What makes the difference between useful and noisy is
  * where the matched characters land, so a match at the start of the token or
- * at a word boundary — after an underscore or a dot, or at a capital in a
- * camel-cased name — is worth much more than one in the middle of a word, and
+ * at a word boundary (after an underscore or a dot, or at a capital in a
+ * camel-cased name) is worth much more than one in the middle of a word, and
  * every skipped character costs.
  *
  * Returns null when the characters are not present in order at all, which is a
@@ -72,8 +72,8 @@ export function fuzzyMatch(query: string, candidate: string): FuzzyMatch | null 
  *
  * Deliberately few. A commit character that fires when someone meant to type
  * the character is worse than not having one at all, because it silently
- * rewrites what they wrote. So `(` commits a callable — nobody types an open
- * bracket after a half-written function name meaning anything else — and in
+ * rewrites what they wrote. So `(` commits a callable, nobody types an open
+ * bracket after a half-written function name meaning anything else, and in
  * assembly `,` and `)` commit a symbol, because an operand is followed by one
  * or the other and by nothing else. Nothing commits on a letter, a digit, a
  * space or a full stop, because all four occur inside real tokens.

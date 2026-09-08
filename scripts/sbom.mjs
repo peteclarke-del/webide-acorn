@@ -23,8 +23,8 @@
  * absent. "No licence found" and "no licence" are different statements, and
  * only one of them is a problem someone has to go and resolve.
  *
- * Vendored code — an emulator core built into the image rather than installed
- * from a registry — is not in the lockfile and is recorded separately in
+ * Vendored code, an emulator core built into the image rather than installed
+ * from a registry, is not in the lockfile and is recorded separately in
  * `docs/third-party-components.md`, whose checksums the release gate verifies.
  */
 import { readFile, readdir } from 'node:fs/promises';
@@ -81,8 +81,8 @@ export function classifyLicence(expression) {
  * Why a package cannot be in the browser bundle, or null when it could be.
  *
  * `built` is the set of package names actually referenced in the built output.
- * A package absent from it that also cannot run in a browser — a native
- * binding, or a binary published per platform — is not distributed. A package
+ * A package absent from it that also cannot run in a browser (a native
+ * binding, or a binary published per platform) is not distributed. A package
  * absent from it for any other reason is still treated as distributed, because
  * a bundler renames things and absence from a text search proves nothing on
  * its own.
@@ -111,8 +111,8 @@ function notDistributedBecause(meta, name, built) {
  * Package names referenced anywhere in the built output.
  *
  * Shared with the gate rather than kept in the generator, because the gate's
- * licence-compliance check has to ask the same question the inventory asks —
- * which packages actually ship — and two answers to that would eventually
+ * licence-compliance check has to ask the same question the inventory asks,
+ * which packages actually ship, and two answers to that would eventually
  * disagree about what this product distributes.
  */
 export async function namesInBuild(lockfile, root) {
@@ -336,8 +336,8 @@ export function renderSbom(entries, audit, backend = null) {
     '',
     '## What is not in this list',
     '',
-    'Vendored code — an emulator core compiled into the image rather than',
-    'installed from a registry — is not in the lockfile. It is recorded in',
+    'Vendored code (an emulator core compiled into the image rather than',
+    'installed from a registry) is not in the lockfile. It is recorded in',
     '`docs/third-party-components.md` with its upstream revision and licence, and',
     'the release gate verifies its checksums on every run. The ElkJS core carried',
     'there is GPL-2.0, which is the outstanding licence position recorded in',

@@ -5,7 +5,7 @@
  * is the whole difficulty: most short BASIC programs are valid in every dialect
  * and there is nothing in them to tell one from another. Choosing anyway would
  * decode somebody's program under the wrong table and produce plausible,
- * subtly-wrong text — which is worse than saying "this could be any of these".
+ * subtly-wrong text, which is worse than saying "this could be any of these".
  *
  * So evidence has to be positive and specific: a token only one dialect
  * defines, or a line structure only one dialect uses. Frequency is not
@@ -13,7 +13,7 @@
  *
  * How little evidence there usually is came out of the tables themselves: of
  * the four 6502-family BASICs read here, exactly one token belongs to a single
- * dialect — &CE, EDIT, which only BASIC IV has. Every other token is shared.
+ * dialect, &CE, EDIT, which only BASIC IV has. Every other token is shared.
  * So a tokenised BBC BASIC file almost never says which ROM wrote it, and an
  * inference that returned a dialect anyway would be inventing one for nearly
  * every file it saw. Saying so is the useful answer; the machine somebody
@@ -60,8 +60,8 @@ function narrowingTokens(): Map<number, BasicDialect[]> {
    * cannot be read as one anywhere.
    *
    * This is not a refinement, it is the difference between evidence and a
-   * mistake. &C6, &C7 and &C8 are ordinary keywords on a 6502 BASIC — AUTO,
-   * DELETE, LOAD — and are the two-byte prefixes on an ARM one, where they
+   * mistake. &C6, &C7 and &C8 are ordinary keywords on a 6502 BASIC (AUTO,
+   * DELETE, LOAD), and are the two-byte prefixes on an ARM one, where they
    * introduce the byte after them. &CF to &D3 are the 6502 pseudo-variables and
    * are BASIC V's statement forms. Counting a raw &C7 as proof of a 6502 BASIC
    * would convict every ARM file that lists anything, and the file would then
@@ -141,13 +141,13 @@ export function inferTokenisedDialect(bytes: Uint8Array): DialectInference {
   }
   if (sets.length > 1) {
     /* Tokens from two dialects in one file is not a dialect, it is a file that
-     * is not what it claims — or a reader that has lost its place. Either way
+     * is not what it claims, or a reader that has lost its place. Either way
      * it is not something to resolve by picking the commonest. */
     return {
       dialect: null,
       candidates: [...seen],
       evidence,
-      reason: `This carries tokens that belong to more than one BASIC — ${evidence.map((entry) => entry.detail).join(' ')} No single dialect explains it, so none is claimed.`,
+      reason: `This carries tokens that belong to more than one BASIC, ${evidence.map((entry) => entry.detail).join(' ')} No single dialect explains it, so none is claimed.`,
     };
   }
 
@@ -165,9 +165,9 @@ export function inferTokenisedDialect(bytes: Uint8Array): DialectInference {
  * difference rather than a token one, and it is the only positive evidence
  * this build has for the Atom.
  */
-/* The same shape the Atom decoder recognises — a single lower-case letter
+/* The same shape the Atom decoder recognises, a single lower-case letter
  * immediately after the line number and immediately before an upper-case
- * keyword — rather than a second rule that could disagree with it. */
+ * keyword, rather than a second rule that could disagree with it. */
 const ATOM_LABEL = /^\s*\d{1,5}[a-z](?=[A-Z])/u;
 
 /** Infer from source text. Structure is the only evidence text carries. */

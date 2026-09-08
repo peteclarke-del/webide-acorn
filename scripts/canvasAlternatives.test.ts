@@ -9,15 +9,15 @@ import { join, resolve } from 'node:path';
  * data. This build answers that in two ways, and which one applies depends on
  * whether the canvas can be edited:
  *
- *   An editable canvas — the screen editor, the tile map — is `aria-hidden`,
+ *   An editable canvas (the screen editor, the tile map) is `aria-hidden`,
  *   because a bitmap read out cell by cell tells nobody anything. What it is
  *   wrapped in takes focus and arrow keys, and a `role="status"` region beside
  *   it says where the caret is and what is under it: "Row 4 of 32, column 9 of
  *   40, tile 12 on layer Background". That sentence is the accessible view, and
  *   it is live, so it follows the caret.
  *
- *   A canvas that only shows something — a golden-image comparison, the map
- *   overview thumbnail — carries an `aria-label` describing what it shows. It
+ *   A canvas that only shows something (a golden-image comparison, the map
+ *   overview thumbnail) carries an `aria-label` describing what it shows. It
  *   is not hidden, because there is something worth announcing, and it is not
  *   interactive, so there is nothing to operate.
  *
@@ -85,8 +85,8 @@ describe('the canvases and their accessible equivalents', () => {
 
   it('names a preview canvas with something more than its element type', () => {
     for (const canvas of canvases().filter((entry) => entry.named && !entry.hidden)) {
-      /* A label may be an expression rather than a literal — one of these is
-       * built from the image being compared — so what is checked is that it
+      /* A label may be an expression rather than a literal, one of these is
+       * built from the image being compared, so what is checked is that it
        * says something, not how it was written. */
       expect(canvas.markup, `${canvas.file} has an empty label`).not.toMatch(/aria-label=(?:""|''|\{``\}|\{''\}|\{""\})/);
       expect(canvas.markup.toLowerCase(), `${canvas.file} says only "canvas"`).not.toMatch(/aria-label=["']canvas["']/);

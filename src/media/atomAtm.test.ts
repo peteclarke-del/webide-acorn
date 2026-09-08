@@ -14,9 +14,9 @@ describe('Acorn Atom ATM container', () => {
 
   it('rejects unsafe names, addresses, lengths, padding and trailing data', () => {
     expect(() => createAtomAtm({ name: '../BAD', loadAddress: 0, executionAddress: 0, bytes: Uint8Array.of(1) })).toThrow('path separators');
-    expect(() => createAtomAtm({ name: 'TOO-LONG-NAME', loadAddress: 0, executionAddress: 0, bytes: Uint8Array.of(1) })).toThrow('1–12');
+    expect(() => createAtomAtm({ name: 'TOO-LONG-NAME', loadAddress: 0, executionAddress: 0, bytes: Uint8Array.of(1) })).toThrow('1-12');
     expect(() => createAtomAtm({ name: 'BAD', loadAddress: 0x10000, executionAddress: 0, bytes: Uint8Array.of(1) })).toThrow('16-bit');
-    expect(() => createAtomAtm({ name: 'EMPTY', loadAddress: 0, executionAddress: 0, bytes: new Uint8Array() })).toThrow('1–65,535');
+    expect(() => createAtomAtm({ name: 'EMPTY', loadAddress: 0, executionAddress: 0, bytes: new Uint8Array() })).toThrow('1-65,535');
     const valid = createAtomAtm({ name: 'OK', loadAddress: 0x2900, executionAddress: 0x2900, bytes: Uint8Array.of(1) });
     const padded = valid.slice(); padded[3] = 1; expect(() => parseAtomAtm(padded)).toThrow('padding');
     const trailing = new Uint8Array(valid.length + 1); trailing.set(valid); expect(() => parseAtomAtm(trailing)).toThrow('declares 1');

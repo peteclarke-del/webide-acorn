@@ -5,7 +5,7 @@
  *
  * This is the processor-specific contract ANL-310 asks for: real bytes for
  * every valid opcode, decoded by the table the product ships, checked against
- * the mnemonic the assembler's own source names — so nothing in the answer
+ * the mnemonic the assembler's own source names, so nothing in the answer
  * comes from the thing being tested.
  */
 import { describe, expect, it } from 'vitest';

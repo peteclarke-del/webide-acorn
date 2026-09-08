@@ -47,7 +47,7 @@ describe('what the editor will and will not do', () => {
   it('lists what the generated player assumes rather than assuming it quietly', () => {
     open();
     /* Scoped to the list: they are also in the generated source, and both
-     * places matter — this asserts the one a person sees without reading it. */
+     * places matter. This asserts the one a person sees without reading it. */
     expect(screen.getByText(/Sound DMA is already enabled/, { selector: 'li' })).toBeInTheDocument();
     expect(screen.getByText(/The buffer address is physical/, { selector: 'li' })).toBeInTheDocument();
   });

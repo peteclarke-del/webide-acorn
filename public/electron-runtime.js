@@ -367,7 +367,7 @@
    * created, so this page adds none of its own; doing so would consume the
    * events its emulated matrix is waiting for. */
 
-  setStatus('Waiting for firmware from the local vault…', 'pending');
+  setStatus('Waiting for firmware from the local vault...', 'pending');
   send({ type: 'ready', capabilities: CAPABILITIES, unavailable: UNAVAILABLE, romsLoaded });
   window.__electronRuntime = { readRegisters, readMemory, isRunning: () => running, engine: ENGINE, capabilities: CAPABILITIES, unavailable: UNAVAILABLE };
 })();

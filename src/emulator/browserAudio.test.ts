@@ -62,7 +62,7 @@ describe('browser audio test capture', () => {
 describe('telling silence from never having listened', () => {
   it('reports a capture that never started, which returns the same digest as one that heard nothing', () => {
     /* The reset test above ends a capture that heard nothing and gets
-     * 811C9DC5 — the FNV offset basis. So does this, having never captured at
+     * 811C9DC5, the FNV offset basis. So does this, having never captured at
      * all. The flag is the only thing separating them, and without it an
      * assertion would compare against a silence it never observed. */
     const audio = new BrowserAudio(false, 2_000_000);

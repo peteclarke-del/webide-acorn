@@ -12,7 +12,7 @@ const palette = () => resolveProjectPalette([], 16);
 const solid = (colour: number, count: number) => Array.from({ length: count }, () => colour);
 
 describe('what a pixel is on the machine', () => {
-  it('derives each mode’s pixel width from the widths the screen model already carries', () => {
+  it("derives each mode's pixel width from the widths the screen model already carries", () => {
     /* Every BBC graphics mode paints the same width of screen, so the ratio of
      * the pixel counts is the ratio of the pixel widths. */
     expect(pixelAspectOf('bbc-mode-0')).toBe(1);
@@ -62,7 +62,7 @@ describe('colours the mode cannot show', () => {
 });
 
 describe('what the artwork costs and covers', () => {
-  it('reports the bytes a frame costs in the mode’s own depth', () => {
+  it("reports the bytes a frame costs in the mode's own depth", () => {
     /* MODE 5 is two bits per pixel: a 16-pixel row is four bytes. */
     expect(previewInMode(solid(0, 256), { width: 16, height: 16 }, 'bbc-mode-5').frameBytes).toBe(4 * 16);
     /* MODE 0 is one bit per pixel: the same row is two bytes. */

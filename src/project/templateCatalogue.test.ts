@@ -21,7 +21,7 @@ import type { MachineProfile } from '../types';
 const bbcB = machineProfiles.find((machine) => machine.id === 'bbc-b')!;
 
 describe('the shipped template catalogue', () => {
-  it('is internally consistent, so a broken template fails here rather than in someone’s session', () => {
+  it("is internally consistent, so a broken template fails here rather than in someone's session", () => {
     expect(validateTemplateCatalogue()).toEqual([]);
   });
 
@@ -179,7 +179,7 @@ describe('every starter a machine offers', () => {
   /*
    * A starter is the first thing somebody sees of a machine, so it has to build
    * on that machine and be right about it. The Atom's operating system is not
-   * the BBC's — its OSWRCH is at &FFF4 rather than &FFEE — and a template
+   * the BBC's, its OSWRCH is at &FFF4 rather than &FFEE, and a template
    * assembled against the wrong vocabulary either builds and calls the wrong
    * address, or is rejected for restating a fact the assembler had no business
    * assuming. This is the test that holds each one to its own machine.

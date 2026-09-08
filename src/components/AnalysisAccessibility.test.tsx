@@ -146,7 +146,7 @@ describe('reaching the analyser from the project', () => {
     renderWorkspace({ candidates });
     const picker = screen.getByRole('combobox', { name: 'Analyse a file from this project' });
     expect(within(picker).getAllByRole('option').map((option) => option.textContent)).toEqual([
-      'Choose a file…',
+      'Choose a file...',
       'GAME · built by Tape build · 432 bytes',
       'main.s · 6502 assembly · 7 bytes',
     ]);
@@ -178,8 +178,8 @@ describe('reaching the analyser from the project', () => {
 /*
  * Choosing which ARM BASIC a tokenised listing is read as.
  *
- * BASIC V and BASIC VI share one keyword table — measured across seven RISC OS 6
- * ROMs, each of which carries both modules — and differ in how a real number is
+ * BASIC V and BASIC VI share one keyword table (measured across seven RISC OS 6
+ * ROMs, each of which carries both modules), and differ in how a real number is
  * stored, five bytes against eight. Nothing in the tokens records that, so the
  * file cannot answer the question and the person has to.
  *

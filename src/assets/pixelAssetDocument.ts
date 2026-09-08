@@ -78,13 +78,13 @@ function validateDimensions(width: unknown, height: unknown): asserts width is n
 
 function frameName(value: unknown, fallback: string): string {
   if (value === undefined) return fallback;
-  if (typeof value !== 'string' || !value.trim() || value.length > 40) throw new Error('Sprite frame names must contain 1–40 characters');
+  if (typeof value !== 'string' || !value.trim() || value.length > 40) throw new Error('Sprite frame names must contain 1-40 characters');
   return value.trim();
 }
 
 function frameDuration(value: unknown): number {
   if (value === undefined) return 100;
-  if (!Number.isInteger(value) || (value as number) < 20 || (value as number) > 60_000) throw new Error('Sprite frame duration must be an integer from 20–60,000 ms');
+  if (!Number.isInteger(value) || (value as number) < 20 || (value as number) > 60_000) throw new Error('Sprite frame duration must be an integer from 20-60,000 ms');
   return value as number;
 }
 
@@ -118,7 +118,7 @@ export function parsePixelAssetDocument(value: string | unknown, fallbackKind: P
   if (parsed.schema !== PIXEL_ASSET_SCHEMA || parsed.version !== 1) throw new Error('Unsupported pixel asset schema or version');
   if (!['character', 'sprite', 'tile'].includes(String(parsed.kind))) throw new Error('Pixel asset kind must be character, sprite or tile');
   validateDimensions(parsed.width, parsed.height);
-  if (typeof parsed.name !== 'string' || !parsed.name.trim() || parsed.name.length > 80) throw new Error('Pixel asset name must contain 1–80 characters');
+  if (typeof parsed.name !== 'string' || !parsed.name.trim() || parsed.name.length > 80) throw new Error('Pixel asset name must contain 1-80 characters');
   if (!Array.isArray(parsed.pixels) || parsed.pixels.length !== parsed.width * (parsed.height as number)) throw new Error('Pixel array length must equal width × height');
   const expected = createPixelAssetDocument(parsed.kind as PixelAssetKind, parsed.width, parsed.height as number);
   const extensions = parsed.extensions && typeof parsed.extensions === 'object' && !Array.isArray(parsed.extensions) ? parsed.extensions as Record<string, unknown> : {};
@@ -143,7 +143,7 @@ export function parsePixelAssetDocument(value: string | unknown, fallbackKind: P
     const rootFrame = imported.frame as { name?: unknown; durationMs?: unknown } | undefined;
     let animation: NonNullable<PixelAssetDocument['sprite']>['animation'];
     if (imported.animation !== undefined) {
-      if (!imported.animation || (imported.animation.playback !== 'loop' && imported.animation.playback !== 'once') || !Array.isArray(imported.animation.frames) || imported.animation.frames.length > 63) throw new Error('Sprite animation must contain 0–63 additional frames and a supported playback mode');
+      if (!imported.animation || (imported.animation.playback !== 'loop' && imported.animation.playback !== 'once') || !Array.isArray(imported.animation.frames) || imported.animation.frames.length > 63) throw new Error('Sprite animation must contain 0-63 additional frames and a supported playback mode');
       const ids = new Set<string>();
       const frames = imported.animation.frames.map((value, index) => {
         const frame = value as Partial<PixelSpriteFrame>;

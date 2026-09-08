@@ -119,7 +119,7 @@ describe('an ADFS old-map disc, against what the machine said about it', () => {
 
   it('refuses a sector past the end of the disc rather than wrapping onto another', () => {
     /* The mapping shuffles, so sector 2560 of a 2560-sector disc lands on file
-     * sector 32 — a real sector holding somebody else's file. A bounds check on
+     * sector 32. A real sector holding somebody else's file. A bounds check on
      * the file offset alone lets that through and returns the wrong bytes
      * without complaint, which is how a reader comes to invent a listing. */
     expect(oldImageSector(2559, L)).toBe(2559);

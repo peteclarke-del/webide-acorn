@@ -4,7 +4,7 @@ export interface ArmMemoryEdit { address: number; bytes: number[] }
 
 export function validateArmMemoryEdit(edit: ArmMemoryEdit): ArmMemoryEdit {
   if (!Number.isInteger(edit.address) || edit.address < 0 || edit.address > ARM26_MAX_ADDRESS) throw new Error('ARM memory edit address must be inside the 26-bit logical address space');
-  if (!Array.isArray(edit.bytes) || edit.bytes.length < 1 || edit.bytes.length > 256 || edit.bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) throw new Error('ARM memory edits require 1–256 byte values');
+  if (!Array.isArray(edit.bytes) || edit.bytes.length < 1 || edit.bytes.length > 256 || edit.bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 0xff)) throw new Error('ARM memory edits require 1-256 byte values');
   if (edit.address + edit.bytes.length - 1 > ARM26_MAX_ADDRESS) throw new Error('ARM memory edits must not wrap past the 26-bit address space');
   return { address: edit.address, bytes: [...edit.bytes] };
 }

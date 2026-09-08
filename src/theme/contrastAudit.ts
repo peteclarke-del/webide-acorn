@@ -6,14 +6,14 @@
  * colours: each block looks right on its own, and nothing compares the two. So
  * this computes the ratios rather than trusting them, and the pairings below are
  * declared rather than generated, because a pairing is a claim about what is
- * actually drawn on what — `--syntax-opcode` on `--theme-editor` is a real pair
+ * actually drawn on what, `--syntax-opcode` on `--theme-editor` is a real pair
  * and `--syntax-opcode` on `--theme-emulator-bezel` is not.
  *
  * The thresholds are WCAG 2.2:
  *
  *   4.5:1  text (1.4.3). Every text token here is held to the normal-text
  *          figure rather than the 3:1 large-text one, because a token is not a
- *          size — the same `--theme-muted` sets captions and headings, so the
+ *          size. The same `--theme-muted` sets captions and headings, so the
  *          stricter of the two is the only one that is true everywhere.
  *   3:1    the boundary of a control that has to be identified, and a focus
  *          indicator (1.4.11).
@@ -70,7 +70,7 @@ export function parseColour(value: string): Rgba | null {
     if (parts.length < 3 || parts.slice(0, 3).some(Number.isNaN)) return null;
     return [parts[0]!, parts[1]!, parts[2]!, parts[3] ?? 1];
   }
-  /* Anything else — a gradient, a colour-mix, a font stack — is not a flat
+  /* Anything else (a gradient, a colour-mix, a font stack) is not a flat
    * colour and is reported as unmeasurable rather than guessed at. */
   return null;
 }
@@ -86,7 +86,7 @@ function relativeLuminance([red, green, blue]: Rgba): number {
 
 /**
  * The contrast ratio between two tokens, with a translucent foreground
- * flattened over its backdrop first — an overlay at 78% opacity is not the
+ * flattened over its backdrop first. An overlay at 78% opacity is not the
  * colour it declares, and comparing the declared one would report a ratio
  * nobody ever sees.
  */
@@ -146,7 +146,7 @@ export function readThemes(css: string): Record<PaletteName, ThemeTokens> {
  *
  * The standard palettes are held to WCAG AA, which is what UX-006 requires. The
  * high-contrast palettes exist because somebody asked for more than that, so
- * they are held to AAA — 7:1 for text, 4.5:1 for the boundary of a control. A
+ * they are held to AAA, 7:1 for text, 4.5:1 for the boundary of a control. A
  * high-contrast mode that only met AA would be a setting that did nothing.
  */
 export const PALETTE_TARGETS: Readonly<Record<PaletteName, { text: number; nonText: number }>> = Object.freeze({
@@ -187,7 +187,7 @@ const STATUS_INKS = [
  *
  * Leaving `--theme-background` out was a real gap rather than a simplification.
  * It is the darkest of the light theme's surfaces by a wide margin, and a great
- * deal of text is drawn straight onto it — the panel eyebrows, the state pills,
+ * deal of text is drawn straight onto it. The panel eyebrows, the state pills,
  * the inspector's kind labels, filenames in code voice. Measuring the rendered
  * page found all of them at between 2.7 and 4.2 to one while this list said the
  * palette was clean, because it only ever asked about the panel surfaces.
@@ -263,5 +263,5 @@ export function auditContrast(tokens: ThemeTokens, theme: PaletteName): Contrast
 
 /** One line per finding, for a report a person reads rather than a diff. */
 export function describeFinding(finding: ContrastFinding): string {
-  return `${finding.theme}: ${finding.foreground} on ${finding.background} measures ${finding.ratio.toFixed(2)}:1 and needs ${finding.minimum}:1 — ${finding.purpose}`;
+  return `${finding.theme}: ${finding.foreground} on ${finding.background} measures ${finding.ratio.toFixed(2)}:1 and needs ${finding.minimum}:1, ${finding.purpose}`;
 }

@@ -153,7 +153,7 @@ export function validateBuildTarget(target: BuildTarget, files: ProjectFile[], m
   const defineNames = new Set<string>();
   for (const define of target.defines) {
     const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$/.exec(define);
-    if (!match || parseBuildAddress(match[2] ?? '') === null) { errors.push(`Invalid define “${define}”; use NAME=&FFFF`); continue; }
+    if (!match || parseBuildAddress(match[2] ?? '') === null) { errors.push(`Invalid define "${define}"; use NAME=&FFFF`); continue; }
     const name = match[1]!.toUpperCase();
     if (defineNames.has(name)) errors.push(`Duplicate define ${match[1]}`);
     if (name.startsWith('BUILD_PROFILE_')) errors.push(`${match[1]} is reserved for the selected build profile`);
@@ -188,7 +188,7 @@ export function validateBuildTarget(target: BuildTarget, files: ProjectFile[], m
   if (entry?.language === 'arm' && origin !== null && maximum !== null && (origin < 0x8000 || maximum > 0x03ffffff || (origin & 3) !== 0 || ((maximum + 1) & 3) !== 0)) errors.push('ARM2 output must use a word-aligned range from &00008000 through &03FFFFFF');
   if (entry?.language === 'c' && origin !== null && origin < 0x0e00) errors.push('BBC C code must load at or above &0E00');
   if (entry?.language === 'c' && maximum !== null && maximum >= 0x7200) errors.push('BBC C code/data must finish below the runtime stack at &7200');
-  if (!target.outputName.trim() || /[\\/\x00-\x1f]/.test(target.outputName) || target.outputName.length > 128) errors.push('Output name must be 1–128 characters without paths or control characters');
+  if (!target.outputName.trim() || /[\\/\x00-\x1f]/.test(target.outputName) || target.outputName.length > 128) errors.push('Output name must be 1-128 characters without paths or control characters');
   if (!['manual', 'on-save', 'live'].includes(target.buildPolicy)) errors.push('Build policy must be manual, on-save or live');
   if (!['source', 'symbol', 'address'].includes(target.entryPoint.mode)) errors.push('Entry-point mode is invalid');
   if (entry?.language === 'bbc-basic' && target.entryPoint.mode !== 'source') errors.push('BASIC execution starts through its interpreter and cannot override the entry point');

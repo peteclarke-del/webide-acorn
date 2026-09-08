@@ -3,7 +3,7 @@
  *
  * Both already existed in the stylesheet and neither could be reached. The
  * light theme was a complete `:root[data-theme='light']` block that nothing
- * ever set `data-theme` for, so it had never been rendered — which is how it
+ * ever set `data-theme` for, so it had never been rendered, which is how it
  * came to inherit every foreground colour from the dark theme and set emphasis
  * text at 1.01:1 on its own paper. And `--ui-scale` carries a comment saying it
  * is "what a person can raise when they want the whole workbench larger", with
@@ -63,7 +63,7 @@ export const THEME_CHOICES: ReadonlyArray<{ id: ThemeChoice; label: string; desc
 ]);
 
 export const CONTRAST_CHOICES: ReadonlyArray<{ id: ContrastChoice; label: string; description: string }> = Object.freeze([
-  { id: 'system', label: 'Match the system', description: 'Follow this computer\u2019s contrast setting.' },
+  { id: 'system', label: 'Match the system', description: "Follow this computer's contrast setting." },
   { id: 'standard', label: 'Standard', description: 'Text at 4.5:1 and control borders at 3:1.' },
   { id: 'more', label: 'High contrast', description: 'Text at 7:1 and control borders at 4.5:1.' },
 ]);
@@ -72,8 +72,8 @@ export const CONTRAST_CHOICES: ReadonlyArray<{ id: ContrastChoice; label: string
  * The sizes offered, named rather than numbered.
  *
  * A multiplier means nothing to read, so each step says what it does. The range
- * stops at double because beyond that the fixed panel geometry — rails, strips
- * and the status bar — starts to crowd the work rather than the text getting
+ * stops at double because beyond that the fixed panel geometry (rails, strips
+ * and the status bar) starts to crowd the work rather than the text getting
  * usefully larger, and offering a size that makes the product worse would be
  * offering a choice nobody should take.
  */
@@ -127,7 +127,7 @@ export function saveAppearance(storage: Pick<Storage, 'setItem'> | null | undefi
   }
 }
 
-/** A media query, or null where the browser has none — a test environment, or
+/** A media query, or null where the browser has none, a test environment, or
  * an older engine that does not know the feature being asked about. */
 export type MediaQuery = (query: string) => { matches: boolean } | null;
 
@@ -148,7 +148,7 @@ const query = (matchMedia: MediaQuery | null | undefined, feature: string): bool
  * does not is that the stylesheet holds each palette exactly once, under
  * `:root` and `:root[data-theme='light']`. A media query cannot be added to a
  * selector list, so following the operating system in CSS would mean a second
- * copy of the light palette that nothing keeps in step with the first — and a
+ * copy of the light palette that nothing keeps in step with the first, and a
  * palette that drifts out of step is how the light theme came to have no
  * foreground colours of its own in the first place.
  *
@@ -210,7 +210,7 @@ export function watchSystemAppearance(
  * origin, and each carries its own copy of the two numbers because it has no
  * access to `theme.css`. That copy is a constant, so raising the workbench's
  * text size left the machine's own status line and output pane at the shipped
- * size — the one place in the product where the setting stopped working.
+ * size. The one place in the product where the setting stopped working.
  *
  * The values are copied in rather than passed through the frame's URL, because
  * changing the URL remounts the iframe and remounting the iframe restarts the
@@ -218,8 +218,8 @@ export function watchSystemAppearance(
  * bigger.
  *
  * They are read from the workbench's own root rather than from an `Appearance`,
- * so that a frame arriving later — somebody opens the emulator after choosing a
- * size — is given the size that is actually in force, with one path rather than
+ * so that a frame arriving later, somebody opens the emulator after choosing a
+ * size, is given the size that is actually in force, with one path rather than
  * two that can disagree.
  *
  * A frame that is not same-origin, or has not navigated yet, throws on access

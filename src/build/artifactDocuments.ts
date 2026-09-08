@@ -85,7 +85,7 @@ function stripAssemblyComment(source: string) {
  * What the linker recorded about a C build, in a form somebody can read.
  *
  * The raw debug file is retained beside this one and is the authority; this is
- * the part of it that answers questions people actually ask — where a local
+ * the part of it that answers questions people actually ask, where a local
  * lives, and which addresses a line of C produced.
  *
  * A file that cannot be read produces this document saying so rather than no
@@ -110,7 +110,7 @@ function compilerRecords(document: RetainedArtifactDocument): string {
     'TYPE INFORMATION',
     hasTypeInformation(info)
       ? `${info.types.length} type records are present.`
-      : 'None. This toolchain writes one empty type record and points every C symbol at it, so no type or layout below is derived from the compiler — only storage classes and frame offsets, which are exact.',
+      : 'None. This toolchain writes one empty type record and points every C symbol at it, so no type or layout below is derived from the compiler. Only storage classes and frame offsets, which are exact.',
     '',
     'C FUNCTION FRAMES',
   ];

@@ -8,9 +8,9 @@
  * at all on a smaller screen.
  *
  * The sizes live here rather than in the component so that the rules about them
- * — what the minimum useful width of each panel is, what happens when several
+ * (what the minimum useful width of each panel is, what happens when several
  * panels together would leave no editor, how a drag or an arrow key changes
- * them — can be checked without a rendered workbench and cannot disagree with
+ * them) can be checked without a rendered workbench and cannot disagree with
  * the ones the workbench applies.
  */
 
@@ -28,7 +28,7 @@ export type LayoutSlot = SidePanelId | typeof EDITOR_SLOT;
 /*
  * Where the panels sit, as one sequence with the editor somewhere in it.
  *
- * The obvious model is a side per panel — left or right — and it is the wrong
+ * The obvious model is a side per panel, left or right, and it is the wrong
  * one, because it cannot say what order two panels on the same side are in
  * without a second field, and the two fields can then disagree. One ordered
  * list says both things at once: which side a panel is on is simply whether it
@@ -165,7 +165,7 @@ export function workbenchColumns(open: PanelOpenState, sizes: PanelSizes, order:
  *
  * The workbench renders from this rather than working out for itself which
  * separators belong where, so the columns and the elements cannot disagree
- * about how many there are — which shows up as everything after the mistake
+ * about how many there are, which shows up as everything after the mistake
  * being one column out.
  */
 export function laidOutSlots(open: PanelOpenState, order: readonly LayoutSlot[] = DEFAULT_PANEL_ORDER): LayoutSlot[] {
@@ -177,7 +177,7 @@ export function laidOutSlots(open: PanelOpenState, order: readonly LayoutSlot[] 
  *
  * A separator always resizes the panel on its side away from the editor, so
  * dragging it makes that panel wider or narrower rather than moving the editor
- * — which is what somebody grabbing the line between a panel and the editor
+ *, which is what somebody grabbing the line between a panel and the editor
  * expects. Left of the editor that is the slot before the separator; right of
  * it, the slot after.
  *

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * Walks the authoring journey once per machine, in the built workbench, in a
- * real browser — and fails on anything that looks like a crash, a policy
+ * real browser, and fails on anything that looks like a crash, a policy
  * violation, or a refusal nobody meant.
  *
  * The goal this exists for is not "each feature works somewhere". It is that a
@@ -19,7 +19,7 @@
  * What is checked here needs no firmware, because firmware cannot be committed:
  * choosing a machine, starting from its template, building it, and packaging
  * the result to the medium that machine shipped with. The steps that need a
- * real machine — running, debugging, booting the media — are measured by the
+ * real machine (running, debugging, booting the media) are measured by the
  * scripts beside this one against a firmware vault, and frozen where the
  * always-running tests can hold the product to them.
  *
@@ -172,7 +172,7 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
    *
    * A game is not source alone. The sprite editor's whole purpose is that what
    * is drawn becomes part of the program, so the journey draws, adds the
-   * generated source to the project, and then builds — because a graphics
+   * generated source to the project, and then builds, because a graphics
    * editor whose output cannot reach a build is a drawing program.
    */
   clickText('Sprites');
@@ -335,7 +335,7 @@ export async function walkJourneys(dist, { chromium, port = 8139, journeys = JOU
     /*
      * The workbench asks before it throws away unsaved work, with the browser's
      * own dialog. That is right, and it is also a dialog that blocks the page
-     * until something answers it — so a walk that ignored one would not fail,
+     * until something answers it, so a walk that ignored one would not fail,
      * it would hang, and a gate stage that hangs teaches nobody anything.
      * Answering it is what a person does; what was asked is recorded.
      */
@@ -347,7 +347,7 @@ export async function walkJourneys(dist, { chromium, port = 8139, journeys = JOU
   /*
    * Every request is given a deadline.
    *
-   * A page that hangs — a render loop, a promise that never settles — would
+   * A page that hangs (a render loop, a promise that never settles) would
    * otherwise hang this, and a gate stage that hangs is worse than one that
    * fails: nobody learns anything and the build never finishes. A machine that
    * takes longer than this to walk has something wrong with it worth reporting.

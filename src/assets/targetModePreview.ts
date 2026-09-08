@@ -13,7 +13,7 @@
  *
  * The other half of the preview is what the mode cannot show. A sprite drawn
  * with sixteen colours has to lose twelve of them in MODE 5, and the useful
- * thing to say is which twelve and how many pixels use them — not to clamp them
+ * thing to say is which twelve and how many pixels use them, not to clamp them
  * quietly to something that fits, which produces a preview that looks fine and
  * a build that does not.
  */

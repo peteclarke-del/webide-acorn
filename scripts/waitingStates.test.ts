@@ -10,9 +10,9 @@ import { resolve } from 'node:path';
  * ambiguous spinners. The second half is the part a test can hold, and the
  * answer this build reached is a strong one: there are no spinners at all.
  * Nothing anywhere turns indefinitely. A state is a sentence saying which
- * condition holds — "No media is mounted in this session", "The selected
+ * condition holds ("No media is mounted in this session", "The selected
  * toolchain supplied address symbols and source locations, but no type
- * records" — and a sentence can be read by somebody who cannot see the
+ * records"), and a sentence can be read by somebody who cannot see the
  * animation, announced to a screen reader, and acted on.
  *
  * That is worth pinning, because a spinner is the easy thing to reach for and

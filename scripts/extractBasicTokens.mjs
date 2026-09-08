@@ -8,7 +8,7 @@
  * ROM instead.
  *
  * What makes that trustworthy is that the same reader reproduces the BASIC II
- * table this repository already carries — transcribed independently, by hand,
+ * table this repository already carries, transcribed independently, by hand,
  * long before this existed. If the reader is wrong, that comparison fails.
  *
  * The format is a keyword in printable ASCII, then a token byte, then a flag
@@ -19,8 +19,8 @@
  *
  * The terminator used to be "a flag byte with its top bit set is code rather
  * than a flag", which gave the same answer on those four ROMs and the wrong one
- * on an ARM BASIC. There, `&80` is an ordinary flag — it is what `INSTR(`,
- * `LEFT$(`, `MID$(` and the other keywords ending in a bracket carry — and the
+ * on an ARM BASIC. There, `&80` is an ordinary flag (it is what `INSTR(`,
+ * `LEFT$(`, `MID$(` and the other keywords ending in a bracket carry), and the
  * rule cut BBC BASIC V's table off at `INT`, two thirds of the way through. So
  * the terminator is the keyword pattern alone, which stops in the same place on
  * every 6502 ROM read here and stops on ARM where BASIC's own " unlistable
@@ -52,7 +52,7 @@ export function readTokenTable(bytes) {
       if (!keyword || end + 1 >= bytes.length) break;
       const token = bytes[end];
       const flag = bytes[end + 1];
-      /* A token is &7F or above — BASIC V uses &7F for OTHERWISE. The flag is
+      /* A token is &7F or above. BASIC V uses &7F for OTHERWISE. The flag is
        * not tested: on ARM BASIC &80 is an ordinary flag value, so testing it
        * truncates that table rather than terminating it. */
       if (token < 0x7f || !KEYWORD.test(keyword)) break;
@@ -70,7 +70,7 @@ export function readTokenTable(bytes) {
  *
  * This is measured, not inferred. The 6502 BASICs put one byte per keyword and
  * the flag says nothing about encoding, but an ARM BASIC prefixes some keywords
- * — which is why twenty-three token bytes in its table are shared by two or
+ *, which is why twenty-three token bytes in its table are shared by two or
  * three entries each. Reading the bits was not enough to settle which: the
  * obvious reading put APPEND and SUM in the same group under the same token.
  *
@@ -100,8 +100,8 @@ export function encodingOf(flag) {
   /* &40 without &08 is a pseudo-variable: the table token is what BASIC emits
    * for it on the right of an assignment, and it has a second token, absent
    * from the table, for the left. Measured: PTR, PAGE, TIME, LOMEM and HIMEM
-   * come back as &CF to &D3 as statements and as their table tokens — &8F to
-   * &93 — as functions. */
+   * come back as &CF to &D3 as statements and as their table tokens, &8F to
+   * &93, as functions. */
   if (flag & 0x40) return 'pseudo';
   return null;
 }
@@ -112,7 +112,7 @@ export function encodingOf(flag) {
  * Two kinds, both measured rather than assumed. The five pseudo-variables take
  * &CF to &D3 when they are assigned to. And `ELSE`, whose table token &8B is
  * what it takes inside `IF ... THEN ... ELSE ...`, takes &CC when it begins a
- * statement — typing `ELSE` on its own line produced &CC, and
+ * statement. Typing `ELSE` on its own line produced &CC, and
  * `IF A=1 THEN 920 ELSE 930` produced &8B.
  */
 export const STATEMENT_FORMS = Object.freeze({ 0xcc: 'ELSE', 0xcf: 'PTR', 0xd0: 'PAGE', 0xd1: 'TIME', 0xd2: 'LOMEM', 0xd3: 'HIMEM' });

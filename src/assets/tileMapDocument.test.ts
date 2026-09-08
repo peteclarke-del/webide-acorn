@@ -384,9 +384,9 @@ describe('the generated unpacker, assembled', () => {
   it('expands a compressed layer back to the map, executed rather than read', () => {
     /*
      * Reading generated source is not evidence that it runs. This assembles the
-     * unpacker and executes it, so an off-by-one in the pointer arithmetic —
+     * unpacker and executes it, so an off-by-one in the pointer arithmetic,
      * the failure a hand-written unpacker makes, and the one that looks like
-     * corrupted artwork rather than like a bug — fails here.
+     * corrupted artwork rather than like a bug, fails here.
      *
      * The same program has also been run on a genuine BBC Model B through the
      * headless path and expanded the same thirty-two cells from twelve bytes.

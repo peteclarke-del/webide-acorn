@@ -4,8 +4,8 @@
  * The inventory in docs/sbom.md says which shipped packages are copyleft. That
  * is the question "what do we owe"; this is the question "have we paid it",
  * and they were not connected: the image shipped Arculator's licence, its exact
- * upstream source, its patch and its build hashes, while jsbeeb and ElkJS —
- * both copyleft, both conveyed in the built output — shipped a licence file and
+ * upstream source, its patch and its build hashes, while jsbeeb and ElkJS,
+ * both copyleft, both conveyed in the built output, shipped a licence file and
  * nothing else. Nothing would have noticed the next one either.
  *
  * So the obligation is derived from the inventory rather than from a list
@@ -32,8 +32,8 @@ export const COPYLEFT_COMPONENTS = Object.freeze([
     id: 'elkulator',
     /* Upstream has no licence file at all: the README points at COPYING, but it
      * was an autotools symlink deleted in commit 54b1bae. The source headers
-     * settle the version — GPL 3 or later in socket.c and serial.c, 2 or later
-     * in the imported fdi2raw.c — so the text is supplied by the image rather
+     * settle the version (GPL 3 or later in socket.c and serial.c, 2 or later
+     * in the imported fdi2raw.c), so the text is supplied by the image rather
      * than copied from a fork that does not carry it. */
     what: 'The second Acorn Electron core, built from pinned upstream source; the one with a per-instruction hook.',
     licence: 'licenses/elkulator-COPYING.txt',
@@ -53,8 +53,8 @@ export const COPYLEFT_COMPONENTS = Object.freeze([
  *
  * Reading the Dockerfile rather than the built image on purpose: the check has
  * to run in the gate, which builds the frontend and not the container, and the
- * failure it exists to catch — somebody adding a copyleft dependency and not
- * shipping its source — is visible there.
+ * failure it exists to catch, somebody adding a copyleft dependency and not
+ * shipping its source, is visible there.
  */
 export function licenceComplianceFindings(dockerfile, shippedCopyleftIds) {
   const findings = [];

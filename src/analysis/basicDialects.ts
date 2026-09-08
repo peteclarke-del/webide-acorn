@@ -13,7 +13,7 @@
  * a table stops belongs to the table and not to the reader.
  *
  * BASIC V is here now, and what took so long was not the table. Its table has
- * the same shape as these — keyword, token, flag — and the same reader takes all
+ * the same shape as these (keyword, token, flag), and the same reader takes all
  * 161 entries of it. What was missing is that an ARM BASIC writes some keywords
  * as two bytes, so twenty-three token bytes in that table are shared by two or
  * three entries each, and reading the flag bits was not enough to settle which
@@ -30,7 +30,7 @@
  * The BASIC V table has since been read out of two more ROMs, from a different
  * machine and two later operating systems: the Risc PC's RISC OS 4.02 and 4.39.
  * Both give 161 entries ending at `WIDTH`, and both agree with the table above
- * on 160 of them. The differences are the two this file already explains — one
+ * on 160 of them. The differences are the two this file already explains, one
  * ROM lists `COLOR` where another lists `COLOUR` at the same &FB, and the six
  * pseudo-variable and second-`ELSE` forms are not in a ROM's linear keyword
  * table because they were measured on a running machine. Three ROMs across
@@ -41,7 +41,7 @@
  * not something a search can establish: what had actually been searched was the
  * images then held, RISC OS 2.00 to 4.39, and BASIC64 genuinely is absent from
  * all of those. Worse, most Acorn ARM ROM images are stored interleaved, so a
- * plain string search over them reads scrambled bytes — `BASIC` itself does not
+ * plain string search over them reads scrambled bytes, `BASIC` itself does not
  * appear in the A310 or A5000 images until they are de-interleaved four ways.
  *
  * With a complete RISC OS ROM set, `BASIC64` appears in seven images, all of
@@ -50,13 +50,13 @@
  * module and one in `BASIC64`, which is what makes the identity everybody
  * asserts checkable rather than assumable: the two can be compared inside a
  * single image. They are identical in all seven, and against the table above
- * every keyword and every token agrees, with one flag byte that does not —
+ * every keyword and every token agrees, with one flag byte that does not,
  * `STRING$(` is &80 here and &82 there, at the same token, and nothing derived
  * from the flag changes. So BASIC VI shares this table rather than copying it.
  *
  * Two spellings can share one token: `COLOUR` and `COLOR` are both &FB, and
  * which one a ROM lists first is which one that machine would list back. Both
- * are kept — the token map holds the spelling the ROM lists first, and the
+ * are kept. The token map holds the spelling the ROM lists first, and the
  * order holds every spelling, because an abbreviation resolves against the
  * order and not against the map.
  *
@@ -844,7 +844,7 @@ const BBC_BASIC_5_EXTENDED: Record<number, Record<number, string>> = {
  * Tokens that appear only where a statement begins, and are in no table.
  *
  * Two kinds, both measured. The five pseudo-variables take these when they are
- * assigned to and their table tokens — &8F to &93 — when they are read; typing
+ * assigned to and their table tokens, &8F to &93, when they are read; typing
  * `LOMEM=HIMEM` produced `D2 3D 93`. And `ELSE` takes &CC at the start of a
  * statement and its table token &8B inside a one-line `IF`; typing
  * `IF A=1 THEN 920 ELSE 930` produced &8B, and `ELSE` alone produced &CC.
@@ -882,14 +882,14 @@ const BBC_BASIC_5_ORDER: string[] = ["AND", "ABS", "ACS", "ADVAL", "ASC", "ASN",
  * somebody's actual file rather than a hypothetical one.
  *
  * Read by the same reader as the others, and the reason to trust it on this ROM
- * is that it reproduces the RISC OS 3.11 table above exactly — every keyword,
- * every token and every two-byte group — from a different image.
+ * is that it reproduces the RISC OS 3.11 table above exactly (every keyword,
+ * every token and every two-byte group), from a different image.
  *
  * It is read from the four byte-lane ROMs interleaved into the image the A310
  * core is actually given, rather than from a flat dump, because that is the
  * firmware this product boots for its `riscos200` profile. The first attempt
  * was read from a flat image named ROM030 in a collection whose names are the
- * version times a hundred — so ROM030 is Arthur 0.30, not RISC OS 2.00, and the
+ * version times a hundred, so ROM030 is Arthur 0.30, not RISC OS 2.00, and the
  * table shipped for a moment under the wrong firmware's name. Arthur's table is
  * this one less `OVERLAY`, with no token meaning anything different, so this
  * dialect reads an Arthur program correctly too; that is measured rather than
@@ -1107,14 +1107,14 @@ export const BBC_BASIC_5: BasicDialect = {
  * so the two can be compared inside a single image without trusting anything:
  * they are identical in all seven images this was read from, all seven give the
  * same 161-entry table, and that table matches the BASIC V table above position
- * for position — which was itself read independently out of RISC OS 3.11.
+ * for position, which was itself read independently out of RISC OS 3.11.
  *
  * So the constants are shared rather than copied. Two copies of a table that
  * has been shown to be one table is how the copies come to disagree.
  *
  * What differs between the two dialects is the number format, not the tokens:
  * BASIC VI stores reals in eight bytes rather than five. Nothing in a keyword
- * table says that, which is why this shares one and still needs its own entry —
+ * table says that, which is why this shares one and still needs its own entry,
  * a reader has to know which it is looking at before it decodes a number.
  */
 export const BBC_BASIC_6: BasicDialect = {

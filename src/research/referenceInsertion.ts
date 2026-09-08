@@ -48,7 +48,7 @@ export type InsertionRefusal =
   | { reason: 'empty'; detail: string };
 
 export interface DialectVerdict {
-  /** `match`, `different` or `unstated` — never guessed. */
+  /** `match`, `different` or `unstated`, never guessed. */
   standing: 'match' | 'different' | 'unstated';
   detail: string;
 }

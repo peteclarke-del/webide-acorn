@@ -141,7 +141,7 @@ try {
      * no disk support at all, which was not true and would have sent somebody
      * to change the project. */
     await until(() => cdp.evaluate('Boolean(document.querySelector(\'input[aria-label="Disk image file"]\'))'),
-      `Disk image control for drive ${drive} — if this target has no DFS or ADFS enabled there is none`, 30_000);
+      `Disk image control for drive ${drive}, if this target has no DFS or ADFS enabled there is none`, 30_000);
     const node = await cdp.call('DOM.getDocument', { depth: -1 });
     const input = await cdp.call('DOM.querySelector', { nodeId: node.root.nodeId, selector: 'input[aria-label="Disk image file"]' });
     if (!input?.nodeId) throw new Error(`This target has no disk image control, so drive ${drive} could not be filled: enable DFS or ADFS in the project target`);

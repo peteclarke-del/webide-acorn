@@ -8,7 +8,7 @@ import { ELKULATOR_CAPABILITIES, elkulatorCommandRefusal } from './elkulatorAdap
 describe('the Electron test runner, as the machine answered it', () => {
   /*
    * The point of these is not that a runner exists. It is that this one can
-   * fail, time out and refuse — because a runner that only ever passes is
+   * fail, time out and refuse, because a runner that only ever passes is
    * indistinguishable from one that checks nothing, and the second is worse
    * than having none.
    */

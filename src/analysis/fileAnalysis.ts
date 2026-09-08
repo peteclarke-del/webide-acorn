@@ -15,8 +15,8 @@ export interface AnalysisOptions {
   /*
    * Which BASIC tokenised bytes are read against.
    *
-   * A tokenised file almost never says which ROM wrote it — of the five tables
-   * here, one token belongs to a single dialect — so this comes from the machine
+   * A tokenised file almost never says which ROM wrote it (of the five tables
+   * here, one token belongs to a single dialect), so this comes from the machine
    * somebody selected rather than from the file. BASIC II is the default because
    * it is what every 6502 Acorn shares; an ARM machine runs BASIC V, whose
    * two-byte keywords a BASIC II table would read as two wrong ones.
@@ -109,7 +109,7 @@ const BASIC_V_TABLES: BasicDecodeTables = {
 /*
  * BASIC VI decodes with the same tables and says so with its own name.
  *
- * The two dialects were measured to share one keyword table — every RISC OS 6
+ * The two dialects were measured to share one keyword table, every RISC OS 6
  * ROM carries both modules, and their tables are identical in all seven images
  * read. What differs is the number format, eight-byte reals rather than five,
  * which no keyword table records. So the tokens are shared and the label is not:

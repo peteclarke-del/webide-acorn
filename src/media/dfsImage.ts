@@ -35,7 +35,7 @@ export interface DfsLogicalFile extends Omit<DfsImageRequest, 'title'> {}
  * `optionBits` are bits 2 and 3 of the boot-option byte, which Acorn DFS leaves
  * unused and some third-party filing systems do not. The two tails are whatever
  * sits after the last catalogue entry in each sector; several tools keep data
- * there. None of it is interpreted here — it is carried, and where a larger
+ * there. None of it is interpreted here. It is carried, and where a larger
  * catalogue now needs those bytes the new entries win and the overwrite is
  * reported rather than hidden.
  */
@@ -72,7 +72,7 @@ export function openDfsImageProject(image: Uint8Array): DfsImageProject {
 }
 
 function printableAscii(value: string, maximum: number, field: string): string {
-  if (!value.length || value.length > maximum || !/^[\x20-\x7e]+$/.test(value)) throw new Error(`${field} must contain 1–${maximum} printable ASCII characters`);
+  if (!value.length || value.length > maximum || !/^[\x20-\x7e]+$/.test(value)) throw new Error(`${field} must contain 1-${maximum} printable ASCII characters`);
   return value;
 }
 

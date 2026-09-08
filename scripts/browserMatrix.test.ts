@@ -147,7 +147,7 @@ describe('the runtime page rules', () => {
   const answered = (overrides: Record<string, unknown> = {}) => ({
     framed: true,
     statusPresent: true,
-    statusText: 'Waiting for firmware from the local vault…',
+    statusText: 'Waiting for firmware from the local vault...',
     canvases: 1,
     announced: ['ready'],
     errors: [],

@@ -16,8 +16,8 @@ use PHPUnit\Framework\TestCase;
  * the controller renders as a refusal somebody can act on. It did not, because
  * PHP's mkdir and file_put_contents raise a warning before returning false, and
  * a warning is promoted to an exception in the development environment. So a
- * store pointed at a directory it could not write — which is what happens when
- * the backend runs outside its container and nothing sets PROJECT_STORE_ROOT —
+ * store pointed at a directory it could not write, which is what happens when
+ * the backend runs outside its container and nothing sets PROJECT_STORE_ROOT,
  * answered a five-hundred page of PHP internals instead of saying that the
  * store could not be written to, and where.
  */

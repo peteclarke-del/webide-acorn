@@ -3,8 +3,8 @@
  * The workbench emulator panel speaks one command vocabulary to every attached
  * core. jsbeeb answers nearly all of it; the Electron core answers a genuine
  * subset. Rather than let the unanswered commands reach the frame and be
- * silently dropped — which would leave the debugger showing stale values that
- * look live — every command the panel can emit is classified here, and the ones
+ * silently dropped, which would leave the debugger showing stale values that
+ * look live, every command the panel can emit is classified here, and the ones
  * this core cannot honour are refused in the workbench with the reason.
  *
  * The capability and unavailability lists mirror the declaration inside

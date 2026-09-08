@@ -33,22 +33,22 @@ for makefile in glob.glob('/elkulator/Makefile.am') + glob.glob('/elkulator/src/
 #
 # `al_wait_for_event` does not return until something arrives, and a page that
 # is inside it is a page that never paints. The first attempt at this expressed
-# the same wait as a poll that yields — `emscripten_sleep` handing control back
-# and ASYNCIFY resuming the C stack where it left off — and that half worked:
+# the same wait as a poll that yields, `emscripten_sleep` handing control back
+# and ASYNCIFY resuming the C stack where it left off, and that half worked:
 # instrumenting both sides showed `event_await` called two hundred times and
 # returning two hundred times with a synthesised timer event, and the statement
 # immediately after `elkEvent = event_await()` in `main` never executing.
 #
 # ASYNCIFY cannot carry this loop. On rewind, execution resumes inside the frame
 # that unwound and returns from it, but `main`'s frame was never saved, so
-# control goes back to the runtime rather than into the loop body — which is why
+# control goes back to the runtime rather than into the loop body, which is why
 # `event_await` was re-entered from the top for ever. `-sASYNCIFY_ADD=["main"]`
 # does not help: Allegro's main addon renames the program's `main`, so the name
 # in the list matches nothing.
 #
 # So the loop is turned inside out instead. `event_await` returns whether or not
 # anything has happened, `main` hands its body to `emscripten_set_main_loop`,
-# and no C stack is ever unwound — which takes ASYNCIFY out of the build
+# and no C stack is ever unwound, which takes ASYNCIFY out of the build
 # entirely along with its 500 KB. It is also what the IDE integration wants,
 # since the IDE decides when the machine steps.
 handler = '/elkulator/src/host_abstraction_layer/allegro_5/event_handler.c'
@@ -279,7 +279,7 @@ print('the browser drives the main loop; ASYNCIFY is not needed')
 
 # A latent out-of-bounds the browser catches and a native build does not.
 #
-# put_pixel_line guards its upper bounds — x + width past 640, y past 256 — and
+# put_pixel_line guards its upper bounds (x + width past 640, y past 256), and
 # not its lower ones. A negative y indexes electron_screen below its start,
 # which on a native heap writes into whatever is in front of it and is never
 # noticed; WebAssembly traps it. The emulator faults here on the first frame it
@@ -302,8 +302,8 @@ print('put_pixel_line now guards both ends of the range')
 # The ULA computes a video address, and when it runs past the top of memory it
 # is brought back by subtracting the mode's screen length. That was written as
 # one `if`, which is correct only while the address is at most 0x8000 plus that
-# length. It can be higher — mode 6's length is 0x2000, so an address near
-# 0xFFFF is still above 0x8000 after one subtraction — and `ram` is 32 KB, so
+# length. It can be higher (mode 6's length is 0x2000, so an address near
+# 0xFFFF is still above 0x8000 after one subtraction), and `ram` is 32 KB, so
 # the read then lands outside it.
 #
 # On a native build `ram2` is declared immediately after `ram`, so the read
@@ -328,14 +328,14 @@ print('screen address now wraps until it is inside memory')
 #
 # Both blit routines call al_lock_bitmap and then dereference the result
 # immediately. Allegro is entitled to refuse a lock and return NULL, and under
-# the SDL backend it does exactly once — on the very first frame, before the
+# the SDL backend it does exactly once, on the very first frame, before the
 # bitmap's texture exists. Counting it showed one refusal against a hundred
 # successes. The next line reads through that null pointer, which a native
 # build turns into a segfault nobody reaches and WebAssembly turns into
 # "memory access out of bounds" on the first frame drawn.
 #
 # A refused lock means there is no frame to draw this time, which is a thing
-# the emulator can simply carry on from — so it is reported once and skipped,
+# the emulator can simply carry on from, so it is reported once and skipped,
 # rather than being allowed to take the machine down. Making the surface a
 # memory bitmap also stops the refusal, and was tried: it costs two and a half
 # times the frame rate, because a memory source drawn to a video target sends
@@ -372,8 +372,8 @@ print('bitmap lock is checked before it is used')
 # before the frame is drawn: the emulator runs perfectly and displays nothing.
 #
 # Under Emscripten the pause is not taken. Frame pacing in a browser is the
-# browser's job — requestAnimationFrame already limits how often anything is
-# presented — so there is nothing here for this to protect.
+# browser's job, requestAnimationFrame already limits how often anything is
+# presented, so there is nothing here for this to protect.
 ula = '/elkulator/src/ula.c'
 body = io.open(ula, encoding='utf-8').read()
 old_pause = 'void pause_video_blit()'
@@ -392,8 +392,8 @@ print('frame pacing left to the browser')
 # An absent configuration file is a dead tab rather than a default machine.
 #
 # `loadconfig` opens `elk.cfg` and closes it unconditionally. Every `get*cfg`
-# accessor between the two already returns its default when the handle is NULL —
-# so the file being absent is a case the code otherwise handles correctly — but
+# accessor between the two already returns its default when the handle is NULL,
+# so the file being absent is a case the code otherwise handles correctly, but
 # the `fclose(NULL)` at the end aborts the WebAssembly instance before the
 # emulator has drawn anything. Natively it is undefined behaviour that happens
 # to be survivable, so nobody has met it. `saveconfig` closes the same way, and
@@ -421,7 +421,7 @@ print('an absent or unwritable elk.cfg no longer takes the machine down')
 # Master RAM Board OS, ADFS, DFS, the sound ROM and the Plus 1 support ROM. On a
 # desktop those five sit in a `roms` directory beside the binary and are simply
 # always present. Here the ROMs are whichever ones the person actually owns and
-# has put in the vault, so the ordinary case is that most of them are absent —
+# has put in the vault, so the ordinary case is that most of them are absent,
 # and the machine died on the first one before drawing anything.
 #
 # The backlog already settled what this build means by an Electron: only the
@@ -494,7 +494,7 @@ old_hook = """                opcode=readmem(pc);
                 if (debugon) dodebugger();"""
 # Placed before the opcode fetch rather than after it. Returning here means the
 # instruction has not run and must not, and a fetch that had already happened
-# would be repeated on resume — harmless for an opcode read out of RAM or ROM,
+# would be repeated on resume. Harmless for an opcode read out of RAM or ROM,
 # but not something to rely on when the address is under the IDE's control.
 new_hook = """                /* The IDE's hook. Returning non-zero means this
                  * instruction has not run yet and must not: the machine is left

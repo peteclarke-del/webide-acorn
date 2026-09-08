@@ -78,7 +78,7 @@ export function FontWorkspace({ projectPalette, projectFiles = [], onAddSource, 
               if (!held) return;
               guard(() => parseFontDocument(held.content), `${held.name} opened from this project`);
             }}>
-              <option value="">Choose a font…</option>
+              <option value="">Choose a font...</option>
               {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
             </select>
           </label>
@@ -106,7 +106,7 @@ export function FontWorkspace({ projectPalette, projectFiles = [], onAddSource, 
               * inside rows is malformed: WAI-ARIA gives `gridcell` a required
               * context, and without it a screen reader has nothing to count
               * position within, so it cannot say which row and column the caret
-              * is in — the two facts that matter most when editing a character
+              * is in. The two facts that matter most when editing a character
               * cell by cell.
               *
               * `display: contents` keeps the row out of the layout, so the eight
@@ -171,7 +171,7 @@ export function FontWorkspace({ projectPalette, projectFiles = [], onAddSource, 
           <dl className="font-manifest">
             <div><dt>Characters</dt><dd>{output.manifest.glyphCount}</dd></div>
             <div><dt>VDU bytes</dt><dd>{output.manifest.byteLength}</dd></div>
-            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}…</code></dd></div>
+            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}...</code></dd></div>
           </dl>
           {!!output.manifest.codesOutsideReservedRange.length && (
             <p className="binding-warning">

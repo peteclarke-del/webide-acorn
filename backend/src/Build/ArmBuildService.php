@@ -101,7 +101,7 @@ final class ArmBuildService
             if ($terminal === null && $errors === 0) {
                 $this->requireRegularOutput($job.'/.build/output.bin', 'ARM raw executable');
                 $size = filesize($job.'/.build/output.bin');
-                if ($size === false || $size < 1 || $size > BuildLimits::ARTIFACT_BYTES) throw new ApiProblem(400, 'BUILD_ARTIFACT_TOO_LARGE', sprintf('ARM executable must contain 1–%d bytes.', BuildLimits::ARTIFACT_BYTES));
+                if ($size === false || $size < 1 || $size > BuildLimits::ARTIFACT_BYTES) throw new ApiProblem(400, 'BUILD_ARTIFACT_TOO_LARGE', sprintf('ARM executable must contain 1-%d bytes.', BuildLimits::ARTIFACT_BYTES));
                 $outputBytes = (string) file_get_contents($job.'/.build/output.bin');
                 $dwarf = $request->debugMetadata === 'full' ? $this->read($job.'/.build/debug-lines.txt') : '';
                 $locations = $this->parser->decodedLines($dwarf, $request->files, $request->origin, strlen($outputBytes));

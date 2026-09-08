@@ -10,7 +10,7 @@ import { fitsScreenBlocks, packBbcScreenBlocks, unpackBbcScreenBlocks } from './
  * test measures the workbench against the tool that made the data rather than
  * against a second opinion of mine.
  *
- * Read as linear rows — which is how the importer read it — the same bytes give
+ * Read as linear rows, which is how the importer read it, the same bytes give
  * a figure cut into vertical strips and shuffled. That is what a person sees
  * and calls artwork that did not come in properly.
  */

@@ -11,7 +11,7 @@ describe('Acorn language reference', () => {
     const sound = basicLanguageItem('sound', target());
     expect(sound).toMatchObject({ token: 'SOUND', signature: 'SOUND channel, amplitude, pitch, duration' });
     expect(sound?.documentation?.parameters).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'channel', range: expect.stringMatching(/0–3/) }),
+      expect.objectContaining({ name: 'channel', range: expect.stringMatching(/0-3/) }),
       expect.objectContaining({ name: 'amplitude', range: expect.stringMatching(/-15.*0/) }),
     ]));
     expect(sound?.documentation?.compatibility).toMatchObject({ supported: true, appliesTo: expect.arrayContaining(['BBC BASIC II', 'BBC Micro Model B']) });
@@ -39,7 +39,7 @@ describe('Acorn language reference', () => {
   it('documents MOS registers, effects, entry address, provenance and ROM readiness', () => {
     const call = mosLanguageItem('OSWRCH', target({ romReady: false }));
     expect(call).toMatchObject({ token: 'OSWRCH', kind: 'mos', detail: expect.stringMatching(/&FFEE/) });
-    expect(call?.documentation?.parameters).toContainEqual(expect.objectContaining({ name: 'A', range: '&00–&FF.' }));
+    expect(call?.documentation?.parameters).toContainEqual(expect.objectContaining({ name: 'A', range: '&00-&FF.' }));
     expect(call?.documentation?.sideEffects?.join(' ')).toMatch(/VDU state/);
     expect(call?.documentation?.compatibility).toMatchObject({ supported: true, warning: expect.stringMatching(/ROM set is not ready/) });
     expect(call?.documentation?.citations?.[0]).toMatchObject({ title: expect.stringMatching(/Advanced User Guide/), section: expect.stringMatching(/OSWRCH.*&FFEE/) });
@@ -48,7 +48,7 @@ describe('Acorn language reference', () => {
 
 describe('keywords the ROMs have and nobody has written up', () => {
   it('answers with what the ROM tables say rather than with nothing', () => {
-    /* An empty panel reads as "this is not a keyword". It is one — it is just
+    /* An empty panel reads as "this is not a keyword". It is one, it is just
      * undocumented, and those are different things. */
     const item = basicLanguageItem('ADVAL')!;
     expect(item.token).toBe('ADVAL');

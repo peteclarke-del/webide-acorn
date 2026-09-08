@@ -13,7 +13,7 @@ import {
  * without a second field, and the two fields can then disagree. One ordered
  * list says both at once: a panel's side is whether it comes before or after
  * the editor, and moving it is swapping with a neighbour. Crossing the editor
- * is not a special case — it falls out of the swap, which is what makes
+ * is not a special case. It falls out of the swap, which is what makes
  * pressing the same button again do the obvious thing.
  */
 const allOpen: PanelOpenState = { config: true, explorer: true, inspector: true, runtime: false };

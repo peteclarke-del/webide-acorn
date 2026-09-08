@@ -49,7 +49,7 @@ RUN mkdir -p /usr/local/lib/8bit-net/cc65-bbc \
     && mkdir -p /run/php /tmp/native-builds /var/lib/webide-acorn/store \
     # The project store's directory exists in the image, owned by the user this
     # service runs as, because Docker seeds a named volume from what is at the
-    # mount point — ownership included. Without it the volume arrives owned by
+    # mount point, ownership included. Without it the volume arrives owned by
     # root, the service cannot create anything inside it, and every write fails
     # with a permission error that says nothing about a volume.
     && chown -R www-data:www-data /run/php /tmp/native-builds /var/lib/webide-acorn \

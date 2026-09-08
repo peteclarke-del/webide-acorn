@@ -71,7 +71,7 @@ describe('what has changed since a golden was approved', () => {
 describe('whether a golden can settle anything', () => {
   it('is authoritative when the machine and firmware match', () => {
     expect(goldenIsAuthoritative(golden(), environment)).toEqual({ authoritative: true, reason: null });
-    /* A rebuild does not disqualify it — that is the case it exists for. */
+    /* A rebuild does not disqualify it. That is the case it exists for. */
     expect(goldenIsAuthoritative(golden({ buildFingerprint: 'build-000' }), environment).authoritative).toBe(true);
   });
 

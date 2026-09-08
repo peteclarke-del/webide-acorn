@@ -1,14 +1,14 @@
-# ADR 0012 — Reference indexing in the browser, over imported packs
+# ADR 0012: Reference indexing in the browser, over imported packs
 
-Status: accepted  
-Date: 6 September 2026  
-Supersedes: nothing  
-Relates to: P0-043, REF-700–REF-706, SEC-903, ADR 0007
+Status: accepted
+Date: 6 September 2026
+Supersedes: nothing
+Relates to: P0-043, REF-700-REF-706, SEC-903, ADR 0007
 
 ## Context
 
 The workbench needs to answer "what is this?" about a token under somebody's
-caret — an opcode, an OS call, a hardware register, a SWI. Some of that answer is
+caret. An opcode, an OS call, a hardware register, a SWI. Some of that answer is
 first-party: maintained tables of opcodes, SWIs and registers that ship with the
 build, each entry carrying its own citation. The rest is documentation this
 project did not write: manuals, application notes, community pages. That
@@ -55,7 +55,7 @@ lose.
 
 An entry declares anchors: this opcode, this address, this SWI, this OS call.
 `referenceLinks` maps what the editor already knows about the caret onto those
-anchors and **asks by kind** — a project symbol called `OSWRCH` and the OS call
+anchors and **asks by kind**. A project symbol called `OSWRCH` and the OS call
 `OSWRCH` are different questions with different right answers, and a search that
 could not tell them apart would answer the wrong one confidently.
 
@@ -69,7 +69,7 @@ nothing.
 
 A page about the Master's ACCCON latch is correct and useless to somebody
 building for a Model B. So the target machine, processor and dialect are part of
-the ranking rather than a filter applied afterwards — and it is a preference, not
+the ranking rather than a filter applied afterwards, and it is a preference, not
 a rule. A pack naming a different machine is ranked *below* the rest rather than
 hidden, because sometimes the Master manual is the only place a thing is written
 down. A pack naming no machine is not thereby wrong for yours.
@@ -86,8 +86,8 @@ at parse rather than at search time so the failure names the pack.
 uploading material whose licence frequently forbids redistribution, making the
 service a republisher of documents it has no right to republish. It would make
 the reference panel require a network, when the rest of the workbench does not.
-And it would add an operational dependency — a service to run, scale and secure
-— for a corpus that is a few megabytes per user and never shared between them.
+And it would add an operational dependency. A service to run, scale and secure,
+for a corpus that is a few megabytes per user and never shared between them.
 
 **Shipping a bundled corpus.** Rejected for licence reasons: the documents worth
 indexing are mostly not redistributable. The first-party tables that *can* ship
@@ -106,13 +106,13 @@ is small enough that exact anchors answer most queries outright.
 ## Consequences and cost
 
 The user must import documentation before the library answers anything, and an
-empty library is the normal first state — the panel has to say so plainly rather
+empty library is the normal first state. The panel has to say so plainly rather
 than appearing broken. Search quality is bounded by the anchors a pack declares,
 so a badly-anchored pack is text-searchable and little more; that is visible in
 the reported match kind rather than hidden behind a score. Nothing is shared
 between users or devices, because there is no server: a person who wants the same
 library on two machines imports it twice.
 
-Reversing this — moving indexing to a service — is primarily a licence question
+Reversing this, moving indexing to a service, is primarily a licence question
 rather than an engineering one, and would have to answer what right the service
 has to hold the documents it indexes.

@@ -16,7 +16,7 @@ describe('how much a tokenised file can say about itself', () => {
      * kinds of thing in different dialects.
      *
      * That exclusion is the part worth pinning. &C6, &C7 and &C8 are ordinary
-     * keywords on a 6502 BASIC — AUTO, DELETE, LOAD — and are the two-byte
+     * keywords on a 6502 BASIC (AUTO, DELETE, LOAD), and are the two-byte
      * prefixes on an ARM one. &CF to &D3 are the 6502 pseudo-variables and
      * BASIC V's statement forms. Counting a raw &C7 as proof of a 6502 BASIC
      * would convict every ARM file that lists anything, and the file would then
@@ -46,7 +46,7 @@ describe('how much a tokenised file can say about itself', () => {
 
   it('no longer claims &CE proves BASIC IV, because BASIC V calls it something else', () => {
     /* This is what adding a dialect did to the evidence. &CE was the one token
-     * that identified BASIC IV — EDIT, which no other 6502 BASIC had — and in
+     * that identified BASIC IV (EDIT, which no other 6502 BASIC had), and in
      * BASIC V the same byte is ENDWHILE. A file carrying it could be either, so
      * the honest answer changed from "BASIC IV" to "cannot tell", and it
      * changed on its own because the evidence is derived from the tables rather

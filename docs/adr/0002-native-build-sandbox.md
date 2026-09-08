@@ -1,9 +1,9 @@
 # ADR 0002: local native-build sandbox and API boundary
 
-Status: Accepted for the local ca65/ld65 vertical slice  
-Date: 21 August 2026  
-Requirements: ARC-01–ARC-06, BLD-001–BLD-014, API-002–API-007,
-SEC-001–SEC-003, NFR-003–NFR-007, QLT-002–QLT-004
+Status: Accepted for the local ca65/ld65 vertical slice
+Date: 21 August 2026
+Requirements: ARC-01-ARC-06, BLD-001-BLD-014, API-002-API-007,
+SEC-001-SEC-003, NFR-003-NFR-007, QLT-002-QLT-004
 
 ## Context
 
@@ -98,7 +98,7 @@ them requires adversarial tests and an operations review.
 The stage wall clock is the one limit a deployment may move, because it is the
 only one that measures the machine rather than the work. Five seconds is a
 thousand times what any of these tools needs, so it guards against a tool that
-will never finish rather than budgeting an honest build — and on a host that
+will never finish rather than budgeting an honest build, and on a host that
 cannot promise wall clock, a process stalled by an unrelated neighbour fails a
 build that was never slow. `NATIVE_STAGE_SECONDS` moves it within one to sixty
 seconds; a value outside that range, or one that is not a number, is ignored in

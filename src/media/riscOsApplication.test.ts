@@ -47,7 +47,7 @@ describe('RISC OS application packaging', () => {
 
   it('enforces old FileCore-compatible leaf names and detects metadata loss', () => {
     expect(() => createRiscOsAbsoluteApplication(artifact(), '1Demo')).toThrow('beginning with a letter');
-    expect(() => createRiscOsAbsoluteApplication(artifact(), 'Application')).toThrow('1–9');
+    expect(() => createRiscOsAbsoluteApplication(artifact(), 'Application')).toThrow('1-9');
     const packaged = createRiscOsAbsoluteApplication(artifact(), 'Demo');
     packaged.files[1]!.hostFsPath = '!Demo/RunImage';
     expect(() => validateRiscOsApplication(packaged)).toThrow('metadata suffix');

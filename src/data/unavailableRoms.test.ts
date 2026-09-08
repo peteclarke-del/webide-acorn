@@ -10,7 +10,7 @@ import { machineProfiles } from './machines';
  * reaches `RISC OS 1024K / Acorn ADFS`, raises two address exceptions during
  * boot and drops to a supervisor prompt that does not echo anything typed at
  * it. Arthur 1.20, RISC OS 2.01, 3.00, 3.10 and 3.11 all boot to their desktops
- * on the same core, from the same vault, driven the same way — which is what
+ * on the same core, from the same vault, driven the same way, which is what
  * makes it this build's fault rather than the firmware's.
  *
  * It is offered and refused rather than removed. Removing it would leave

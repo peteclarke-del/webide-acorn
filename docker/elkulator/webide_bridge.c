@@ -90,7 +90,7 @@ static void initialize(void)
  * one, so the bridge counts cycles or says it cannot.
  *
  * Elkulator's own counter is not a total. It runs up to 128 and is then reduced
- * by 128 by the caller, once, before the next instruction — that is how the
+ * by 128 by the caller, once, before the next instruction, that is how the
  * emulator paces its scheduler. So the running total here is accumulated from
  * the differences, with that single reduction added back. Between two calls of
  * this hook the counter either rose or fell by exactly 128 less than it rose,
@@ -383,7 +383,7 @@ int EMSCRIPTEN_KEEPALIVE elk_webide_key_count(void) { return ELK_KEY_MAX; }
  *
  * Elkulator opens tapes and discs by filename, because it was written for a
  * machine with a filesystem and a file dialogue. Under Emscripten there is one
- * anyway — an in-memory filesystem the page can write to — so the honest way to
+ * anyway, an in-memory filesystem the page can write to, so the honest way to
  * mount an image is to put the bytes there and hand the core the path it
  * expects, rather than reaching inside its loaders and duplicating their format
  * dispatch. Elkulator decides what a `.uef`, a `.ssd` or an `.adf` is; this
@@ -449,9 +449,9 @@ int EMSCRIPTEN_KEEPALIVE elk_webide_eject_disc(int drive)
 /* ---- Sound ----------------------------------------------------------------
  *
  * The Electron has one tone generator in its ULA and nothing else: no second
- * voice, no noise channel, no volume. Two ULA registers describe it — &FE06
+ * voice, no noise channel, no volume. Two ULA registers describe it (&FE06
  * sets the divider that fixes the pitch, and two bits of &FE07 turn the tone on
- * — and both are write-only to the processor, so a program cannot read back
+ *), and both are write-only to the processor, so a program cannot read back
  * what it asked for and neither could this bridge by reading memory.
  *
  * They are published here because the workbench has to be able to compose for

@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * The identifier that ties one request's log lines together.
  *
- * A build request crosses several stages — compile, assemble, link — each of
+ * A build request crosses several stages (compile, assemble, link) each of
  * which can fail on its own, and without a shared identifier the record of a
  * failed build is a handful of lines nobody can prove belong together.
  *

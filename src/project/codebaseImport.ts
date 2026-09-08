@@ -224,7 +224,7 @@ export interface CodebaseImportOptions {
    * System Access API reports `src/main.asm` for the same folder, because it
    * walks from the handle. Working it out from the paths alone cannot tell a
    * chosen folder from a project whose files all happen to live under one
-   * directory — and getting that wrong throws away a real directory, which is
+   * directory, and getting that wrong throws away a real directory, which is
    * exactly what it did to a project whose sources were all under `src`.
    *
    * Left undefined for an archive, where it genuinely varies: a zip may hold a
@@ -312,8 +312,8 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
   const derivedAssets = pixelAssetCandidates(runs, new Set(files.map((file) => file.name.toLowerCase())));
   /* And the maps somebody drew as characters instead of assembling. The path
    * above only ever sees a map once it has been packed into a byte run, so a
-   * project that keeps its rooms as text files — which is how most people
-   * write one, and how the generator that produced the binary read them — had
+   * project that keeps its rooms as text files (which is how most people
+   * write one, and how the generator that produced the binary read them) had
    * no maps recovered at all. Only plain text is read this way: an assembler
    * include of EQUB lines is also a rectangle of equal-length lines, and the
    * run above already reads that properly as artwork. */
@@ -354,7 +354,7 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
  * called `helper build` that assembles `main.asm` names the wrong thing.
  *
  * A file that is not a candidate for this target is refused. Substituting one
- * silently — a file of the wrong language, or one excluded from the import —
+ * silently. A file of the wrong language, or one excluded from the import,
  * would produce a project whose build target names a file that is not there.
  */
 export function overrideTargetEntry(plan: CodebaseImportPlan, targetId: string, entryName: string): CodebaseImportPlan {
@@ -528,8 +528,8 @@ export function fittingGaps(platform: DetectedPlatform): Array<{ id: string; lab
   if (!profile) return [];
   return platform.capabilities.flatMap((entry) => {
     const capability = profile.capabilities.find((candidate) => candidate.id === entry.id);
-    /* A need this machine's catalogue does not model at all — a joystick on a
-     * Model B, ADFS on an Electron — was being dropped, which loses exactly the
+    /* A need this machine's catalogue does not model at all (a joystick on a
+     * Model B, ADFS on an Electron) was being dropped, which loses exactly the
      * thing worth saying: the program wants hardware this machine, as this
      * product knows it, does not offer. */
     if (!capability) {

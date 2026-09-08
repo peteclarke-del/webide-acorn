@@ -5,8 +5,8 @@ import { join, resolve } from 'node:path';
 /*
  * How a number is written when somebody reads it.
  *
- * Acorn wrote hexadecimal with an ampersand and capital digits — `&1900`, not
- * `0x1900` and not `&1e00` — and this product is read by people who have been
+ * Acorn wrote hexadecimal with an ampersand and capital digits (`&1900`, not
+ * `0x1900` and not `&1e00`), and this product is read by people who have been
  * reading `&` for forty years. The convention is already followed almost
  * everywhere: of a hundred and fifty-odd places that convert a number to hex,
  * a hundred write `&` with capitals and padding, and thirty-two more write `&`
@@ -43,7 +43,7 @@ describe('the way a number is written', () => {
     for (const file of FILES) {
       const text = readFileSync(file, 'utf8');
       for (const match of text.matchAll(/&\$\{[^}]*?toString\(16\)((?:(?!\}).)*)\}/g)) {
-        /* `&${x.toString(16)…}` is an Acorn address, so the digits have to be
+        /* `&${x.toString(16)...}` is an Acorn address, so the digits have to be
          * capitals. Anything else is a different notation and not this rule's
          * business. */
         if (!match[1]!.includes('toUpperCase')) wrong.push(`${file.split('/src/')[1]}: ${match[0].slice(0, 70)}`);

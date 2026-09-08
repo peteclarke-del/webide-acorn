@@ -1,8 +1,8 @@
-# ADR 0011 — Adapter discovery as a compiled table, not a registry
+# ADR 0011: Adapter discovery as a compiled table, not a registry
 
-Status: accepted  
-Date: 6 September 2026  
-Supersedes: nothing  
+Status: accepted
+Date: 6 September 2026
+Supersedes: nothing
 Relates to: P0-043, EMU-401, EMU-423, ADR 0001, ADR 0006, ADR 0008
 
 ## Context
@@ -29,11 +29,11 @@ machine can be executed here.
 
 ### Three states, because they mean different things to a person
 
-- `runnable` — the pinned engine has a model for this machine and this build
+- `runnable` (the pinned engine has a model for this machine and this build
   registers a ROM manifest for it, so supplying firmware makes it start.
-- `no-rom-manifest` — the engine has a model but no manifest is registered, so
+- `no-rom-manifest`) the engine has a model but no manifest is registered, so
   the outstanding work is in this repository and no firmware will help.
-- `no-engine-model` — no engine in this build models the machine at all.
+- `no-engine-model`. No engine in this build models the machine at all.
 
 Every surface asks `adapterSupportFor(machineId)` and renders the state it is
 given. `adapterSupportSummary` turns the state into one sentence, so the same
@@ -52,7 +52,7 @@ this is a table of prose rather than a matrix of booleans.
 
 ### Two engines for one machine is modelled, not flattened
 
-The Electron has two cores here — ElkJS and the Emscripten Elkulator — and which
+The Electron has two cores here, ElkJS and the Emscripten Elkulator, and which
 one starts is decided by the selected ROM set, not by the machine. A single
 `engine` field would name one and be wrong about the other, so `engine` and
 `additionalEngines` are separate and the summary names both.
@@ -65,21 +65,21 @@ workbench bundle; a contract test in `src/rom/adapterSupport.test.ts` compares
 the table against the engine's own model list, so it cannot drift silently. The
 two B+ models are the exception and are marked as this build's own rather than
 the engine's, because jsbeeb publishes no B+ in the pinned 1.19.1 or in the
-current 1.22.4 — the machine is assembled here from the engine's Model B plus
+current 1.22.4. The machine is assembled here from the engine's Model B plus
 the B+'s paging.
 
 ### A manifest may exist for an engine that cannot yet start
 
 `RUNNABLE_ENGINE_IDS` gates which ROM sets are advertised. A manifest is written
-and firmware verified against it long before the core can boot — that is how the
-Elkulator port was developed — and listing such a set as runnable would offer a
+and firmware verified against it long before the core can boot, that is how the
+Elkulator port was developed, and listing such a set as runnable would offer a
 configuration nobody can select. The manifest still does its job; it is simply
 not advertised.
 
 ## Alternatives rejected
 
 **A runtime adapter registry.** Adapters self-register and the shell discovers
-them. Rejected because it buys extensibility this product has no user for — the
+them. Rejected because it buys extensibility this product has no user for, the
 engines are vendored, pinned and licence-reviewed one at a time (ADRs 0006 and
 0008), and adding one is a deliberate act with a decision record, not a drop-in.
 Meanwhile it costs the thing that matters most here: with a registry, "can this
@@ -99,12 +99,12 @@ firmware a configuration needs, not whether anything here can execute it.
 ## Consequences and cost
 
 Adding a machine or an engine means editing this file, and forgetting to means
-the machine is described and reported unrunnable — a visible, safe failure
+the machine is described and reported unrunnable, a visible, safe failure
 rather than a silent one. The prose limitations are maintenance: when a boundary
 moves, the sentence has to move with it, and nothing automated will notice if it
 does not. That is accepted because the alternative is a product that is
 accurate and useless.
 
-Reversing this decision — moving to a registry — would mean finding another home
+Reversing this decision, moving to a registry, would mean finding another home
 for the three states and the limitation prose, since neither survives being
 derived from an adapter's self-description.

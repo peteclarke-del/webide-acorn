@@ -2,8 +2,8 @@
 /*
  * Boots the BBC Model B+ this build adds, and asks the machine about itself.
  *
- * The B+ here is not the engine's — jsbeeb publishes none, in the pinned
- * version or the current one — so every claim about it is a claim about code
+ * The B+ here is not the engine's (jsbeeb publishes none, in the pinned
+ * version or the current one), so every claim about it is a claim about code
  * written for this product. The only way to make such a claim worth anything is
  * to put the questions to the machine and record what it answers.
  *
@@ -29,7 +29,7 @@
  *
  * where the directory holds `roms/bplus/os2.rom`, `roms/bplus/BASIC2.ROM` and
  * `roms/bplus/dfs223.rom`. On a real B+ 64K the operating system and BASIC
- * share one 32 KiB part at IC71 — the operating system is its upper half.
+ * share one 32 KiB part at IC71. The operating system is its upper half.
  */
 import { argv, exit } from 'node:process';
 import { resolve } from 'node:path';
@@ -49,7 +49,7 @@ export const FIRMWARE = Object.freeze(['bplus/os2.rom', 'bplus/BASIC2.ROM', 'bpl
  * A B+ ready at its prompt.
  *
  * jsbeeb's own helper waits for the Model B's idle address, and the B+ is a
- * different operating system that idles somewhere else — so the prompt it
+ * different operating system that idles somewhere else, so the prompt it
  * prints is the signal, which is the machine's rather than an address somebody
  * assumed.
  */

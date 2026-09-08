@@ -1,7 +1,7 @@
-# ADR 0008 — ElkJS Electron adapter, and the GPL position
+# ADR 0008: ElkJS Electron adapter, and the GPL position
 
-Status: **accepted, with the licence position pending sign-off**  
-Date: 27 August 2026  
+Status: **accepted, with the licence position pending sign-off**
+Date: 27 August 2026
 Relates to: EMU-423, EMU-428, P0-018, SEC-903
 
 ## Context
@@ -31,8 +31,8 @@ as prose a user has to find.
 
 ### What is vendored
 
-Only the six hardware modules — processor, memory, sheila, display, sound and
-keyboard — pinned to revision `ff123355407f79a91f808e31222dcca5d51ea87f`, with a
+Only the six hardware modules (processor, memory, sheila, display, sound and
+keyboard) pinned to revision `ff123355407f79a91f808e31222dcca5d51ea87f`, with a
 SHA-256 recorded for each pristine file in
 `public/electron/elkjs/PROVENANCE.md`. The upstream user interface, its jQuery
 and jQuery UI copies, its tape and UEF modules and their two third-party
@@ -51,7 +51,7 @@ A second change to `processor.js` is recorded in the same patch. Inside
 `exec6502`, the deferred reset that `reset6502e` requests calls a bare
 `reset6502()`. That name is a property of the module instance, not a global, so
 the call is a `ReferenceError` in any page that does not also define a global of
-that name — which upstream's own user interface happens to. Because this build
+that name, which upstream's own user interface happens to. Because this build
 loads only the hardware modules, the machine halted on its first deferred reset
 until the reference was qualified to `self.reset6502()`. It is the same
 function; the reset semantics are unchanged.
@@ -71,7 +71,7 @@ The adapter support matrix records the Electron as runnable on ElkJS and names
 the expansions the core does not model, so the firmware vault tells a user that
 supplying a Plus 1 ROM will not produce a Plus 1.
 
-## The GPL position — pending sign-off
+## The GPL position: pending sign-off
 
 This is recorded so it can be reviewed, not treated as settled.
 
@@ -86,8 +86,8 @@ This is recorded so it can be reviewed, not treated as settled.
   distributor.
 - **Open question for review:** the page that loads the GPL-2.0 modules,
   `public/electron.html` and `public/electron-runtime.js`, is plausibly a work
-  based on them. This repository currently declares no licence of its own —
-  there is no `LICENSE` file and `package.json` has no `license` field — so the
+  based on them. This repository currently declares no licence of its own.
+  There is no `LICENSE` file and `package.json` has no `license` field, so the
   obligation cannot be assessed against a stated position. Declaring the
   product's licence is a prerequisite for closing P0-018, and this decision
   should not be treated as accepted until that is done.

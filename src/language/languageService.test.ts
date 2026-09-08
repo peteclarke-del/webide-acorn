@@ -60,7 +60,7 @@ describe('language service', () => {
   });
   it('exposes alternative forms and ignores tokens inside strings or REM commentary', () => {
     const call = file('bbc-basic', '10 CALL &1900,A%,');
-    expect(signatureHelpAt(call, call.content.length)).toMatchObject({ activeSignature: 1, signatures: [expect.objectContaining({ signature: 'CALL address' }), expect.objectContaining({ signature: 'CALL address, variable…' })], parameter: 'variable…' });
+    expect(signatureHelpAt(call, call.content.length)).toMatchObject({ activeSignature: 1, signatures: [expect.objectContaining({ signature: 'CALL address' }), expect.objectContaining({ signature: 'CALL address, variable...' })], parameter: 'variable...' });
     expect(signatureHelpAt(file('bbc-basic', '10 PRINT "CALL &1900,"'), 22)).toMatchObject({ item: { token: 'PRINT' } });
     expect(signatureHelpAt(file('bbc-basic', '10 REM SOUND 1,'), 15)).toBeUndefined();
   });

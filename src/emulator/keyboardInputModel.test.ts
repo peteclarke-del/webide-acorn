@@ -10,7 +10,7 @@ describe('machine keyboard input policy', () => {
   it('rejects empty, oversized and unsupported text', () => {
     expect(() => validateMachineText('')).toThrow(/1 to 4,096/);
     expect(() => validateMachineText('A'.repeat(MACHINE_TEXT_LIMIT + 1))).toThrow(/1 to 4,096/);
-    expect(() => validateMachineText('PRINT “HELLO”')).toThrow(/U\+201C/);
+    expect(() => validateMachineText('PRINT \u201CHELLO\u201D')).toThrow(/U\+201C/);
   });
 
   it('accepts only maintained layout and on-screen key identities', () => {

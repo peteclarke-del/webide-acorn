@@ -92,7 +92,7 @@ export function assemble6502(source: string, processor: Processor = '6502', defa
     /* A symbolic constant: `OSWRCH = &FFEE`. BeebAsm accepts these and real
      * Acorn source is full of them, so source imported from a BeebAsm project
      * assembled everywhere except here until this was added. The value has to
-     * be evaluable where it is written — a constant that depends on a label
+     * be evaluable where it is written. A constant that depends on a label
      * defined further down is reported rather than silently resolved to zero. */
     const constant = remainder.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
     if (constant) {
@@ -101,7 +101,7 @@ export function assemble6502(source: string, processor: Processor = '6502', defa
       if (value === undefined) diagnostic(diagnostics, lineNumber, `${constant[1]} is assigned an expression that cannot be evaluated here: ${constant[2]!.trim()}`);
       else if (value < 0 || value > 0xffff) diagnostic(diagnostics, lineNumber, `${constant[1]} is assigned ${value}, which is not a 16-bit value`);
       /* Restating a known address at the value it already has is what real
-       * Acorn source does — `OSWRCH = &FFEE` appears at the top of almost every
+       * Acorn source does, `OSWRCH = &FFEE` appears at the top of almost every
        * listing, and this assembler already knows the MOS calls. Agreeing is
        * accepted; disagreeing is reported with both values, because that is a
        * genuine mistake rather than a restatement. */

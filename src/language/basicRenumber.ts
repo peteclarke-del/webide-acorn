@@ -45,7 +45,7 @@ function previewBasicRenumberInternal(source: string, input: BasicRenumberOption
     const match = text.match(/^(\s*)(\d{1,5})(\s?)(.*)$/);
     if (!match) { if (!range || (index + 1 >= range.startPhysicalLine && index + 1 <= range.endPhysicalLine)) errors.push(`Physical line ${index + 1} has no BASIC line number`); continue; }
     const number = Number(match[2]);
-    if (number > MAX_LINE) errors.push(`Physical line ${index + 1} has line number ${number}, outside 0–32,767`);
+    if (number > MAX_LINE) errors.push(`Physical line ${index + 1} has line number ${number}, outside 0-32,767`);
     if (seen.has(number)) errors.push(`Line number ${number} is duplicated and cannot be mapped safely`);
     seen.add(number);
     parsed.push({ physicalLine: index + 1, indent: match[1]!, number, spacing: match[3] || ' ', body: match[4]! });

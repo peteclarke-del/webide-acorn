@@ -46,7 +46,7 @@ export function validateTraceConfig(input: Record<string, unknown>): TraceConfig
   if (!Array.isArray(rawEventKinds) || rawEventKinds.length < 1 || rawEventKinds.length > 4 || rawEventKinds.some((kind) => !['instruction', 'memory-read', 'memory-write', 'interrupt'].includes(String(kind)))) throw new Error('Trace event filters must select one or more supported event kinds');
   const eventKinds = Array.from(new Set(rawEventKinds as TraceEventKind[]));
   const sampleEvery = Number(input.sampleEvery ?? 1);
-  if (!Number.isInteger(sampleEvery) || sampleEvery < 1 || sampleEvery > 1024) throw new Error('Trace sampling interval must be 1–1,024 instructions');
+  if (!Number.isInteger(sampleEvery) || sampleEvery < 1 || sampleEvery > 1024) throw new Error('Trace sampling interval must be 1-1,024 instructions');
   if (triggerKind !== undefined && sampleEvery !== 1) throw new Error('Triggered trace requires every instruction to be sampled');
   if ((triggerKind === 'memory-read' || triggerKind === 'memory-write') && !captureBus) throw new Error('Memory triggers require data-bus capture');
   if (eventKinds.some((kind) => kind === 'memory-read' || kind === 'memory-write') && !captureBus) throw new Error('Memory event filters require data-bus capture');

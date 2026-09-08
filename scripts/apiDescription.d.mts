@@ -29,10 +29,10 @@ export interface DescribedOperation {
   readonly path: string;
   readonly summary: string;
   readonly parameters: readonly DescribedParameter[];
-  /** A `#/components/schemas/…` reference, or null where the operation takes no body. */
+  /** A `#/components/schemas/...` reference, or null where the operation takes no body. */
   readonly requestSchema: string | null;
   readonly successStatus: number | null;
-  /** A `#/components/schemas/…` reference, or null where nothing is declared. */
+  /** A `#/components/schemas/...` reference, or null where nothing is declared. */
   readonly responseSchema: string | null;
   /** Every status the operation declares, ascending. */
   readonly statuses: readonly number[];

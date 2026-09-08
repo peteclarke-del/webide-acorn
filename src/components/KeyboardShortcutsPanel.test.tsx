@@ -5,8 +5,8 @@ import { useState } from 'react';
 import { KeyboardShortcutsPanel } from './KeyboardShortcutsPanel';
 import { resolveKeyBindings, type KeyBindingOverrides } from '../commands/keyBindings';
 
-/* This panel renders the whole shortcut inventory — every command in both
- * dispatch scopes — and each of these tests renders it again and then queries
+/* This panel renders the whole shortcut inventory, every command in both
+ * dispatch scopes, and each of these tests renders it again and then queries
  * it by role, which walks the rendered table computing roles as it goes. The
  * file takes about nineteen seconds on an idle machine, with its slowest test
  * around four; on a loaded one that test passed the ten-second default and
@@ -103,8 +103,8 @@ describe('KeyboardShortcutsPanel', () => {
 
 describe('what the panel says about the emulated machine', () => {
   it('says what a running machine types instead of running the command', () => {
-    /* The surprising part is not that a chord collides — while a machine is
-     * running they all do — but what the machine receives, which is the key
+    /* The surprising part is not that a chord collides, while a machine is
+     * running they all do, but what the machine receives, which is the key
      * without its modifiers. */
     render(<Harness />);
     const save = row('Save current source in browser');

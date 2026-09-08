@@ -1,8 +1,8 @@
 /* The page the benchmark harness opens in each browser.
  *
  * It reports by posting its results back rather than by being read over a
- * debugging protocol, because the protocols differ per browser — Chromium
- * speaks CDP, Firefox speaks WebDriver BiDi, and Safari speaks neither — and a
+ * debugging protocol, because the protocols differ per browser (Chromium
+ * speaks CDP, Firefox speaks WebDriver BiDi, and Safari speaks neither), and a
  * measurement that only exists on the browser whose protocol was implemented
  * is not a measurement across a matrix. A POST works everywhere and needs no
  * client at all.

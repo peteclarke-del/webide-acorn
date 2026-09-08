@@ -52,7 +52,7 @@ export function LimitsPanel() {
       <label className="limits-search">
         <span className="visually-hidden">Search limits</span>
         <Icon name="search" size={13} />
-        <input type="search" aria-label="Search limits" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search limits…" />
+        <input type="search" aria-label="Search limits" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search limits..." />
       </label>
 
       {grouped.length ? grouped.map((group) => (
@@ -74,7 +74,7 @@ export function LimitsPanel() {
             </tbody>
           </table>
         </section>
-      )) : <p role="status">No limit matches “{query.trim()}”.</p>}
+      )) : <p role="status">No limit matches "{query.trim()}".</p>}
     </section>
   );
 }

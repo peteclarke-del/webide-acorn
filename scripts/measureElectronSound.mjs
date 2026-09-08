@@ -5,7 +5,7 @@
  * The Electron's sound hardware is one tone generator, driven by two write-only
  * ULA registers: the divider that fixes the pitch, and two bits that turn the
  * tone on. Write-only means a program cannot read back what it asked for, and
- * neither can a debugger by reading memory — so the bridge in
+ * neither can a debugger by reading memory, so the bridge in
  * `docker/elkulator/webide_bridge.c` publishes both, and this script is why.
  *
  * It boots an Electron on the Elkulator WebAssembly core in headless Chromium,

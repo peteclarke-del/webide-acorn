@@ -38,7 +38,7 @@ carries a licence or firmware position. It should say what was decided, what
 was rejected and why, and what it would take to reverse. A record that only
 describes what was built is a commit message in a longer file.
 
-State the cost. Every decision here has one — a pinned upstream that has to be
-tracked, a core that cannot be stepped, a licence that constrains distribution —
+State the cost. Every decision here has one. A pinned upstream that has to be
+tracked, a core that cannot be stepped, a licence that constrains distribution,
 and a record that omits the cost is the one that gets reversed by someone who
 did not know it was there.

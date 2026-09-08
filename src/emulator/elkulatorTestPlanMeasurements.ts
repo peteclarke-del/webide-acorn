@@ -68,7 +68,7 @@ export const ELKULATOR_TEST_PLAN_RESULTS: readonly MeasuredPlanResult[] = Object
     reason: 'timeout · 0 input actions applied',
     cycles: 40028,
     assertions: [{ kind: 'register', passed: true }],
-    establishes: 'A plan whose stop is never reached times out rather than passing, even though its one assertion was true — and it reports the cycles that really elapsed, which overran the 5,000 it was given because this core runs a whole field at a time.',
+    establishes: 'A plan whose stop is never reached times out rather than passing, even though its one assertion was true, and it reports the cycles that really elapsed, which overran the 5,000 it was given because this core runs a whole field at a time.',
   },
   {
     name: 'a screen assertion is refused',
@@ -95,7 +95,7 @@ export const ELKULATOR_TEST_PLAN_RESULTS: readonly MeasuredPlanResult[] = Object
  * eleven on one run and twelve on the next, because the ULA stretches the
  * processor when it touches shared RAM and whether an access lands in a
  * stretched slot depends on where the display has got to. That is the machine
- * being modelled rather than approximated — and it is why a cycle assertion on
+ * being modelled rather than approximated, and it is why a cycle assertion on
  * this hardware should be written as a bound rather than an equality.
  */
 export const ELKULATOR_CYCLE_VARIATION = Object.freeze({

@@ -20,7 +20,7 @@ describe('an assertion about sound that was measured', () => {
   });
 
   it('lets a program assert that it made no sound at all', () => {
-    /* Silence is a real result and a program is entitled to assert it — but
+    /* Silence is a real result and a program is entitled to assert it, but
      * only because the capture ran, which is the whole point of the flag. */
     expect(resolveAudioDigest(silence, '811C9DC5')).toEqual({ actual: '811C9DC5', writes: 0, passed: true });
   });

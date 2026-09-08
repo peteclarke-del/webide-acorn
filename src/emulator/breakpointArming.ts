@@ -7,7 +7,7 @@
  * The question that has to be asked is "is the machine holding this program",
  * and what used to be asked was "is the program counter inside this program".
  * Those look alike and are not. The first breakpoint anybody sets is on their
- * program's entry, set before pressing Run — and at that moment the machine is
+ * program's entry, set before pressing Run, and at that moment the machine is
  * sitting in the operating system, so nothing was armed. The workbench saved
  * the breakpoint, resolved it, listed it as resolved, and the machine never had
  * it. Pressing Run then ran straight past.

@@ -81,7 +81,7 @@ RUN autoreconf -i > /autoreconf.log 2>&1 \
 # Upstream also has no COPYING file: the README points at one, but it was an
 # autotools symlink deleted in commit 54b1bae. The licence text is therefore
 # supplied here rather than copied from a fork that does not carry it. The
-# source headers settle which licence it is — socket.c and serial.c say GPL
+# source headers settle which licence it is. Socket.c and serial.c say GPL
 # version 3 or later, and the imported fdi2raw.c says version 2 or later, so
 # the work as a whole is GPL-3.0-or-later.
 # The tree as it was compiled, patches included, which is what corresponding
@@ -125,8 +125,8 @@ RUN npm run build
 # the source shipped is the source built from. `npm run ci` fails if either goes
 # missing.
 # The core's own ROM directory is excluded and then proved absent. It is not
-# part of the source this image is built from — the workbench serves ROMs the
-# person running it supplied — and shipping it would put Acorn firmware in the
+# part of the source this image is built from, the workbench serves ROMs the
+# person running it supplied, and shipping it would put Acorn firmware in the
 # image, which is the one thing that must never happen. Archiving the package
 # wholesale put 52 ROM files in before this check existed.
 RUN tar --create --file /jsbeeb-upstream-source.tar --exclude 'jsbeeb/public/roms' --directory /app/node_modules jsbeeb \

@@ -12,7 +12,7 @@ afterEach(() => { cleanup(); localStorage.clear(); });
  *
  * The cells carried `role="gridcell"` directly inside `role="grid"`, with no
  * rows between them. WAI-ARIA gives `gridcell` a required context, and without
- * it a screen reader has nothing to count position within — so it cannot say
+ * it a screen reader has nothing to count position within, so it cannot say
  * which row and column the caret is in, which are the two facts that matter
  * most when editing a character cell by cell. The rows are laid out with
  * `display: contents` so the grid still does the layout and nothing moved; the

@@ -138,7 +138,7 @@ const MACHINE_RULES: readonly Rule[] = [
  * Symbols a build sets to choose a machine.
  *
  * A codebase that assembles for more than one Acorn says so in its own
- * vocabulary — `TARGET_ELECTRON`, `BBC_BUILD`, `IF MASTER` — and that is better
+ * vocabulary (`TARGET_ELECTRON`, `BBC_BUILD`, `IF MASTER`), and that is better
  * evidence than any address, because it is the author naming the machine rather
  * than us inferring one. It also reveals that the codebase is for several
  * machines, which an address never can.
@@ -149,8 +149,8 @@ const TARGET_SYMBOLS: ReadonlyArray<{ machine: DetectedMachineId; pattern: RegEx
    * miss both `:=` and a `_MAIN` suffix that the BBC's happened to allow, and a
    * codebase that builds for two machines was read as building for one.
    *
-   * It matches a variable or define whose name contains the machine — with or
-   * without a TARGET_ prefix and with any trailing word — being assigned, and
+   * It matches a variable or define whose name contains the machine, with or
+   * without a TARGET_ prefix and with any trailing word, being assigned, and
    * the conditional-assembly form an assembler uses to switch on one.
    */
   ...([

@@ -186,7 +186,7 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
         if (!tile) return;
         const artwork = tileArtwork.get(tile) ?? null;
         /* One pixel cannot show a tile, so it shows the tile's commonest
-         * colour — and an index with no artwork stays the explicit marker
+         * colour, and an index with no artwork stays the explicit marker
          * grey rather than being given a colour it does not have. */
         context.fillStyle = artwork ? projectPalette.colours[dominantColour(artwork.pixels) & 3] ?? '#000000' : '#3a3a3a';
         context.fillRect(index % document.width, Math.floor(index / document.width), 1, 1);
@@ -356,8 +356,8 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
               hint: entry.detail,
               onSelect: () => { guard(() => parseTileMapDocument(entry.content)); onNotice(`${entry.name} opened from this project`); },
             })),
-            { id: 'import-tiled', label: 'Import Tiled…', icon: 'open', description: 'Read a Tiled JSON map, reporting whatever it holds that this editor cannot', separated: !!availableMaps.length, onSelect: () => tiledInputRef.current?.click() },
-            { id: 'import-image', label: 'Import image…', icon: 'image', description: 'Cut an image into tiles and lay them out as a map, counting what the conversion lost', onSelect: () => imageInputRef.current?.click() },
+            { id: 'import-tiled', label: 'Import Tiled...', icon: 'open', description: 'Read a Tiled JSON map, reporting whatever it holds that this editor cannot', separated: !!availableMaps.length, onSelect: () => tiledInputRef.current?.click() },
+            { id: 'import-image', label: 'Import image...', icon: 'image', description: 'Cut an image into tiles and lay them out as a map, counting what the conversion lost', onSelect: () => imageInputRef.current?.click() },
             { id: 'export-tiled', label: 'Export Tiled', icon: 'download', description: 'Write this map into the project as a Tiled JSON document', hint: 'tiled.json', separated: true, onSelect: () => onAddSource(`${document.name.replace(/[^A-Za-z0-9_-]+/g, '-') || 'map'}.tiled.json`, exportTiledMap(document)) },
           ] },
           { id: 'edit', label: 'Edit', items: [
@@ -713,7 +713,7 @@ export function TileMapWorkspace({ projectPalette, availableAssets, availableMap
               <div><dt>Layers</dt><dd>{output.manifest.layerCount}</dd></div>
               <div><dt>Objects</dt><dd>{output.manifest.objectCount}</dd></div>
               <div><dt>Property stride</dt><dd>{output.manifest.propertyStride}</dd></div>
-              <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}…</code></dd></div>
+              <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}...</code></dd></div>
             </dl>
             {!!output.manifest.unassignedIndices.length && <p className="binding-warning">Indices {output.manifest.unassignedIndices.join(', ')} have no artwork chosen; their pointers generate as zero.</p>}
             <pre aria-label="Generated map assembler source">{output.assembly}</pre>

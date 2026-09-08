@@ -43,7 +43,46 @@ Operate the IDE without a pointer and preserve readable state at zoom, high cont
 
 In the IDE: Help → `#help/keyboard-accessibility`
 
-## 2. Review and remap keyboard shortcuts
+## 2. Theme, contrast and text size
+
+Change how the workbench looks and how large its text is, and have that choice remembered on this computer.
+
+**Before you start**
+
+- The IDE is open in a browser that is allowed to store a preference for this site
+
+**Procedure**
+
+1. Open Settings and find the Appearance panel.
+2. Choose a Theme: Match the system, Dark or Light.
+3. Choose a Contrast: Match the system, Standard or High contrast.
+4. Choose a Text size: Small, Medium, Default, Large, Larger or Largest.
+
+**What should happen**
+
+- Each choice applies as it is made. There is no Save step, because the only way to judge legibility is to look at it.
+- Text size scales the whole interface together, so nothing ends up larger than the thing it belongs to.
+- Standard contrast holds text at 4.5:1 and control borders at 3:1. High contrast holds text at 7:1 and borders at 4.5:1.
+- The choice is kept on this computer and is applied again the next time the IDE opens.
+
+**Limits**
+
+- Text size stops at double. Past that the fixed rails, strips and status bar crowd the work rather than the text becoming easier to read.
+- Match the system follows what the browser reports, so a computer that reports no preference gets the shipped default.
+- A stored choice this build no longer offers is discarded rather than approximated, because honouring half of it would apply a size this build does not have.
+
+**If it goes wrong**
+
+- Set Theme and Contrast back to Match the system, and Text size back to Default, to return to the shipped appearance.
+- Clearing site data for this address removes the stored choice along with the rest of the local state.
+
+![Settings workspace showing the Appearance panel with Theme, Contrast and Text size selectors and the description under each](../../public/help/appearance.png)
+
+*Appearance sits in Settings. Each selector says what its current choice does, and the choice takes effect as it is made.*
+
+In the IDE: Help → `#help/appearance`
+
+## 3. Review and remap keyboard shortcuts
 
 Read the complete dispatched shortcut inventory, change any chord, unbind one, and restore declared defaults. The listed chords are the chords the workbench and editor actually handle.
 

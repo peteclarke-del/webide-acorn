@@ -1,7 +1,7 @@
 /* Turning a person using a controller into a script a machine can replay.
  *
- * Recording is not sampling. A gamepad has no events — the browser reports its
- * state only when asked — and a pointer has far too many, so both are reduced
+ * Recording is not sampling. A gamepad has no events, the browser reports its
+ * state only when asked, and a pointer has far too many, so both are reduced
  * to the moments that change what the machine would see. Writing down every
  * frame would fill the 256-action budget in four seconds with entries that say
  * nothing happened, and a test full of those is one nobody can read.
@@ -33,7 +33,7 @@ export const POINTER_SAMPLE_INTERVAL_MS = 100;
  *
  * Releases are emitted before presses. A machine reading a joystick sees one
  * state at a time, and replaying a press before the release it replaced would
- * momentarily hold two opposed directions at once — which is a state the
+ * momentarily hold two opposed directions at once, which is a state the
  * hardware cannot be in and a program may well act on.
  */
 export function gamepadTransitions(

@@ -11,8 +11,8 @@ import { BASIC_DIALECTS, BBC_BASIC_5, BBC_BASIC_6, basicDialect } from './basicD
  *
  * A backlog note here once recorded, as fact, that BASIC64 "shipped on disc
  * rather than burnt into ROM". That was wrong. It rested on a search of the
- * images then held — RISC OS 2.00 to 4.39, from which BASIC64 genuinely is
- * absent — and turned a local absence into a claim about what Acorn shipped.
+ * images then held (RISC OS 2.00 to 4.39, from which BASIC64 genuinely is
+ * absent), and turned a local absence into a claim about what Acorn shipped.
  * Two traps had made that negative worse than it looked: most Acorn ARM ROM
  * images are stored interleaved, so a plain string search reads scrambled bytes,
  * and `BASIC` itself does not occur in the A310 or A5000 images until they are
@@ -20,8 +20,8 @@ import { BASIC_DIALECTS, BBC_BASIC_5, BBC_BASIC_6, basicDialect } from './basicD
  *
  * With a complete RISC OS ROM set, `BASIC64` occurs in seven images, all of them
  * RISC OS 6, and in none of the twenty-eight earlier ones. Each of those seven
- * carries *two* keyword tables — one in the `BASIC` module and one in `BASIC64`
- * — which is what makes the identity checkable rather than assumable: the two
+ * carries *two* keyword tables, one in the `BASIC` module and one in `BASIC64`
+ *, which is what makes the identity checkable rather than assumable: the two
  * can be compared inside a single image, with no second machine and nothing
  * taken on trust. They are identical in all seven, and all seven give the same
  * 161-entry table.
@@ -29,8 +29,8 @@ import { BASIC_DIALECTS, BBC_BASIC_5, BBC_BASIC_6, basicDialect } from './basicD
  * Against the BASIC V table here, which was read independently out of RISC OS
  * 3.11, every keyword and every token agrees and one flag byte does not:
  * `STRING$(` carries `&80` in 3.11 and `&82` in 6.16, at the same token `&C4`.
- * It changes nothing that is derived from the flag — both leave the keyword a
- * plain one-byte token — which is why the tables can be shared, and it is
+ * It changes nothing that is derived from the flag, both leave the keyword a
+ * plain one-byte token, which is why the tables can be shared, and it is
  * recorded here because "identical" would have been the wrong word.
  *
  * These cases hold the consequence of that measurement: the two dialects share
@@ -43,7 +43,7 @@ describe('BBC BASIC VI', () => {
     expect(BBC_BASIC_6.label).toBe('BBC BASIC VI');
   });
 
-  it('shares BASIC V’s tables rather than carrying a second copy', () => {
+  it("shares BASIC V's tables rather than carrying a second copy", () => {
     /* By reference, not by value. Two copies of a table that was shown to be
      * one table is how the copies come to disagree. */
     expect(BBC_BASIC_6.tokens).toBe(BBC_BASIC_5.tokens);
@@ -67,7 +67,7 @@ describe('BBC BASIC VI', () => {
     expect(BBC_BASIC_6.order).toContain('COLOR');
   });
 
-  it('says which firmware it was read from, and does not claim BASIC V’s', () => {
+  it("says which firmware it was read from, and does not claim BASIC V's", () => {
     /* The tables are shared; the provenance is not. A dialect that borrowed the
      * other's provenance would be claiming a measurement it did not make. */
     expect(BBC_BASIC_6.provenance.source).toBe('riscos616');

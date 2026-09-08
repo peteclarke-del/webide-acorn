@@ -1,8 +1,8 @@
 # ADR 0004: cc65 C adapter and WebIDE BBC runtime
 
-Status: Accepted for the BBC B/B+/Master 8-bit C vertical slice  
-Date: 21 August 2026  
-Requirements: BLD-001–BLD-015, EDT-001–EDT-028, SEC-001–SEC-003
+Status: Accepted for the BBC B/B+/Master 8-bit C vertical slice
+Date: 21 August 2026
+Requirements: BLD-001-BLD-015, EDT-001-EDT-028, SEC-001-SEC-003
 
 ## Context
 
@@ -29,11 +29,11 @@ public `<acorn.h>` declarations. It is not described as an upstream cc65 BBC
 library or as complete ISO C/stdio/conio platform support.
 
 Startup preserves the caller's hardware stack pointer and BBC zero-page bytes
-`&70–&8F`, initializes cc65's software stack at `&7200`, clears BSS, runs cc65
+`&70-&8F`, initializes cc65's software stack at `&7200`, clears BSS, runs cc65
 constructors, calls `main`, runs destructors, restores BBC state, and returns
 the low-byte result in A/X through the caller's original RTS frame. Code/data
 load at or above `&0E00` and must finish below `&7200`; the default build range
-is `&1900–&69FF`.
+is `&1900-&69FF`.
 
 The initial validated machine set is BBC B, BBC B+ and Master. This is an ABI
 and build/runtime claim, not a claim that every selected machine already has a

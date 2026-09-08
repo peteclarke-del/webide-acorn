@@ -485,8 +485,8 @@ exclusion nobody should trust.
 
 ## What is not in this list
 
-Vendored code — an emulator core compiled into the image rather than
-installed from a registry — is not in the lockfile. It is recorded in
+Vendored code, an emulator core compiled into the image rather than
+installed from a registry, is not in the lockfile. It is recorded in
 `docs/third-party-components.md` with its upstream revision and licence, and
 the release gate verifies its checksums on every run. The ElkJS core carried
 there is GPL-2.0, which is the outstanding licence position recorded in

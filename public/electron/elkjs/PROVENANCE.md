@@ -1,4 +1,4 @@
-# ElkJS — vendored Acorn Electron emulation modules
+# ElkJS: vendored Acorn Electron emulation modules
 
 ## Upstream
 
@@ -39,16 +39,16 @@ tape handling and its third-party dependencies are not used here.
 
 Two changes, both recorded in `docker/elkjs/elkjs-webide.patch`.
 
-**`memory.js` — where firmware comes from.** Upstream fetches `./os.rom` and
+**`memory.js`, where firmware comes from.** Upstream fetches `./os.rom` and
 `./basic.rom` from files beside the script. The vendored copy takes ROM images
 from its caller instead, so firmware comes from the browser-local vault and none
 is shipped with the product. Upstream behaviour is preserved when no images are
 supplied. No emulation behaviour is changed.
 
-**`processor.js` — the reset path outside a global scope.** Inside `exec6502`,
+**`processor.js`. The reset path outside a global scope.** Inside `exec6502`,
 the deferred reset that `reset6502e` requests calls a bare `reset6502()`. That
 name is a property of the module instance, not a global, so the call is a
-`ReferenceError` in any page that does not also define a global of that name —
+`ReferenceError` in any page that does not also define a global of that name,
 which upstream's own user interface happens to. Since this build loads only the
 hardware modules, the reference is qualified to `self.reset6502()`. It is the
 same function; nothing about the reset semantics changes.

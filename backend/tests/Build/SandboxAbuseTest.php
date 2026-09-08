@@ -49,7 +49,7 @@ final class SandboxAbuseTest extends TestCase
          * belongs to nobody.
          *
          * A fork bomb is the case this exists for, so the shape here is the
-         * shape of one — many processes wide and several deep — bounded so the
+         * shape of one, many processes wide and several deep, bounded so the
          * test cannot harm the machine running it. Every one of them outlives
          * the tool's deadline and then writes a file; each file that appears is
          * a process that survived the stop.

@@ -9,7 +9,7 @@
  *
  * The rule is applied and not approximated. A prefix that matches nothing is
  * left alone rather than guessed at, and text inside a string, a REM tail or a
- * DATA payload is never touched — those are program content and the tokeniser
+ * DATA payload is never touched. Those are program content and the tokeniser
  * does not read them either.
  */
 import type { BasicDialect } from './basicDialects';

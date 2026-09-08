@@ -6,9 +6,9 @@ import { ROM_SETS, fittedRomRequirements, requiredRomRequirements, romRequiremen
  *
  * These were the same thing, and it made the expanded Electron set impossible
  * to use. Every cartridge and sideways ROM offered for the Plus 1 was tagged as
- * required by the Plus 1, so switching the Plus 1 on demanded four more ROMs —
+ * required by the Plus 1, so switching the Plus 1 on demanded four more ROMs,
  * MMFS, another MMFS, the Advanced File Manager, the Retro Hardware support ROM
- * — and the machine went unready the moment somebody tried to fit the very
+ *, and the machine went unready the moment somebody tried to fit the very
  * thing the set exists for.
  *
  * A Plus 1 with no Plus 1 support ROM is not a Plus 1, so that one is required.
@@ -60,7 +60,7 @@ describe('fitting an expansion and filling it', () => {
 
     it('is satisfied by one filing system, because the interface takes one', () => {
       /* Both ADFS and the Electron DFS were marked required by the Plus 3, so
-       * fitting one asked for both — a machine nobody owns. */
+       * fitting one asked for both, a machine nobody owns. */
       expect(romRequirementsMet(ELECTRON, ['plus3'], new Set([...machine, key('adfs')])), 'ADFS alone').toBe(true);
       expect(romRequirementsMet(ELECTRON, ['plus3'], new Set([...machine, key('dfs')])), 'the DFS alone').toBe(true);
       expect(romRequirementsMet(ELECTRON, ['plus3'], new Set([...machine, key('adfs'), key('dfs')])), 'both').toBe(true);

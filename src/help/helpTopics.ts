@@ -33,6 +33,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Put a panel away with its close button or its activity-bar button, and bring it back the same way. The machine runtime beneath the editor is a panel too.",
       "Drag the bar between two panels to resize them, or focus it and use the arrow keys. Home and End go to the narrowest and widest; Enter, Space or a double-click returns the panel to its usual size.",
       "A panel's own actions are in the menu bar at the top of it. It is one tab stop: left and right move between menus, down opens one, Escape closes it.",
+      "Reorder the workbench with a panel's own Move this panel one place left and Move this panel one place right controls. The order is remembered on this computer.",
     ],
     expected: [
       "The webide-acorn and native-builder containers report healthy.",
@@ -1153,7 +1154,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "The build workspace highlights the requested symbol with aria-pressed state and a visible selected style.",
       "The notice gives the name, address, lack of editable declaration and read-only artifact destination.",
       "Source occurrences use immutable artifact source maps rather than a fresh text search.",
-      "A repeated open request is consumed after selection, so later visits to Build targets preserve the user’s current symbol choice.",
+      "A repeated open request is consumed after selection, so later visits to Build targets preserve the user's current symbol choice.",
       "Changing source, target, machine, toolchain or build identity removes generated symbols from completion and navigation until a successful rebuild.",
     ],
     limitations: [
@@ -1698,7 +1699,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Read the candidate detail and side-effect warning. Follow its maintained machine-manual citation before reading access-sensitive hardware.",
       "Accept the address. BeebAsm and BBC BASIC receive ampersand hexadecimal, ca65 receives dollar hexadecimal, and C or GNU ARM assembly receives 0x hexadecimal.",
       "For ARM RISC OS code, enter SWI followed by a name prefix, then press Ctrl+Space.",
-      "Read the SWI number, entry registers, result registers, ROM compatibility and Programmer’s Reference Manual citation.",
+      "Read the SWI number, entry registers, result registers, ROM compatibility and Programmer's Reference Manual citation.",
       "Accept the SWI. The editor inserts its numeric GNU as operand and leaves the descriptive name available in completion and help.",
     ],
     expected: [
@@ -3899,6 +3900,45 @@ export const HELP_TOPICS: HelpTopic[] = [
       caption:
         "Research results are filtered by language and category. The selected entry identifies its applicability and shared editor support.",
       captured: "2026.08 interface",
+    },
+  },
+  {
+    id: "appearance",
+    category: "Reference",
+    title: "Theme, contrast and text size",
+    summary:
+      "Change how the workbench looks and how large its text is, and have that choice remembered on this computer.",
+    prerequisites: [
+      "The IDE is open in a browser that is allowed to store a preference for this site",
+    ],
+    steps: [
+      "Open Settings and find the Appearance panel.",
+      "Choose a Theme: Match the system, Dark or Light.",
+      "Choose a Contrast: Match the system, Standard or High contrast.",
+      "Choose a Text size: Small, Medium, Default, Large, Larger or Largest.",
+    ],
+    expected: [
+      "Each choice applies as it is made. There is no Save step, because the only way to judge legibility is to look at it.",
+      "Text size scales the whole interface together, so nothing ends up larger than the thing it belongs to.",
+      "Standard contrast holds text at 4.5:1 and control borders at 3:1. High contrast holds text at 7:1 and borders at 4.5:1.",
+      "The choice is kept on this computer and is applied again the next time the IDE opens.",
+    ],
+    limitations: [
+      "Text size stops at double. Past that the fixed rails, strips and status bar crowd the work rather than the text becoming easier to read.",
+      "Match the system follows what the browser reports, so a computer that reports no preference gets the shipped default.",
+      "A stored choice this build no longer offers is discarded rather than approximated, because honouring half of it would apply a size this build does not have.",
+    ],
+    recovery: [
+      "Set Theme and Contrast back to Match the system, and Text size back to Default, to return to the shipped appearance.",
+      "Clearing site data for this address removes the stored choice along with the rest of the local state.",
+    ],
+    related: ["keyboard-accessibility", "first-run", "settings-layers"],
+    screenshot: {
+      src: "/help/appearance.png",
+      alt: "Settings workspace showing the Appearance panel with Theme, Contrast and Text size selectors and the description under each",
+      caption:
+        "Appearance sits in Settings. Each selector says what its current choice does, and the choice takes effect as it is made.",
+      captured: "2026.09 interface",
     },
   },
   {

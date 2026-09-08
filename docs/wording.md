@@ -8,7 +8,7 @@ that is said rather than smoothed over.
 ## Voice
 
 **Say what is true, then what it means for the reader.** The product refuses a
-great deal — unsupported machines, damaged discs, firmware it cannot verify —
+great deal. Unsupported machines, damaged discs, firmware it cannot verify,
 and a refusal that only says "invalid" leaves somebody with nothing to do. So a
 refusal names the thing, the measurement and the consequence:
 
@@ -35,14 +35,14 @@ be added: nothing turns indefinitely, and the only looping animation is the
 machine's own blinking cursor, which is a picture of hardware rather than a
 claim about progress. `src/theme/waitingStates.test.ts` holds that.
 
-Where a next step exists, give it — "Open Settings and supply the selected ROM
+Where a next step exists, give it, "Open Settings and supply the selected ROM
 files to activate real video, keyboard input and hardware execution." Where
 nothing has happened yet and the controls that would change that are visible
 beside the message, do not manufacture an instruction: "No breakpoint log events
 in this debug session" is complete as it stands.
 
-Generic placeholders — *No data*, *Nothing here*, *Loading…*, *Please wait*,
-*N/A*, *Coming soon* — do not appear in the product and should not be added.
+Generic placeholders (*No data*, *Nothing here*, *Loading...*, *Please wait*,
+*N/A*, *Coming soon*) do not appear in the product and should not be added.
 
 ## Numbers and addresses
 
@@ -50,7 +50,7 @@ Acorn wrote hexadecimal with an ampersand and capital digits, and the people
 reading this product have been reading `&` for forty years:
 
 - **`&1900`**, in anything a person reads. Pad to the natural width of the
-  thing — four digits for a 16-bit address, eight for a 32-bit one — unless the
+  thing (four digits for a 16-bit address, eight for a 32-bit one), unless the
   width genuinely varies, as it does for a BASIC token byte.
 - Lower-case digits are wrong: `&1e00` reads as something else.
   `src/theme/acornConventions.test.ts` refuses them.
@@ -78,8 +78,31 @@ the release gate measures every control on screen and fails on a fourth size.
 
 A state that is shown in colour is also shown in words or shape. The capability
 pills read SUPPORTED, PREVIEW and PLANNED rather than relying on their hue. The
-gate emulates forced colours — the mode where the operating system replaces the
-palette entirely — and requires every control to keep a visible boundary.
+gate emulates forced colours, the mode where the operating system replaces the
+palette entirely, and requires every control to keep a visible boundary.
+
+## Punctuation is ASCII
+
+No em dash, no en dash, no ellipsis character, no curly quotes, no true minus
+sign. Each of those has an ASCII spelling that says the same thing, so the
+typographic one is only ever a mark of prose nobody typed, and a document full
+of em dashes reads as generated whatever it actually says. The `writing` stage
+of the release gate enforces this over every tracked text file, including the
+characters written as `\uXXXX` escapes, since those reach the reader the same
+way.
+
+Replacing an em dash is not a substitution. A hyphen in its place reads exactly
+as the dash did, so the sentence is repunctuated instead: a full stop where the
+second half stands alone, a colon where it explains the first, brackets around
+an aside, a comma where the phrase merely trails, or simply the word the dash
+was standing in for. A range keeps a plain hyphen, `1-4,096 bytes`. An ellipsis
+becomes three full stops, which is also what a menu entry leading to a dialog
+takes: "Open a codebase...".
+
+Where such a character is genuinely the subject of the code, the file is named
+in the allowlist in `scripts/writingStyle.mjs` with the reason. There are seven:
+five that decode or refuse those characters rather than write in them, and the
+scanner and its own tests, which have to spell out what they look for.
 
 ## What is not settled
 

@@ -6,7 +6,7 @@ describe('ARM register editing', () => {
     expect(validateArmRegisterEdit(0, 0xffffffff)).toEqual({ register: 0, value: 0xffffffff });
     expect(validateArmRegisterEdit(15, 0x8000)).toEqual({ register: 15, value: 0x8000 });
     expect(() => validateArmRegisterEdit(15, 0x8002)).toThrow(/aligned/);
-    expect(() => validateArmRegisterEdit(16, 0)).toThrow(/R0–R15/);
+    expect(() => validateArmRegisterEdit(16, 0)).toThrow(/R0-R15/);
   });
 
   it('preserves 26-bit status/mode while converting execute PC to stored pipeline R15', () => {

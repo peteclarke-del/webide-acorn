@@ -35,8 +35,8 @@ in `src/styles.css` writes a raw pixel size; `src/typeScale.test.ts` fails if
 anything does, if a stylesheet asks for a token nothing defines, or if a page
 loaded on its own drifts from the workbench's scale.
 
-The pages that are loaded outside the workbench — `src/emulator/runtime.css`,
-`public/electron-runtime.css` and `public/archimedes-runtime.css` — each carry
+The pages that are loaded outside the workbench (`src/emulator/runtime.css`,
+`public/electron-runtime.css` and `public/archimedes-runtime.css`) each carry
 their own copy of the two numbers, because they cannot see `theme.css`. An
 override that changes the scale has to change theirs too, and the same test
 holds the copies in step.
@@ -45,7 +45,7 @@ Those copies are the *shipped* size, and a person's own choice is copied into
 each frame at runtime by `syncFrameScale`: the frames are same-origin, so the
 two properties are written straight onto the framed document. They are not
 passed through the frame's URL, because changing the URL remounts the iframe and
-remounting the iframe restarts the emulator — nobody expects a machine to reboot
+remounting the iframe restarts the emulator. Nobody expects a machine to reboot
 because they made the text bigger.
 
 The code editor is the one exception: its size is the reader's own preference,
@@ -96,9 +96,9 @@ the product can show:
 
 The standard palettes meet WCAG AA, which is what UX-006 requires; the
 high-contrast ones meet AAA, because a high-contrast setting that asked no more
-than the standard one would be a setting that did nothing. Each is declared once
-— `:root`, `:root[data-theme='light']`, `:root[data-contrast='more']` and the
-two combined — and each override block lists only the tokens that had to move.
+than the standard one would be a setting that did nothing. Each is declared once,
+`:root`, `:root[data-theme='light']`, `:root[data-contrast='more']` and the
+two combined, and each override block lists only the tokens that had to move.
 
 A person chooses among them in Settings, under Appearance, along with the type
 scale. **The theme defaults to dark rather than to the machine's setting**, which
@@ -112,7 +112,7 @@ side.
 
 **`system` is resolved in script rather than by a media query, deliberately.**
 The stylesheet holds each palette exactly once, under an attribute selector, and
-a media query cannot join a selector list — so following the operating system in
+a media query cannot join a selector list, so following the operating system in
 CSS would mean a second copy of the light palette that nothing keeps in step
 with the first. That is not hypothetical: the light theme was unreachable for
 long enough that it came to declare its own surfaces and inherit every
@@ -130,8 +130,8 @@ what is actually drawn on what.
 
 That audit is necessary and not sufficient, and the difference matters to
 anybody writing an override. It reads tokens, so it cannot see text drawn on a
-surface that deliberately does not follow the theme — the machine's bezel is
-dark in every palette — nor text on a background produced by `color-mix`. Those
+surface that deliberately does not follow the theme, the machine's bezel is
+dark in every palette, nor text on a background produced by `color-mix`. Those
 are caught by rendering instead: the `smoke` stage of the release gate walks
 nineteen workspaces in all four palettes after a real build and measures the
 contrast of what is actually on screen.

@@ -6,7 +6,7 @@
  * The Acorn tape block format is the operating system's, not the emulator's. A
  * UEF reader decodes the container and hands the bytes to the machine; nothing
  * in the reader knows what a file header is, what a checksum covers, or where a
- * block should land. So a tape with a wrong checksum does not fail to open — it
+ * block should land. So a tape with a wrong checksum does not fail to open, it
  * simply never finishes loading, quietly, on the machine.
  *
  * That means the encoder cannot be tested against a specification alone. It is

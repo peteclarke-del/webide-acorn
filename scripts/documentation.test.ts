@@ -3,7 +3,7 @@
 /* The documentation is checked the way the code is: by asserting the things
  * that go wrong silently. A broken link, a decision record missing from the
  * index, two records sharing a number, a command in the README that no longer
- * exists — none of these announce themselves, and all of them mislead someone
+ * exists. None of these announce themselves, and all of them mislead someone
  * who trusted the document. */
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -145,7 +145,7 @@ describe('the security and privacy statement', () => {
 
   it('says what happens if firmware or a credential ever reaches a published artefact', () => {
     /* The one incident case specific to this product, and the one where the
-     * wrong response — quietly replacing the artefact — is the tempting one. */
+     * wrong response, quietly replacing the artefact, is the tempting one. */
     expect(security).toMatch(/withdraw the artefact, do not merely replace it/i);
   });
 

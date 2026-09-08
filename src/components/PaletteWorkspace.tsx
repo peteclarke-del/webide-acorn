@@ -115,7 +115,7 @@ export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, 
             <div><dt>VDU bytes</dt><dd>{output.manifest.byteLength}</dd></div>
             <div><dt>Display mode</dt><dd>{output.manifest.displayMode}</dd></div>
             <div><dt>Flashing</dt><dd>{output.manifest.flashingLogicalColours.length ? output.manifest.flashingLogicalColours.join(', ') : 'none'}</dd></div>
-            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}…</code></dd></div>
+            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}...</code></dd></div>
           </dl>
           <pre aria-label="Generated palette assembler source">{output.assembly}</pre>
           <pre aria-label="Generated palette BASIC statements">{output.basic}</pre>

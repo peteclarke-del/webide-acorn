@@ -53,8 +53,8 @@ final class BeebAsmSourcePolicy
             }
         }
         /* A project that emits one binary writes one filename-free SAVE and the
-         * adapter answers with what -o produced. A project that emits several —
-         * a loader, a resident part, a set of levels — names each of them, which
+         * adapter answers with what -o produced. A project that emits several,
+         * a loader, a resident part, a set of levels, names each of them, which
          * is how every real BeebAsm project is written. Both are allowed; what
          * is not is a build that saves nothing, because then there is nothing to
          * answer with. */
@@ -79,7 +79,7 @@ final class BeebAsmSourcePolicy
      * So the path is checked rather than forbidden, against the same rule the
      * project store applies to anything it writes. It stays inside the job, it
      * does not climb out of it, and it does not overwrite a source that was
-     * staged for this build — the last because a build that rewrites its own
+     * staged for this build. The last because a build that rewrites its own
      * input is not reproducible and the second run would differ from the first.
      *
      * @param array<string, array{id: string, name: string, content: string}> $files

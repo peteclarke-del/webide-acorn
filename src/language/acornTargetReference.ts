@@ -5,7 +5,7 @@ import type { LanguageTargetContext } from './languageTarget';
 const BBC_CITATION = [{ title: 'BBC Microcomputer User Guide', url: 'https://www.bbcmicrobot.com/docs/BBC_User_Guide.pdf', section: 'Memory map assignments' }];
 const MASTER_CITATION = [{ title: 'BBC Master Advanced Reference Manual', url: 'https://www.bbproj.org/files/computer/machine-bbc-micro/manuals/advanced-master-reference-manual.pdf', section: 'Memory mapped hardware' }];
 const ARCHIMEDES_CITATION = [{ title: 'Acorn Archimedes 300 Series Service Manual', url: 'https://chrisacorns.computinghistory.org.uk/docs/Acorn/Manuals/Acorn_A300_SM.pdf', section: 'System memory map' }];
-const SWI_CITATION = [{ title: 'RISC OS 3 Programmer’s Reference Manual', url: 'https://www.riscos.com/support/developers/prm/swis.html', section: 'An introduction to SWIs' }, { title: 'RISC OS numeric SWI index', url: 'https://www.riscos.com/support/developers/prm_index/numswilist.html', section: 'OS SWIs' }];
+const SWI_CITATION = [{ title: "RISC OS 3 Programmer's Reference Manual", url: 'https://www.riscos.com/support/developers/prm/swis.html', section: 'An introduction to SWIs' }, { title: 'RISC OS numeric SWI index', url: 'https://www.riscos.com/support/developers/prm_index/numswilist.html', section: 'OS SWIs' }];
 
 interface HardwareRecord { token: string; address: number; detail: string; machines: string[]; citations: LanguageItem['documentation'] extends infer Documentation ? Documentation extends { citations?: infer Citations } ? Citations : never : never; }
 
@@ -65,7 +65,7 @@ export function acornTargetReferenceItems(file: ProjectFile, target?: LanguageTa
   if (file.language !== 'arm' || !target.machineId.startsWith('archimedes-') && !['a3000', 'a5000'].includes(target.machineId)) return hardware;
   return [...hardware, ...SWIS.map(([token, number, detail, parameters, result]): LanguageItem => ({
     token, kind: 'swi', detail: `${detail} ${parameters.length ? `Entry ${parameters.join('; ')}. ` : 'No entry registers. '}${result}.`, signature: `${token} (SWI &${number.toString(16).toUpperCase().padStart(2, '0')})`, parameters: [...parameters], insertText: `0x${number.toString(16).toUpperCase().padStart(2, '0')}`, languages: ['arm'], commitCharacters: ['Enter', 'Tab'],
-    source: { kind: 'builtin', label: 'RISC OS 3 Programmer’s Reference Manual', version: target.romId },
+    source: { kind: 'builtin', label: "RISC OS 3 Programmer's Reference Manual", version: target.romId },
     documentation: { category: 'RISC OS kernel SWI', parameters: parameters.map((parameter) => ({ name: parameter.split(':')[0]!, detail: parameter })), result, sideEffects: ['The SWI may enter SVC mode and may return an error through V when called without the X bit.'], examples: [`SWI 0x${number.toString(16).toUpperCase().padStart(2, '0')}  @ ${token}`], compatibility: { supported: true, appliesTo: [target.machineLabel, target.romLabel], warning: target.romReady ? 'The completion inserts the numeric GNU as operand so the selected native assembler can resolve it without an external header.' : 'Authoring is available, but the selected RISC OS ROM is not ready, so this SWI cannot be tested in the emulator yet.' }, citations: SWI_CITATION },
   }))];
 }

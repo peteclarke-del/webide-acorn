@@ -77,7 +77,7 @@ describe('versioned pixel asset documents', () => {
   it('rejects malformed or excessive animation metadata', () => {
     const document = addPixelSpriteFrame(createPixelAssetDocument('sprite'));
     const invalid = structuredClone(document); invalid.sprite!.animation!.frames[0]!.durationMs = 10;
-    expect(() => parsePixelAssetDocument(invalid)).toThrow('20–60,000');
+    expect(() => parsePixelAssetDocument(invalid)).toThrow('20-60,000');
     const duplicate = structuredClone(document); duplicate.sprite!.animation!.frames.push(structuredClone(duplicate.sprite!.animation!.frames[0]!));
     expect(() => parsePixelAssetDocument(duplicate)).toThrow('unique');
   });

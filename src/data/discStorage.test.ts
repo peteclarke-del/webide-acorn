@@ -5,7 +5,7 @@ import { machineProfiles } from './machines';
  * Which machines have somewhere to put a disc, and how the workbench knows.
  *
  * It knew by looking for capabilities called `dfs` or `adfs`. That is true of
- * the BBC family and false of the Electron, whose disc interface is the Plus 3 —
+ * the BBC family and false of the Electron, whose disc interface is the Plus 3,
  * so an Electron with a Plus 3 fitted and ADFS in it had a working drive and no
  * way to mount anything, because the control that mounts a disc never appeared.
  *

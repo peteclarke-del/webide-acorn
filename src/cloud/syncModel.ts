@@ -1,9 +1,9 @@
 /*
  * What state a project is in with respect to the store, and what may be done.
  *
- * The state is derived from three facts — what the store's head is, what this
+ * The state is derived from three facts (what the store's head is, what this
  * workbench last synchronised against, and whether the files have changed since
- * — rather than remembered as a flag somebody has to keep correct. A remembered
+ *), rather than remembered as a flag somebody has to keep correct. A remembered
  * flag is wrong exactly when it matters: after a crash, a reload, or a second
  * workbench.
  *
@@ -57,7 +57,7 @@ export function syncActions(state: SyncState): { primary: string | null; detail:
     case 'ahead':
       return { primary: 'Send these changes', detail: 'There are local changes the store does not have.' };
     case 'behind':
-      return { primary: 'Take the store’s newer revision', detail: 'The store has moved on and nothing has changed here, so there is nothing to lose.' };
+      return { primary: "Take the store's newer revision", detail: 'The store has moved on and nothing has changed here, so there is nothing to lose.' };
     case 'diverged':
       return { primary: 'Merge', detail: 'Both this workbench and the store have changed since they last agreed. Nothing is sent or overwritten until a merge is reviewed.' };
     case 'offline':
@@ -295,8 +295,8 @@ export interface QuotaWarning {
  *
  * A quota that only speaks when it is exceeded tells somebody their work was
  * refused, which is the worst moment to learn a limit exists. The warning
- * threshold is deliberately low enough to leave room to act — deleting a
- * project is not instantaneous work — and the message says what to do rather
+ * threshold is deliberately low enough to leave room to act, deleting a
+ * project is not instantaneous work, and the message says what to do rather
  * than only what is wrong.
  */
 export const QUOTA_WARNING_FRACTION = 0.8;

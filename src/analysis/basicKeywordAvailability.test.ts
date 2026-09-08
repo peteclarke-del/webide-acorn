@@ -22,7 +22,7 @@ describe('what the ROMs say about a keyword', () => {
     const found = basicKeywordAvailability('EDIT')!;
     expect(found.everywhere).toBe(false);
     expect(found.dialects.map((entry) => entry.id)).toEqual(['bbc-basic-4']);
-    expect(found.summary).toMatch(/A keyword of BBC BASIC IV — and not of the others/);
+    expect(found.summary).toMatch(/A keyword of BBC BASIC IV, and not of the others/);
   });
 
   it('finds a spelling that shares its token with another', () => {

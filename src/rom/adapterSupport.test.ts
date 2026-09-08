@@ -94,9 +94,9 @@ describe('adapter support matrix', () => {
 
   it('advertises a ROM manifest only when its engine can be started', () => {
     /*
-     * A manifest may be registered ahead of the engine that will run it — the
+     * A manifest may be registered ahead of the engine that will run it, the
      * Elkulator set is written down and its firmware checkable long before the
-     * core can boot — and advertising one would offer a machine configuration
+     * core can boot, and advertising one would offer a machine configuration
      * nobody can select. So each manifest falls into exactly one of two cases,
      * and both are asserted rather than one being assumed.
      */
@@ -120,8 +120,8 @@ describe('adapter support matrix', () => {
     expect(advertised).toBeGreaterThan(0);
     /* None today: the Elkulator core runs, so the set it names is advertised
      * like any other. The count is kept rather than deleted, because the rule
-     * it enforces — a manifest may be registered ahead of its engine, and must
-     * not be advertised until that engine can start — is the point, and a set
+     * it enforces (a manifest may be registered ahead of its engine, and must
+     * not be advertised until that engine can start) is the point, and a set
      * added ahead of its engine should show up here as a deliberate act. */
     expect(awaitingEngine).toBe(0);
   });

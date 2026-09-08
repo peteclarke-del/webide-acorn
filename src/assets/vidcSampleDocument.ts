@@ -10,11 +10,11 @@
  * noise with nothing to say why:
  *
  *   - VIDC is written by storing a word anywhere in its address space with the
- *     register in bits 31 to 24 of the data — `writevidc` in `src/vidc.c`
+ *     register in bits 31 to 24 of the data, `writevidc` in `src/vidc.c`
  *     dispatches on `v >> 24`, and `src/mem.c` routes &03400000 to &035FFFFF
  *     to it, in supervisor mode only.
  *   - MEMC takes its register from address bits 17 to 19 and its DMA address
- *     from bits 2 to 16 — `writememc` in `src/memc.c` switches on `(a >> 17) &
+ *     from bits 2 to 16, `writememc` in `src/memc.c` switches on `(a >> 17) &
  *     7` and its `getdmaaddr` masks fifteen bits, so sound DMA can only reach
  *     the first 512 KiB of physical memory and only in units of sixteen bytes.
  *   - Sound DMA fetches sixteen bytes at a time and wraps when the pointer
@@ -241,7 +241,7 @@ export function paddedLength(byteCount: number): number {
  * Change the channel count, keeping the placements that still have a channel.
  *
  * Sample data is not reinterpreted. The same bytes mean different things at
- * different channel counts — byte n belongs to channel n modulo the count —
+ * different channel counts. Byte n belongs to channel n modulo the count,
  * and silently rewriting somebody's sample to preserve what it sounded like
  * would be a change they did not ask for.
  */
@@ -413,8 +413,8 @@ export function generateVidcSampleOutput(document: VidcSampleDocument): VidcSamp
   }));
 
   const assumptions = [
-    'Sound DMA is already enabled. MEMC control is write-only and its other fields — page size and operating-system mode — cannot be read back, so a generated player that set the sound DMA bit would have to guess at the rest and would break the machine if it guessed wrong. RISC OS leaves sound DMA running, which is the case this was built and measured against.',
-    'The buffer address is physical. MEMC sound DMA addresses physical memory, and an address obtained from RISC OS is logical; translating one to the other is the caller’s to do and this generator does not pretend to.',
+    'Sound DMA is already enabled. MEMC control is write-only and its other fields, page size and operating-system mode, cannot be read back, so a generated player that set the sound DMA bit would have to guess at the rest and would break the machine if it guessed wrong. RISC OS leaves sound DMA running, which is the case this was built and measured against.',
+    "The buffer address is physical. MEMC sound DMA addresses physical memory, and an address obtained from RISC OS is logical; translating one to the other is the caller's to do and this generator does not pretend to.",
     'VIDC and MEMC are written in supervisor mode. The pinned core takes a data abort on a write from user mode.',
   ];
 

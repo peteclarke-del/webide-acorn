@@ -10,7 +10,7 @@
  * An adapter is the one declaration of what a language offers: how a line
  * classifies, what the outline of a document is, and what can be said about a
  * file on its own. "On its own" is the important boundary. An adapter sees one
- * file, so it reports only what one file can support — a duplicate label in
+ * file, so it reports only what one file can support, a duplicate label in
  * this file is a fact, an unresolved symbol is not, because the symbol may be
  * declared in an included file the adapter cannot see. Whole-project questions
  * stay with the project language service, which has the INCLUDE graph.
@@ -315,7 +315,7 @@ const JSON_KEYWORDS = new Set(['true', 'false', 'null']);
  *
  * The engine's message is not one shape. Some failures carry a line and
  * column, some carry a byte position, and some carry only an excerpt of the
- * text around the problem — so all three are read, in that order, and the
+ * text around the problem, so all three are read, in that order, and the
  * excerpt is located in the document. When none of them yields a position,
  * `located` is false and the caller says so rather than pointing at line one
  * as though it meant it. Claiming a wrong line is worse than admitting none.
@@ -348,7 +348,7 @@ function describeValue(value: unknown): string {
   if (Array.isArray(value)) return `${value.length} item${value.length === 1 ? '' : 's'}`;
   if (value === null) return 'null';
   if (typeof value === 'object') return `${Object.keys(value as object).length} field${Object.keys(value as object).length === 1 ? '' : 's'}`;
-  if (typeof value === 'string') return value.length > 40 ? `"${value.slice(0, 40)}…"` : `"${value}"`;
+  if (typeof value === 'string') return value.length > 40 ? `"${value.slice(0, 40)}..."` : `"${value}"`;
   return String(value);
 }
 

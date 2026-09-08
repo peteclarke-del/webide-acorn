@@ -388,7 +388,7 @@ describe('every section of the document survives a save and reopen', () => {
     const reopened = parseProject(JSON.stringify(serializableProject(populated)));
 
     /* Compared through the same serialiser, so the check is "the document says
-     * the same thing", not "the in-memory objects are identical" — the parser
+     * the same thing", not "the in-memory objects are identical", the parser
      * legitimately fills in defaults the model already carries. */
     expect(serializableProject(reopened)).toEqual(serializableProject(populated));
   });

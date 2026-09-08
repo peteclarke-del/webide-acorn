@@ -24,7 +24,7 @@ configure({ asyncUtilTimeout: 5_000 });
  * The workspaces that draw previews are written for that: each asks for a
  * context with `canvas?.getContext?.('2d')` and returns early when there is
  * none, leaving the structured grid it renders beside the picture. But jsdom's
- * unimplemented `getContext` does not return nothing — it raises, from inside a
+ * unimplemented `getContext` does not return nothing, it raises, from inside a
  * React effect, where nothing is waiting to catch it. So the guard never runs
  * and the error escapes as an unhandled rejection.
  *

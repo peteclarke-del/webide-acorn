@@ -3,7 +3,7 @@
  * Several editor features were held open waiting for "compiler-provided
  * records": where a variable really lives, which addresses a C line really
  * produced, what a function's frame really looks like. The build has been
- * emitting exactly that all along — ld65 writes a debug file whenever full
+ * emitting exactly that all along. Ld65 writes a debug file whenever full
  * debug metadata is asked for, and it was retained as a document nothing read.
  *
  * This reads it. The format is a line per record: a kind, a tab, then
@@ -17,7 +17,7 @@
  * question that already has one, and the two would eventually disagree.
  *
  * The other thing it deliberately does not do is decode a type. The pinned
- * toolchain — cc65 2.19-1, reporting itself as V2.18 — emits exactly one type
+ * toolchain (cc65 2.19-1, reporting itself as V2.18) emits exactly one type
  * record, `id=0,val="00"`, and points every C symbol at it. There is no type
  * information in the file to read, so this build says so rather than producing
  * a decoded type it inferred from somewhere else. What the file does carry
@@ -97,7 +97,7 @@ export class Cc65DebugInfoError extends Error {
 
 /*
  * `info` states a count for `file` that does not match the number of file
- * records this toolchain writes — it counts something else. Checking it would
+ * records this toolchain writes, it counts something else. Checking it would
  * fail every real build, so it is reported in `counts` and not enforced, which
  * is a different thing from pretending the file agreed.
  */
@@ -294,7 +294,7 @@ export interface Cc65Frame {
  * Storage class and frame offset are exact and are the useful part: they say
  * which variables live on the stack, at what offset from it, and which were
  * given a fixed address instead. No type is reported, because this toolchain
- * records none — see the note at the top of this file.
+ * records none. See the note at the top of this file.
  */
 export function cFunctionFrames(info: Cc65DebugInfo): Cc65Frame[] {
   const symbolById = new Map(info.symbols.map((symbol) => [symbol.id, symbol]));

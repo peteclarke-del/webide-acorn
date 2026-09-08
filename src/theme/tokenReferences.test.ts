@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
  * undefined `border: 1px solid var(--x)` removes the border altogether, because
  * `border-style` reverts to its initial `none`.
  *
- * Nothing said so, and nineteen references had accumulated across ten names —
+ * Nothing said so, and nineteen references had accumulated across ten names,
  * `--theme-on-primary` on four buttons whose label therefore inherited its
  * colour from the panel instead of contrasting with the green behind it,
  * `--theme-green` on the one thing that showed a sprite-animation button was
@@ -21,8 +21,8 @@ import { resolve } from 'node:path';
  * and three dialogs and a popover asking for shadows by names nobody defined.
  * Each looked deliberate in the source and did nothing in the browser.
  *
- * A property may legitimately be set from JavaScript rather than in CSS — panel
- * geometry and the editor's own type size are — so those are listed by name
+ * A property may legitimately be set from JavaScript rather than in CSS, panel
+ * geometry and the editor's own type size are, so those are listed by name
  * here. A name in that list is a promise that something sets it; the test holds
  * the promise by finding the code that does.
  */
@@ -44,8 +44,8 @@ const themeCss = readFileSync(resolve(process.cwd(), THEME_FILE), 'utf8');
  * A token nobody reads, and the one that is allowed to be one.
  *
  * `--theme-overlay` was defined in every palette and read nowhere. The four
- * modal backdrops each mixed their own colour instead — one of them a
- * hard-coded `rgba(0, 5, 2, .68)` — so the product had three different
+ * modal backdrops each mixed their own colour instead (one of them a
+ * hard-coded `rgba(0, 5, 2, .68)`), so the product had three different
  * treatments for the same thing, none of them following the theme, and the
  * token that exists to settle it did nothing. A defined-but-unread token is how
  * that happens: it looks like the answer while not being the answer anywhere.

@@ -11,8 +11,8 @@ separate item and deliberately last.
 ## What the identity is
 
 **The mark** is two ellipses crossing at different angles around a single lit
-dot, on a rounded square with a green gradient. It is drawn from primitives —
-CSS borders in the workbench, four SVG shapes in `public/favicon.svg` — so there
+dot, on a rounded square with a green gradient. It is drawn from primitives.
+CSS borders in the workbench, four SVG shapes in `public/favicon.svg`, so there
 is no imported artwork anywhere in it and nothing to trace back to a source.
 
 Two orbits and a seed, because that is what this product does: several machines

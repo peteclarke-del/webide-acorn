@@ -2,7 +2,7 @@
  *
  * A folder can be imported two ways already: through a directory `<input>`,
  * and through the File System Access API. Neither helps someone who was sent a
- * `.zip`, which is how Acorn source is actually passed around — a Stardot
+ * `.zip`, which is how Acorn source is actually passed around, a Stardot
  * attachment, a release from a repository, a backup of a working directory.
  *
  * An archive is hostile input. Everything in it is a claim by whoever built it,

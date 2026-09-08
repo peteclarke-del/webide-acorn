@@ -138,7 +138,7 @@
   /* One row, bounded by the workbench rather than by what is in it. Without
    * this the row is sized to its tallest child, so a configuration panel longer
    * than the window made the whole grid five hundred pixels taller than the
-   * space it had — and since the workbench clips, everything past the fold was
+   * space it had, and since the workbench clips, everything past the fold was
    * unreachable however much the panel inside it was willing to scroll. */
   .workbench { position: relative; display: grid; grid-template-columns: var(--workbench-columns, 43px minmax(320px, 1fr)); grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden; }
   .panel-surface { min-width: 0; min-height: 0; border-right: 1px solid var(--theme-line); background: color-mix(in srgb, var(--theme-surface-1) 97%, transparent); }
@@ -155,13 +155,30 @@
   .config-panel, .explorer-panel, .inspector-panel { min-height: 0; overflow: hidden; }
   .config-panel { display: flex; flex-direction: column; overflow-y: auto; scrollbar-color: var(--theme-line-strong) transparent; }
   /*
+   * A panel that scrolls must not squash what it scrolls.
+   *
+   * A flex item shrinks by default, so in a column that is taller than its
+   * container every child was compressed towards its min-height and its text
+   * drawn over the child below: the machine summary landed on top of the
+   * capability list, and a two-line help topic title on top of the next
+   * topic's category. It looked like a spacing bug and was a sizing one, and
+   * it only became visible when the shipped text size went to 1.3, because at
+   * 1.0 the content happened to fit. These columns scroll, so their children
+   * keep the height their content needs.
+   */
+  .config-panel > *,
+  .build-workspace > *, .debug-workspace > *,
+  .arch-debug-tools > *,
+  .debugger-session-workspace > *,
+  .media-workspace-stack > * { flex-shrink: 0; }
+  /*
    * The heading wraps rather than pushing its controls out of the panel.
    *
    * It was a single non-wrapping row, which was fine while it held a title and
    * a close button. Adding the move arrows put three controls beside a title
    * that grows with the type scale, and at twice the text size the inspector's
    * close button was carried past the edge of the window with nothing to scroll
-   * it back — caught by the gate's 200% text-zoom check on the change that
+   * it back. Caught by the gate's 200% text-zoom check on the change that
    * caused it. Wrapping costs a second line in the narrowest cases and keeps
    * every control reachable at every size.
    */
@@ -188,9 +205,13 @@
   .config-fields select { width: 100%; height: var(--control-h); min-width: 0; padding: 0 28px 0 var(--control-pad-x); border: 1px solid var(--theme-line); border-radius: 5px; background: var(--theme-input); color: var(--theme-ink); font: var(--fs-10)/1 var(--font-ui); letter-spacing: 0; text-transform: none; }
   .config-fields select:hover, .config-fields select:focus { border-color: var(--theme-line-strong); }
   .hardware-summary { margin: 0 12px 10px; overflow: hidden; border: 1px solid var(--theme-line); border-radius: 6px; }
-  .hardware-summary div { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 7px; padding: 6px 8px; border-bottom: 1px solid var(--theme-line); }
+  /* The label column is measured in characters, so it grows with the text
+   * size rather than staying at a width that only suited the smallest one.
+   * At 54px a label as long as FIRMWARE FILES ran past its column and was
+   * drawn over the value beside it. */
+  .hardware-summary div { display: grid; grid-template-columns: 9ch minmax(0, 1fr); gap: 7px; padding: 6px 8px; border-bottom: 1px solid var(--theme-line); }
   .hardware-summary div:last-child { border-bottom: 0; }
-  .hardware-summary span { color: var(--theme-faint); font: var(--fs-7)/1.3 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; }
+  .hardware-summary span { min-width: 0; overflow-wrap: break-word; color: var(--theme-faint); font: var(--fs-7)/1.3 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; }
   .hardware-summary strong { min-width: 0; overflow: hidden; color: var(--theme-muted); text-overflow: ellipsis; white-space: nowrap; font: 500 var(--fs-8)/1.3 var(--font-mono); }
   .capability-list { display: grid; margin: 0; padding: 0 12px 10px; border: 0; }
   .capability-list legend { display: flex; width: 100%; align-items: center; justify-content: space-between; margin-bottom: 5px; padding: 0; color: var(--theme-muted); font: 700 var(--fs-8)/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
@@ -347,7 +368,9 @@
   .definition-choices { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px; padding: 5px 8px; border-bottom: 1px solid var(--theme-line); background: color-mix(in srgb, var(--theme-warning) 5%, var(--theme-surface-0)); }.definition-choices > div { display: grid; min-width: 190px; margin-right: 4px; }.definition-choices > div strong { color: var(--theme-warning); font-size: var(--fs-8); }.definition-choices > div span { color: var(--theme-muted); font-size: var(--fs-7); }.definition-choices > button { display: grid; min-width: 105px; grid-template-columns: 1fr auto; gap: 2px 6px; padding: 4px 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-1); color: var(--theme-ink); text-align: left; }.definition-choices > button code { color: var(--syntax-symbol); font: var(--fs-6)/1 var(--font-mono); }.definition-choices > button small { grid-column: 1 / -1; color: var(--theme-faint); font-size: var(--fs-6); }
   .reference-peek { display: grid; max-height: 190px; overflow: hidden; border-bottom: 1px solid var(--theme-line); background: color-mix(in srgb, var(--theme-secondary) 4%, var(--theme-surface-0)); }.reference-peek-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px; border-bottom: 1px solid var(--theme-line); }.reference-peek-heading > div { display: grid; gap: 2px; }.reference-peek-heading strong { color: var(--theme-secondary); font-size: var(--fs-8); }.reference-peek-heading span { color: var(--theme-muted); font: var(--fs-6)/1.2 var(--font-mono); }.reference-peek button { border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-1); color: var(--theme-ink); }.reference-peek-results { display: grid; overflow: auto; }.reference-peek-results > button { display: grid; grid-template-columns: minmax(150px, .34fr) minmax(240px, 1fr); gap: 8px; padding: 5px 8px; border-width: 0 0 1px; border-radius: 0; text-align: left; }.reference-peek-results > button:hover, .reference-peek-results > button:focus-visible { background: var(--theme-selection); }.reference-peek-results span { display: flex; align-items: center; gap: 6px; }.reference-peek-results b { color: var(--theme-ink); font: var(--fs-7)/1.2 var(--font-mono); }.reference-peek-results small { color: var(--theme-faint); font: var(--fs-6)/1 var(--font-mono); text-transform: uppercase; }.reference-peek-results code { overflow: hidden; color: var(--theme-muted); font: var(--fs-7)/1.2 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
   .signature-help { display: grid; min-height: 27px; grid-template-columns: auto minmax(150px, auto) minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--theme-line); background: color-mix(in srgb, var(--theme-secondary) 4%, var(--theme-surface-0)); }.signature-help > span { color: var(--theme-faint); font: var(--fs-6)/1 var(--font-mono); letter-spacing: .08em; }.signature-help > code { overflow: hidden; color: var(--syntax-symbol); font: var(--fs-7)/1.2 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }.signature-parameters { display: flex; min-width: 0; gap: 3px; overflow: hidden; }.signature-help strong { display: grid; gap: 1px; padding: 3px 5px; border: 1px solid var(--theme-line); border-radius: 2px; color: var(--theme-faint); font: var(--fs-6)/1 var(--font-mono); white-space: nowrap; }.signature-help strong small { color: var(--theme-faint); font: var(--fs-4-5)/1 var(--font-mono); }.signature-help strong.active { border-color: var(--theme-secondary); background: color-mix(in srgb, var(--theme-secondary) 12%, transparent); color: var(--theme-secondary); }.signature-controls { display: flex; gap: 2px; }.signature-controls button { min-width: 22px; height: 24px; padding: 0 4px; border: 1px solid var(--theme-line); border-radius: 2px; background: var(--theme-surface-2); color: var(--theme-muted); font: var(--fs-6)/1 var(--font-mono); }.signature-controls button:hover:not(:disabled), .signature-controls button:focus-visible { border-color: var(--theme-secondary); color: var(--theme-secondary); }.signature-controls button:disabled { opacity: var(--control-disabled-opacity); }.signature-alternatives { display: grid; grid-column: 1 / -1; max-height: 70px; gap: 2px; margin: 0; padding: 3px 0 0; overflow: auto; list-style: none; border-top: 1px solid var(--theme-line); }.signature-alternatives li { display: grid; grid-template-columns: minmax(170px, auto) 1fr; gap: 7px; padding: 2px 4px; border-left: 2px solid transparent; }.signature-alternatives li[aria-current='true'] { border-left-color: var(--theme-secondary); background: color-mix(in srgb, var(--theme-secondary) 7%, transparent); }.signature-alternatives code { color: var(--syntax-symbol); font: var(--fs-6)/1.2 var(--font-mono); }.signature-alternatives small { color: var(--theme-muted); font: var(--fs-5-5)/1.2 var(--font-mono); }
-  .basic-numbering { display: flex; min-height: 34px; flex-wrap: wrap; align-items: end; gap: 5px; padding: 5px 8px; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }.basic-numbering label:not(.basic-auto) { display: grid; width: 76px; gap: 2px; color: var(--theme-faint); font: var(--fs-5-5)/1 var(--font-mono); text-transform: uppercase; }.basic-numbering label:has(select) { width: 108px; }.basic-numbering input:not([type='checkbox']), .basic-numbering select, .basic-numbering button { min-width: 0; height: 24px; padding: 0 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-input); color: var(--theme-ink); font: var(--fs-6)/1 var(--font-mono); }.basic-numbering button { background: var(--theme-surface-2); }.basic-numbering button:disabled { opacity: var(--control-disabled-opacity); }.basic-auto { display: flex; min-width: 125px; min-height: 24px; align-items: center; gap: 5px; color: var(--theme-muted); font: var(--fs-6)/1 var(--font-mono); }.basic-auto input { width: 13px; height: 13px; }.basic-numbering > small { min-width: 150px; flex: 1; align-self: center; overflow: hidden; color: var(--theme-faint); font: var(--fs-5-5)/1.2 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+  .basic-numbering { display: flex; min-height: 34px; flex-wrap: wrap; align-items: end; gap: 5px; padding: 5px 8px; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }.basic-numbering label:not(.basic-auto) { display: grid; width: 11ch; gap: 2px; color: var(--theme-faint); font: var(--fs-5-5)/1 var(--font-mono); text-transform: uppercase; }/* Widths in characters, so a label such as INCREMENT still fits its column
+   * at a larger text size instead of running into the label beside it. */
+  .basic-numbering label:has(select) { width: 15ch; }.basic-numbering input:not([type='checkbox']), .basic-numbering select, .basic-numbering button { min-width: 0; height: 24px; padding: 0 6px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-input); color: var(--theme-ink); font: var(--fs-6)/1 var(--font-mono); }.basic-numbering button { background: var(--theme-surface-2); }.basic-numbering button:disabled { opacity: var(--control-disabled-opacity); }.basic-auto { display: flex; min-width: 125px; min-height: 24px; align-items: center; gap: 5px; color: var(--theme-muted); font: var(--fs-6)/1 var(--font-mono); }.basic-auto input { width: 13px; height: 13px; }.basic-numbering > small { min-width: 150px; flex: 1; align-self: center; overflow: hidden; color: var(--theme-faint); font: var(--fs-5-5)/1.2 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
   .renumber-preview { display: grid; flex: 0 0 auto; max-height: 190px; grid-template-columns: minmax(280px, .8fr) minmax(250px, 1.2fr); overflow: hidden; border-bottom: 1px solid var(--theme-warning); background: var(--theme-surface-raised); }.renumber-preview-heading { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(180px, 1fr) auto auto auto; align-items: center; gap: 7px; min-height: 31px; padding: 5px 8px; border-bottom: 1px solid var(--theme-line); }.renumber-preview-heading strong { color: var(--theme-warning); font: var(--fs-7)/1 var(--font-mono); }.renumber-preview-heading span { color: var(--theme-muted); font: var(--fs-6)/1 var(--font-mono); }.renumber-preview-heading button { min-height: 24px; padding: 0 7px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-2); color: var(--theme-ink); font: var(--fs-6)/1 var(--font-mono); }.renumber-preview-heading button:disabled { opacity: var(--control-disabled-opacity); }.renumber-errors, .renumber-unresolved { min-height: 0; margin: 0; padding: 6px 8px 6px 24px; overflow: auto; border-right: 1px solid var(--theme-line); color: var(--theme-danger); font: var(--fs-6)/1.4 var(--font-mono); }.renumber-unresolved { color: var(--theme-muted); }.renumber-unresolved li { display: grid; grid-template-columns: 38px 80px minmax(0, 1fr); gap: 5px; padding: 3px; }.renumber-unresolved code { color: var(--syntax-address); }.renumber-unresolved strong { color: var(--theme-warning); font-weight: 500; }.renumber-map { min-height: 0; overflow: auto; font: var(--fs-6)/1.2 var(--font-mono); }.renumber-map > div { display: grid; grid-template-columns: 75px 70px 70px; gap: 6px; padding: 4px 8px; border-bottom: 1px solid var(--theme-line); }.renumber-map > div:first-child { position: sticky; top: 0; background: var(--theme-surface-2); color: var(--theme-faint); text-transform: uppercase; }.renumber-map code { color: var(--theme-muted); }.renumber-map strong { color: var(--theme-primary-light); }.renumber-map > small { display: block; padding: 5px 8px; color: var(--theme-faint); }
   .source-editor-layout { display: grid; flex: 1; min-width: 0; min-height: 0; grid-template-columns: minmax(0, 1fr) 165px; overflow: hidden; }
   .source-editor-wrap { position: relative; display: grid; min-width: 0; min-height: 0; grid-template-columns: 43px minmax(0, 1fr); overflow: hidden; background: var(--theme-editor); }
@@ -485,8 +508,8 @@
   .analysis-inspector section button { padding: 4px 5px; border: 1px solid var(--theme-line); border-radius: 3px; background: var(--theme-surface-2); color: var(--theme-secondary); font: var(--fs-7)/1 var(--font-mono); }
   .analysis-inspector section small, .analysis-inspector section p { margin: 0; color: var(--theme-faint); font-size: var(--fs-7); line-height: 1.45; }
 
-  /* These stack more panels than fit — the build workspace comes to several
-   * hundred pixels more than its pane on an ordinary window — and clipping them
+  /* These stack more panels than fit, the build workspace comes to several
+   * hundred pixels more than its pane on an ordinary window, and clipping them
    * put the build graph and the output log out of reach entirely. They scroll.
    * Anything inside that manages its own scrolling still does. */
   .build-workspace, .debug-workspace { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; background: var(--theme-editor); }
@@ -858,7 +881,7 @@
    * Text drawn on the machine's own surfaces, which are dark in every theme.
    *
    * A BBC Micro's screen and its bezel are dark whatever the workbench is set
-   * to, so those backgrounds do not follow the theme — and the moment the light
+   * to, so those backgrounds do not follow the theme, and the moment the light
    * theme became reachable, the workbench text on them did follow it and turned
    * dark on dark. "ROM set not ready" measured 1.63:1 in the light theme and
    * 1.16:1 in light high contrast.
@@ -1456,7 +1479,7 @@
     /* Too narrow for a menu bar beside the workspaces, so it takes the line
      * above them and wraps within it rather than running off the edge. The
      * strip is one fixed row in the shell at every other width, so the row has
-     * to be told to grow with it — a wrapped bar in a 37-pixel row draws over
+     * to be told to grow with it. A wrapped bar in a 37-pixel row draws over
      * the workbench underneath. */
     .app-shell { grid-template-rows: 58px auto minmax(0, 1fr) 25px; }
     .modebar { flex-wrap: wrap; }
@@ -1638,9 +1661,14 @@
 .help-title h1 { margin-top: 3px; font-size: var(--fs-16); }.help-title small { color: var(--theme-faint); font: var(--fs-6)/1 var(--font-mono); }
 .help-navigation > label { display: grid; gap: 3px; color: var(--theme-faint); font: var(--fs-6)/1 var(--font-mono); text-transform: uppercase; }
 .help-navigation input, .help-navigation select { width: 100%; height: 30px; border: 1px solid var(--theme-line-strong); border-radius: 3px; background: var(--theme-input); color: var(--theme-ink-strong); font: var(--fs-7)/1 var(--font-mono); }
-.help-navigation nav { display: grid; min-height: 0; gap: 3px; overflow: auto; }
+/* A column rather than a grid, because a grid row is sized from the item's
+ * max-content height, which for a topic title is the one line it would take
+ * if it never wrapped. The title then wraps to the real column width and needs
+ * two lines, and the extra line was drawn over the next entry's category. A
+ * flex column sizes each entry to the height it actually occupies. */
+.help-navigation nav { display: flex; min-height: 0; flex-direction: column; gap: 3px; overflow: auto; }
 /* A navigation entry of two lines rather than a control. */
-.help-navigation nav button { display: grid; gap: 3px; min-height: 42px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--theme-muted); text-align: left; }
+.help-navigation nav button { display: grid; flex: 0 0 auto; gap: 3px; min-height: 42px; padding: 6px 8px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--theme-muted); text-align: left; }
 /* The help navigation sits on a lighter surface than the rest of the shell,
    where the faint token does not reach 4.5:1. The muted one does. */
 .help-navigation nav button span { color: var(--theme-muted); font: var(--fs-5-5)/1 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; }.help-navigation nav button strong { font: var(--fs-7)/1.25 var(--font-ui); }
@@ -1771,7 +1799,7 @@
 @media (max-width: 900px) { .call-hierarchy-columns { grid-template-columns: 1fr; }.call-hierarchy-columns article { grid-template-columns: 1fr; } }
 .tab-access,.document-kind,.document-access { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: 5px; padding: 2px 4px; border: 1px solid var(--theme-line); border-radius: 2px; color: var(--theme-muted); font: var(--fs-5)/1 var(--font-mono); letter-spacing: .04em; }.document-kind.imported { color: var(--theme-secondary); }.document-kind.generated,.document-access,.tab-access { border-color: color-mix(in srgb, var(--theme-warning) 50%, var(--theme-line)); color: var(--theme-warning); }.document-access-policy { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; min-height: 32px; padding: 5px 10px; border-bottom: 1px solid var(--theme-warning); background: color-mix(in srgb, var(--theme-warning) 7%, var(--theme-surface-1)); }.document-access-policy strong { color: var(--theme-warning); font: var(--fs-7)/1.2 var(--font-mono); white-space: nowrap; }.document-access-policy span { color: var(--theme-muted); font: var(--fs-6)/1.35 var(--font-mono); }.source-textarea:read-only { cursor: text; background: color-mix(in srgb, var(--theme-warning) 2%, var(--theme-editor)); }
 
-/* Adapter capability disclosure — what an attached core does not offer, and
+/* Adapter capability disclosure. What an attached core does not offer, and
    why, stated in the panel rather than discovered at the point of failure. */
 .adapter-capability-note { flex: 0 0 auto; margin: 6px 8px 8px; padding: 6px 8px; border: 1px solid var(--theme-line); border-radius: var(--radius-xs); background: var(--theme-surface-1); font: var(--fs-7)/1.4 var(--font-mono); }
 .adapter-capability-note > summary { cursor: pointer; color: var(--theme-accent); letter-spacing: .04em; }

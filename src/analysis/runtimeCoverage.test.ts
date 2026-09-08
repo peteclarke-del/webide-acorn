@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { disassemble6502 } from './disassembler6502';
 import { correlateRuntimeCoverage, rowCoverageLabel, type RuntimeCoverageInput } from './runtimeCoverage';
 
-/* 1900 LDA #&00 / 1902 JMP (&1910) / 1905 LDA #&42 / 1907 RTS / … */
+/* 1900 LDA #&00 / 1902 JMP (&1910) / 1905 LDA #&42 / 1907 RTS / ... */
 const BYTES = Uint8Array.from([0xa9, 0x00, 0x6c, 0x10, 0x19, 0xa9, 0x42, 0x60]);
 const DIGEST = '1'.repeat(64);
 const OTHER_DIGEST = '2'.repeat(64);

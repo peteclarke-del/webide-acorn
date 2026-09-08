@@ -3,7 +3,7 @@
  *
  * A loading screen is usually not authored in a screen editor. It is a picture
  * converted by a tool, written out as the exact bytes the video hardware reads,
- * and loaded at &3000 by the game's loader — a `.scr`, a `LOADPIC`, a file with
+ * and loaded at &3000 by the game's loader. A `.scr`, a `LOADPIC`, a file with
  * no extension at all. That file is not text, so the importer excluded it and
  * the project arrived with the artwork it opens on missing entirely.
  *

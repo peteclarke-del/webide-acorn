@@ -7,16 +7,16 @@ import { resolve } from 'node:path';
  *
  * The runtime turns characters into SDL scancodes and presses them. Its
  * alphabet was letters, digits, space and six punctuation marks, which was
- * enough for the thing it was written for — typing `Run <path>` to launch an
- * application — and not enough to drive the machine for anything else. A
+ * enough for the thing it was written for, typing `Run <path>` to launch an
+ * application, and not enough to drive the machine for anything else. A
  * measurement that needs to type `HIMEM=1` cannot, because there was no `=`.
  *
  * The characters added are only those whose key is in the same place on the UK
  * layout the machine boots with and the US layout SDL names its scancodes from.
  * That is the whole rule, and it excludes the obvious ones: `"` is Shift-2 here
  * and Shift-' there, `@` is the other way round, and `#` sits on a key US
- * layouts do not have. A wrong mapping does not fail — it types a different
- * character — so a measurement built on one would record something the machine
+ * layouts do not have. A wrong mapping does not fail, it types a different
+ * character, so a measurement built on one would record something the machine
  * never saw.
  *
  * These read the runtime's own source rather than restating the table, so the
@@ -64,7 +64,7 @@ describe('what the A310 keyboard can type', () => {
  *
  * F12 is how anybody gets to a RISC OS supervisor prompt. The runtime already
  * pressed it when launching an application, but only inside that, so nothing
- * else could reach a prompt — and the keyboard has no star key, so a star
+ * else could reach a prompt, and the keyboard has no star key, so a star
  * command was not a way round it either.
  */
 describe('pressing a function key', () => {
@@ -89,7 +89,7 @@ describe('pressing a function key', () => {
  * Capturing the screen more than once in a session.
  *
  * `capture-screen` answered the first request and none of the later ones, in
- * the same session, with no error and no rejection — every other command kept
+ * the same session, with no error and no rejection, every other command kept
  * working, including sixty-four `read-memory` calls after the last successful
  * capture. `canvas.toBlob` simply never called back.
  *
@@ -100,7 +100,7 @@ describe('pressing a function key', () => {
  *
  * It matters well beyond a screenshot. The screen is the only way to see where
  * a machine has got to, and without it a driver has to infer the machine's
- * state from memory — which is exactly what left the RISC OS 2 measurement
+ * state from memory, which is exactly what left the RISC OS 2 measurement
  * unable to say whether BASIC was ever running.
  */
 describe('capturing the A310 screen', () => {

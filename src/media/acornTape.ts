@@ -11,8 +11,8 @@
  *
  * The **UEF container** is what an emulator reads: a header and a list of
  * chunks, each an identifier, a length and its bytes. Which chunks are
- * understood is not a matter of opinion — it is whatever the reader that will
- * be asked to load this implements — so the ones used here are taken from
+ * understood is not a matter of opinion, it is whatever the reader that will
+ * be asked to load this implements, so the ones used here are taken from
  * jsbeeb's own tape reader, which is the code that will actually be handed the
  * file: carrier tone, a gap, and implicit-format data.
  *
@@ -20,7 +20,7 @@
  * all. It is the operating system's: the MOS reads a header naming the file, its
  * load and execution addresses, which block this is and how long it is, checks
  * it, then reads the data and checks that. No emulator validates it, which means
- * no emulator can tell you it is wrong — a tape with a bad checksum simply never
+ * no emulator can tell you it is wrong. A tape with a bad checksum simply never
  * finishes loading.
  *
  * So the block format here is verified the only way it can be: by writing a tape,
@@ -120,7 +120,7 @@ export function encodeTapeBlock(file: TapeFile, blockNumber: number, data: Uint8
     ...u16(blockNumber),
     ...u16(data.length),
     /* Bit 7 says this is the last block; the rest are for things this build
-     * does not produce — locked files and blocks with no data. */
+     * does not produce. Locked files and blocks with no data. */
     last ? 0x80 : 0x00,
     0x00, 0x00, 0x00, 0x00,
   ];
@@ -243,7 +243,7 @@ export function encodeAtomTapeBlock(file: TapeFile, blockNumber: number, data: U
    * The sum covers the four synchronising asterisks as well as the header and
    * the data. That is not what a reading of the format suggests, and leaving
    * them out produces a tape the Atom rejects with SUM ERROR 6 having already
-   * placed the right bytes in memory — the load is undone at the last step. The
+   * placed the right bytes in memory. The load is undone at the last step. The
    * machine settled it: see ACORN_TAPE_MEASUREMENTS.
    */
   const body = [0x2a, 0x2a, 0x2a, 0x2a, ...header, ...data];

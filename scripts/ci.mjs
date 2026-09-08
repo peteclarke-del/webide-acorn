@@ -49,7 +49,7 @@ const only = argv.slice(2).find((value) => !value.startsWith('--'));
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
 /* Three stages drive the built workbench out of dist rather than the sources,
- * which is right — that is what ships. But run one of them on its own and it
+ * which is right, that is what ships. But run one of them on its own and it
  * will happily walk whatever was built last, so a change under src looks like
  * it made no difference, or an old defect looks like it is still there. In a
  * whole gate the build stage runs first and this never fires; on its own it
@@ -136,7 +136,7 @@ await stage('contracts', async () => {
   /* The API description is the contract, and both sides are checked against it:
    * the generated TypeScript here, and the real routes and real answers in the
    * backend stage's conformance tests. This compares rather than regenerates,
-   * for the same reason the guides do — a stage that writes the file it then
+   * for the same reason the guides do. A stage that writes the file it then
    * inspects passes by definition. */
   const contracts = await run('node', ['scripts/generateApiTypes.mjs', '--check']);
   expectSuccess(contracts, 'Typed client contracts');
@@ -249,8 +249,8 @@ async function phpstanLevel() {
  * Unlike every other stage, this one fails because the world changed rather
  * than because this repository did: a package that was clean this morning can
  * carry a critical advisory this afternoon with nothing here having moved. So
- * the threshold sits where somebody would actually act — high and critical
- * fail, moderate and low are reported — and the summary always names the scans
+ * the threshold sits where somebody would actually act (high and critical
+ * fail, moderate and low are reported), and the summary always names the scans
  * that did not run, because a security stage reporting only its own scope
  * would read as a clean bill of health for all of SEC-901.
  */
@@ -315,7 +315,7 @@ await stage('provenance', async () => {
  * This is SEC-903 as an executable check rather than a promise. */
 await stage('hygiene', async () => {
   /* What must never be committed, or published in a build. The rule used to be
-   * one line — no firmware extensions — which is the most important case and
+   * one line, no firmware extensions, which is the most important case and
    * not the only one: a release is also wrong if it carries a private key, an
    * access token, or somebody's captured memory dump, and none of those
    * announce themselves by their extension. The scanner is shared with the
@@ -364,6 +364,36 @@ await stage('hygiene', async () => {
   return { detail: `${repository.scanned} of ${paths.length} project files and ${bundled.scanned} built files carry no firmware, capture or credential` };
 });
 
+await stage('writing', async () => {
+  /* Punctuation nobody typed. An em dash, an ellipsis character or a curly
+   * quote is the mark of generated prose, and each has an ASCII spelling that
+   * says the same thing, so the typographic one is only ever noise. Cleaning
+   * them out once would not hold, because the next document written brings them
+   * back; this is the rule that keeps them out. The scanner is shared with the
+   * test suite so the gate and the contracts cannot disagree. */
+  const { scanRepository: scanWriting, summarise: summariseWriting, unexplainedAllowlistEntries: unexplainedWriting } = await import('./writingStyle.mjs');
+
+  const listed = await run('git', ['ls-files', '--cached', '--others', '--exclude-standard']);
+  expectSuccess(listed, 'git ls-files');
+  const vendored = /^(?:node_modules|backend\/vendor|\.toolchains|dist|coverage)\//;
+  const paths = listed.output.split('\n').map((line) => line.trim()).filter(Boolean).filter((path) => !vendored.test(path));
+  if (!paths.length) throw new Error('No files were listed to scan, so nothing was checked');
+
+  const read = async (path) => {
+    try { return await readFile(join(root, path), 'utf8'); }
+    catch { return null; }
+  };
+  const { findings, scanned } = await scanWriting(paths, read);
+  if (!scanned) throw new Error('No text file was read, so nothing was checked');
+
+  const all = [...findings, ...unexplainedWriting()];
+  if (all.length) {
+    const lines = summariseWriting(findings);
+    throw new Error(`${all.length} writing finding(s): ${lines.slice(0, 6).join(' | ')}${lines.length > 6 ? ` | and ${lines.length - 6} more` : ''}`);
+  }
+  return { detail: `${scanned} text files carry no em dash, ellipsis, curly quote or other punctuation nobody typed` };
+});
+
 await stage('smoke', async () => {
   const chromium = await firstExisting(CHROMIUM_CANDIDATES);
   if (!chromium) return { skipped: true, reason: env.CHROMIUM_PATH ? `CHROMIUM_PATH names ${env.CHROMIUM_PATH}, which is not there` : 'no Chromium binary found; set CHROMIUM_PATH to include the browser smoke' };
@@ -409,7 +439,7 @@ await stage('smoke', async () => {
    * Chromium hands its command line to an existing instance when one already
    * holds the same profile, and then exits. The debugging port answers either
    * way, so a gate that only asks whether the port responds will happily
-   * measure a browser it did not start — one that may have been running for
+   * measure a browser it did not start. One that may have been running for
    * days, carrying the storage of every previous run.
    *
    * That is not hypothetical: a browser left behind by an earlier run was found
@@ -506,8 +536,8 @@ await stage('smoke', async () => {
     await delay(2000);
 
     /* Reflow and zoom, in the same page. WCAG 1.4.10 asks that at 320 CSS
-     * pixels of width — which is also what 400% zoom on a 1280-pixel display
-     * produces — the page does not require scrolling in two directions, and
+     * pixels of width, which is also what 400% zoom on a 1280-pixel display
+     * produces, the page does not require scrolling in two directions, and
      * that nothing is put out of reach. It is checked here rather than by hand
      * because a layout regression is invisible until someone is using a small
      * window, and by then it has shipped. */
@@ -570,7 +600,7 @@ await stage('smoke', async () => {
     /*
      * Text at twice its size, at an ordinary viewport.
      *
-     * The sweep above shrinks the viewport, which is WCAG 1.4.10 reflow — 640
+     * The sweep above shrinks the viewport, which is WCAG 1.4.10 reflow, 640
      * wide is a 200% zoom of 1280, and 320 is 400%. Resizing the *text* and not
      * the page is a different criterion, 1.4.4, and the product now has a
      * control for it: the type scale multiplies every size in the workbench, up
@@ -624,8 +654,8 @@ await stage('smoke', async () => {
      * than listed here, so a new one is scanned the day it is added. Search
      * opens a modal over whatever is behind it and is scanned in place. */
     /* A sample project is opened first. Most of the workbench has nothing to
-     * show until something is loaded — the asset editors, the disassembly, the
-     * test list — so scanning the empty state would report a clean page while
+     * show until something is loaded (the asset editors, the disassembly, the
+     * test list), so scanning the empty state would report a clean page while
      * leaving the surfaces that carry the most information unmeasured. This
      * drives the real dialog rather than seeding storage, so the code that
      * opens a project is exercised on the way. */
@@ -665,7 +695,7 @@ await stage('smoke', async () => {
      * size maps, the artifact documents and the symbol list are all rendered
      * from a build result, and scanning before one exists reports a clean page
      * while leaving them unmeasured. That was the whole of what kept A11Y-902
-     * open — coverage, not conformance.
+     * open, coverage, not conformance.
      *
      * The build is driven through the real command rather than by seeding a
      * result, so the path a person takes is the path that is scanned. */
@@ -705,8 +735,8 @@ await stage('smoke', async () => {
 
     /* Headless Chromium opens at 800 by 600, which is narrow enough that the
      * workbench lays its panels over the editor and hides the inspector
-     * altogether. Scanning only that left the desktop layout — the one almost
-     * everybody uses — unscanned, and a contrast failure in the inspector's
+     * altogether. Scanning only that left the desktop layout, the one almost
+     * everybody uses, unscanned, and a contrast failure in the inspector's
      * problem badge sat there unreported. The scan runs at a desktop size for
      * the same reason the explorer is opened below. */
     await call('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 0, mobile: false });
@@ -768,7 +798,7 @@ await stage('smoke', async () => {
      * Reachability is already checked, and reachability is not the same
      * question: a control can be reachable and still be somewhere a person
      * cannot leave. A focus trap outside a dialog is one of the few defects that
-     * makes a product unusable rather than merely awkward — somebody navigating
+     * makes a product unusable rather than merely awkward, somebody navigating
      * by keyboard has no way out but to reload the page.
      *
      * WCAG 2.1.2 does not say a component may never hold Tab. It says that if
@@ -777,7 +807,7 @@ await stage('smoke', async () => {
      * unmodified Tab the person has to be told how. A code editor holding Tab so
      * that Tab indents is exactly the case the criterion has in mind. So a
      * control that does not pass Tab on is asked whether it advertises a way
-     * out, and then the way out is used and checked to work — because an
+     * out, and then the way out is used and checked to work, because an
      * advertised escape that does nothing is worse than none at all.
      *
      * The presses are dispatched through the browser rather than synthesised in
@@ -795,7 +825,7 @@ await stage('smoke', async () => {
      * Which element has focus, identified by where it is rather than by what it
      * is called. The first attempt used the tag, classes and label, and the
      * capability toggles are a column of bare `<input type="checkbox">` named by
-     * a wrapping <label> — so every one of them produced the same string and the
+     * a wrapping <label>, so every one of them produced the same string and the
      * walk reported that focus had not moved when it had moved on by one. A
      * position in the tree is unique whether or not the element says anything
      * about itself.
@@ -855,7 +885,7 @@ await stage('smoke', async () => {
      * the dark theme, and that is what it had always checked. The light theme
      * was reachable for the first time and had never been rendered by anything;
      * measured, it had eleven pieces of text below their contrast target, and
-     * the token-level audit could not see any of them — text on the machine's
+     * the token-level audit could not see any of them, text on the machine's
      * bezel, which stays dark in every theme, and text on the page ground,
      * which the audit was not comparing against. A palette nothing renders is a
      * palette nothing checks.
@@ -995,7 +1025,7 @@ await stage('smoke', async () => {
     socket?.close();
     /* Waited for rather than signalled and forgotten. A browser that is still
      * shutting down is still writing to its profile, so removing the directory
-     * underneath it leaves most of it behind — which is how one of these came
+     * underneath it leaves most of it behind, which is how one of these came
      * to be holding the port a day later. */
     if (browser.exitCode === null) {
       await new Promise((exited) => {
@@ -1156,7 +1186,7 @@ async function measureFirefox(geckodriver, base, probe, runtimePages, runtimePro
           ...(env.FIREFOX_BINARY ? { binary: env.FIREFOX_BINARY } : {}),
           /* Headless when there is no display, and on the display when there is
            * one. Headless Firefox on a machine with no GPU tries native GL,
-           * finds none and stops — it reported exactly that on a runner even
+           * finds none and stops. It reported exactly that on a runner even
            * after Mesa was installed for it. Given a display it takes the
            * ordinary path and software Mesa answers. */
           args: env.DISPLAY ? [] : ['-headless'],

@@ -39,11 +39,11 @@ export function formatMemoryRows(address: number, bytes: number[], width: number
 export function parseMemorySearch(input: string, mode: 'bytes' | 'text') {
   if (mode === 'text') {
     const bytes = Array.from(new TextEncoder().encode(input));
-    if (!bytes.length || bytes.length > 256 || bytes.some((byte) => byte > 0x7f)) throw new Error('Text search requires 1–256 ASCII characters');
+    if (!bytes.length || bytes.length > 256 || bytes.some((byte) => byte > 0x7f)) throw new Error('Text search requires 1-256 ASCII characters');
     return bytes as Array<number | null>;
   }
   const tokens = input.trim().split(/[\s,]+/).filter(Boolean);
-  if (!tokens.length || tokens.length > 256) throw new Error('Byte search requires 1–256 values');
+  if (!tokens.length || tokens.length > 256) throw new Error('Byte search requires 1-256 values');
   return tokens.map((token) => {
     if (token === '?' || token === '??') return null;
     const value = Number.parseInt(token.replace(/^(?:&|\$|0x)/i, ''), 16);

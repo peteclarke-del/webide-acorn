@@ -63,7 +63,7 @@ export function SystemStatusPanel() {
         <button type="button" onClick={() => void ask()}><Icon name="reset" size={14} /> Check again</button>
       </div>
 
-      {outcome.kind === 'asking' && <p role="status">Asking the build service whether it is ready…</p>}
+      {outcome.kind === 'asking' && <p role="status">Asking the build service whether it is ready...</p>}
 
       {outcome.kind === 'unreachable' && (
         <p className="honest-note" role="status">
@@ -102,9 +102,9 @@ export function SystemStatusPanel() {
                 return (
                   <tr key={toolchain.id} className={toolchain.ready ? undefined : 'not-ready'}>
                     <th scope="row">{toolchain.label}<small>{toolchain.id}</small></th>
-                    <td>{toolchain.language ?? '—'}</td>
-                    <td><code>{toolchain.packageVersion ?? toolchain.adapterVersion ?? '—'}</code></td>
-                    <td><code>{toolchain.licence?.spdx ?? '—'}</code></td>
+                    <td>{toolchain.language ?? '-'}</td>
+                    <td><code>{toolchain.packageVersion ?? toolchain.adapterVersion ?? '-'}</code></td>
+                    <td><code>{toolchain.licence?.spdx ?? '-'}</code></td>
                     <td>
                       {checks.length
                         ? <span>{passed} of {checks.length} passed</span>

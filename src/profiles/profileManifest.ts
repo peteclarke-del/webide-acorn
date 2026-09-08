@@ -8,8 +8,8 @@
  * Two things follow, and they are the whole of this module.
  *
  * A manifest declares its schema version, and every version this product has
- * written stays readable. A manifest from a newer build is refused by name —
- * saying which version it carries and which this build reads — rather than
+ * written stays readable. A manifest from a newer build is refused by name,
+ * saying which version it carries and which this build reads, rather than
  * parsed as though the fields it does not contain were simply absent. That
  * distinction is the difference between "update the workbench" and "your
  * profile is broken", and only one of those is true.
@@ -31,7 +31,7 @@ export const PROFILE_MANIFEST_SCHEMA = '8bit-net.machine-profile';
  *    profiles and capabilities.
  * 2. Adds `requiresVariant` to a capability, so a peripheral that only exists
  *    on one variant cannot be enabled on the others. Version 1 manifests are
- *    read with that field absent, which means the capability is unrestricted —
+ *    read with that field absent, which means the capability is unrestricted,
  *    which is what version 1 meant.
  */
 export const PROFILE_MANIFEST_VERSION = 2;

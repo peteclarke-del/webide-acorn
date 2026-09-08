@@ -30,7 +30,7 @@ export function GoToSourceDialog({ open, files, activeFileId, currentLine, sourc
   const activeFile = files.find((file) => file.id === activeFileId);
   /* When nothing matches, why. A blank list reads as "there is no such thing",
    * which is a different statement from "this build carries no debug metadata,
-   * so no address can be located" — and only one of them is usually true. */
+   * so no address can be located", and only one of them is usually true. */
   const search = useMemo<{ destinations: Destination[]; reason: string }>(() => {
     const nothing = (reason: string) => ({ destinations: [], reason });
     const trimmed = query.trim();

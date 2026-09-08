@@ -2,14 +2,14 @@
 
 The sixteen interface patterns UX-123 names, and what this product uses for each
 one. Everything below was read off the source rather than proposed for it, and
-where a pattern is deliberately *not* used that is stated with the reason —
-declaring a role the product does not honour is worse than not declaring it.
+where a pattern is deliberately *not* used that is stated with the reason.
+Declaring a role the product does not honour is worse than not declaring it.
 
 Every one of these is checked while rendered. The release gate's `smoke` stage
 walks nineteen workspaces and applies the rules in `scripts/accessibilityRules.mjs`:
 accessible names, heading order, landmark labels, duplicate ids, target size,
-contrast in all four palettes, and — since the pixel grid was found without it —
-that a role which only means something inside another role is inside it.
+contrast in all four palettes, and, since the pixel grid was found without it.
+That a role which only means something inside another role is inside it.
 
 ## The patterns
 
@@ -20,10 +20,10 @@ that a role which only means something inside another role is inside it.
 | Menu | `role="menubar"` / `role="menu"` in `PanelMenuBar` | Entries are a word or two with the detail in a tooltip; `aria-expanded` on the opener, arrow keys within |
 | Tabs | `role="tablist"` / `tab` / `tabpanel` | `aria-selected` on the tab, `aria-controls` to its panel |
 | Tree | `role="tree"` / `treeitem` in `ProjectTree` | Folders are `treeitem` buttons carrying `aria-expanded`; shut folders hide their contents and say how many they hold |
-| List, grid | `role="list"`, `role="grid"` | A `grid` owns `row`s which own `gridcell`s — see below |
+| List, grid | `role="list"`, `role="grid"` | A `grid` owns `row`s which own `gridcell`s, see below |
 | Combobox | `role="combobox"` | `aria-expanded` and `aria-controls` onto the listbox it opens |
 | Form, error | Native labels, `role="alert"` | A refusal names the thing, the measurement and the consequence (see `wording.md`) |
-| Toolbar | `role="group"` with a label — **not `role="toolbar"`** | See below |
+| Toolbar | `role="group"` with a label, **not `role="toolbar"`** | See below |
 | Dialog | Native `<dialog>` and `role="dialog"` | Focus is moved in and restored; Escape closes; the backdrop uses `--theme-overlay` |
 | Notification | `role="status"` and `role="log"` | Announced politely; the workbench never interrupts with an alert for something that is not an error |
 | Splitter | `role="separator"` in `PanelSeparator` | Focusable, moved with arrow keys |
@@ -36,8 +36,8 @@ that a role which only means something inside another role is inside it.
 
 `role="gridcell"` has a required context and the pixel editors did not give it
 one: cells sat directly inside `role="grid"`, so a screen reader had nothing to
-count position within and could not say which row and column the caret was in —
-the two facts that matter most when editing artwork pixel by pixel. There were
+count position within and could not say which row and column the caret was in.
+The two facts that matter most when editing artwork pixel by pixel. There were
 448 such cells on one workspace.
 
 The rows are laid out with `display: contents`, so the grid still performs the
@@ -69,13 +69,13 @@ matters more than that, it is on the page instead of in a tooltip.
 The workbench menu bar is the global action bar: **File, Project, Edit, Build,
 Debug, View, Help**, in that order. The order is declared once, in
 `workbenchMenus`, and each menu's contents come from the command table by
-category rather than being listed twice — so a command cannot appear in a menu
+category rather than being listed twice, so a command cannot appear in a menu
 without also being a command, with the shortcut and the enabled rule that go
 with it.
 
 State comes from the same place. An entry is `disabled` when its command is not
-available, carries its chord as a hint, and its tooltip says why it is greyed —
-the reason is in the tooltip rather than beside the label, because a sentence
+available, carries its chord as a hint, and its tooltip says why it is greyed.
+The reason is in the tooltip rather than beside the label, because a sentence
 next to every unavailable entry makes the menu as wide as the longest of them.
 Entries that toggle carry `checked`.
 
@@ -89,7 +89,7 @@ every item reachable and nothing scrolled or clipped at any of them:
 | 320 wide | 7 items, 2 rows | 3 rows |
 | 1280 at 2× text | 7 items, 1 row | 1 row |
 
-An overflow menu — the "…" that collects what did not fit — is the conventional
+An overflow menu, the "..." that collects what did not fit, is the conventional
 answer and it hides things: the item somebody wants is behind a control that
 does not say which items are behind it, and the set changes with the window. A
 wrap costs a second row and hides nothing, which is the trade this build makes
@@ -102,7 +102,7 @@ Which treatment applies depends on whether the canvas can be edited.
 
 **An editable canvas is `aria-hidden`.** A bitmap read out cell by cell tells
 nobody anything. What it is wrapped in takes focus and arrow keys, and a
-`role="status"` region beside it says where the caret is and what is under it —
+`role="status"` region beside it says where the caret is and what is under it,
 *"Row 4 of 32, column 9 of 40, tile 12 on layer Background"*. That sentence is
 the accessible view, and because it is live it follows the caret. The screen
 editor and the tile map both work this way.
@@ -112,14 +112,14 @@ it shows: the golden-image comparison figure and the map overview thumbnail. It
 is not hidden, because there is something worth announcing, and there is nothing
 to operate.
 
-The failure this guards against is a third treatment — a canvas that is neither
+The failure this guards against is a third treatment, a canvas that is neither
 hidden nor named, which a screen reader announces as nothing at all and which
 may be the only place some data appears. `scripts/canvasAlternatives.test.ts`
 refuses one, and refuses a hidden canvas whose file has no live region to speak
 for it, since hiding is only honest when something else says what is there.
 
 The pixel grids are not canvases at all. They are a `grid` of `row`s of
-`gridcell` buttons, one per pixel, each with its own label — see above.
+`gridcell` buttons, one per pixel, each with its own label, see above.
 
 ## Leaving a control that takes Tab
 
@@ -130,7 +130,7 @@ it; the next Tab moves focus.** Typing anything else disarms it again, so Tab
 never quietly stops indenting, and the control announces `Escape+Tab` in its
 `aria-keyshortcuts`.
 
-The gate walks the workbench with trusted Tab presses — a synthesised Tab event
+The gate walks the workbench with trusted Tab presses, a synthesised Tab event
 does not move focus, so a check built on one would walk nothing and report
 cleanly. Where a control does not pass Tab on, the advertised way out is used
 and checked to work, because an advertised escape that does nothing is worse

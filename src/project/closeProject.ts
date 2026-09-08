@@ -6,7 +6,7 @@ import type { StoredProject } from '../cloud/projectStoreClient';
  * Closing was not offered at all: the only way out of a project was to open
  * another one over the top of it. That is fine for a workbench that holds one
  * project and wrong for one that can hold sixty-four, because it leaves no way
- * to say what should happen to the copy the store is keeping — and deleting
+ * to say what should happen to the copy the store is keeping, and deleting
  * that quietly, or keeping it quietly, are both decisions somebody else's work
  * should not have made for them.
  *

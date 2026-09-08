@@ -10,16 +10,16 @@ use App\Observability\StructuredLogger;
  * Build results kept between requests, addressed by what produced them.
  *
  * A native build runs a real assembler in a real workspace, and the same
- * inputs through the same pinned toolchain give the same bytes every time —
+ * inputs through the same pinned toolchain give the same bytes every time,
  * that is a property this build already proves, and it is what makes a cache
  * possible at all. What makes one dangerous is everything around that:
  *
  *   - **A key that does not cover everything** returns somebody the output of a
  *     build they did not ask for. So the key is built from every value that
- *     reaches the toolchain — the adapter and its version, the pinned toolchain
+ *     reaches the toolchain. The adapter and its version, the pinned toolchain
  *     digest, the machine, the profile and its options, the processor, the
  *     origin and address ceiling, the entry point, the output name, the
- *     defines, and the name and SHA-256 of every declared input — and the entry
+ *     defines, and the name and SHA-256 of every declared input, and the entry
  *     records those inputs so a hit can be checked against the request rather
  *     than trusted because the key matched.
  *
@@ -27,7 +27,7 @@ use App\Observability\StructuredLogger;
  *     output is not only bytes: the listing and dependency documents carry the
  *     source itself. Identical inputs would give identical outputs, so sharing
  *     would in principle be safe, but "in principle" is doing far too much work
- *     there — it holds only while the key covers everything, and a key is
+ *     there. It holds only while the key covers everything, and a key is
  *     exactly the kind of thing that grows a gap. Entries are therefore
  *     partitioned by owner, and the owner is mixed into the key as well, so
  *     that two independent things have to be wrong before one tenant can be
@@ -73,7 +73,7 @@ final class BuildCache
      * The stored envelope carries the timing of the build that produced it, and
      * returning that unchanged would report a duration this request did not
      * take. It is replaced with what the lookup actually cost, and the logs say
-     * where the answer came from — a result that cannot be told from a real
+     * where the answer came from. A result that cannot be told from a real
      * build is one nobody can debug.
      *
      * @param array<string, mixed> $response
@@ -150,7 +150,7 @@ final class BuildCache
      * A hit is only a hit when the entry belongs to this owner, hashes to what
      * it says it does, and names the same inputs the request carries. Anything
      * else is discarded and counted, because an entry that fails one of those
-     * is not a miss — it is a fault worth being able to see.
+     * is not a miss. It is a fault worth being able to see.
      *
      * @param list<array{id: string, name: string, content: string}> $files
      *

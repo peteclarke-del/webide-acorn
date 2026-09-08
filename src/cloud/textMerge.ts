@@ -70,7 +70,7 @@ function alignment(base: readonly string[], side: readonly string[]): Map<number
 /**
  * Three-way merge.
  *
- * `base` is the common ancestor — the revision both sides started from. Without
+ * `base` is the common ancestor. The revision both sides started from. Without
  * it there is no way to tell an addition from a deletion, so a two-way merge is
  * not offered: it would have to guess.
  */

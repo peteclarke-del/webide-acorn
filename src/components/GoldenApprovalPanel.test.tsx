@@ -44,8 +44,8 @@ describe('what a person is shown before deciding', () => {
     open();
     expect(screen.getByRole('heading', { name: 'What has changed since this golden was approved' })).toBeInTheDocument();
     /* Only the build differs here, which is the ordinary case. It is said
-     * twice on purpose — once in the summary somebody reads first, once
-     * itemised beneath — so the assertion is scoped to the itemised list. */
+     * twice on purpose (once in the summary somebody reads first, once
+     * itemised beneath), so the assertion is scoped to the itemised list. */
     const drift = screen.getByRole('list');
     expect(within(drift).getByText(/ordinary reason for a difference/)).toBeInTheDocument();
     expect(within(drift).getByText(/It was build-111; it is now build-222\./)).toBeInTheDocument();

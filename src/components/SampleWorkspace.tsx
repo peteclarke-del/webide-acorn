@@ -146,7 +146,7 @@ export function SampleWorkspace({ machineId, machineLabel, projectFiles = [], on
               if (!held) return;
               guard(() => parseVidcSampleDocument(held.content), `${held.name} opened from this project`);
             }}>
-              <option value="">Choose a sample…</option>
+              <option value="">Choose a sample...</option>
               {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
             </select>
           </label>
@@ -203,7 +203,7 @@ export function SampleWorkspace({ machineId, machineLabel, projectFiles = [], on
               </select>
             </label>
             <button type="button" onClick={() => guard(() => synthesiseTone(document, tone), 'Generated a tone at the rate this document is played at.')}>Generate tone</button>
-            <button type="button" onClick={() => file.current?.click()}>Import WAVE…</button>
+            <button type="button" onClick={() => file.current?.click()}>Import WAVE...</button>
             <input
               ref={file} type="file" accept=".wav,audio/wav,audio/x-wav" aria-label="Import a WAVE file" className="visually-hidden"
               onChange={(event) => { const chosen = event.target.files?.[0]; event.target.value = ''; if (chosen) void importWave(chosen); }}
@@ -222,7 +222,7 @@ export function SampleWorkspace({ machineId, machineLabel, projectFiles = [], on
           <p className="binding-note">
             Sound DMA reads sixteen bytes at a time and byte <em>n</em> is played through stereo image register
             <em> n</em> modulo eight, so every register a channel owns has to hold the same value. Image 0 is
-            <em> undefined</em> in the datasheet — not centre and not silence — so it cannot be chosen here.
+            <em> undefined</em> in the datasheet, not centre and not silence, so it cannot be chosen here.
           </p>
           <table className="sample-stereo">
             <thead><tr><th scope="col">Channel</th><th scope="col">Placement</th><th scope="col">Registers</th></tr></thead>
@@ -252,7 +252,7 @@ export function SampleWorkspace({ machineId, machineLabel, projectFiles = [], on
             <div><dt>Silence padding</dt><dd>{output.manifest.paddingBytes}</dd></div>
             <div><dt>Clipped samples</dt><dd>{output.manifest.clippedSamples}</dd></div>
             <div><dt>Worst error</dt><dd>{(output.manifest.worstError * 100).toFixed(2)}%</dd></div>
-            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}…</code></dd></div>
+            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}...</code></dd></div>
           </dl>
           <p role="status" className="binding-warning">{output.manifest.partReason}</p>
           <ul className="sample-assumptions">

@@ -1,7 +1,7 @@
 # ADR 0010: project storage, revisions and the single local identity
 
-Status: Accepted for the local storage and revision slice  
-Date: 30 August 2026  
+Status: Accepted for the local storage and revision slice
+Date: 30 August 2026
 Requirements: CLD-802, CLD-803, CLD-805, SEC-004, NFR-003, NFR-007
 
 ## Context
@@ -15,8 +15,8 @@ machine, in storage the browser may evict, with no history: an edit that broke
 something cannot be compared against the version that worked, and the only
 backup is whatever somebody exported by hand.
 
-The remaining cloud requirements ask for a great deal more than storage —
-accounts, roles, sharing, invitations, cross-tenant isolation and a penetration
+The remaining cloud requirements ask for a great deal more than storage.
+Accounts, roles, sharing, invitations, cross-tenant isolation and a penetration
 test. None of that can be designed around an identity decision that has not been
 taken, and CLD-800 is that decision.
 
@@ -51,7 +51,7 @@ never collected, and a revision is never removed to make a blob collectable.
 
 Local mode remains complete and is what the product does by default. Storage is
 opt-in per project, and moving a project into it copies rather than moves, so a
-person who tries it and stops has lost nothing — CLD-803's requirement that
+person who tries it and stops has lost nothing, CLD-803's requirement that
 neither mode coerces the other.
 
 What this does not do, and does not pretend to: there is no authentication, so

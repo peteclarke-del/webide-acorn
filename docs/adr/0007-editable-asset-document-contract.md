@@ -1,8 +1,8 @@
-# ADR 0007 — Editable asset document contract
+# ADR 0007: Editable asset document contract
 
-Status: accepted  
-Date: 27 August 2026  
-Supersedes: nothing  
+Status: accepted
+Date: 27 August 2026
+Supersedes: nothing
 Relates to: AST-600, AST-601, AST-602, AST-603
 
 ## Context
@@ -76,7 +76,7 @@ silent, the character codes defined outside the machine's reserved range.
 
 ### Build integration
 
-Each type has an `INCLUDE…` directive in the browser-local 6502 assembler:
+Each type has an `INCLUDE...` directive in the browser-local 6502 assembler:
 `INCLUDEASSET`, `INCLUDEMAP`, `INCLUDEPALETTE`, `INCLUDEFONT`, `INCLUDESCREEN`
 and `INCLUDESONG`. A directive emits the generated source at the current address,
 reports a missing or malformed document as a build diagnostic located at the

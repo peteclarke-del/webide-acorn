@@ -427,7 +427,7 @@ describe('TileMapWorkspace image import', () => {
    * in for. Everything the conversion itself does is contracted against the
    * real function in tileMapImageImport.test.ts; what is under test here is
    * that the workspace adds the artwork, replaces the map and reports what was
-   * lost — the parts a pure function cannot check. */
+   * lost. The parts a pure function cannot check. */
   function stubImageDecoding(width: number, height: number, pixel: (x: number, y: number) => [number, number, number]) {
     const data = new Uint8ClampedArray(width * height * 4);
     for (let y = 0; y < height; y += 1) {

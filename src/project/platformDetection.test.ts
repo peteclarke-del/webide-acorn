@@ -16,7 +16,7 @@ describe('working out which Acorn a codebase is for', () => {
     /*
      * &FE00 is the Electron's ULA and the BBC's 6845 CRTC alike. The first
      * version of this called it decisive Electron evidence and read a BBC game
-     * that blanks its display through the CRTC as an Electron game — the source
+     * that blanks its display through the CRTC as an Electron game, the source
      * it misread said "CRTC display skew 3 blanks the BBC display" two lines
      * above the match.
      */

@@ -2,8 +2,8 @@
  *
  * Annotation edits are pure functions returning whole documents, so history is
  * a bounded list of those documents rather than a list of inverse operations.
- * That has two properties worth the memory: undo is exact — it restores the
- * document that existed, not a reconstruction of it — and a corrupted or
+ * That has two properties worth the memory: undo is exact (it restores the
+ * document that existed, not a reconstruction of it), and a corrupted or
  * partially applied edit cannot leave the history describing a state that never
  * existed.
  *

@@ -37,7 +37,7 @@ describe('when there is no store', () => {
 });
 
 describe('what the panel says the store is', () => {
-  it('repeats the store’s own words about who can read it', async () => {
+  it("repeats the store's own words about who can read it", async () => {
     /* Not "your projects are backed up": the difference decides whether
      * somebody puts something private here. */
     panel(vi.fn(async () => answer(description)) as unknown as typeof fetch);
@@ -72,7 +72,7 @@ describe('copying a project to the store', () => {
     await waitFor(() => expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/The local project is unchanged/)));
   });
 
-  it('shows the store’s refusal in its own words', async () => {
+  it("shows the store's refusal in its own words", async () => {
     const fetcher = vi.fn(async (input: unknown, init?: RequestInit) => {
       if (init?.method === 'POST') return answer({ error: { code: 'REVISION_STALE_PARENT', message: 'This revision was written against nothing but the project is now at 000001-a. Read the head and merge, or fork from the parent.' } }, 409);
       if (String(input).endsWith('/revisions')) return answer({ revisions: [] });
@@ -200,7 +200,7 @@ describe('comparing and forking', () => {
 
     const report = await screen.findByLabelText('Revision comparison');
     expect(report).toHaveTextContent('2 changed.');
-    expect(report).toHaveTextContent('+1 −0');
+    expect(report).toHaveTextContent('+1 -0');
     /* The honest absence: no line count is offered for content that is not
      * text, rather than a number that looks like one. */
     expect(report).toHaveTextContent('not text, so no line count is offered');
@@ -233,7 +233,7 @@ describe('comparing and forking', () => {
 describe('getting work out and removing it', () => {
   const oneProject = { projects: [{ id: 'demo-project', revisions: 1 }] };
 
-  it('offers the export beside the store’s own numbers, and takes nothing away', async () => {
+  it("offers the export beside the store's own numbers, and takes nothing away", async () => {
     /* The moment somebody wonders whether to trust a store with their work is
      * the moment they should see they can take it back. */
     const fetcher = vi.fn(async (input: unknown) => {

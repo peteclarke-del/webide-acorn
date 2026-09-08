@@ -7,7 +7,7 @@
  * then fails in a way that reads as the person's mistake.
  *
  * So each one was assembled, placed in a real machine's memory, called the way
- * BASIC calls a program, given a key, and then asked — through BASIC — whether
+ * BASIC calls a program, given a key, and then asked, through BASIC, whether
  * the machine still worked. `scripts/measureStarterTemplates.mjs` reproduces
  * the three that run under jsbeeb; the Electron's was run under Elkulator in a
  * browser, which is the only core here that models that machine.
@@ -16,7 +16,7 @@
  * BBC. The Atom's OSWRCH is at &FFF4 and its OSRDCH at &FFE3, not the BBC's
  * &FFEE and &FFE0. And on an Atom a carriage return returns to column zero
  * without moving down, so a program that writes one where a BBC would writes
- * its second line straight over its first — which is exactly what the first
+ * its second line straight over its first, which is exactly what the first
  * version of the Atom starter did.
  */
 

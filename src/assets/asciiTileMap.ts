@@ -3,15 +3,15 @@
  *
  * The import already recovers maps from assembled byte runs, which is the form
  * a map takes once it is on its way into the machine. It is not the form most
- * people write one in. A room laid out as characters — a wall is a hash, the
- * floor is a full stop, the player is a P — is a file somebody can read, edit
+ * people write one in. A room laid out as characters (a wall is a hash, the
+ * floor is a full stop, the player is a P) is a file somebody can read, edit
  * and diff, and it is what the generator that produced the binary was reading
  * from. A project whose rooms live in text files therefore arrived with no maps
  * at all, while the same rooms recovered fine once they had been assembled.
  *
  * The grid is found by shape rather than by name or extension, because these
- * files are called every possible thing — `room01.txt`, `level3.map`,
- * `maze.dat` — and the one property they share is the one that matters: a run
+ * files are called every possible thing (`room01.txt`, `level3.map`,
+ * `maze.dat`), and the one property they share is the one that matters: a run
  * of consecutive lines of exactly equal length, drawn from a small alphabet of
  * characters that repeat. Headers, blank lines and notes around the grid have
  * other lengths and fall away on their own, which is why nothing here needs to

@@ -41,7 +41,7 @@ const flags: Record<string, string[]> = {
 
 const effects: Record<string, string[]> = {
   ADC: ['Reads A, carry and operand; writes A. Decimal-mode arithmetic differs between NMOS 6502 and CMOS 65C02.'], SBC: ['Reads A, carry and operand; writes A. Decimal-mode arithmetic differs between NMOS 6502 and CMOS 65C02.'],
-  BRK: ['Writes PC and status to stack page &0100; reads vector &FFFE–&FFFF; consumes a signature/padding byte.'], JSR: ['Writes a two-byte return address to stack page &0100.'],
+  BRK: ['Writes PC and status to stack page &0100; reads vector &FFFE-&FFFF; consumes a signature/padding byte.'], JSR: ['Writes a two-byte return address to stack page &0100.'],
   RTS: ['Reads a two-byte return address from stack page &0100.'], RTI: ['Reads status and a two-byte return address from stack page &0100.'],
   PHA: ['Writes A to stack page &0100 and decrements S.'], PHP: ['Writes status to stack page &0100 and decrements S.'], PHX: ['Writes X to stack page &0100 and decrements S.'], PHY: ['Writes Y to stack page &0100 and decrements S.'],
   PLA: ['Increments S and reads A from stack page &0100.'], PLP: ['Increments S and reads status from stack page &0100.'], PLX: ['Increments S and reads X from stack page &0100.'], PLY: ['Increments S and reads Y from stack page &0100.'],

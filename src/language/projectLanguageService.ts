@@ -517,7 +517,7 @@ export function basicNavigationModel(file: ProjectFile, index: ProjectLanguageIn
     const number = Number(match[1]); const column = source.indexOf(match[1]!) + 1;
     declaredLines.push({ number, line: index + 1, column });
     const declarations = numberDeclarations.get(number) ?? []; declarations.push({ line: index + 1, column }); numberDeclarations.set(number, declarations);
-    if (number > 32767 || (atomBasic && number < 1)) diagnostics.push({ id: `line-range-${index + 1}`, severity: 'error', kind: 'line-range', line: index + 1, column, message: `${atomBasic ? 'Atom' : 'BBC'} BASIC line ${number} is outside ${atomBasic ? '1' : '0'}–32767.` });
+    if (number > 32767 || (atomBasic && number < 1)) diagnostics.push({ id: `line-range-${index + 1}`, severity: 'error', kind: 'line-range', line: index + 1, column, message: `${atomBasic ? 'Atom' : 'BBC'} BASIC line ${number} is outside ${atomBasic ? '1' : '0'}-32767.` });
     if (atomBasic) {
       const label = source.match(/^\s*\d{1,5}\s*([a-z])(?=[A-Z])/)?.[1];
       if (label) { const entries = labelDeclarations.get(label) ?? []; entries.push({ line: index + 1, column: source.indexOf(label, column - 1 + match[1]!.length) + 1 }); labelDeclarations.set(label, entries); }
@@ -695,8 +695,8 @@ function symbolItem(symbol: ProjectSymbol, version: string, defines: ReadonlySet
   const kind: LanguageItem['kind'] = symbol.kind === 'line' ? 'line' : symbol.kind === 'procedure' ? 'function' : symbol.kind === 'label' ? 'symbol' : symbol.kind;
   /* A declaration inside conditional compilation is reported against what the
    * build target actually defines. One in a branch this build does not take is
-   * offered as unavailable with the reason, rather than either hidden — which
-   * would make it unfindable — or offered as though it were unconditional. */
+   * offered as unavailable with the reason, rather than either hidden, which
+   * would make it unfindable, or offered as though it were unconditional. */
   const state = symbol.guards?.length ? guardState(symbol.guards, defines) : 'active';
   const guarded = symbol.guards?.length ? guardSummary(symbol.guards, state) : null;
   return {

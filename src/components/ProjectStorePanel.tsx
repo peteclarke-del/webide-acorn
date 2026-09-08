@@ -51,7 +51,7 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, o
   const [busy, setBusy] = useState(false);
   /* What this workbench last wrote or read, and what it held at that moment.
    * The state is derived from these rather than remembered as a flag, because
-   * a flag is wrong exactly when it matters — after a reload, or when a second
+   * a flag is wrong exactly when it matters, after a reload, or when a second
    * workbench has been at the same project. */
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [syncedFiles, setSyncedFiles] = useState<Record<string, string> | null>(null);
@@ -310,7 +310,7 @@ export function ProjectStorePanel({ files, projectName, onNotice, onOpenFiles, o
                   <ul className="project-store-revisions">
                     {comparison.result.files.filter((file) => file.change !== 'unchanged').map((file) => (
                       <li key={file.name}>
-                        <span><strong>{file.name}</strong><small>{file.change}{file.addedLines === null ? ' · not text, so no line count is offered' : ` · +${file.addedLines} −${file.removedLines}`}</small></span>
+                        <span><strong>{file.name}</strong><small>{file.change}{file.addedLines === null ? ' · not text, so no line count is offered' : ` · +${file.addedLines} -${file.removedLines}`}</small></span>
                       </li>
                     ))}
                   </ul>

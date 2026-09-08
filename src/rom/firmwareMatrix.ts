@@ -30,7 +30,7 @@ function requirementRow(setId: string, requirement: RomRequirement): string[] {
     need,
     requirement.acceptedSizes.map(size).join(' or '),
     `\`${romStorageKey(setId, requirement)}\``,
-    requirement.provenanceNote ?? (requirement.supportStatus === 'development' ? 'Development snapshot; re-import after a firmware rebuild.' : '—'),
+    requirement.provenanceNote ?? (requirement.supportStatus === 'development' ? 'Development snapshot; re-import after a firmware rebuild.' : '-'),
   ];
 }
 

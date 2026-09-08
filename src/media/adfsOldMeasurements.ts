@@ -8,7 +8,7 @@
  * these are the sectors that carry its catalogue.
  *
  * They are kept because a measurement nobody can repeat is a claim, and because
- * a disc image may not enter this repository — these are five structures, not a
+ * a disc image may not enter this repository. These are five structures, not a
  * disc. Each is run-length encoded, since a freshly formatted disc is mostly
  * zeroes, and the test rebuilds an image around them.
  *

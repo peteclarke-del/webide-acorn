@@ -1,5 +1,5 @@
 /*
- * 8bit-net Dev — Acorn Workbench theme tokens
+ * 8bit-net Dev, Acorn Workbench theme tokens
  *
  * Palette and visual effects live here; component geometry lives in styles.css.
  * Deployments can override any token in public/theme-overrides.css without
@@ -29,8 +29,8 @@
    * The multiplier raises everything; the floor stops anything landing below a
    * size that can be read. The trap is setting them far apart: at a 1.74
    * multiplier with a 14px floor, every size from 4.5 to 8 collapsed onto the
-   * floor while the 13px body — which everything without a rule of its own
-   * inherits — went to 22.6. Captions at 14 and inherited text at 22.6 is not a
+   * floor while the 13px body, which everything without a rule of its own
+   * inherits, went to 22.6. Captions at 14 and inherited text at 22.6 is not a
    * scale, it is two scales, and it showed: a details summary and a couple of
    * buttons rendered half again as large as the labels beside them.
    *
@@ -60,7 +60,7 @@
   --fs-14: max(var(--fs-floor), calc(14px * var(--ui-scale)));
   --fs-15: max(var(--fs-floor), calc(15px * var(--ui-scale)));
   --fs-16: max(var(--fs-floor), calc(16px * var(--ui-scale)));
-  /* Page display headings — the largest text the workbench uses. */
+  /* Page display headings. The largest text the workbench uses. */
   --fs-18: max(var(--fs-floor), calc(18px * var(--ui-scale)));
 
     color-scheme: dark;
@@ -102,7 +102,7 @@
    *
    * WCAG 1.4.11 asks the boundary that identifies a control to reach 3:1
    * against what is behind it, and this measured between 1.39 and 1.98 against
-   * every surface it is drawn on — the border of about five hundred buttons,
+   * every surface it is drawn on. The border of about five hundred buttons,
    * inputs and selects. It is one token rather than a control-only variant
    * because the same hairline separates panels too, and two nearly identical
    * greys would be the inconsistency this workbench is meant not to have.
@@ -195,8 +195,8 @@
   /*
    * How much a disabled control is dimmed, in one place.
    *
-   * There were nine different answers to that question — .35, .38, .4, .42,
-   * .45, .55, .58, .7 — across forty-six rules, so the same state looked
+   * There were nine different answers to that question (.35, .38, .4, .42,
+   * .45, .55, .58, .7) across forty-six rules, so the same state looked
    * different depending on which panel it was in. The figure is a compromise:
    * far enough down to read as inactive, not so far that somebody who finds
    * small dim text hard to read cannot tell what the control says.
@@ -207,8 +207,8 @@
   :root[data-theme='light'] {
     color-scheme: light;
     /* Lightened from #c9ba9b. It was the darkest surface in the light theme by
-     * a wide margin, and a great deal of text is drawn straight onto it —
-     * eyebrows, state pills, filenames in code voice — which measured between
+     * a wide margin, and a great deal of text is drawn straight onto it,
+     * eyebrows, state pills, filenames in code voice, which measured between
      * 2.7 and 4.2 to one when the page was actually rendered and looked at. */
     --theme-background: #ddd2b8;
     --theme-background-end: #f1ead9;
@@ -239,7 +239,7 @@
      * It overrode the surfaces and inherited every ink and accent from `:root`,
      * so colours picked against a near-black editor were being set on cream.
      * `--theme-primary-light`, which sets emphasis text in a hundred and
-     * fourteen places, measured 1.01:1 — the same colour as the paper. Each of
+     * fourteen places, measured 1.01:1. The same colour as the paper. Each of
      * these keeps the hue it had and is darkened until it clears 5:1, a little
      * above the 4.5 it must reach so that a later change to a surface does not
      * quietly put it back under.
@@ -270,7 +270,7 @@
   /*
    * High contrast, which UX-005 asks for and which nothing here provided.
    *
-   * The standard palettes are held to WCAG AA — 4.5:1 for text and 3:1 for the
+   * The standard palettes are held to WCAG AA, 4.5:1 for text and 3:1 for the
    * border that identifies a control. These raise both to the AAA figures, 7:1
    * and 4.5:1, keeping every hue so the workbench is the same interface rather
    * than a second design. Only the tokens that had to move are listed: several
@@ -321,9 +321,9 @@
    *
    * Somebody who has asked their machine for less transparency is asking for
    * fewer things showing through other things, so the modal backdrop becomes
-   * opaque and the display's imitation of a CRT — scanlines, shadow-mask
+   * opaque and the display's imitation of a CRT (scanlines, shadow-mask
    * grille and vignette, all of which are translucent overlays on top of the
-   * picture — is turned off. This one stays a media query: it changes four
+   * picture) is turned off. This one stays a media query: it changes four
    * values rather than duplicating a palette.
    */
   @media (prefers-reduced-transparency: reduce) {

@@ -12,7 +12,7 @@ import { BASIC_DIALECTS, BBC_BASIC_5, BBC_BASIC_5_RISCOS2, BBC_BASIC_6, basicDia
  * That would be a gap rather than a defect if the growth were additive. It is
  * not: RISC OS 3.11 inserted CRUNCH at &C7 &90 and shifted every two-byte token
  * after it. So a tokenised RISC OS 2 program read with the later table prints
- * keywords the program does not contain — and prints them confidently, which is
+ * keywords the program does not contain, and prints them confidently, which is
  * the worst way to be wrong. The A310 this build qualifies shipped with RISC OS
  * 2, so the file is somebody's, not a hypothetical.
  *
@@ -72,7 +72,7 @@ describe('BBC BASIC V as RISC OS 2 shipped it', () => {
      * BASIC V's were not read from a ROM: a linear keyword table does not carry
      * them, and they were measured by typing into a running RISC OS 3.11
      * machine on this build's own A310 core. That has not been done on RISC OS
-     * 2, so this says nothing rather than borrowing the other's answer — the
+     * 2, so this says nothing rather than borrowing the other's answer, the
      * same thing the 6502 dialects do by leaving the field out.
      */
     expect(BBC_BASIC_5_RISCOS2.statementForms).toBeUndefined();

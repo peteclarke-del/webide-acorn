@@ -18,7 +18,7 @@ Four regions, always present, in this order down the page.
 ## The workbench
 
 The activity rail switches workspace. Beside it sit up to three panels and the
-editor, in an order the person arranges — a panel's side is simply whether it
+editor, in an order the person arranges. A panel's side is simply whether it
 comes before or after the editor, and panels move one place at a time from their
 own headings. The machine runtime sits below the editor rather than beside it,
 because a screen is wider than it is tall and so is a workbench.
@@ -26,7 +26,7 @@ because a screen is wider than it is tall and so is a workbench.
 | Panel | Answers |
 | --- | --- |
 | Target configuration | Which machine, which model, which ROM, which capabilities, and whether the firmware for them is present |
-| Project explorer | What is in this project — sources, build targets, artifacts, trash |
+| Project explorer | What is in this project, sources, build targets, artifacts, trash |
 | Inspector | What is true of the thing in front of you right now, and what problems it has |
 | Machine runtime | What the machine is doing, and the controls that make it do it |
 
@@ -44,8 +44,8 @@ contract in ADR 0007:
 **Characters** · **Sprites** · **Tiles** · **Fonts** · **Screens** · **Maps** ·
 **Palettes** · **Sound** · **Samples**
 
-Each workspace is reachable three ways — the rail, the tab strip, and the View
-menu — because the rail is quick, the strip says where you are, and the menu is
+Each workspace is reachable three ways (the rail, the tab strip, and the View
+menu), because the rail is quick, the strip says where you are, and the menu is
 the one a keyboard reaches without knowing the layout.
 
 ## Status
@@ -62,7 +62,7 @@ that interrupts itself, and the workbench has one thing to say at a time.
 ## What is not here
 
 **There is no account.** Nothing signs in, nothing is owned by anybody, and
-every project lives in this browser. That is not an omission from this map — it
+every project lives in this browser. That is not an omission from this map, it
 is the product as it stands, and it is why the cloud items are a phase rather
 than a panel. When there is an account there will be somewhere in this frame for
 it, and pretending there is one now would put a control in the title bar that

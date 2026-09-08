@@ -13,8 +13,8 @@ namespace App\Build;
  * identical from outside, so the only way to find out which was to read the
  * source of the manifest.
  *
- * Each check records what was examined, whether it passed, and — when it did
- * not — what to do about it. Readiness is then derived from the checks rather
+ * Each check records what was examined, whether it passed, and, when it did
+ * not, what to do about it. Readiness is then derived from the checks rather
  * than computed separately, so the summary cannot disagree with the detail.
  */
 final class Readiness
@@ -42,7 +42,7 @@ final class Readiness
         );
     }
 
-    /** A file that has to be present and readable — a runtime object, a licence. */
+    /** A file that has to be present and readable, a runtime object, a licence. */
     public function file(string $name, string $path): self
     {
         return $this->check(
