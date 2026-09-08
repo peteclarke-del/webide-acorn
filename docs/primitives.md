@@ -64,6 +64,37 @@ There is no `role="tooltip"` anywhere. Menu entries and icon buttons carry a
 focus and hover management an ARIA tooltip needs to get right. Where the detail
 matters more than that, it is on the page instead of in a tooltip.
 
+## The action bar, and what happens when it does not fit
+
+The workbench menu bar is the global action bar: **File, Project, Edit, Build,
+Debug, View, Help**, in that order. The order is declared once, in
+`workbenchMenus`, and each menu's contents come from the command table by
+category rather than being listed twice — so a command cannot appear in a menu
+without also being a command, with the shortcut and the enabled rule that go
+with it.
+
+State comes from the same place. An entry is `disabled` when its command is not
+available, carries its chord as a hint, and its tooltip says why it is greyed —
+the reason is in the tooltip rather than beside the label, because a sentence
+next to every unavailable entry makes the menu as wide as the longest of them.
+Entries that toggle carry `checked`.
+
+**Overflow is a wrap, not an overflow menu.** Measured across four sizes, with
+every item reachable and nothing scrolled or clipped at any of them:
+
+| Viewport | Menu bar | Workspace tabs |
+| --- | --- | --- |
+| 1600 wide | 7 items, 1 row | 1 row |
+| 700 wide | 7 items, 1 row | 3 rows |
+| 320 wide | 7 items, 2 rows | 3 rows |
+| 1280 at 2× text | 7 items, 1 row | 1 row |
+
+An overflow menu — the "…" that collects what did not fit — is the conventional
+answer and it hides things: the item somebody wants is behind a control that
+does not say which items are behind it, and the set changes with the window. A
+wrap costs a second row and hides nothing, which is the trade this build makes
+everywhere else too.
+
 ## Canvases have one of two treatments, never neither
 
 UX-007 says a canvas may not be the only way to inspect or edit critical data.

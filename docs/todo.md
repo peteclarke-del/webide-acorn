@@ -790,10 +790,46 @@ Companion specification: `docs/requirements-specification.md`
   - [x] What is not claimed is a device: no phone or tablet has been driven
     here, and the evidence above is a desktop browser at those viewports.
     Hardware testing belongs with the browser matrix in A11Y-903.
-- [ ] UX-103 Define global action bar order and state for new/open/save/import/
+- [x] UX-103 Define global action bar order and state for new/open/save/import/
   export/build/run/cloud/about/help and accessible overflow behavior.
-- [ ] UX-104 Define target/configuration selector, comparison view, compatibility
+  - [x] **Order and state are declared once and derived, not listed twice.** The
+    bar is File, Project, Edit, Build, Debug, View, Help; the order lives in
+    `workbenchMenus` and each menu's contents come from the command table by
+    category, so a command cannot appear in a menu without also being a command,
+    with the shortcut and the enabled rule that go with it. An entry is disabled
+    when its command is unavailable, carries its chord as a hint, and puts the
+    reason it is greyed in the tooltip rather than beside the label — a sentence
+    next to every unavailable entry makes the menu as wide as the longest of
+    them. Entries that toggle carry `checked`.
+  - [x] **Overflow is a wrap and it was measured rather than assumed.** At 1600,
+    700 and 320 wide and at 1280 with text at twice the scale, all seven menus
+    stay reachable, nothing scrolls and nothing is clipped; the bar takes a
+    second row at 320 and the workspace tabs take three at 700 and below.
+  - [x] An overflow menu was not used, and that is a choice rather than an
+    omission: the "…" that collects what did not fit hides the item somebody
+    wants behind a control that does not say what is behind it, and the set
+    changes with the window. A wrap costs a row and hides nothing. Written up in
+    `docs/primitives.md` beside the other patterns.
+  - [x] Cloud is not in the bar because there is no cloud yet. Adding an entry
+    for it now would be a menu item that does nothing, which is the kind of
+    claim this build does not make; it belongs with CLD-800 and the rest.
+- [x] UX-104 Define target/configuration selector, comparison view, compatibility
   warnings, support badges, ROM prerequisites, and profile manifest summary.
+  - [x] All six exist and are wired to the same profile data rather than to
+    six descriptions of it: the four cascading selectors for platform class,
+    Acorn system, model and ROM; `ProfileComparisonPanel`, which puts any two
+    configurations side by side; the portability warnings; the SUPPORTED,
+    PREVIEW and PLANNED pills, whose text is the capability's own `state`;
+    the firmware vault's readiness, which is `romRequirementsMet` over what has
+    actually been supplied; and the build manifest the target panel opens.
+  - [x] **The comparison view answers a question the warnings cannot, which is
+    why both exist.** The warnings are raised when a project is opened, which is
+    the right moment to be told and the wrong moment to be deciding — by then
+    the choice is made. The comparison is the other half: pick any two
+    configurations before choosing and see what would not survive a move.
+  - [x] A ROM set this build cannot start is part of this item too, and is
+    handled where it is chosen: the entry is unselectable, says so, and gives
+    the reason on the option — see EMU-429.
 - [ ] UX-105 Define focus movement across docks, tabs, toolbars, trees, editor,
   emulator, canvas alternatives, inspector, modals, and notifications.
   - [x] **The editor was a keyboard trap, and a Tab walk with real key presses

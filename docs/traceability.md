@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 302 |
-| Complete | 211 |
+| Complete | 213 |
 | Complete and traced | 131 |
 | Complete and described | 80 |
-| Complete and untraced | 0 |
-| Open | 91 |
+| Complete and untraced | 2 |
+| Open | 89 |
 
 ## By area
 
@@ -40,7 +40,7 @@ is the part a machine can settle.
 | ANL | 18 | 16 | 14 | 2 | 0 |
 | EMU | 18 | 12 | 3 | 9 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
-| UX | 16 | 7 | 4 | 3 | 0 |
+| UX | 16 | 9 | 4 | 3 | 2 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
 | DOC | 10 | 9 | 7 | 2 | 0 |
 | DOD | 10 | 8 | 2 | 6 | 0 |
@@ -66,7 +66,13 @@ is the part a machine can settle.
 
 ## Completed requirements that say nothing about verification
 
-None. Every completed requirement records how it was verified.
+Each of these is marked done and names no contract, test or run. They
+are listed rather than quietly counted.
+
+| Requirement | Title |
+| --- | --- |
+| UX-103 | Define global action bar order and state for new/open/save/import/… |
+| UX-104 | Define target/configuration selector, comparison view, compatibility warnings, support… |
 
 ## Completed requirements and their evidence
 
@@ -235,8 +241,6 @@ None. Every completed requirement records how it was verified.
 | P0-049 | Approve measurable SLOs, browser matrix, size/concurrency limits, recovery objectives,… | 1 of 2 parts done |
 | P0-GATE | Requirements and backlog accepted; selected initial target slices have credible… | not started |
 | UX-100 | Map project, workspace, asset, emulator, debugger, inspector, research, settings,… | not started |
-| UX-103 | Define global action bar order and state for new/open/save/import/… | not started |
-| UX-104 | Define target/configuration selector, comparison view, compatibility warnings, support… | not started |
 | UX-105 | Define focus movement across docks, tabs, toolbars, trees, editor, emulator, canvas… | 4 of 4 parts done |
 | UX-106 | Define command palette taxonomy and default/remappable shortcuts, including conflict… | 7 of 8 parts done |
 | UX-107 | User-test J-01, J-04, J-05, and J-07 prototypes with relevant personas and revise before… | not started |
