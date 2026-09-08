@@ -709,8 +709,25 @@ Companion specification: `docs/requirements-specification.md`
 
 ### 3.1 Information architecture and prototypes
 
-- [ ] UX-100 Map project, workspace, asset, emulator, debugger, inspector,
+- [x] UX-100 Map project, workspace, asset, emulator, debugger, inspector,
   research, settings, account, and status information architecture (UX-001).
+  - [x] `docs/information-architecture.md` maps the four regions of the frame,
+    the four panels and what each answers, the ten workspaces and the nine asset
+    editors, and the status bar. It is read off the product rather than proposed
+    for it: the lists are the ones the code builds its tabs and panels from.
+  - [x] **The account is in the map as an absence, which is the honest entry.**
+    Nothing signs in, nothing is owned by anybody, and every project lives in the
+    browser. That is why the cloud work is a phase rather than a panel, and why
+    there is no control for it in the title bar — one that cannot do anything is
+    a claim this build does not make.
+  - [x] Two things the map states because they are decisions rather than
+    accidents: the machine runtime sits below the editor and not beside it,
+    because a screen is wider than it is tall and so is a workbench; and there
+    is no folder tree, because a project is a flat set of files with kinds and a
+    tree for a dozen files is ceremony.
+  - [x] Every workspace is reachable three ways — the rail, the tab strip and
+    the View menu — because the rail is quick, the strip says where you are, and
+    the menu is the one a keyboard reaches without knowing the layout.
 - [x] UX-101 Prototype desktop workbench at reference and minimum supported
   resolutions with resizable/collapsible/movable panels (UX-001–UX-003).
   - [x] **Resizable, and by keyboard as well as by pointer.** Four panels —

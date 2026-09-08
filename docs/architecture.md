@@ -121,6 +121,9 @@ they are wired and idle rather than absent.
 | `src/runtime` | The 6502 core used for hardware test execution, separate from the emulator adapters. |
 | `src/samples` | The worked sample projects, which open through the ordinary project parser. |
 
+The interface's own map — which region holds what, and why — is in
+`docs/information-architecture.md`.
+
 ## The rules the code follows
 
 These are not style preferences. Each was introduced because its absence caused

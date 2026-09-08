@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 302 |
-| Complete | 213 |
+| Complete | 214 |
 | Complete and traced | 131 |
 | Complete and described | 80 |
-| Complete and untraced | 2 |
-| Open | 89 |
+| Complete and untraced | 3 |
+| Open | 88 |
 
 ## By area
 
@@ -40,7 +40,7 @@ is the part a machine can settle.
 | ANL | 18 | 16 | 14 | 2 | 0 |
 | EMU | 18 | 12 | 3 | 9 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
-| UX | 16 | 9 | 4 | 3 | 2 |
+| UX | 16 | 10 | 4 | 3 | 3 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
 | DOC | 10 | 9 | 7 | 2 | 0 |
 | DOD | 10 | 8 | 2 | 6 | 0 |
@@ -71,6 +71,7 @@ are listed rather than quietly counted.
 
 | Requirement | Title |
 | --- | --- |
+| UX-100 | Map project, workspace, asset, emulator, debugger, inspector, research, settings,… |
 | UX-103 | Define global action bar order and state for new/open/save/import/… |
 | UX-104 | Define target/configuration selector, comparison view, compatibility warnings, support… |
 
@@ -240,7 +241,6 @@ are listed rather than quietly counted.
 | P0-047 | Define capability/resource-scope catalogue and shared-admin integration (ARC-07, CLD-003,… | not started |
 | P0-049 | Approve measurable SLOs, browser matrix, size/concurrency limits, recovery objectives,… | 1 of 2 parts done |
 | P0-GATE | Requirements and backlog accepted; selected initial target slices have credible… | not started |
-| UX-100 | Map project, workspace, asset, emulator, debugger, inspector, research, settings,… | not started |
 | UX-105 | Define focus movement across docks, tabs, toolbars, trees, editor, emulator, canvas… | 4 of 4 parts done |
 | UX-106 | Define command palette taxonomy and default/remappable shortcuts, including conflict… | 7 of 8 parts done |
 | UX-107 | User-test J-01, J-04, J-05, and J-07 prototypes with relevant personas and revise before… | not started |
