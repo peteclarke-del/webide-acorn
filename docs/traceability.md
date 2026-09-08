@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 302 |
-| Complete | 214 |
+| Complete | 215 |
 | Complete and traced | 131 |
-| Complete and described | 80 |
+| Complete and described | 81 |
 | Complete and untraced | 3 |
-| Open | 88 |
+| Open | 87 |
 
 ## By area
 
@@ -40,7 +40,7 @@ is the part a machine can settle.
 | ANL | 18 | 16 | 14 | 2 | 0 |
 | EMU | 18 | 12 | 3 | 9 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
-| UX | 16 | 10 | 4 | 3 | 3 |
+| UX | 16 | 11 | 4 | 4 | 3 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
 | DOC | 10 | 9 | 7 | 2 | 0 |
 | DOD | 10 | 8 | 2 | 6 | 0 |
@@ -244,7 +244,6 @@ are listed rather than quietly counted.
 | UX-105 | Define focus movement across docks, tabs, toolbars, trees, editor, emulator, canvas… | 4 of 4 parts done |
 | UX-106 | Define command palette taxonomy and default/remappable shortcuts, including conflict… | 7 of 8 parts done |
 | UX-107 | User-test J-01, J-04, J-05, and J-07 prototypes with relevant personas and revise before… | not started |
-| UX-120 | Create original logo/icon family and document permissible Acorn- inspired motifs and… | not started |
 | UX-126 | Define wording, Acorn number/address conventions, dates/units, localization readiness,… | 4 of 5 parts done |
 | A11Y-103 | Establish manual screen-reader matrix and recruit representative testers before feature… | not started |
 | UX-GATE | Stakeholders and accessibility reviewers accept an interactive prototype for desktop and… | not started |

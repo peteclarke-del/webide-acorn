@@ -968,8 +968,32 @@ Companion specification: `docs/requirements-specification.md`
 
 ### 3.2 Original visual language and component contracts
 
-- [ ] UX-120 Create original logo/icon family and document permissible Acorn-
+- [x] UX-120 Create original logo/icon family and document permissible Acorn-
   inspired motifs and prohibited copied/trademark usage (UX-004).
+  - [x] **The identity is original and drawn rather than imported.** The mark is
+    two ellipses crossing at different angles around a lit dot — several
+    machines turning around one piece of work — built from CSS borders in the
+    workbench and four SVG shapes in the favicon, so there is no artwork in it
+    and nothing to trace back to a source. The icon family is thirty-two icons,
+    all drawn in `Icon.tsx` and none imported.
+  - [x] **What is borrowed is stated and is a family resemblance rather than a
+    copy.** The palette is a green on near-black with a cream ink, which is what
+    those machines' own displays looked like; and the machine names are used
+    because no other words say which machine somebody selected. Naming a thing
+    to say what it is, is not using its owner's mark as your own.
+  - [x] **What will not be taken is listed by name** in `docs/identity.md`:
+    Acorn's acorn, the BBC's marks, the RISC OS and Archimedes device marks, any
+    styling that imitates them, any implication of endorsement, and manual
+    artwork or screenshots as decoration.
+  - [x] `src/identity.test.ts` holds the two parts that are not judgement: the
+    mark and the icons import no artwork — an `<image>`, an `xlink:href` or a
+    base64 payload appearing is the moment worth noticing rather than the moment
+    it ships — and the product claims no relationship with the people who made
+    the machines. The `hygiene` gate stage already refuses captures reaching the
+    repository, which is the other way that artwork arrives by accident.
+  - [x] **Whether this is sufficient is not mine to say, and the document says
+    so.** It records the product's position; the licence and trademark review is
+    a separate item and deliberately last.
 - [x] UX-121 Define semantic theme tokens for every state listed by UX-005 and
   validate dark, light, system, and high-contrast themes.
   - [x] **The light theme had never been rendered, and that is why it was
