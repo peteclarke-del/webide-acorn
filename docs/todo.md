@@ -4334,19 +4334,35 @@ Current implemented increment:
     boots cleanly to the desktop with its icon bar. So the statement forms are
     blocked behind a machine that does not start, which is a larger thing than
     this item and is recorded as EMU-429.
-- [ ] **EMU-429 RISC OS 2.00 does not boot on the qualified A310 slice.** The
+- [x] **EMU-429 RISC OS 2.00 does not boot on the qualified A310 slice, and is
+  now offered and refused rather than silently broken.** The
   machine reaches `RISC OS 1024K / Acorn ADFS` and then raises two address
   exceptions, at `&0381EDA8` and `&0381E614`, both error number `&80000003`,
   and drops to a supervisor prompt that does not echo anything typed at it.
-  - [ ] It is the firmware rather than the harness, and the control says so: the
-    same driver, core and steps with RISC OS 3.11 in place of 2.00 boot cleanly
-    to the desktop, icon bar and all. RISC OS 3.00 and 3.10 have not been tried.
-  - [ ] The `riscos200` profile is offered in the machine picker and the vault
-    accepts its firmware, so a person can select a configuration that cannot
-    run. Either the core has to be made to run it or the profile has to say what
-    it does here, and saying nothing is the one option that is not honest.
-  - [ ] It blocks the RISC OS 2 BASIC statement forms above, which cannot be
-    measured on a machine that does not start.
+  - [x] **It is this build rather than the firmware, and the neighbours settle
+    it.** Every Archimedes release this machine offers was booted the same way,
+    on the same core, from the same vault: Arthur 1.20 reaches its blue desktop
+    with the tan icon bar, RISC OS 2.01, 3.00, 3.10 and 3.11 all reach theirs.
+    RISC OS 2.00 alone does not. The ROM reads correctly too — its BASIC keyword
+    table comes out of it cleanly and is the table this build now ships for
+    RISC OS 2 — so the firmware is intact and the core cannot run it.
+  - [x] The entry is unselectable now and says why. It is refused rather than
+    removed: taking it out would leave somebody hunting for a release this build
+    lists everywhere else, while refusing it says the machine exists, that this
+    build cannot start it, and what happens if it tries. The reason is on the
+    option itself, so a pointer or a screen reader reaches it, and the label
+    reads "not currently available".
+  - [x] `src/data/unavailableRoms.test.ts` holds it, and holds the part that is
+    easy to lose: an entry carrying a reason must be *unselectable*, not merely
+    annotated. A reason that renders as a label suffix and nothing else leaves
+    the option still choosable, which is how this was before. Proved by removing
+    the `disabled` attribute.
+  - [ ] **What is still open is the core, not the interface.** Making the A310
+    slice run RISC OS 2.00 is emulator work rather than product work, and until
+    it is done the RISC OS 2 BASIC statement forms above cannot be measured:
+    they need a machine that starts. RISC OS 2.01 does start, and whether its
+    statement forms are the same as 2.00's is exactly the kind of thing this
+    work does not assume.
 
 - [x] **EMU-428 `capture-screen` answered once per session and then stopped.** The
   A310 runtime replies to the first `capture-screen` with a PNG blob and to

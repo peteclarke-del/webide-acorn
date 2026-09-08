@@ -2232,7 +2232,24 @@ function App() {
               <label>
                 <span>ROM / operating system</span>
                 <select aria-label="ROM and operating system" value={resolved.rom.id} onChange={(event) => setRomId(event.target.value)}>
-                  {machine.roms.map((item) => <option key={item.id} value={item.id}>{item.label}{item.unavailableReason ? ' · not runnable here' : ''}</option>)}
+                  {/*
+                    * A firmware set that cannot run here is offered and refused
+                    * rather than hidden. Hiding it would leave somebody looking
+                    * for a ROM this build lists everywhere else; disabling it
+                    * says the machine exists and that this build cannot start
+                    * it, and the reason is on the option so a pointer or a
+                    * screen reader can reach it.
+                    */}
+                  {machine.roms.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.id}
+                      disabled={Boolean(item.unavailableReason)}
+                      title={item.unavailableReason}
+                    >
+                      {item.label}{item.unavailableReason ? ' · not currently available' : ''}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>

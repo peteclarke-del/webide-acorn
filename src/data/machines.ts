@@ -254,7 +254,33 @@ export const machineProfiles: MachineProfile[] = [
     variants: ['A305 · 512K', 'A310 · 1MB'],
     roms: [
       { id: 'arthur120', label: 'Arthur 1.20', detail: 'Early desktop environment' },
-      { id: 'riscos200', label: 'RISC OS 2.00', detail: 'First RISC OS release' },
+      {
+        id: 'riscos200',
+        label: 'RISC OS 2.00',
+        detail: 'First RISC OS release',
+        /*
+         * The one Archimedes firmware set here that does not start.
+         *
+         * Booted on this build's own A310 core it reaches `RISC OS 1024K /
+         * Acorn ADFS` and then raises two address exceptions, at &0381EDA8 and
+         * &0381E614, both error &80000003, and drops to a supervisor prompt
+         * that does not echo anything typed at it. The exceptions are on screen
+         * before anything is typed, so they belong to the boot.
+         *
+         * It is this build rather than the firmware being wrong, and the
+         * neighbours say so: Arthur 1.20, RISC OS 2.01, 3.00, 3.10 and 3.11 all
+         * boot to their desktops on the same core, from the same vault, driven
+         * the same way. The ROM itself reads correctly too — its BASIC keyword
+         * table comes out of it cleanly and is the table this build ships for
+         * RISC OS 2.
+         *
+         * So it is offered and refused rather than removed. Taking it out would
+         * leave somebody hunting for a release this build lists everywhere
+         * else; refusing it says the machine exists, that this build cannot
+         * start it, and why.
+         */
+        unavailableReason: 'The pinned Arculator build cannot start RISC OS 2.00: it raises two address exceptions during the boot and drops to a supervisor prompt that takes no input. The firmware is not the problem — Arthur 1.20, RISC OS 2.01, 3.00, 3.10 and 3.11 all reach their desktops on the same emulator, so supplying different ROM files will not help. Choose one of those releases.',
+      },
       { id: 'riscos201', label: 'RISC OS 2.01', detail: '1990 maintenance release' },
       { id: 'riscos300', label: 'RISC OS 3.00', detail: 'Compatibility upgrade' },
       { id: 'riscos310', label: 'RISC OS 3.10', detail: '1992 desktop upgrade' },
