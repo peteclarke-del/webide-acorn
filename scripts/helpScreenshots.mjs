@@ -37,7 +37,7 @@ const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf
 /** The house size for these images, which the committed ones already use. */
 export const VIEWPORT = { width: 1600, height: 960 };
 
-const CHROMIUM_CANDIDATES = process.env.CHROMIUM_PATH
+export const CHROMIUM_CANDIDATES = process.env.CHROMIUM_PATH
   ? [process.env.CHROMIUM_PATH]
   : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
 
@@ -54,7 +54,7 @@ async function until(op, what, limit = 20_000) {
 }
 
 /** A page under Chrome DevTools Protocol, with the few verbs these states need. */
-async function openPage(chromium) {
+export async function openPage(chromium) {
   const port = 9300 + Math.floor(Math.random() * 400);
   const userDataDir = await mkdtemp(join(tmpdir(), 'help-shots-'));
   const browser = spawn(chromium, [
@@ -194,9 +194,32 @@ const STEPS = {
     await page.send('DOM.setFileInputFiles', { nodeId, files: paths });
     await delay(900);
   },
-  /** Scroll something into view so the picture is of it. */
-  async scrollTo(page, selector) {
-    await page.evaluate(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({ block: 'center' })`);
+  /*
+   * Scroll something into view so the picture is of it.
+   *
+   * The pane it sits in is scrolled, never the page. `scrollIntoView` walks up
+   * to whatever will move, and with `start` that is the window, which slides the
+   * whole workbench off the top of the shot. `top` puts the element's heading a
+   * little below the pane's top edge, which is what a section taller than its
+   * pane needs; `center` is the default and suits a short one.
+   */
+  async scrollTo(page, argument) {
+    const { selector, block = 'center' } = typeof argument === 'string' ? { selector: argument } : argument;
+    const moved = await page.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return false;
+      let pane = element.parentElement;
+      while (pane && !(pane.scrollHeight > pane.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(pane).overflowY))) pane = pane.parentElement;
+      if (!pane) return false;
+      const offset = element.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+      pane.scrollTop += ${JSON.stringify(block)} === 'top'
+        ? offset - 12
+        : offset - Math.max(0, (pane.clientHeight - element.getBoundingClientRect().height) / 2);
+      return true;
+    })()`);
+    /* A pane nothing can scroll is a pane a reader cannot reach either, so say
+     * so rather than taking a picture of the top of it. */
+    if (!moved) throw new Error(`nothing scrollable holds ${selector}`);
     await delay(400);
   },
   /** Let something settle. Used sparingly, and never to paper over a missing wait. */
@@ -258,6 +281,10 @@ export async function main(shots) {
   return { taken, failed };
 }
 
-const { SHOTS } = await import('./helpScreenshotStates.mjs');
-const outcome = await main(SHOTS);
-process.exit(outcome.failed.length ? 1 : 0);
+/* Run the whole set when this file is the program, and stay importable when a
+ * probe or a test wants the page verbs without taking any pictures. */
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const { SHOTS } = await import('./helpScreenshotStates.mjs');
+  const outcome = await main(SHOTS);
+  process.exit(outcome.failed.length ? 1 : 0);
+}

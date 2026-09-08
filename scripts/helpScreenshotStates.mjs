@@ -68,4 +68,55 @@ export const SHOTS = [
     ],
     shows: ['Appearance', 'Theme', 'Contrast', 'Text size'],
   },
+  {
+    file: 'project-search.png',
+    topics: ['projects'],
+    steps: [
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC } },
+      { workspace: 'Search' },
+      { setValue: { selector: 'input[aria-label="Find in project"]', value: 'PRINT' } },
+    ],
+    shows: ['Search and replace across files', 'PRINT', 'Replace'],
+  },
+  {
+    file: 'hardware-tests.png',
+    topics: ['tests'],
+    steps: [{ workspace: 'Tests' }],
+    shows: ['test'],
+  },
+  {
+    file: 'research-reference.png',
+    topics: ['research'],
+    steps: [
+      { workspace: 'Research' },
+      { setValue: { selector: 'input[aria-label="Search reference"]', value: 'MODE' } },
+    ],
+    /* The language filters and one command's detail, which is what the caption
+     * says this picture is of. */
+    shows: ['Acorn reference', 'Search reference', 'BBC BASIC', 'MODE'],
+  },
+  {
+    file: 'build-targets.png',
+    topics: ['build-targets'],
+    steps: [{ workspace: 'Build targets' }],
+    shows: ['VERSIONED BUILD TARGET', 'main build', 'Retain artifact', 'Analyse artifact'],
+  },
+  {
+    file: 'media-workspace.png',
+    topics: ['media'],
+    steps: [
+      { workspace: 'Media' },
+      { waitFor: 'section[aria-label="Edit DFS SSD image"]' },
+      { scrollTo: { selector: 'section[aria-label="Edit DFS SSD image"]', block: 'top' } },
+    ],
+    /* The logical-file editor the caption is about, not whatever the workspace
+     * happens to open on. */
+    shows: ['DFS SSD/DSD logical-file editor', 'Format', 'Rebuild'],
+  },
+  {
+    file: 'sprite-editor.png',
+    topics: ['assets'],
+    steps: [{ clickText: { selector: '.mode-tab', text: 'Sprites' } }],
+    shows: ['Sprites editor', 'Animation frames', 'Palette index', 'Generated output'],
+  },
 ];
