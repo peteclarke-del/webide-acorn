@@ -17,15 +17,26 @@ concurrency:
   group: webide-acorn-${{ github.ref }}
   cancel-in-progress: true
 
+# The action versions are pinned to the first major of each that runs on the
+# Node 24 the runner now provides. GitHub deprecated Node 20 for actions and was
+# forcing these onto 24 anyway, which put a warning annotation on every single
+# run — passing runs included, so the pipeline looked as though it had something
+# wrong with it whenever anybody glanced at it.
+#
+# They are not all the same number, and that is measured rather than assumed:
+# checkout, setup-node and cache moved to Node 24 at v5, and upload-artifact did
+# not — its v5 is still Node 20, so it takes v6. Bumping everything to v5 would
+# have looked right and left one of the four still warning.
+
 jobs:
   gate:
     name: Gate
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: npm
@@ -70,7 +81,7 @@ jobs:
       # the gate quick without letting the version drift, because the cache key
       # is the commit the manifest names.
       - name: Cache the built BeebAsm
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .toolchains
           key: beebasm-${{ hashFiles('backend/src/Build/BeebAsmManifest.php') }}
@@ -136,7 +147,7 @@ jobs:
 
       - name: Publish the gate report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: webide-acorn-gate-report
           path: ci/gate-report.json
