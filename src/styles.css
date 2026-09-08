@@ -154,7 +154,20 @@
    * workbench instead, which clips it, and the rest of the panel is gone. */
   .config-panel, .explorer-panel, .inspector-panel { min-height: 0; overflow: hidden; }
   .config-panel { display: flex; flex-direction: column; overflow-y: auto; scrollbar-color: var(--theme-line-strong) transparent; }
-  .panel-heading { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; min-height: 59px; padding: 11px 12px 8px 14px; border-bottom: 1px solid var(--theme-line); }
+  /*
+   * The heading wraps rather than pushing its controls out of the panel.
+   *
+   * It was a single non-wrapping row, which was fine while it held a title and
+   * a close button. Adding the move arrows put three controls beside a title
+   * that grows with the type scale, and at twice the text size the inspector's
+   * close button was carried past the edge of the window with nothing to scroll
+   * it back — caught by the gate's 200% text-zoom check on the change that
+   * caused it. Wrapping costs a second line in the narrowest cases and keeps
+   * every control reachable at every size.
+   */
+  .panel-heading { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; min-height: 59px; padding: 11px 12px 8px 14px; border-bottom: 1px solid var(--theme-line); }
+  .panel-heading > div:first-child { min-width: 0; flex: 1 1 auto; }
+  .panel-heading > button { flex: 0 0 auto; }
   .panel-heading.compact { min-height: 51px; }
   .panel-heading h2 { margin: 2px 0 0; color: var(--theme-ink-strong); font-size: var(--fs-13); line-height: 1.2; }
   .eyebrow { color: var(--theme-primary); font: 700 var(--fs-7-5)/1.2 var(--font-mono); letter-spacing: .14em; }
@@ -1042,7 +1055,16 @@
   .runtime-info strong { margin-top: 3px; color: var(--theme-muted); font: var(--fs-7)/1.2 var(--font-mono); }
 
   .inspector-panel { display: flex; flex-direction: column; border-right: 0; border-left: 1px solid var(--theme-line); }
-  .inspector-tabs { display: flex; flex: 0 0 35px; align-items: stretch; border-bottom: 1px solid var(--theme-line); }
+  /*
+   * The inspector's tab strip wraps and grows with its contents.
+   *
+   * It was a fixed 35px row that never wrapped, which held two tabs and a close
+   * button and was already tight at twice the type scale. Adding a move control
+   * tipped it over: the close button was carried past the edge of the window
+   * with nothing to scroll it back. The height is now what the row needs rather
+   * than a number chosen when it held less.
+   */
+  .inspector-tabs { display: flex; flex: 0 0 auto; flex-wrap: wrap; min-height: 35px; align-items: stretch; border-bottom: 1px solid var(--theme-line); }
   .inspector-tabs > button:not(.inspector-close) { padding: 0 var(--control-pad-x); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--theme-faint); font-size: var(--fs-8); }
   .inspector-tabs > button.active { border-bottom-color: var(--theme-primary); color: var(--theme-ink); }
   .inspector-tabs button span { display: inline-grid; min-width: 13px; height: 13px; margin-left: 3px; place-items: center; border-radius: 99px; background: var(--theme-danger); color: var(--theme-danger-ink); font: 700 var(--fs-6)/1 var(--font-mono); }
@@ -1353,6 +1375,11 @@
   .appearance-fields label > span { display: flex; gap: 6px; align-items: center; }
   .appearance-fields select { width: 100%; min-width: 0; height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid var(--theme-line); border-radius: var(--radius-sm); background: var(--theme-input); color: var(--theme-ink); font: var(--fs-10)/1 var(--font-ui); letter-spacing: 0; text-transform: none; }
   .appearance-fields small { color: var(--theme-faint); font: var(--fs-7-5)/1.4 var(--font-ui); letter-spacing: 0; text-transform: none; }
+  /* The arrow that moves a panel one place. The right-hand one is the same
+   * chevron turned over, so the pair reads as a direction rather than as two
+   * different icons. */
+  .panel-move { transform: rotate(180deg); }
+  .panel-move.right { transform: none; }
   .limits-search { display: flex; gap: 6px; align-items: center; padding: 0 8px; border: 1px solid var(--theme-line-strong); border-radius: 4px; background: var(--theme-input); }
   .limits-search input { flex: 1; min-width: 0; height: 27px; border: 0; background: transparent; color: var(--theme-ink); font: var(--fs-7-5)/1 var(--font-mono); }
   .limits-group-heading { display: flex; gap: 8px; align-items: baseline; margin-top: 6px; }

@@ -711,7 +711,7 @@ Companion specification: `docs/requirements-specification.md`
 
 - [ ] UX-100 Map project, workspace, asset, emulator, debugger, inspector,
   research, settings, account, and status information architecture (UX-001).
-- [ ] UX-101 Prototype desktop workbench at reference and minimum supported
+- [x] UX-101 Prototype desktop workbench at reference and minimum supported
   resolutions with resizable/collapsible/movable panels (UX-001–UX-003).
   - [x] **Resizable, and by keyboard as well as by pointer.** Four panels —
     configuration, explorer, inspector and runtime — each have a
@@ -728,11 +728,50 @@ Companion specification: `docs/requirements-specification.md`
     900x700, 700x600, 640x512 and 320x480 and fails if the page scrolls
     horizontally, if a box reaches past the viewport with nothing to scroll it,
     or if a control ends up out of reach.
-  - [ ] **Movable panels do not exist and that is the honest gap.** Files can be
-    reordered in the explorer; panels cannot be moved or re-docked. Nothing in
-    the layout model expresses a position — `PanelId` is four fixed names and
-    the workbench grid is built from their sizes — so this is real work rather
-    than a control that is missing, and the item stays open for it.
+  - [x] **Movable, from each panel's own heading.** The three side panels move
+    one place at a time, and a panel that runs out of room on its side crosses
+    the editor and is on the other one — which is what pressing the same button
+    again should do. The arrangement is remembered, because a layout somebody
+    arranged and then lost on reload is worse than one they could not arrange at
+    all: they arranged it twice.
+  - [x] **The order is one list with the editor in it, not a side per panel.**
+    A side per panel cannot say what order two panels on the same side are in
+    without a second field, and the two fields can then disagree. One list says
+    both at once: a panel's side is whether it comes before or after the editor,
+    and moving it is a swap with its neighbour, so crossing the editor falls out
+    of the rule rather than being a case to write.
+  - [x] **Rendered in that order rather than reordered by CSS afterwards.**
+    `order` on a grid item would have been a much smaller change and is the
+    wrong one: it moves a panel on screen and leaves it where it was in the
+    document, so the Tab order stops matching what somebody sees. This build
+    measures focus order against document order — that is what UX-105's Tab walk
+    does — and the two agreeing is the reason it can.
+  - [x] **Buttons rather than a drag.** A drag is the obvious gesture and the
+    one that cannot be done without a pointer. These are reachable by Tab,
+    pressed with Space, and say where the panel will go instead of requiring
+    somebody to try it. A drag can be added on top later; it cannot be added
+    underneath. The control disappears rather than sitting disabled at the far
+    edge, because a disabled button in a heading is a thing to read and then
+    discover is not for you.
+  - [x] Measured in the built workbench: the panels start `Target configuration
+    | Project explorer | EDITOR | Inspector`, one press of the configuration
+    panel's right arrow gives `Project explorer | Target configuration | EDITOR
+    | Inspector`, and `["explorer","config","editor","inspector"]` is what the
+    browser has stored afterwards.
+  - [x] **The 200% text-zoom check caught this change breaking the layout,
+    which is the first thing it has been for.** Adding a control to the
+    inspector's heading pushed its close button past the edge of the window at
+    twice the type scale, with nothing to scroll it back. Two rows that had
+    never needed to wrap now do: the panel heading, and the inspector's tab
+    strip, which was a fixed 35-pixel row chosen when it held two tabs and a
+    close button. Both were already tight at that size and one more control
+    tipped them over.
+  - [x] `src/layout/panelOrder.test.ts` holds the model, including the part that
+    is easy to get wrong: the columns and the elements are generated from one
+    list so they cannot disagree about how many separators there are, which
+    would otherwise show up as everything after the mistake being one column
+    out. A stored order is something a person can edit, so anything unknown,
+    duplicated or missing is repaired rather than rendering an empty workbench.
 - [x] UX-102 Prototype narrow reflow at 320 CSS px, 200% text zoom, mobile/tablet,
   and browser zoom without two-dimensional page scrolling (UX-003, UX-006).
   - [x] **320 CSS px and browser zoom are measured on every build, not

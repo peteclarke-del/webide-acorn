@@ -18,6 +18,34 @@ export type PanelId = 'config' | 'explorer' | 'inspector' | 'runtime';
 
 export type PanelSizes = Record<PanelId, number>;
 
+/** The panels that sit beside the editor. The runtime is below it and stays. */
+export type SidePanelId = 'config' | 'explorer' | 'inspector';
+
+/** The editor's place in the order, which is a slot rather than a panel. */
+export const EDITOR_SLOT = 'editor';
+export type LayoutSlot = SidePanelId | typeof EDITOR_SLOT;
+
+/*
+ * Where the panels sit, as one sequence with the editor somewhere in it.
+ *
+ * The obvious model is a side per panel — left or right — and it is the wrong
+ * one, because it cannot say what order two panels on the same side are in
+ * without a second field, and the two fields can then disagree. One ordered
+ * list says both things at once: which side a panel is on is simply whether it
+ * comes before or after the editor, and moving a panel is swapping it with its
+ * neighbour. A panel that runs out of room on its side crosses the editor and
+ * is on the other one, which is the behaviour somebody expects from pressing
+ * the same button again rather than a special case to write.
+ *
+ * The runtime is not here. It is below the editor and the width sequence has
+ * nothing to say about it.
+ */
+export const DEFAULT_PANEL_ORDER: readonly LayoutSlot[] = Object.freeze(['config', 'explorer', EDITOR_SLOT, 'inspector']);
+
+export const SIDE_PANELS: readonly SidePanelId[] = Object.freeze(['config', 'explorer', 'inspector']);
+
+export const PANEL_ORDER_KEY = '8bit-net-dev-panel-order-1';
+
 /** The width, or for the runtime panel the height, each panel starts at. */
 export const DEFAULT_PANEL_SIZES: Readonly<PanelSizes> = Object.freeze({
   config: 286,
@@ -117,13 +145,129 @@ export function resizePanel(
  * Only the open panels appear, so a closed panel takes no room at all rather
  * than a zero-width column that still draws its border.
  */
-export function workbenchColumns(open: PanelOpenState, sizes: PanelSizes): string {
+export function workbenchColumns(open: PanelOpenState, sizes: PanelSizes, order: readonly LayoutSlot[] = DEFAULT_PANEL_ORDER): string {
   const columns = [`${ACTIVITY_RAIL_WIDTH}px`];
-  if (open.config) columns.push(`${clampPanelSize('config', sizes.config)}px`, `${SEPARATOR_SIZE}px`);
-  if (open.explorer) columns.push(`${clampPanelSize('explorer', sizes.explorer)}px`, `${SEPARATOR_SIZE}px`);
-  columns.push(`minmax(${MINIMUM_EDITOR_WIDTH}px, 1fr)`);
-  if (open.inspector) columns.push(`${SEPARATOR_SIZE}px`, `${clampPanelSize('inspector', sizes.inspector)}px`);
+  for (const slot of normalizePanelOrder(order)) {
+    if (slot === EDITOR_SLOT) {
+      if (columns.length > 1) columns.push(`${SEPARATOR_SIZE}px`);
+      columns.push(`minmax(${MINIMUM_EDITOR_WIDTH}px, 1fr)`);
+      continue;
+    }
+    if (!open[slot]) continue;
+    if (columns.length > 1) columns.push(`${SEPARATOR_SIZE}px`);
+    columns.push(`${clampPanelSize(slot, sizes[slot])}px`);
+  }
   return columns.join(' ');
+}
+
+/**
+ * The slots actually laid out, in order, with the closed panels dropped.
+ *
+ * The workbench renders from this rather than working out for itself which
+ * separators belong where, so the columns and the elements cannot disagree
+ * about how many there are — which shows up as everything after the mistake
+ * being one column out.
+ */
+export function laidOutSlots(open: PanelOpenState, order: readonly LayoutSlot[] = DEFAULT_PANEL_ORDER): LayoutSlot[] {
+  return normalizePanelOrder(order).filter((slot) => slot === EDITOR_SLOT || open[slot]);
+}
+
+/**
+ * The separator that precedes the slot at `index`, and which panel it resizes.
+ *
+ * A separator always resizes the panel on its side away from the editor, so
+ * dragging it makes that panel wider or narrower rather than moving the editor
+ * — which is what somebody grabbing the line between a panel and the editor
+ * expects. Left of the editor that is the slot before the separator; right of
+ * it, the slot after.
+ *
+ * Returns null before the first slot, where there is no separator to draw.
+ */
+export function separatorBefore(
+  slots: readonly LayoutSlot[],
+  index: number,
+): { panel: SidePanelId; before: boolean } | null {
+  if (index <= 0 || index >= slots.length) return null;
+  const editorAt = slots.indexOf(EDITOR_SLOT);
+  const candidate = index <= editorAt ? slots[index - 1] : slots[index];
+  if (!candidate || candidate === EDITOR_SLOT) return null;
+  return { panel: candidate, before: index <= editorAt };
+}
+
+/** Which side of the editor a panel is on. */
+export function panelSide(panel: SidePanelId, order: readonly LayoutSlot[] = DEFAULT_PANEL_ORDER): 'left' | 'right' {
+  const slots = normalizePanelOrder(order);
+  return slots.indexOf(panel) < slots.indexOf(EDITOR_SLOT) ? 'left' : 'right';
+}
+
+/**
+ * The order after `panel` is moved one place towards `direction`.
+ *
+ * Swapping with the neighbour is the whole rule, including when the neighbour
+ * is the editor: a panel at the inside edge of the left group swaps with the
+ * editor and is on the right, which is what pressing the button again should
+ * do. A panel already at the outside edge does not move, and the caller is
+ * expected to have disabled the control rather than relying on this.
+ */
+export function movePanel(order: readonly LayoutSlot[], panel: SidePanelId, direction: 'left' | 'right'): LayoutSlot[] {
+  const slots = normalizePanelOrder(order);
+  const at = slots.indexOf(panel);
+  const to = direction === 'left' ? at - 1 : at + 1;
+  if (at < 0 || to < 0 || to >= slots.length) return slots;
+  const moved = [...slots];
+  moved[at] = slots[to]!;
+  moved[to] = panel;
+  return moved;
+}
+
+/** Whether a move would change anything, which is what disables the control. */
+export function canMovePanel(order: readonly LayoutSlot[], panel: SidePanelId, direction: 'left' | 'right'): boolean {
+  const slots = normalizePanelOrder(order);
+  const at = slots.indexOf(panel);
+  return direction === 'left' ? at > 0 : at >= 0 && at < slots.length - 1;
+}
+
+/**
+ * Any stored value turned into an order that can be laid out.
+ *
+ * A stored order is a thing a person can edit, and a workbench that renders
+ * nothing because a key was mistyped is worse than one that ignores the file.
+ * Every panel appears exactly once and the editor exactly once, whatever
+ * arrived: unknown names are dropped, duplicates keep their first place, and
+ * anything missing is put back where it starts.
+ */
+export function normalizePanelOrder(value: unknown): LayoutSlot[] {
+  const supplied = Array.isArray(value) ? value : [];
+  const wanted = new Set<LayoutSlot>([...SIDE_PANELS, EDITOR_SLOT]);
+  const seen = new Set<LayoutSlot>();
+  const order: LayoutSlot[] = [];
+  for (const entry of supplied) {
+    if (typeof entry !== 'string') continue;
+    const slot = entry as LayoutSlot;
+    if (!wanted.has(slot) || seen.has(slot)) continue;
+    seen.add(slot);
+    order.push(slot);
+  }
+  for (const slot of DEFAULT_PANEL_ORDER) if (!seen.has(slot)) order.push(slot);
+  return order;
+}
+
+export function readPanelOrder(storage: { getItem(key: string): string | null }): LayoutSlot[] {
+  try {
+    const raw = storage.getItem(PANEL_ORDER_KEY);
+    return raw ? normalizePanelOrder(JSON.parse(raw)) : [...DEFAULT_PANEL_ORDER];
+  } catch {
+    return [...DEFAULT_PANEL_ORDER];
+  }
+}
+
+export function writePanelOrder(order: readonly LayoutSlot[], storage: { setItem(key: string, value: string): void }): boolean {
+  try {
+    storage.setItem(PANEL_ORDER_KEY, JSON.stringify(normalizePanelOrder(order)));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** The rows for the editor and the machine runtime beneath it. */

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
 import { createAnalysisDocument } from './analysis/analysisExport';
 import { createVerified6502AssemblySource } from './analysis/disassemblyAssemblyExport';
 import { createArmAssemblySource, verifyArmAssemblySource, type ArmAssemblyVerification } from './analysis/disassemblyArmAssemblyExport';
@@ -54,7 +54,7 @@ import { closeOutcome, closeQuestion, type CloseChoice, type CloseQuestion } fro
 import { projectDocuments } from './project/projectDocuments';
 import { ProjectStoreClient } from './cloud/projectStoreClient';
 import { useMediaQuery } from './layout/useMediaQuery';
-import { DEFAULT_PANEL_SIZES, readPanelSizes, resizePanel, workbenchColumns, workspaceRows, writePanelSizes, type PanelId, type PanelOpenState, type PanelSizes } from './layout/panelLayout';
+import { DEFAULT_PANEL_ORDER, DEFAULT_PANEL_SIZES, EDITOR_SLOT, canMovePanel, laidOutSlots, movePanel, normalizePanelOrder, readPanelOrder, readPanelSizes, resizePanel, separatorBefore, workbenchColumns, workspaceRows, writePanelOrder, writePanelSizes, type LayoutSlot, type PanelId, type PanelOpenState, type PanelSizes, type SidePanelId } from './layout/panelLayout';
 import { BuildExecutionError, buildExecutionError, executeBuild, type BuildArtifact, type BuildRequest, type BuildResponse, type BuildResultMetadata } from './build/buildService';
 import { sha256Hex } from './build/digest';
 import { detectNativeToolchains, invokeNativeToolchain, type NativeToolchainProbe, type NativeToolchainStatus } from './build/nativeToolchainAdapter';
@@ -395,6 +395,80 @@ function App() {
   const [runtimeOpen, setRuntimeOpen] = useState(true);
   /* How wide, or for the runtime how tall, each panel is. Held here and written
    * to browser storage, so the arrangement somebody chose survives a reload. */
+  /*
+   * Which order the panels sit in, remembered like their sizes.
+   *
+   * A layout somebody arranged and then lost on reload is worse than one they
+   * could not arrange at all, because they arranged it twice.
+   */
+  const [panelOrder, setPanelOrder] = useState<LayoutSlot[]>(() => {
+    try {
+      return typeof localStorage === 'undefined' ? [...DEFAULT_PANEL_ORDER] : readPanelOrder(localStorage);
+    } catch {
+      return [...DEFAULT_PANEL_ORDER];
+    }
+  });
+
+  const movePanelTo = (panel: SidePanelId, direction: 'left' | 'right') => {
+    setPanelOrder((current) => {
+      const next = movePanel(current, panel, direction);
+      try {
+        if (typeof localStorage !== 'undefined') writePanelOrder(next, localStorage);
+      } catch {
+        /* Remembering the arrangement is a convenience; losing it must not lose
+         * the move already made. */
+      }
+      return next;
+    });
+  };
+
+  /*
+   * Moving a panel, one place at a time, from its own heading.
+   *
+   * Buttons rather than a drag. A drag is the obvious gesture and it is the one
+   * that cannot be done without a pointer; these can be reached by Tab and
+   * pressed by Space, and they say where the panel will go rather than
+   * requiring somebody to try it. A drag could be added on top later — it
+   * cannot be added underneath.
+   *
+   * The control disappears rather than sitting there disabled when a panel is
+   * against the far edge, because a disabled button in a heading is a thing to
+   * read and then discover is not for you.
+   */
+  const PanelMoveControls = ({ panel }: { panel: SidePanelId }) => (
+    <>
+      {canMovePanel(panelOrder, panel, 'left') && (
+        <button
+          className="plain-icon panel-move"
+          type="button"
+          aria-label={`Move this panel one place left`}
+          title="Move this panel one place left"
+          onClick={() => movePanelTo(panel, 'left')}
+        >
+          <Icon name="chevron" size={15} />
+        </button>
+      )}
+      {canMovePanel(panelOrder, panel, 'right') && (
+        <button
+          className="plain-icon panel-move right"
+          type="button"
+          aria-label={`Move this panel one place right`}
+          title="Move this panel one place right"
+          onClick={() => movePanelTo(panel, 'right')}
+        >
+          <Icon name="chevron" size={15} />
+        </button>
+      )}
+    </>
+  );
+
+  /** What each separator is called, which follows the panel and not the side. */
+  const SEPARATOR_LABELS: Record<SidePanelId, string> = {
+    config: 'Resize the target configuration panel',
+    explorer: 'Resize the project explorer',
+    inspector: 'Resize the inspector',
+  };
+
   const [panelSizes, setPanelSizes] = useState<PanelSizes>(() => {
     try { return readPanelSizes(window.localStorage); } catch { return { ...DEFAULT_PANEL_SIZES }; }
   });
@@ -2175,7 +2249,7 @@ function App() {
       <div
         ref={workbenchRef}
         className={`workbench ${configOpen ? 'config-open' : 'config-closed'} ${explorerOpen ? 'explorer-open' : 'explorer-closed'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}
-        style={{ '--workbench-columns': workbenchColumns(panelOpenState, panelSizes) } as CSSProperties}
+        style={{ '--workbench-columns': workbenchColumns(panelOpenState, panelSizes, panelOrder) } as CSSProperties}
       >
         <aside className="activity-rail" aria-label="Workbench panels">
           <button className={configOpen ? 'rail-button active' : 'rail-button'} type="button" aria-label="Target configuration" onClick={toggleConfigPanel}>
@@ -2192,13 +2266,33 @@ function App() {
           <button className={workspaceTab === 'Settings' ? 'rail-button active' : 'rail-button'} type="button" aria-label="Settings" onClick={() => setWorkspaceTab('Settings')}><Icon name="settings" /></button>
         </aside>
 
-        {configOpen && (
+        {/*
+          * The panels are rendered in the order they are laid out in, rather
+          * than in a fixed sequence with the order applied afterwards by CSS.
+          *
+          * CSS `order` on a grid item would have been a far smaller change and
+          * is the wrong one: it moves a panel on screen and leaves it where it
+          * was in the document, so the Tab order stops matching what somebody
+          * sees. This build measures focus order against document order, and
+          * the two agreeing is the reason it can.
+          *
+          * Each panel keeps the guard it had. A panel can be open and still not
+          * have a column — that is what happens in a window too narrow to place
+          * them beside the editor, where it overlays instead — so the separator
+          * follows `laidOutSlots`, which counts only the panels the grid places,
+          * while the panel itself follows its own open state.
+          */}
+        {(() => {
+          const placed = laidOutSlots(panelOpenState, panelOrder);
+          const panelNodes: Record<LayoutSlot, ReactNode> = {
+            config: configOpen && (
           <aside className="config-panel panel-surface" aria-label="Target configuration">
             <div className="panel-heading">
               <div>
                 <span className="eyebrow">TARGET PROFILE</span>
                 <h2>Machine setup</h2>
               </div>
+              <PanelMoveControls panel="config" />
               <button className="plain-icon" type="button" aria-label="Close target configuration" onClick={() => setConfigOpen(false)}><Icon name="close" size={16} /></button>
             </div>
 
@@ -2319,15 +2413,14 @@ function App() {
               Open build manifest <Icon name="chevron" size={14} />
             </button>
           </aside>
-        )}
-        {panelOpenState.config && <PanelSeparator panel="config" orientation="vertical" before label="Resize the target configuration panel" size={panelSizes.config} onResize={resizePanelTo} />}
-
-        {explorerOpen && (
+        ),
+            explorer: explorerOpen && (
           <aside className="explorer-panel panel-surface" aria-label="Project explorer">
             <div className="panel-heading compact">
               <div><span className="eyebrow">LOCAL PROJECT</span><h2>{project.name}</h2></div>
               <button className="plain-icon" type="button" aria-label="Export portable project" onClick={() => setProjectExportOpen(true)}><Icon name="download" size={17} /></button>
               <button className="plain-icon" type="button" aria-label="Close this project" onClick={() => void beginCloseProject()}><Icon name="close" size={17} /></button>
+              <PanelMoveControls panel="explorer" />
               <button className="plain-icon" type="button" aria-label="Close project explorer" onClick={() => setExplorerOpen(false)}><Icon name="close" size={16} /></button>
             </div>
             <div className="explorer-actions">
@@ -2356,9 +2449,36 @@ function App() {
               artifacts={retainedArtifacts.length ? retainedArtifacts.map((record) => { const target = project.buildTargets.find((item) => item.id === record.targetId); const current = !!target && !!record.artifact.provenance && provenanceMatches(record.artifact.provenance, target, selectedProjectTarget, project.files); return <div className="artifact-tree-group" key={record.targetId}><button className="tree-item artifact-output" type="button" role="treeitem" tabIndex={-1} onClick={() => { selectBuildTarget(record.targetId); setArtifactDocumentId(undefined); setWorkspaceTab('Build targets'); }}><Icon name="file" size={15} /><span>{record.artifact.provenance?.target.outputName ?? record.targetName}</span><small>{current ? `${record.artifact.bytes.length} B` : 'STALE'}</small></button>{generatedArtifactDocuments(record.artifact, record.metadata).map((document) => <button className="tree-item artifact-document" type="button" role="treeitem" tabIndex={-1} key={document.id} onClick={() => { selectBuildTarget(record.targetId); setArtifactDocumentId(document.id); setWorkspaceTab('Build targets'); }}><Icon name="file" size={13} /><span>{document.filename}</span><small>RO</small></button>)}</div>; }) : <div className="tree-empty"><span>No artifacts yet</span><small>Build a target to retain its generated documents.</small></div>}
             />
           </aside>
-        )}
-        {panelOpenState.explorer && <PanelSeparator panel="explorer" orientation="vertical" before label="Resize the project explorer" size={panelSizes.explorer} onResize={resizePanelTo} />}
+        ),
+            inspector: inspectorOpen && (
+          <aside className="inspector-panel panel-surface" aria-label="Inspector">
+            <div className="inspector-tabs" role="tablist" aria-label="Inspector views">
+              <button className="active" role="tab" aria-selected="true" type="button">Inspector</button>
+              <button role="tab" aria-selected="false" type="button">Problems <span>{problemCount}</span></button>
+              <PanelMoveControls panel="inspector" />
+              <button className="plain-icon inspector-close" type="button" aria-label="Close inspector" onClick={() => setInspectorOpen(false)}><Icon name="close" size={15} /></button>
+            </div>
+            <div className="inspector-scroll">
+              <section className="context-card">
+                <div className="context-kind">{workspaceTab === 'Code' ? 'ACTIVE SOURCE FILE' : 'WORKSPACE STATUS'}</div>
+                <div className="context-title"><code>{workspaceTab === 'Code' ? activeSource?.name : workspaceTab}</code><span>{workspaceTab === 'Code' ? activeSourceLanguage : workspaceTab === 'Media' && latestMedia ? latestMedia.kind === 'disc' ? `drive ${latestMedia.drive}` : 'cassette' : workspaceTab === 'Debugger' && hardwareState ? `hardware ${hardwareState.running ? 'running' : 'paused'}` : workspaceTab === 'Debugger' && runtimeState ? runtimeState.status : workspaceTab === 'Build targets' && buildArtifact ? (isMachineCodeArtifact(buildArtifact) ? buildArtifact.processor : buildArtifact.kind === 'atom-basic-text' ? 'Atom BASIC' : 'BBC BASIC II') : 'no adapter'}</span></div>
+              <p>{workspaceTab === 'Code' ? activeSource?.access === 'read-only' || activeSource?.kind === 'generated' ? `This ${activeSource.kind ?? 'source'} file is read-only${activeSource.generator ? ` and generated by ${activeSource.generator}` : ''}. Inspect, copy, compare or download it; edit its owning input instead.` : `This ${activeSource?.kind ?? 'authored'} file is editable and automatically recovered from browser storage. Use Save to clear its modified state or Export for a portable copy.` : workspaceTab === 'Media' && latestMedia ? `${latestMedia.name} is mounted in the live ${latestMedia.kind === 'disc' ? `drive ${latestMedia.drive}` : 'cassette input'}; the emulator acknowledged ${latestMedia.size.toLocaleString()} bytes.` : workspaceTab === 'Debugger' && hardwareState ? `Live ROM-aware machine state: ${hardwareState.reason} at ${formatAddress(hardwareState.registers.pc)}.` : workspaceTab === 'Debugger' && runtimeState && assemblyArtifact ? `Live ROM-less ${assemblyArtifact.processor.toUpperCase()} debug state from the current build: ${runtimeState.reason}.` : workspaceTab === 'Build targets' && buildArtifact ? (buildArtifact.kind === '6502-binary' ? `Current ${buildArtifact.processor.toUpperCase()} binary, diagnostics, symbols and source map.` : buildArtifact.kind === 'arm-binary' ? 'Current genuine ARM2 raw binary with linked symbols, DWARF source map and ELF evidence. It is not yet a RISC OS application or runnable Archimedes session.' : buildArtifact.kind === 'atom-basic-text' ? 'Current validated Atom BASIC interpreter text, diagnostics and listing.' : 'Current genuine BBC BASIC II tokenized program, diagnostics and listing.') : 'This surface does not have a runtime adapter attached yet. No simulated state is being presented.'}</p>
+                <dl>
+                  <div><dt>Files</dt><dd>{project.files.length}</dd></div>
+                  <div><dt>Modified</dt><dd>{project.files.filter((file) => file.modified).length}</dd></div>
+                  <div><dt>Storage</dt><dd>Browser local</dd></div>
+                </dl>
+                <button type="button" onClick={() => setProjectExportOpen(true)}>Export portable project <Icon name="chevron" size={13} /></button>
+              </section>
 
+              <section className="inspector-section">
+                <div className="section-title"><span>DEBUG SESSION</span><small>{hardwareState ? (hardwareState.running ? 'running' : 'paused') : runtimeState?.status ?? 'disconnected'}</small></div>
+                {hardwareState ? <div className="mini-registers"><code>A {formatByte(hardwareState.registers.a)}</code><code>X {formatByte(hardwareState.registers.x)}</code><code>Y {formatByte(hardwareState.registers.y)}</code><code>SP {formatByte(hardwareState.registers.s)}</code><code>PC {formatAddress(hardwareState.registers.pc)}</code></div> : runtimeState ? <div className="mini-registers"><code>A {formatByte(runtimeState.registers.a)}</code><code>X {formatByte(runtimeState.registers.x)}</code><code>Y {formatByte(runtimeState.registers.y)}</code><code>SP {formatByte(runtimeState.registers.sp)}</code><code>PC {formatAddress(runtimeState.registers.pc)}</code></div> : <p className="honest-empty">No runtime is attached. Build a source or supply the selected ROM set to populate live state.</p>}
+              </section>
+            </div>
+          </aside>
+        ),
+            [EDITOR_SLOT]: (
         <main
           className={`main-workspace ${runtimeOpen ? 'runtime-open' : 'runtime-closed'}`}
           id="main-workspace"
@@ -2574,35 +2694,27 @@ function App() {
           {runtimeOpen && <PanelSeparator panel="runtime" orientation="horizontal" before={false} label="Resize the machine runtime" size={panelSizes.runtime} onResize={resizePanelTo} />}
           {runtimeOpen && <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} command={machineCommand} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />}
         </main>
-
-        {panelOpenState.inspector && <PanelSeparator panel="inspector" orientation="vertical" before={false} label="Resize the inspector" size={panelSizes.inspector} onResize={resizePanelTo} />}
-        {inspectorOpen && (
-          <aside className="inspector-panel panel-surface" aria-label="Inspector">
-            <div className="inspector-tabs" role="tablist" aria-label="Inspector views">
-              <button className="active" role="tab" aria-selected="true" type="button">Inspector</button>
-              <button role="tab" aria-selected="false" type="button">Problems <span>{problemCount}</span></button>
-              <button className="plain-icon inspector-close" type="button" aria-label="Close inspector" onClick={() => setInspectorOpen(false)}><Icon name="close" size={15} /></button>
-            </div>
-            <div className="inspector-scroll">
-              <section className="context-card">
-                <div className="context-kind">{workspaceTab === 'Code' ? 'ACTIVE SOURCE FILE' : 'WORKSPACE STATUS'}</div>
-                <div className="context-title"><code>{workspaceTab === 'Code' ? activeSource?.name : workspaceTab}</code><span>{workspaceTab === 'Code' ? activeSourceLanguage : workspaceTab === 'Media' && latestMedia ? latestMedia.kind === 'disc' ? `drive ${latestMedia.drive}` : 'cassette' : workspaceTab === 'Debugger' && hardwareState ? `hardware ${hardwareState.running ? 'running' : 'paused'}` : workspaceTab === 'Debugger' && runtimeState ? runtimeState.status : workspaceTab === 'Build targets' && buildArtifact ? (isMachineCodeArtifact(buildArtifact) ? buildArtifact.processor : buildArtifact.kind === 'atom-basic-text' ? 'Atom BASIC' : 'BBC BASIC II') : 'no adapter'}</span></div>
-              <p>{workspaceTab === 'Code' ? activeSource?.access === 'read-only' || activeSource?.kind === 'generated' ? `This ${activeSource.kind ?? 'source'} file is read-only${activeSource.generator ? ` and generated by ${activeSource.generator}` : ''}. Inspect, copy, compare or download it; edit its owning input instead.` : `This ${activeSource?.kind ?? 'authored'} file is editable and automatically recovered from browser storage. Use Save to clear its modified state or Export for a portable copy.` : workspaceTab === 'Media' && latestMedia ? `${latestMedia.name} is mounted in the live ${latestMedia.kind === 'disc' ? `drive ${latestMedia.drive}` : 'cassette input'}; the emulator acknowledged ${latestMedia.size.toLocaleString()} bytes.` : workspaceTab === 'Debugger' && hardwareState ? `Live ROM-aware machine state: ${hardwareState.reason} at ${formatAddress(hardwareState.registers.pc)}.` : workspaceTab === 'Debugger' && runtimeState && assemblyArtifact ? `Live ROM-less ${assemblyArtifact.processor.toUpperCase()} debug state from the current build: ${runtimeState.reason}.` : workspaceTab === 'Build targets' && buildArtifact ? (buildArtifact.kind === '6502-binary' ? `Current ${buildArtifact.processor.toUpperCase()} binary, diagnostics, symbols and source map.` : buildArtifact.kind === 'arm-binary' ? 'Current genuine ARM2 raw binary with linked symbols, DWARF source map and ELF evidence. It is not yet a RISC OS application or runnable Archimedes session.' : buildArtifact.kind === 'atom-basic-text' ? 'Current validated Atom BASIC interpreter text, diagnostics and listing.' : 'Current genuine BBC BASIC II tokenized program, diagnostics and listing.') : 'This surface does not have a runtime adapter attached yet. No simulated state is being presented.'}</p>
-                <dl>
-                  <div><dt>Files</dt><dd>{project.files.length}</dd></div>
-                  <div><dt>Modified</dt><dd>{project.files.filter((file) => file.modified).length}</dd></div>
-                  <div><dt>Storage</dt><dd>Browser local</dd></div>
-                </dl>
-                <button type="button" onClick={() => setProjectExportOpen(true)}>Export portable project <Icon name="chevron" size={13} /></button>
-              </section>
-
-              <section className="inspector-section">
-                <div className="section-title"><span>DEBUG SESSION</span><small>{hardwareState ? (hardwareState.running ? 'running' : 'paused') : runtimeState?.status ?? 'disconnected'}</small></div>
-                {hardwareState ? <div className="mini-registers"><code>A {formatByte(hardwareState.registers.a)}</code><code>X {formatByte(hardwareState.registers.x)}</code><code>Y {formatByte(hardwareState.registers.y)}</code><code>SP {formatByte(hardwareState.registers.s)}</code><code>PC {formatAddress(hardwareState.registers.pc)}</code></div> : runtimeState ? <div className="mini-registers"><code>A {formatByte(runtimeState.registers.a)}</code><code>X {formatByte(runtimeState.registers.x)}</code><code>Y {formatByte(runtimeState.registers.y)}</code><code>SP {formatByte(runtimeState.registers.sp)}</code><code>PC {formatAddress(runtimeState.registers.pc)}</code></div> : <p className="honest-empty">No runtime is attached. Build a source or supply the selected ROM set to populate live state.</p>}
-              </section>
-            </div>
-          </aside>
-        )}
+            ),
+          };
+          return normalizePanelOrder(panelOrder).map((slot) => {
+            const separator = separatorBefore(placed, placed.indexOf(slot));
+            return (
+              <Fragment key={slot}>
+                {separator && (
+                  <PanelSeparator
+                    panel={separator.panel}
+                    orientation="vertical"
+                    before={separator.before}
+                    label={SEPARATOR_LABELS[separator.panel]}
+                    size={panelSizes[separator.panel]}
+                    onResize={resizePanelTo}
+                  />
+                )}
+                {panelNodes[slot]}
+              </Fragment>
+            );
+          });
+        })()}
       </div>
 
       <footer className="statusbar">
