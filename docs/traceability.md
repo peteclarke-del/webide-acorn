@@ -23,11 +23,11 @@ is the part a machine can settle.
 | Measure | Count |
 | --- | --- |
 | Requirements tracked | 302 |
-| Complete | 209 |
+| Complete | 210 |
 | Complete and traced | 131 |
-| Complete and described | 78 |
+| Complete and described | 79 |
 | Complete and untraced | 0 |
-| Open | 93 |
+| Open | 92 |
 
 ## By area
 
@@ -40,7 +40,7 @@ is the part a machine can settle.
 | ANL | 18 | 16 | 14 | 2 | 0 |
 | EMU | 18 | 12 | 3 | 9 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
-| UX | 16 | 5 | 4 | 1 | 0 |
+| UX | 16 | 6 | 4 | 2 | 0 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
 | DOC | 10 | 9 | 7 | 2 | 0 |
 | DOD | 10 | 8 | 2 | 6 | 0 |
@@ -235,8 +235,7 @@ None. Every completed requirement records how it was verified.
 | P0-049 | Approve measurable SLOs, browser matrix, size/concurrency limits, recovery objectives,… | 1 of 2 parts done |
 | P0-GATE | Requirements and backlog accepted; selected initial target slices have credible… | not started |
 | UX-100 | Map project, workspace, asset, emulator, debugger, inspector, research, settings,… | not started |
-| UX-101 | Prototype desktop workbench at reference and minimum supported resolutions with… | not started |
-| UX-102 | Prototype narrow reflow at 320 CSS px, 200% text zoom, mobile/tablet, and browser zoom… | not started |
+| UX-101 | Prototype desktop workbench at reference and minimum supported resolutions with… | 3 of 4 parts done |
 | UX-103 | Define global action bar order and state for new/open/save/import/… | not started |
 | UX-104 | Define target/configuration selector, comparison view, compatibility warnings, support… | not started |
 | UX-105 | Define focus movement across docks, tabs, toolbars, trees, editor, emulator, canvas… | 4 of 4 parts done |

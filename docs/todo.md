@@ -713,8 +713,44 @@ Companion specification: `docs/requirements-specification.md`
   research, settings, account, and status information architecture (UX-001).
 - [ ] UX-101 Prototype desktop workbench at reference and minimum supported
   resolutions with resizable/collapsible/movable panels (UX-001–UX-003).
-- [ ] UX-102 Prototype narrow reflow at 320 CSS px, 200% text zoom, mobile/tablet,
+  - [x] **Resizable, and by keyboard as well as by pointer.** Four panels —
+    configuration, explorer, inspector and runtime — each have a
+    `role="separator"` that takes focus, reports `aria-valuenow`, moves on the
+    arrow keys, jumps to the extremes on Home and End, and returns to its
+    starting size on Enter or Space, which is the way back from a drag somebody
+    regrets. The drag itself uses Pointer Events, so it works under a finger as
+    well as a mouse. Sizes are bounded per panel and remembered.
+  - [x] **Collapsible.** Each of those panels closes from a labelled control —
+    "Close target configuration", "Close project explorer", "Close inspector" —
+    and the emulator panel collapses separately.
+  - [x] Reference and minimum resolutions are checked on every build rather than
+    prototyped once: the `smoke` stage lays the workbench out at 1440x900,
+    900x700, 700x600, 640x512 and 320x480 and fails if the page scrolls
+    horizontally, if a box reaches past the viewport with nothing to scroll it,
+    or if a control ends up out of reach.
+  - [ ] **Movable panels do not exist and that is the honest gap.** Files can be
+    reordered in the explorer; panels cannot be moved or re-docked. Nothing in
+    the layout model expresses a position — `PanelId` is four fixed names and
+    the workbench grid is built from their sizes — so this is real work rather
+    than a control that is missing, and the item stays open for it.
+- [x] UX-102 Prototype narrow reflow at 320 CSS px, 200% text zoom, mobile/tablet,
   and browser zoom without two-dimensional page scrolling (UX-003, UX-006).
+  - [x] **320 CSS px and browser zoom are measured on every build, not
+    prototyped.** The `smoke` stage lays the workbench out at five sizes down to
+    320x480 — which is also a 400% zoom of 1280 — and 640x512, a 200% zoom of
+    1280x1024. Each asserts no horizontal scrolling, so two-dimensional page
+    scrolling fails the gate rather than being reviewed for.
+  - [x] **200% text zoom is checked as its own criterion**, because page zoom
+    does not cover it: WCAG 1.4.4 is about resizing the text and leaving the
+    page alone. The type scale is set to double at an ordinary viewport and 81
+    controls stay reachable at 26px with nothing clipped. The check fails first
+    if the scale did not take effect, so it cannot pass by changing nothing.
+  - [x] Touch is not a separate path to maintain: the panel separators and the
+    editable canvases use Pointer Events, which a finger drives as well as a
+    mouse, so there is no mouse-only interaction to reflow around.
+  - [x] What is not claimed is a device: no phone or tablet has been driven
+    here, and the evidence above is a desktop browser at those viewports.
+    Hardware testing belongs with the browser matrix in A11Y-903.
 - [ ] UX-103 Define global action bar order and state for new/open/save/import/
   export/build/run/cloud/about/help and accessible overflow behavior.
 - [ ] UX-104 Define target/configuration selector, comparison view, compatibility
@@ -4358,11 +4394,26 @@ Current implemented increment:
     the option still choosable, which is how this was before. Proved by removing
     the `disabled` attribute.
   - [ ] **What is still open is the core, not the interface.** Making the A310
-    slice run RISC OS 2.00 is emulator work rather than product work, and until
-    it is done the RISC OS 2 BASIC statement forms above cannot be measured:
-    they need a machine that starts. RISC OS 2.01 does start, and whether its
-    statement forms are the same as 2.00's is exactly the kind of thing this
-    work does not assume.
+    slice run RISC OS 2.00 is emulator work rather than product work.
+  - [ ] **The obvious way round it was tried and does not exist.** RISC OS 2.01
+    does boot, so it looked like the machine to measure on instead — until its
+    ROM was read. That image carries the same module names as 2.00, `BASIC`
+    among them, and none of BASIC's contents: two occurrences of the bare word
+    against nineteen in 2.00, no `*BASIC [-help|-chain` syntax line, and no
+    keyword table at all where 2.00 has a complete one. Whatever the reason, no
+    table can be read out of it by the reader that reads every other ARM ROM
+    here, so 2.01 cannot supply the measurement either.
+  - [ ] Arthur 1.20 both boots and has a readable table, and is still not the
+    answer: its table is 157 entries against RISC OS 2.00's 158, so it is a
+    different build of BASIC, and measuring one interpreter to describe another
+    is the assumption this work exists not to make. It would be a data point
+    about Arthur, recorded as Arthur's.
+  - [ ] So the RISC OS 2 statement forms need one of two things and neither is
+    small: Arculator made to run RISC OS 2.00, or a reader that can find BASIC
+    inside the RISC OS 2.01 ROM. Until then the dialect ships without them and
+    says so, which costs a program that assigns to `HIMEM`, `PAGE`, `TIME`,
+    `LOMEM` or `PTR`, or uses the multi-line `ELSE` — those tokens decode as
+    unknown rather than wrongly, which is the failure this build prefers.
 
 - [x] **EMU-428 `capture-screen` answered once per session and then stopped.** The
   A310 runtime replies to the first `capture-screen` with a PNG blob and to
