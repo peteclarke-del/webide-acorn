@@ -915,7 +915,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-source-navigation.png",
-      alt: "BBC BASIC editor showing project and routine breadcrumbs, a matched FOR NEXT scope, navigation controls, live diagnostics and changed source lines",
+      alt: "BBC BASIC editor with the caret inside a counted loop, showing the project and file breadcrumb, the matched FOR and NEXT scope over physical lines 3 to 5 with its Start and End controls, and the documentation for the statement at the caret",
       caption:
         "The source navigation surface keeps structural scope, diagnostic traversal, saved-change traversal and recent file access beside the active editor.",
       captured: "2026.09 interface",
@@ -1384,7 +1384,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-c-relationships.png",
-      alt: "C project editor after Type definition selected the byte typedef in api.h, with Declaration, Implementation and Type definition controls visible and the exact api.h line reported in the status bar",
+      alt: "C project editor after Type definition followed the byte parameter from main.c into api.h and selected the typedef on line 4, with the status bar reporting the exact file and line",
       caption:
         "The explicit Type definition action selects byte in the connected project header. Declaration and Implementation remain separate Navigate menu actions for the draw prototype and function body.",
       captured: "2026.09 interface",
@@ -3737,7 +3737,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["build-targets", "debugger-6502", "debugger-arm"],
     screenshot: {
       src: "/help/hardware-tests.png",
-      alt: "Persisted hardware test input editor showing a BBC pointer state followed by a wait for the live video frame counter",
+      alt: "Tests workspace with the Acorn Harvest self test target active, showing its one persisted Engine contract plan, the deterministic input script ready with no actions yet, the plan editor and the assertion reference beside it",
       caption:
         "Deterministic input can combine exact pointer hardware state with a named video-frame boundary before the test evaluates its stop condition.",
       captured: "2026.09 interface",

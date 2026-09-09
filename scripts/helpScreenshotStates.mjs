@@ -266,8 +266,18 @@ export const SHOTS = [
   {
     file: 'hardware-tests.png',
     topics: ['tests'],
-    steps: [{ workspace: 'Tests' }],
-    shows: ['test'],
+    steps: [
+      /* The empty project has no target a hardware test can be written against,
+       * so this is the Harvest sample, which carries a real plan of its own. */
+      ...OPEN_HARVEST,
+      ...SUPPLY_BBC_ROMS,
+      /* The plan belongs to the self-test target rather than the game, and the
+       * workspace shows the plans of the target that is active. */
+      { clickText: { selector: 'button.tree-item', text: 'Acorn Harvest self test' } },
+      { workspace: 'Tests' },
+      { wait: 1500 },
+    ],
+    shows: ['Acorn Harvest', 'Engine contract'],
   },
   {
     file: 'research-reference.png',
@@ -283,8 +293,14 @@ export const SHOTS = [
   {
     file: 'build-targets.png',
     topics: ['build-targets'],
-    steps: [{ workspace: 'Build targets' }],
-    shows: ['VERSIONED BUILD TARGET', 'main build', 'Retain artifact', 'Analyse artifact'],
+    steps: [
+      /* An unbuilt project has no provenance and no diagnostics to show, so
+       * this is the Harvest sample after a real build of both its targets. */
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      ...BUILD_ALL,
+    ],
+    shows: ['VERSIONED BUILD TARGET', 'Acorn Harvest game', 'Retain artifact', 'Analyse artifact', 'SUCCEEDED'],
   },
   {
     file: 'media-workspace.png',

@@ -78,7 +78,7 @@ Bind a stop condition, assertions and cycle budget to a build target, then execu
 - Increase the budget only after verifying the program is making progress.
 - Correct stale symbols by rebuilding before rerunning.
 
-![Persisted hardware test input editor showing a BBC pointer state followed by a wait for the live video frame counter](../../public/help/hardware-tests.png)
+![Tests workspace with the Acorn Harvest self test target active, showing its one persisted Engine contract plan, the deterministic input script ready with no actions yet, the plan editor and the assertion reference beside it](../../public/help/hardware-tests.png)
 
 *Deterministic input can combine exact pointer hardware state with a named video-frame boundary before the test evaluates its stop condition.*
 
