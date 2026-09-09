@@ -11,7 +11,7 @@
  *
  * A stored project that would not parse was replaced with a new empty one. From
  * the outside that is indistinguishable from the product having thrown the work
- * away — and the bytes were still sitting in storage the whole time. Now they
+ * away, and the bytes were still sitting in storage the whole time. Now they
  * are moved aside intact, the reason is reported, and they can be downloaded.
  */
 import { newProject, parseProject, type LocalProject } from './project';
@@ -54,8 +54,8 @@ export function saveProjectSnapshot(project: LocalProject, now = Date.now()): Sa
   try {
     store.setItem(PROJECT_STORAGE_KEY, text);
     /* Read back what was written. A browser can accept a write and store
-     * nothing — a private window near its limit, or an extension partitioning
-     * storage — and a save that reports success without having happened is the
+     * nothing (a private window near its limit, or an extension partitioning
+     * storage), and a save that reports success without having happened is the
      * one failure that costs someone their work. */
     const stored = store.getItem(PROJECT_STORAGE_KEY);
     if (stored !== text) {
@@ -104,7 +104,7 @@ export interface StorageUsage {
  * The browser does not expose its own limit, so none is reported: a figure
  * invented here would be wrong on some browser and would be believed. What can
  * be measured is what is stored, which is what makes a full-quota message
- * actionable — it says how much is there and what the project's share of it is.
+ * actionable. It says how much is there and what the project's share of it is.
  */
 export function storageUsage(): StorageUsage | null {
   const store = storage();

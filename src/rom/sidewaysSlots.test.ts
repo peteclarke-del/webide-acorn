@@ -69,7 +69,7 @@ describe('placing a ROM', () => {
     expect(layout[0]!.romId).toBe('dfs');
   });
 
-  it('refuses a bank the machine’s own firmware occupies', () => {
+  it("refuses a bank the machine's own firmware occupies", () => {
     const { problem } = assignBank([rom(15, 'mos-basic', true)], rom(15, 'toolkit'));
     expect(problem).toMatchObject({ kind: 'bank-reserved' });
     expect(problem!.reason).toMatch(/own firmware/i);
@@ -95,7 +95,7 @@ describe('clearing a bank', () => {
     expect(layout.map((entry) => entry.bank)).toEqual([5]);
   });
 
-  it('refuses to empty one the machine’s firmware occupies', () => {
+  it("refuses to empty one the machine's firmware occupies", () => {
     const { layout, problem } = clearBank([rom(15, 'mos-basic', true)], 15);
     expect(problem).toMatchObject({ kind: 'bank-reserved' });
     expect(layout).toHaveLength(1);

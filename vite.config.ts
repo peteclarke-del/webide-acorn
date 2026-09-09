@@ -56,11 +56,22 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
-    testTimeout: 10_000,
-    /* Several suites mount the whole workbench or decode a megabyte of pixels.
+    /*
+     * Several suites mount the whole workbench or decode a megabyte of pixels.
      * The default five-second hook and teardown bounds are tight enough that a
      * loaded machine fails them for reasons that have nothing to do with the
-     * code under test. */
+     * code under test.
+     *
+     * The per-test bound is now the same figure, for the same reason, and it
+     * was left behind when the hook bound was raised. Three suites have been
+     * seen to fail on it under a full parallel run and pass on their own: the
+     * BASIC rename case takes 3.2 seconds by itself and more than ten with
+     * eight workers competing for eight cores. A timeout is there to catch a
+     * test that never finishes, not to measure how busy the machine was, and a
+     * test that only passes when nothing else is running is not reproducible,
+     * which is the one thing every test here has to be.
+     */
+    testTimeout: 30_000,
     hookTimeout: 30_000,
     teardownTimeout: 30_000,
     coverage: {

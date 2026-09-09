@@ -297,8 +297,8 @@
   }
 
   async function loadProgram(command) {
-    if (!Array.isArray(command.bytes) || !command.bytes.length || command.bytes.length > 0xf8000 || command.bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255)) throw new Error('ARM program bytes must contain 1–1,015,808 byte values');
-    if (!Number.isInteger(command.origin) || command.origin < 0x8000 || command.origin + command.bytes.length > 0x100000) throw new Error('ARM program load range must stay within &00008000–&000FFFFF');
+    if (!Array.isArray(command.bytes) || !command.bytes.length || command.bytes.length > 0xf8000 || command.bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255)) throw new Error('ARM program bytes must contain 1-1,015,808 byte values');
+    if (!Number.isInteger(command.origin) || command.origin < 0x8000 || command.origin + command.bytes.length > 0x100000) throw new Error('ARM program load range must stay within &00008000-&000FFFFF');
     if (!Number.isInteger(command.entryPoint) || (command.entryPoint & 3) || command.entryPoint < command.origin || command.entryPoint >= command.origin + command.bytes.length) throw new Error('ARM entry point must be word-aligned and inside the loaded program');
     const breakpoints = Array.isArray(command.breakpoints) ? command.breakpoints : [];
     if (breakpoints.length > 64 || breakpoints.some((address) => !Number.isInteger(address) || address < command.origin || address >= command.origin + command.bytes.length || (address & 3))) throw new Error('Program breakpoints must contain at most 64 aligned addresses inside the loaded image');
@@ -426,13 +426,48 @@
   }
 
   const wait = (durationMs) => new Promise((resolve) => setTimeout(resolve, durationMs));
-  const SDL_SCANCODE = { Enter: 40, F12: 69, Space: 44, Minus: 45, Period: 55, Semicolon: 51, Shift: 225 };
+  const SDL_SCANCODE = { Enter: 40, F12: 69, Space: 44, Minus: 45, Period: 55, Semicolon: 51, Shift: 225, Equals: 46, Comma: 54, Slash: 56, LeftBracket: 47, RightBracket: 48, Apostrophe: 52 };
 
   function scancodeForCharacter(character) {
     if (/^[a-z]$/i.test(character)) return { scancode: 4 + character.toUpperCase().charCodeAt(0) - 65, shift: character === character.toUpperCase() };
     if (/^[1-9]$/.test(character)) return { scancode: 29 + Number(character), shift: false };
     if (character === '0') return { scancode: 39, shift: false };
-    const symbol = { ' ': [SDL_SCANCODE.Space, false], '-': [SDL_SCANCODE.Minus, false], '_': [SDL_SCANCODE.Minus, true], '.': [SDL_SCANCODE.Period, false], ':': [SDL_SCANCODE.Semicolon, true], '!': [30, true], '$': [33, true] }[character];
+    /*
+   * The punctuation this keyboard can type.
+   *
+   * Only characters whose key is the same on the UK layout the machine boots
+   * with and the US layout SDL names its scancodes from. That rules out the
+   * ones that move (`"` is Shift-2 here and Shift-' there, `@` is the other
+   * way round, `#` and `~` are a UK key that US layouts do not have), because a
+   * mapping that is wrong produces a different character rather than an error,
+   * and a measurement that types one thing and records another is worse than no
+   * measurement.
+   *
+   * Each was added by typing it into the machine and reading back what BASIC
+   * stored, not by reading a scancode table.
+   */
+  const symbol = {
+    ' ': [SDL_SCANCODE.Space, false],
+    '-': [SDL_SCANCODE.Minus, false],
+    '_': [SDL_SCANCODE.Minus, true],
+    '.': [SDL_SCANCODE.Period, false],
+    ':': [SDL_SCANCODE.Semicolon, true],
+    ';': [SDL_SCANCODE.Semicolon, false],
+    '!': [30, true],
+    '$': [33, true],
+    '=': [SDL_SCANCODE.Equals, false],
+    '+': [SDL_SCANCODE.Equals, true],
+    ',': [SDL_SCANCODE.Comma, false],
+    '<': [SDL_SCANCODE.Comma, true],
+    '>': [SDL_SCANCODE.Period, true],
+    '/': [SDL_SCANCODE.Slash, false],
+    '?': [SDL_SCANCODE.Slash, true],
+    '(': [38, true],
+    ')': [39, true],
+    '*': [37, true],
+    '[': [SDL_SCANCODE.LeftBracket, false],
+    ']': [SDL_SCANCODE.RightBracket, false],
+  }[character];
     if (!symbol) throw new Error(`The A310 keyboard queue contains an unsupported character: ${character}`);
     return { scancode: symbol[0], shift: symbol[1] };
   }
@@ -498,7 +533,7 @@
 
   async function launchAdfsFile(command) {
     if (!Number.isInteger(command.drive) || !mountedDiscs.has(command.drive)) throw new Error('Mount the selected ADFS drive before launching a file');
-    if (typeof command.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,9}$/.test(command.name)) throw new Error('The ADFS launch file must be a simple 1–10 character Acorn name');
+    if (typeof command.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,9}$/.test(command.name)) throw new Error('The ADFS launch file must be a simple 1-10 character Acorn name');
     await enterRiscOsLaunch({ applicationName: command.name, rootDirectory: '$', launchPath: `ADFS::${command.drive}.$.${command.name}`, entryPoint: 0x8000 });
   }
 
@@ -512,13 +547,13 @@
     if (!Number.isInteger(command.memoryKiB) || command.memoryKiB < 512 || command.memoryKiB > 16384) throw new Error('Invalid Archimedes RAM size');
     if (!Number.isInteger(command.fastBootMs) || command.fastBootMs < 0 || command.fastBootMs > 60000) throw new Error('Fast boot duration must be between 0 and 60,000 emulated milliseconds');
     profile = { profileId: command.profileId, romSet: command.romSet, memoryKiB: command.memoryKiB, fastBootMs: command.fastBootMs, hostFsAvailable: /^riscos3/.test(command.romSet) };
-    setStatus(`Loading ${command.romSet} from the browser-local vault…`);
+    setStatus(`Loading ${command.romSet} from the browser-local vault...`);
     send({ type: 'initialisation-progress', phase: 'firmware', label: `Loading ${command.romSet} firmware` });
     const base = `/user-roms/archimedes/${encodeURIComponent(command.profileId)}`;
     const vaultPrefix = `archimedes/${command.profileId}`;
     const [rom, cmos, supportRom] = await Promise.all([loadVaultBytes(`${vaultPrefix}/roms/${command.romSet}/rom.bin`, `${base}/roms/${command.romSet}/rom.bin`, command.romSize), loadVaultBytes(`${vaultPrefix}/cmos/${command.cmosFilename}`, `${base}/cmos/${command.cmosFilename}`, 256), profile.hostFsAvailable ? fetchBytes('/arculator/arcrom_ext', 65536) : Promise.resolve(undefined)]);
     if (!runtimeReady) {
-      setStatus('Firmware ready · finishing emulator core startup…');
+      setStatus('Firmware ready · finishing emulator core startup...');
       send({ type: 'initialisation-progress', phase: 'runtime', label: 'Firmware ready · finishing emulator core startup' });
       await runtimeReadyPromise;
     }
@@ -530,7 +565,7 @@
     writeFile('/arc.cfg', new TextEncoder().encode('sound_enable = 0\nfirst_fullscreen = 0\nstereo = 1\ndisc_noise_gain = 0\n'));
     const configuration = `machine = a310\ndisc_name_0 =\ndisc_name_1 =\ndisc_name_2 =\ndisc_name_3 =\nmem_size = ${command.memoryKiB}\ncpu_type = 0\nmemc_type = 0\nfpa = 0\nfpu_type = 1\ndisplay_mode = 0\ndouble_scan = 1\nvideo_scale = 1\nvideo_fullscreen_scale = 0\nvideo_linear_filtering = 0\nfdc_type = 0\nst506_present = 0\nrom_set = ${command.romSet}\nmonitor_type = multisync\njoystick_if = none\nunique_id = 324508639\nrenderer_driver = auto\npodule_0 =\npodule_1 =\npodule_2 =\npodule_3 =\nsupport_rom_enabled = ${profile.hostFsAvailable ? 1 : 0}\n`;
     writeFile('/configs/a310.cfg', new TextEncoder().encode(configuration));
-    setStatus('Starting genuine A310 hardware core…');
+    setStatus('Starting genuine A310 hardware core...');
     send({ type: 'initialisation-progress', phase: 'hardware', label: 'Starting A310 hardware core' });
     try { window.Module.callMain(['0', 'a310']); } catch (error) { if (error !== 'unwind') throw error; }
     started = true; canvas.focus();
@@ -567,8 +602,25 @@
     else if (command.type === 'focus-input') { canvas.focus(); send({ type: 'input-focus', captured: document.activeElement === canvas }); }
     else if (command.type === 'release-input') { ccall('arc_webide_clear_host_keys'); ccall('arc_webide_clear_host_mouse'); mouseButtons = 0; canvas.blur(); send({ type: 'input-focus', captured: false }); }
     else if (command.type === 'inject-text') await enterMachineText(command.text);
+    /*
+     * A function key on its own, which text cannot express.
+     *
+     * F12 is how anybody reaches the RISC OS command line, and the runtime
+     * already presses it when launching an application, but only as part of
+     * that, so nothing else could get to a supervisor prompt. Without it the
+     * only way in was a star command, and the keyboard has no star key mapped.
+     */
+    else if (command.type === 'press-function-key') {
+      if (!Number.isInteger(command.number) || command.number < 1 || command.number > 12) {
+        throw new Error('A function key is F1 to F12');
+      }
+      canvas.focus();
+      /* SDL numbers F1 to F12 from 58, with F12 at 69. */
+      await pressMachineKey(57 + command.number, Boolean(command.shift));
+      send({ type: 'command-accepted', command: 'press-function-key', number: command.number });
+    }
     else if (command.type === 'set-register') {
-      if (!Number.isInteger(command.register) || command.register < 0 || command.register > 15 || !Number.isInteger(command.value) || command.value < 0 || command.value > 0xffffffff || (command.register === 15 && (command.value > 0x3fffffc || (command.value & 3)))) throw new Error('Register edits require R0–R14 unsigned values or an aligned 26-bit R15 execute address');
+      if (!Number.isInteger(command.register) || command.register < 0 || command.register > 15 || !Number.isInteger(command.value) || command.value < 0 || command.value > 0xffffffff || (command.register === 15 && (command.value > 0x3fffffc || (command.value & 3)))) throw new Error('Register edits require R0-R14 unsigned values or an aligned 26-bit R15 execute address');
       if (!ccall('arc_webide_set_register', 'number', ['number', 'number'], [command.register, command.value])) throw new Error('The ARM core rejected the register edit; pause the machine and verify the value');
       snapshot(`R${command.register} edited and verified`);
     }
@@ -587,7 +639,7 @@
       send({ type: 'memory-map', requestId: command.requestId, pages, emulationMs: ccall('arc_get_emulation_ms', 'number'), running: !ccall('arc_webide_is_paused', 'number'), source: 'Arculator live mempoint page table and backing allocations' });
     }
     else if (command.type === 'write-memory') {
-      if (!Number.isInteger(command.address) || !Array.isArray(command.bytes) || command.address < 0 || command.address > 0x3ffffff || command.bytes.length < 1 || command.bytes.length > 256 || command.address + command.bytes.length > 0x4000000 || command.bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255)) throw new Error('ARM memory writes require 1–256 bytes in a non-wrapping 26-bit logical range');
+      if (!Number.isInteger(command.address) || !Array.isArray(command.bytes) || command.address < 0 || command.address > 0x3ffffff || command.bytes.length < 1 || command.bytes.length > 256 || command.address + command.bytes.length > 0x4000000 || command.bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255)) throw new Error('ARM memory writes require 1-256 bytes in a non-wrapping 26-bit logical range');
       const before = command.bytes.map((_, offset) => ccall('arc_webide_read_byte', 'number', ['number'], [command.address + offset]) >>> 0);
       const bytes = Uint8Array.from(command.bytes); const pointer = window.Module._malloc(bytes.length);
       try { window.Module.HEAPU8.set(bytes, pointer); if (!ccall('arc_webide_write_memory', 'number', ['number', 'number', 'number'], [command.address, pointer, bytes.length])) throw new Error('The paused ARM core rejected this write: every destination must resolve to physical main RAM'); }
@@ -598,7 +650,7 @@
       snapshot('memory edited and verified');
     }
     else if (command.type === 'read-memory') {
-      if (!Number.isInteger(command.address) || !Number.isInteger(command.length) || command.address < 0 || command.address > 0x3ffffff || command.length < 1 || command.length > 4096 || command.address + command.length > 0x4000000) throw new Error('Memory reads are limited to 1–4,096 non-wrapping bytes in the 26-bit logical address space');
+      if (!Number.isInteger(command.address) || !Number.isInteger(command.length) || command.address < 0 || command.address > 0x3ffffff || command.length < 1 || command.length > 4096 || command.address + command.length > 0x4000000) throw new Error('Memory reads are limited to 1-4,096 non-wrapping bytes in the 26-bit logical address space');
       const bytes = Array.from({ length: command.length }, (_, offset) => ccall('arc_webide_read_byte', 'number', ['number'], [command.address + offset]));
       send({ type: 'memory', requestId: command.requestId, address: command.address, bytes, emulationMs: ccall('arc_get_emulation_ms', 'number'), running: !ccall('arc_webide_is_paused', 'number'), addressSpace: 'ARM 26-bit logical current mapping' });
     } else throw new Error(`Unsupported Archimedes runtime command: ${command.type}`);
@@ -616,6 +668,28 @@
     Promise.resolve(receive(command)).catch((error) => { appendCrash('command', error); setStatus(error instanceof Error ? error.message : String(error), 'error'); send({ type: 'error', message: error instanceof Error ? error.message : String(error) }); if (started) snapshot('command error'); });
   });
   send({ type: 'listener-ready' });
+  /*
+   * A screen capture has to be the pixels the core produced, and a WebGL canvas
+   * throws its drawing buffer away at the end of every frame unless it is asked
+   * not to. SDL creates the context, so the attribute is forced here before
+   * anything can create one.
+   *
+   * Without it `capture-screen` answered the first request in a session and
+   * none of the later ones (`canvas.toBlob` simply never called back, with no
+   * error to say why), which left a driver with no way to see where a machine
+   * had got to. The Elkulator runtime already does this and records the same
+   * reasoning; this is that fix, in the runtime that was missing it.
+   */
+  const preserveDrawingBuffer = () => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function getContext(kind, attributes) {
+      if (kind === 'webgl' || kind === 'webgl2' || kind === 'experimental-webgl') {
+        return original.call(this, kind, { ...(attributes ?? {}), preserveDrawingBuffer: true });
+      }
+      return original.call(this, kind, attributes);
+    };
+  };
+  preserveDrawingBuffer();
   window.Module = {
     noInitialRun: true,
     canvas,

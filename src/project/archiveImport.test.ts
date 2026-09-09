@@ -9,8 +9,8 @@ import {
 } from './archiveImport';
 
 /* The archives are built here, byte by byte, rather than fixtures checked in.
- * Every hostile case this reader exists to refuse — a traversing name, a
- * symbolic link, an encrypted entry, a header that lies about its own size —
+ * Every hostile case this reader exists to refuse, a traversing name, a
+ * symbolic link, an encrypted entry, a header that lies about its own size,
  * is a property of the bytes, so the bytes are what the tests state. Real
  * deflate streams come from the platform's CompressionStream, which is the
  * same implementation the reader's DecompressionStream unpacks. */

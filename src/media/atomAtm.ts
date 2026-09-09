@@ -16,7 +16,7 @@ function address(value: number, field: string): number {
 
 function name(value: string): string {
   const normalized = value.trim();
-  if (!normalized.length || normalized.length > MAX_NAME_LENGTH || !/^[\x20-\x7e]+$/.test(normalized) || /[\\/]/.test(normalized)) throw new Error('ATM name must contain 1–12 printable characters without path separators');
+  if (!normalized.length || normalized.length > MAX_NAME_LENGTH || !/^[\x20-\x7e]+$/.test(normalized) || /[\\/]/.test(normalized)) throw new Error('ATM name must contain 1-12 printable characters without path separators');
   return normalized;
 }
 
@@ -40,7 +40,7 @@ export function parseAtomAtm(image: Uint8Array): AtomAtmFile {
  * reparses the result before it is returned. */
 export function createAtomAtm(file: AtomAtmFile): Uint8Array {
   const parsedName = name(file.name); const loadAddress = address(file.loadAddress, 'Load address'); const executionAddress = address(file.executionAddress, 'Execution address');
-  if (!file.bytes?.length || file.bytes.length > 0xffff) throw new Error('ATM payload must contain 1–65,535 bytes');
+  if (!file.bytes?.length || file.bytes.length > 0xffff) throw new Error('ATM payload must contain 1-65,535 bytes');
   const image = new Uint8Array(HEADER_SIZE + file.bytes.length);
   image.set(new TextEncoder().encode(parsedName), 0);
   image[16] = loadAddress & 0xff; image[17] = loadAddress >>> 8;

@@ -14,7 +14,7 @@ namespace App\Build;
  * distribution package, a snap or Homebrew, and was told the toolchain was
  * unavailable while the binary sat on their PATH.
  *
- * An explicitly configured path is never second-guessed — somebody who sets
+ * An explicitly configured path is never second-guessed, somebody who sets
  * BEEBASM_PATH means that binary, and reporting a different one they did not
  * choose would be worse than reporting the one they did and saying it is not
  * there. Only when nothing is configured is the executable searched for.

@@ -1,7 +1,7 @@
 # ADR 0006: Archimedes browser runtime and firmware boundary
 
-- Status: accepted for implementation
-- Date: 2026-08-21
+Status: accepted for implementation
+Date: 21 August 2026
 
 ## Context
 
@@ -51,7 +51,7 @@ therefore produce a corrupt ROM image even though every file has the right size.
    metadata is retained explicitly, and application directories are packaged
    without flattening `!Boot`, `!Run`, `!Sprites` or typed files.
 7. Before HostFS packaging is complete, a bounded raw-debug handoff may write a
-   current ARM2 artifact only to `&00008000–&000FFFFF` while paused, read it
+   current ARM2 artifact only to `&00008000-&000FFFFF` while paused, read it
    back, refill the real 26-bit pipeline at its in-image entry point, install
    source breakpoints, and remain visibly labelled as raw machine code. It is
    not the RISC OS application-loading path.

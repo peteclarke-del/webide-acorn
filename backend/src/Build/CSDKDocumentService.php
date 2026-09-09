@@ -53,7 +53,17 @@ final class CSDKDocumentService
     private function configuredRoots(): array
     {
         if ($this->roots !== null) return $this->roots;
-        $webIde = (string) (ToolLocator::configured('CC65_BBC_INCLUDE') ?? '/usr/local/share/8bit-net/cc65-bbc/include');
+        /*
+         * The installed location first, then the copy in this repository. A
+         * checkout run with `php -S` has the headers under backend/resources
+         * and nothing installed, and without this fallback every SDK document
+         * request answered SDK_DOCUMENT_NOT_FOUND while the header sat four
+         * directories away.
+         */
+        $installed = '/usr/local/share/8bit-net/cc65-bbc/include';
+        $repository = dirname(__DIR__, 2).'/resources/cc65-bbc/include';
+        $webIde = (string) (ToolLocator::configured('CC65_BBC_INCLUDE')
+            ?? (is_dir($installed) ? $installed : $repository));
         return [
             ['root' => $webIde, 'source' => '8bit-net BBC C SDK include', 'licence' => 'Project runtime source, see repository licensing and third-party notices.'],
             ['root' => '/usr/share/cc65/include', 'source' => 'cc65 2.19-1 include', 'licence' => 'cc65 zlib-style licence; original notice is retained in source files where supplied.'],

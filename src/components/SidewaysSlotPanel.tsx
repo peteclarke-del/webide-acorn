@@ -6,7 +6,7 @@
  * first and which one wins when two claim the same name. None of that is
  * visible if the product picks the number.
  *
- * Every bank is shown, filled or not, because an empty bank is information —
+ * Every bank is shown, filled or not, because an empty bank is information,
  * it is where the next ROM can go, and its number is what that ROM's priority
  * will be. The list is ordered the way the hardware numbers them, with the
  * service-call order stated separately rather than left to be known.
@@ -89,7 +89,7 @@ export function SidewaysSlotPanel({ available, unavailableReason, layout, onChan
           <select aria-label="Bank to fill" value={pendingBank} onChange={(event) => setPendingBank(Number(event.target.value))}>
             {rows.map((row) => (
               <option key={row.bank} value={row.bank} disabled={!!row.assignment}>
-                {row.bank}{row.assignment ? ` — ${row.assignment.label}` : ''}
+                {row.bank}{row.assignment ? `, ${row.assignment.label}` : ''}
               </option>
             ))}
           </select>

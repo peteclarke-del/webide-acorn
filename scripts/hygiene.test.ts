@@ -43,7 +43,7 @@ describe('paths that may never be committed', () => {
 
   it('tells a real .env from a template of one', () => {
     /* A template holds the names of the variables and is documentation, so it
-     * belongs in the repository — and is still scanned for content. */
+     * belongs in the repository, and is still scanned for content. */
     for (const path of ['.env.example', '.env.sample', 'services/.env.template', '.env.dist']) {
       expect(forbiddenPath(path), path).toBeNull();
     }
@@ -101,7 +101,7 @@ describe('secret shapes in file contents', () => {
     }
   });
 
-  it('does not fire on the product’s own ordinary source', () => {
+  it("does not fire on the product's own ordinary source", () => {
     const text = [
       'const OSWRCH = 0xffee;',
       'export const PROJECT_FORMAT = "8bit-net-dev-project-21";',

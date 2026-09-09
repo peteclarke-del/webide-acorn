@@ -10,7 +10,7 @@
  *   1. beside the file doing the including,
  *   2. as a path from the top of the project,
  *   3. by basename anywhere in the project, but only when exactly one file
- *      carries that name — a guess between two candidates would silently build
+ *      carries that name. A guess between two candidates would silently build
  *      the wrong program.
  *
  * The lookup map is keyed by lowercased name because the machines this product

@@ -31,7 +31,7 @@ export const GUIDE_AREAS = [
   { id: 'tests', title: 'Tests', topics: ['tests', 'headless-ci'] },
   { id: 'assets', title: 'The asset editors', topics: ['assets', 'tile-maps', 'asset-fonts', 'asset-screens', 'asset-palettes', 'asset-sound', 'asset-samples'] },
   { id: 'research', title: 'Reference and research', topics: ['research'] },
-  { id: 'accessibility', title: 'Accessibility', topics: ['keyboard-accessibility', 'shortcut-remapping'] },
+  { id: 'accessibility', title: 'Accessibility', topics: ['keyboard-accessibility', 'appearance', 'shortcut-remapping'] },
   { id: 'troubleshooting', title: 'Troubleshooting', topics: ['troubleshooting'] },
 ];
 
@@ -41,7 +41,7 @@ export const GUIDE_AREAS = [
  * A guide to a feature that does not exist is fiction, and a book that quietly
  * omits an area reads as a book that covered everything. So the area is named,
  * the reason is given, and `absentMarkers` names what would appear in the
- * interface source if the feature had in fact shipped — which makes this a
+ * interface source if the feature had in fact shipped, which makes this a
  * check that can fail rather than a note. Ship the feature and the gate demands
  * the guide.
  */
@@ -61,7 +61,7 @@ export const UNAVAILABLE_AREAS = [
      * A declaration of absence is only checkable against something that is
      * true now. The single unproven owner is that something: it is what makes
      * sharing unsafe, it is one line in the controller, and the day it stops
-     * being a constant is the day the owner comes from the request instead —
+     * being a constant is the day the owner comes from the request instead,
      * at which point this fails and demands the guide. */
     stillPresent: [
       'private const OWNER = ProjectStore::LOCAL_OWNER;',
@@ -121,7 +121,7 @@ export function renderIndex(topics) {
   ];
   for (const area of GUIDE_AREAS) {
     lines.push(`## [${area.title}](${area.id}.md)`, '');
-    for (const id of area.topics) lines.push(`- **${byId.get(id)?.title ?? id}** — ${byId.get(id)?.summary ?? ''}`);
+    for (const id of area.topics) lines.push(`- **${byId.get(id)?.title ?? id}**: ${byId.get(id)?.summary ?? ''}`);
     lines.push('');
   }
   lines.push('## Areas with no guide, and why', '');

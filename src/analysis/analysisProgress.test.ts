@@ -4,7 +4,7 @@
  *
  * The failure this guards against is not a bar that is slightly wrong. It is a
  * bar that moves when nothing is happening and stops when something is, which
- * makes the one question a person watching it has — is this going to finish —
+ * makes the one question a person watching it has, is this going to finish,
  * unanswerable, and is what an invented percentage always does.
  */
 import { describe, expect, it, vi } from 'vitest';

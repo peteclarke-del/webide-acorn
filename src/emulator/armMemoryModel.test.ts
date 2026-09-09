@@ -18,7 +18,7 @@ describe('ARM 26-bit logical memory inspector model', () => {
   it('rejects wrapping/oversized reads and clamps page navigation', () => {
     expect(validateArmMemoryRead(0x8000, 4096)).toEqual({ address: 0x8000, length: 4096 });
     expect(() => validateArmMemoryRead(0x03fffff0, 32)).toThrow('must not wrap');
-    expect(() => validateArmMemoryRead(0, 4097)).toThrow('1–4,096');
+    expect(() => validateArmMemoryRead(0, 4097)).toThrow('1-4,096');
     expect(armMemoryPageAddress(0, 256, -1)).toBe(0);
     expect(armMemoryPageAddress(0x03ffff00, 256, 1)).toBe(0x03ffff00);
   });

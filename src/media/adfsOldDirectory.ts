@@ -3,8 +3,8 @@
  *
  * These are the ADFS discs that predate the Archimedes: an old free-space map,
  * which this build already reads for D-format discs, and an *old* directory,
- * which it did not read at all. The two are independent — D format pairs the old
- * map with the new 77-entry directory — so the only thing missing was this.
+ * which it did not read at all. The two are independent, D format pairs the old
+ * map with the new 77-entry directory, so the only thing missing was this.
  *
  * None of it is written from recollection. RISC OS 3.11 was booted on this
  * build's own pinned A310 core, told to format an L disc, given files and
@@ -16,7 +16,7 @@
  * Two things that measurement settled which no amount of care would have:
  *
  * The attributes are not a byte. They are the top bits of the first four
- * characters of the name — read, write, locked, directory — so a reader that
+ * characters of the name (read, write, locked, directory), so a reader that
  * took the name as ASCII would produce `\xe1\xecpha` for a file called `alpha`
  * and lose the attributes entirely.
  *
@@ -76,8 +76,8 @@ export interface OldDirectory {
    * checksums, which this build already computes and which reproduce these
    * discs exactly. This one is recorded and not checked, because the algorithm
    * that produces it was not established. A broad search over accumulator
-   * shapes — forward and reverse, with and without carry, with and without a
-   * rotate, over every plausible range — reproduced none of the twelve
+   * shapes (forward and reverse, with and without carry, with and without a
+   * rotate, over every plausible range) reproduced none of the twelve
    * directories measured across four discs. Checking it against a guess would
    * be worse than not checking it: it would reject good discs and say they were
    * damaged.

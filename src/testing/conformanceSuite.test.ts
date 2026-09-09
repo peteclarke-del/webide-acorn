@@ -34,8 +34,8 @@ const built = new Map(CONFORMANCE_CASES.map((item) => [
 ]));
 const symbolsFor = (item: ConformanceCase) => built.get(item.id)?.symbols ?? {};
 
-/* For the cases built here that are not in the suite — a case with no
- * assertions, a lost stop label — where what is under test is the refusal
+/* For the cases built here that are not in the suite (a case with no
+ * assertions, a lost stop label), where what is under test is the refusal
  * rather than the symbols. */
 const symbols = { start: 0x1900, done: 0x1910 };
 
@@ -103,7 +103,7 @@ describe('the cases themselves', () => {
   it('every case assembles with the toolchain the suite is run through', () => {
     /* The check that was missing, and its absence cost a five-minute headless
      * run against a real machine to discover. Every case originally ended with
-     * a BeebAsm `SAVE`, which the browser assembler does not have — so none of
+     * a BeebAsm `SAVE`, which the browser assembler does not have, so none of
      * them could build, and a contract that asserted the sources *contained*
      * SAVE agreed with the mistake rather than catching it. Assembling here
      * means a case that cannot build fails in seconds instead. */
@@ -113,7 +113,7 @@ describe('the cases themselves', () => {
       expect(errors.map((diagnostic) => diagnostic.message), item.id).toEqual([]);
       expect(artifact.bytes.length, item.id).toBeGreaterThan(0);
       /* And the label the plan stops on has to resolve against the symbols the
-       * build emits — through the same resolver the runner uses, because the
+       * build emits. Through the same resolver the runner uses, because the
        * assembler upper-cases labels and a plain key lookup would be testing a
        * proxy for the behaviour rather than the behaviour. */
       expect(resolveTestValue(item.stop, artifact.symbols), `${item.id} stop label ${item.stop}`).not.toBeNull();

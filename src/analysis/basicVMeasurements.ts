@@ -126,5 +126,5 @@ export const BASIC_V_MEASUREMENT_SOURCE = Object.freeze({
   machine: 'Acorn Archimedes A310, 4 MiB, on the pinned Arculator WebAssembly core this build ships',
   firmware: 'RISC OS 3.11 (29 Sep 1992), carrying BBC BASIC V 1.05 (10 Apr 1992)',
   sha256: 'e916a0b84a2c8d96d43731ec9a02c9dff31312c95bca725b2b60e7eb3bfe7384',
-  method: 'Typed through the emulated keyboard on the machine\u2019s own clock, then read back from the BASIC program area at &8F00.',
+  method: "Typed through the emulated keyboard on the machine's own clock, then read back from the BASIC program area at &8F00.",
 });

@@ -40,8 +40,8 @@ export const armDirectiveItems: LanguageItem[] = [
   directive('.GLOBAL', 'Export a symbol to the linker.', '.global symbol'),
   directive('.TYPE', 'Record a symbol type in ELF metadata.', '.type symbol, %function'),
   directive('.SECTION', 'Select an ELF input section.', '.section .text'),
-  directive('.WORD', 'Emit one or more little-endian 32-bit words.', '.word expression[, expression…]'),
-  directive('.BYTE', 'Emit one or more bytes.', '.byte expression[, expression…]'),
+  directive('.WORD', 'Emit one or more little-endian 32-bit words.', '.word expression[, expression...]'),
+  directive('.BYTE', 'Emit one or more bytes.', '.byte expression[, expression...]'),
   directive('.ALIGN', 'Align the following location according to GNU as ARM rules.', '.align power'),
   directive('.INCLUDE', 'Include a static quoted project-local source file.', '.include "project/path"', 'Absolute paths, traversal, dynamic names and .incbin are rejected by the build sandbox.'),
 ];
@@ -51,8 +51,8 @@ function directive(token: string, detail: string, signature: string, warning?: s
 }
 
 function armParameter(name: string) {
-  if (name === 'Rd') return 'Destination register R0–R15.';
-  if (name === 'Rn') return 'First operand or address-base register R0–R15.';
+  if (name === 'Rd') return 'Destination register R0-R15.';
+  if (name === 'Rn') return 'First operand or address-base register R0-R15.';
   if (name === 'operand2') return 'ARM immediate or shifted-register operand.';
   if (name === 'address') return 'ARM pre/post-indexed load/store address expression.';
   if (name === 'registers') return 'Comma-separated register list or range.';

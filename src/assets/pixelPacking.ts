@@ -47,7 +47,7 @@ export function unpackBbcMode5Pixels(bytes: Uint8Array | readonly number[]): num
  * nothing about the order the bytes come in, and both callers assumed the
  * obvious one: byte 0 is the leftmost four pixels of row 0, byte 1 the next
  * four, and so on to the end of the row. The BBC does not store a picture that
- * way. Its display memory is a series of eight-scanline blocks — one byte per
+ * way. Its display memory is a series of eight-scanline blocks, one byte per
  * scanline, eight bytes for a four-pixel-wide column, then the next column
  * across, and only after a whole band of eight rows does it move down.
  *

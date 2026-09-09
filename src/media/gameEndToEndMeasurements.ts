@@ -14,7 +14,7 @@
  * machine's memory. Then the machine was asked what it printed.
  *
  * It printed the game's own title, and two bytes it had read out of the artwork
- * and the music — so those were really in the binary the machine loaded, rather
+ * and the music, so those were really in the binary the machine loaded, rather
  * than merely in the project the binary was built from.
  *
  * `scripts/measureGameEndToEnd.mjs` reproduces it.
@@ -58,15 +58,15 @@ export const GAME_END_TO_END_RUNS: readonly GamePlayedMeasurement[] = Object.fre
 /**
  * Why the Model B says something the Master does not, and why it is right to.
  *
- * On a Model B with DFS, PAGE is &1900 — which is where the game loads. So
+ * On a Model B with DFS, PAGE is &1900, which is where the game loads. So
  * loading it destroys whatever BASIC program was there, and when the game
  * returns, BASIC finds machine code where its program should be and says so.
  * The Master's PAGE is &E00, so nothing collides.
  *
  * That is the machine behaving correctly, and it is why a real game is entered
  * with `*RUN` and does not come back. It is recorded rather than hidden because
- * somebody starting from one of the shipped starters — which do return to
- * BASIC, being starters — will see it, and should find it written down here
+ * somebody starting from one of the shipped starters (which do return to
+ * BASIC, being starters) will see it, and should find it written down here
  * rather than think they broke something.
  */
 export const GAME_END_TO_END_MODEL_B_NOTE =

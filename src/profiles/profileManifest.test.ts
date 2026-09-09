@@ -69,7 +69,7 @@ describe('a manifest from another version', () => {
     expect(result.profile.capabilities[0]!.requiresVariant).toBeUndefined();
   });
 
-  it('keeps a version 2 capability’s variant restriction', () => {
+  it("keeps a version 2 capability's variant restriction", () => {
     const result = readProfileManifest(manifest({
       capabilities: [{ id: 'adfs', label: 'ADFS', description: '', state: 'supported', requiresVariant: 'Model B · 1770 DFS' }],
     }));

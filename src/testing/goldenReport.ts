@@ -2,8 +2,8 @@
  *
  * A count of differing pixels and a worst-channel figure tell somebody that
  * their picture changed and nothing about what changed. Two failures with
- * identical numbers — one where a caption moved by a pixel, one where a whole
- * sprite vanished — read the same, and the person has to squint at two images
+ * identical numbers (one where a caption moved by a pixel, one where a whole
+ * sprite vanished) read the same, and the person has to squint at two images
  * to tell them apart.
  *
  * So a report locates the difference: the box it fits in, where the worst pixel

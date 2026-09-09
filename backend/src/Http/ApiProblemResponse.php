@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
  *
  * It was written inside the build controller, which was fine while there was
  * one controller. A second one that threw without catching produced Symfony's
- * HTML error page instead — a 500 with no code, no correlation identifier and
+ * HTML error page instead. A 500 with no code, no correlation identifier and
  * no indication whether trying again could help. Every route now renders a
  * refusal the same way, because a client cannot parse two error formats and
  * should not have to discover which it got.
@@ -30,7 +30,7 @@ final class ApiProblemResponse
                 /* An empty map must serialise as {} and not as []. PHP cannot
                  * tell the two apart and JSON can, and a client typed against
                  * an object was being handed a list whenever there were no
-                 * field details — which is most refusals. */
+                 * field details, which is most refusals. */
                 'fields' => (object) $problem->fields,
             ],
         ], $problem->status, $correlationId);

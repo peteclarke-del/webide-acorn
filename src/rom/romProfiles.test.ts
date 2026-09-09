@@ -155,7 +155,7 @@ describe('every firmware a machine offers', () => {
       expect(romSetFor(entry.machine, entry.id), `${entry.machine}/${entry.id} is excused but does resolve`).toBeUndefined();
       expect(entry.reason.length).toBeGreaterThan(80);
       /* The obstacle is the emulator, and the reason has to name it, because
-       * the alternative reading — that a file is missing — is the one that
+       * the alternative reading, that a file is missing, is the one that
        * sends somebody looking for firmware that would not help. */
       expect(entry.reason).toMatch(/jsbeeb|arculator|elkulator|emulat|model/i);
     }
@@ -177,8 +177,8 @@ describe('the two Electron cores', () => {
   /*
    * The Electron's firmware list is how a person chooses between them, because
    * the ROM set carries the engine. It named a set that did not exist, so the
-   * Elkulator core — the one with the instruction hook, the media path and the
-   * expansions — could not be reached from the workbench at all, while every
+   * Elkulator core (the one with the instruction hook, the media path and the
+   * expansions) could not be reached from the workbench at all, while every
    * test that asked the registry directly still passed. This is the test that
    * would have caught it.
    */

@@ -1,7 +1,7 @@
 /* The operations the benchmark actually performs.
  *
- * Kept apart from the declarations so that the suite — what is measured, what
- * is not, and every ceiling — can be read and contract-tested without pulling
+ * Kept apart from the declarations so that the suite (what is measured, what
+ * is not, and every ceiling) can be read and contract-tested without pulling
  * in an assembler and a tile map. Each runner returns how much work it did, so
  * a case that quietly produced nothing fails its budget rather than passing it
  * with the cost of doing nothing.
@@ -92,7 +92,7 @@ export function runTraceFilter(events: number, iterations: number): number {
 export function runAssetCanvas(iterations: number): number {
   const document = createTileMapDocument('benchmark', 64, 64, 8, 8);
   /* Sixteen declared indices, painted across the whole map. A map that used an
-   * index the tileset does not declare is refused, and rightly so — but it
+   * index the tileset does not declare is refused, and rightly so, but it
    * would be refused before any drawing happened, so it would measure the
    * refusal rather than the drawing. */
   const tileset = Array.from({ length: 16 }, (_entry, index) => ({ index: index + 1, assetFile: null, properties: [index & 0xff] }));

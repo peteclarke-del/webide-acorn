@@ -7,7 +7,7 @@
  * from one, so it is hosted in an iframe here exactly as the workbench hosts
  * it. Driving it any other way would measure something the product does not do.
  *
- * This is the shared half of the measuring scripts beside it — the ROM-less
+ * This is the shared half of the measuring scripts beside it, the ROM-less
  * plumbing: a static server, a headless browser, a DevTools connection and a
  * page that speaks the command envelope. What is measured is each script's own
  * business, expressed as an expression evaluated in that page.

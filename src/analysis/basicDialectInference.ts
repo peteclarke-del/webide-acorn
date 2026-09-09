@@ -5,7 +5,7 @@
  * is the whole difficulty: most short BASIC programs are valid in every dialect
  * and there is nothing in them to tell one from another. Choosing anyway would
  * decode somebody's program under the wrong table and produce plausible,
- * subtly-wrong text — which is worse than saying "this could be any of these".
+ * subtly-wrong text, which is worse than saying "this could be any of these".
  *
  * So evidence has to be positive and specific: a token only one dialect
  * defines, or a line structure only one dialect uses. Frequency is not
@@ -13,7 +13,7 @@
  *
  * How little evidence there usually is came out of the tables themselves: of
  * the four 6502-family BASICs read here, exactly one token belongs to a single
- * dialect — &CE, EDIT, which only BASIC IV has. Every other token is shared.
+ * dialect, &CE, EDIT, which only BASIC IV has. Every other token is shared.
  * So a tokenised BBC BASIC file almost never says which ROM wrote it, and an
  * inference that returned a dialect anyway would be inventing one for nearly
  * every file it saw. Saying so is the useful answer; the machine somebody
@@ -36,18 +36,72 @@ export interface DialectInference {
   reason: string;
 }
 
-/** Tokens defined by exactly one of the tabled dialects, and by which. */
-function distinguishingTokens(): Map<number, BasicDialect> {
+/*
+ * What each token narrows the answer to.
+ *
+ * The first version of this asked which tokens exactly one *dialect* defines,
+ * and the second which tokens exactly one *table* defines. Both were the same
+ * mistake in different sizes: they treated evidence as a thing that either
+ * names one answer or is worthless, and every time a dialect was added the
+ * evidence appeared to vanish.
+ *
+ * It had not vanished. `&7F` is OTHERWISE, which the three ARM tables define and
+ * no 6502 one does. That does not name a dialect and it rules out four of them,
+ * which is a real and useful thing to be able to say about a file.
+ *
+ * So a token maps to the set of dialects that define it. A set smaller than all
+ * of them is evidence; a set of one names a dialect; a set of several narrows
+ * to those and says why it can go no further. Adding a dialect now changes how
+ * far the evidence reaches instead of whether it exists.
+ */
+function narrowingTokens(): Map<number, BasicDialect[]> {
+  /*
+   * Bytes that mean something other than a plain token in some dialect, and so
+   * cannot be read as one anywhere.
+   *
+   * This is not a refinement, it is the difference between evidence and a
+   * mistake. &C6, &C7 and &C8 are ordinary keywords on a 6502 BASIC (AUTO,
+   * DELETE, LOAD), and are the two-byte prefixes on an ARM one, where they
+   * introduce the byte after them. &CF to &D3 are the 6502 pseudo-variables and
+   * are BASIC V's statement forms. Counting a raw &C7 as proof of a 6502 BASIC
+   * would convict every ARM file that lists anything, and the file would then
+   * look like it carried tokens from two dialects at once.
+   *
+   * So a byte that is a prefix or a statement form anywhere is ambiguous by
+   * construction and is not evidence.
+   */
+  const ambiguous = new Set<number>();
+  for (const dialect of BASIC_DIALECTS) {
+    for (const prefix of Object.keys(dialect.extended ?? {})) ambiguous.add(Number(prefix));
+    for (const token of Object.keys(dialect.statementForms ?? {})) ambiguous.add(Number(token));
+  }
+
   const owners = new Map<number, BasicDialect[]>();
   for (const dialect of BASIC_DIALECTS) {
     for (const token of Object.keys(dialect.tokens).map(Number)) {
+      if (ambiguous.has(token)) continue;
       owners.set(token, [...(owners.get(token) ?? []), dialect]);
     }
   }
-  const unique = new Map<number, BasicDialect>();
-  for (const [token, dialects] of owners) if (dialects.length === 1) unique.set(token, dialects[0]!);
+  const narrowing = new Map<number, BasicDialect[]>();
+  for (const [token, dialects] of owners) {
+    if (dialects.length < BASIC_DIALECTS.length) narrowing.set(token, dialects);
+  }
 
-  return unique;
+  return narrowing;
+}
+
+/** How a set of owners reads in a sentence. */
+function describeOwners(token: number, owners: BasicDialect[]): string {
+  const byte = `&${token.toString(16).toUpperCase().padStart(2, '0')}`;
+  const keyword = owners[0]!.tokens[token];
+  const names = owners.map((owner) => owner.label);
+  if (owners.length === 1) return `Token ${byte} is ${keyword}, which only ${names[0]} defines.`;
+  const listed = `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  const shared = owners.every((owner) => owner.tokens === owners[0]!.tokens)
+    ? ' They share one keyword table, so no token can tell them apart.'
+    : '';
+  return `Token ${byte} is ${keyword}, which only ${listed} define.${shared}`;
 }
 
 /**
@@ -58,31 +112,42 @@ function distinguishingTokens(): Map<number, BasicDialect> {
  * and this says so rather than preferring the commonest.
  */
 export function inferTokenisedDialect(bytes: Uint8Array): DialectInference {
-  const unique = distinguishingTokens();
+  const narrowing = narrowingTokens();
   const evidence: DialectEvidence[] = [];
-  const seen = new Set<BasicDialectId>();
+  /* Each distinct set of owners the file narrowed to, in the order met. */
+  const sets: BasicDialect[][] = [];
+  const met = new Set<string>();
   for (const byte of bytes) {
-    const owner = unique.get(byte);
-    if (!owner || seen.has(owner.id)) continue;
-    seen.add(owner.id);
-    evidence.push({
-      dialect: owner.id,
-      detail: `Token &${byte.toString(16).toUpperCase().padStart(2, '0')} is ${owner.tokens[byte]}, which only ${owner.label} defines.`,
-    });
+    const owners = narrowing.get(byte);
+    if (!owners) continue;
+    const key = owners.map((owner) => owner.id).join(',');
+    if (met.has(key)) continue;
+    met.add(key);
+    sets.push(owners);
+    evidence.push({ dialect: owners[0]!.id, detail: describeOwners(byte, owners) });
   }
-  if (evidence.length === 1) {
-    const only = evidence[0]!;
-    return { dialect: only.dialect, candidates: [only.dialect], evidence, reason: only.detail };
+  const seen = new Set<BasicDialectId>(sets.flat().map((owner) => owner.id));
+  if (sets.length === 1) {
+    const owners = sets[0]!;
+    /* Named only when the evidence leaves one dialect. Several is not an
+     * ambiguity to resolve by preference; it is how far the ROMs allow anyone
+     * to get. */
+    return {
+      dialect: owners.length === 1 ? owners[0]!.id : null,
+      candidates: owners.map((owner) => owner.id),
+      evidence,
+      reason: evidence[0]!.detail,
+    };
   }
-  if (evidence.length > 1) {
+  if (sets.length > 1) {
     /* Tokens from two dialects in one file is not a dialect, it is a file that
-     * is not what it claims — or a reader that has lost its place. Either way
+     * is not what it claims, or a reader that has lost its place. Either way
      * it is not something to resolve by picking the commonest. */
     return {
       dialect: null,
       candidates: [...seen],
       evidence,
-      reason: `This carries tokens that belong to more than one BASIC — ${evidence.map((entry) => entry.detail).join(' ')} No single dialect explains it, so none is claimed.`,
+      reason: `This carries tokens that belong to more than one BASIC, ${evidence.map((entry) => entry.detail).join(' ')} No single dialect explains it, so none is claimed.`,
     };
   }
 
@@ -100,9 +165,9 @@ export function inferTokenisedDialect(bytes: Uint8Array): DialectInference {
  * difference rather than a token one, and it is the only positive evidence
  * this build has for the Atom.
  */
-/* The same shape the Atom decoder recognises — a single lower-case letter
+/* The same shape the Atom decoder recognises, a single lower-case letter
  * immediately after the line number and immediately before an upper-case
- * keyword — rather than a second rule that could disagree with it. */
+ * keyword, rather than a second rule that could disagree with it. */
 const ATOM_LABEL = /^\s*\d{1,5}[a-z](?=[A-Z])/u;
 
 /** Infer from source text. Structure is the only evidence text carries. */

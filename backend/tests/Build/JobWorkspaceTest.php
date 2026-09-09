@@ -96,8 +96,8 @@ final class JobWorkspaceTest extends TestCase
     public function testWhatSurvivesRemovalIsExactlyWhatRemovalReports(): void
     {
         /*
-         * Cleanup can genuinely fail — a directory refilled by something still
-         * running, an entry on a mount this process may not touch — and the
+         * Cleanup can genuinely fail (a directory refilled by something still
+         * running, an entry on a mount this process may not touch), and the
          * only thing that must never happen is failing quietly. So rather than
          * manufacturing one particular failure, this runs cleanup against a
          * workspace something is actively writing into and holds the report to

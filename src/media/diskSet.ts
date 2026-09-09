@@ -1,7 +1,7 @@
 /* A disk set: which build artifacts and project files go on which image.
  *
  * Producing a disc by hand each time a build changes is where the real errors
- * live — a stale artifact copied onto a disc, a boot option that names a file
+ * live. A stale artifact copied onto a disc, a boot option that names a file
  * nobody put on it, a set that no longer fits. A disk set records the intent
  * instead: the discs, what belongs on each, in what order, and how the machine
  * should start. From that the product can say what needs building, whether it

@@ -3,7 +3,7 @@
  *
  * The language reference documents eighteen BBC BASIC keywords with cited
  * prose. There are a hundred and twenty-six in BASIC II alone, and writing the
- * rest would mean citing sections of a manual this build does not have — which
+ * rest would mean citing sections of a manual this build does not have, which
  * is inventing a citation, not writing documentation.
  *
  * What can be said about every one of them, exactly, is what the ROM tables
@@ -19,7 +19,7 @@ export interface KeywordAvailability {
   /**
    * Every tabled dialect that defines it, and the tokens each uses.
    *
-   * Usually one. Five keywords have two — HIMEM, LOMEM, PAGE, PTR and TIME —
+   * Usually one. Five keywords have two. HIMEM, LOMEM, PAGE, PTR and TIME,
    * because BBC BASIC gives a pseudo-variable one token for reading and
    * another for assigning, and the ROM lists it twice. Reporting only the
    * first would make the other token decode as an unknown byte.
@@ -62,7 +62,7 @@ export function basicKeywordAvailability(keyword: string): KeywordAvailability |
     everywhere,
     summary: everywhere
       ? `A keyword of every BBC BASIC this build has a table for, ${tokenText}.`
-      : `A keyword of ${dialects.map((entry) => entry.label).join(', ')} — and not of the others — ${tokenText}.`,
+      : `A keyword of ${dialects.map((entry) => entry.label).join(', ')}, and not of the others, ${tokenText}.`,
   };
 }
 

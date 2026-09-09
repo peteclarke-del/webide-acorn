@@ -59,7 +59,7 @@ describe('importing', () => {
     expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/Publisher Manual was imported/));
   });
 
-  it('reports a refusal in the pack’s own terms rather than failing silently', async () => {
+  it("reports a refusal in the pack's own terms rather than failing silently", async () => {
     const props = open();
     importFile(pack({ tier: 'official' }));
     await waitFor(() => expect(props.onNotice).toHaveBeenCalledWith(expect.stringMatching(/source tier is one of/)));

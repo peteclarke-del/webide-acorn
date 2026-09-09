@@ -132,7 +132,7 @@ describe('6502 outline', () => {
     ].join('\n')))).toEqual([{ plot: ['offset'] }, 'after']);
   });
 
-  it('carries a constant’s value and a macro’s parameters as the detail', () => {
+  it("carries a constant's value and a macro's parameters as the detail", () => {
     const nodes = outline('.macro plot x, y\n.endmacro\nscreen = &7C00');
     expect(nodes[0]).toMatchObject({ kind: 'macro', detail: 'x, y' });
     expect(nodes[1]).toMatchObject({ kind: 'constant', detail: '&7C00' });

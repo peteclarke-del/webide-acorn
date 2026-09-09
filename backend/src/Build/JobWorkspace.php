@@ -13,7 +13,7 @@ use App\Observability\StructuredLogger;
  * recursion, and every copy ignored every failure it met. A removal that
  * quietly does nothing is the worst of both outcomes: somebody's source stays
  * on disk, and nothing says so until the disk is full. Removal happens here
- * instead, once — repairing what it can and reporting what it cannot.
+ * instead, once. Repairing what it can and reporting what it cannot.
  */
 final class JobWorkspace
 {

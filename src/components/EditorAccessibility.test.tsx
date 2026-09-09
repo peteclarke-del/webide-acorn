@@ -172,7 +172,7 @@ describe('large files', () => {
 });
 
 describe('undo isolation', () => {
-  it('does not reach into another file’s history', async () => {
+  it("does not reach into another file's history", async () => {
     /* Two documents, two histories. An undo in one that rewrote the other
      * would be indistinguishable from data loss. */
     const files = [sourceFile(), sourceFile({ id: 'other', name: 'other.asm', content: 'RTS\n' })];

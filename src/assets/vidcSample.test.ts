@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 /* Checked against the Acorn VIDC Datasheet, Part No 0460,020, Issue No 1.0,
- * 30 September 1986 — sections 5.5, 5.22 and 6.10 — rather than against what
+ * 30 September 1986 (sections 5.5, 5.22 and 6.10), rather than against what
  * an implementation happened to do. The figures the datasheet prints are the
  * assertions: if the step sizes were read wrongly, the chord boundaries would
  * not come out at the numbers on its graph.
@@ -33,7 +33,7 @@ import {
 describe('the transfer characteristic the datasheet prints', () => {
   it('puts the chord boundaries exactly where its figure marks them', () => {
     /* The figure marks 0, i, 3i, 7i, 15i, 31i, 63i, 127i. Counted in
-     * sixteenths of i, those are 0, 16, 48, 112, 240, 496, 1008, 2032 — and
+     * sixteenths of i, those are 0, 16, 48, 112, 240, 496, 1008, 2032, and
      * the arithmetic agreeing with the printed figure is what says the step
      * sizes were read correctly. */
     expect(VIDC_CHORD_BASE_UNITS).toEqual([0, 16, 48, 112, 240, 496, 1008, 2032]);
@@ -94,7 +94,7 @@ describe('the bit order, which differs between the parts', () => {
 });
 
 describe('decoding a sample', () => {
-  it('reads the sign as which pair of output pins, not as two’s complement', () => {
+  it("reads the sign as which pair of output pins, not as two's complement", () => {
     const positive = packVidcSample({ sign: 0, chord: 4, point: 3 }, 'vidc1');
     const negative = packVidcSample({ sign: 1, chord: 4, point: 3 }, 'vidc1');
     expect(decodeVidcSample(positive, 'vidc1')).toBe(magnitudeUnits(4, 3));

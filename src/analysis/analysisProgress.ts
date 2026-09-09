@@ -2,8 +2,8 @@
  *
  * Reported rather than estimated. A percentage a parser invented is worse than
  * no percentage at all: it moves when nothing is happening, it stops when
- * something is, and the one question a person watching it wants answered — is
- * this going to finish — becomes unanswerable. Every figure here is a count of
+ * something is, and the one question a person watching it wants answered, is
+ * this going to finish, becomes unanswerable. Every figure here is a count of
  * bytes the parser has decided about, against the number it was given.
  *
  * The stages are named because they are not interchangeable. A file can spend

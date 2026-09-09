@@ -19,8 +19,8 @@ export const DEFAULT_PROFILER_CONFIG: ProfilerConfig = { maxAddresses: 4096, fra
 export function validateProfilerConfig(input: Record<string, unknown>): ProfilerConfig {
   const maxAddresses = Number(input.maxAddresses ?? DEFAULT_PROFILER_CONFIG.maxAddresses);
   const frameCapacity = Number(input.frameCapacity ?? DEFAULT_PROFILER_CONFIG.frameCapacity);
-  if (!Number.isInteger(maxAddresses) || maxAddresses < 256 || maxAddresses > 16384) throw new Error('Profiler address capacity must be 256–16,384');
-  if (!Number.isInteger(frameCapacity) || frameCapacity < 16 || frameCapacity > 1024) throw new Error('Profiler frame capacity must be 16–1,024');
+  if (!Number.isInteger(maxAddresses) || maxAddresses < 256 || maxAddresses > 16384) throw new Error('Profiler address capacity must be 256-16,384');
+  if (!Number.isInteger(frameCapacity) || frameCapacity < 16 || frameCapacity > 1024) throw new Error('Profiler frame capacity must be 16-1,024');
   return { maxAddresses, frameCapacity, captureBus: Boolean(input.captureBus) };
 }
 

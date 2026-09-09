@@ -9,7 +9,7 @@
  * What this cannot do is said on the panel rather than left to be discovered.
  * Every file lands in the root: the writer builds no subdirectories, so a real
  * application directory is still the HostFS path rather than this one. Nothing
- * is added to a disc that already exists either — this writes a new image, and
+ * is added to a disc that already exists either. This writes a new image, and
  * changing an image already open is the catalogue editor's job.
  */
 import { useState } from 'react';

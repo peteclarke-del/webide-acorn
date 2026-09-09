@@ -71,7 +71,7 @@ const FIRST_FILE_FRAGMENT = 3;
 
 function checkedText(value: string, limit: number, label: string): Uint8Array {
   const trimmed = value.trim();
-  if (!trimmed || trimmed.length > limit || /[.\x00-\x1f\x7f-\xff]/.test(trimmed)) throw new Error(`${label} must contain 1–${limit} printable seven-bit characters without dots`);
+  if (!trimmed || trimmed.length > limit || /[.\x00-\x1f\x7f-\xff]/.test(trimmed)) throw new Error(`${label} must contain 1-${limit} printable seven-bit characters without dots`);
   return new TextEncoder().encode(trimmed);
 }
 
@@ -197,7 +197,7 @@ function writeDirectoryBlock(block: Uint8Array, options: { name: Uint8Array; tit
 /**
  * Write an 800 KiB ADFS E image holding the given tree.
  *
- * Every object — file or directory — gets one contiguous fragment, allocated a
+ * Every object, file or directory, gets one contiguous fragment, allocated a
  * level at a time, with the whole of the remaining disc left as a single free
  * fragment. Nothing is ever fragmented and nothing freed is ever reused,
  * because on a freshly written image nothing has been freed.

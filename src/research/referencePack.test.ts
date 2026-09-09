@@ -26,7 +26,7 @@ const pack = (overrides: Record<string, unknown> = {}, entryOverrides: Record<st
   applicability: { machines: ['bbc-b'], processors: ['6502'], dialects: ['bbc-basic'], versions: ['os1.20'] },
   entries: [{
     id: 'osbyte-19',
-    title: 'OSBYTE &13 — wait for vertical sync',
+    title: 'OSBYTE &13, wait for vertical sync',
     body: 'Waits for the next vertical synchronisation pulse.',
     anchors: [{ kind: 'oscall', value: 'OSBYTE', number: 0x13 }],
     citations: [{ title: 'BBC Microcomputer User Guide', section: 'OSBYTE calls', page: 452 }],

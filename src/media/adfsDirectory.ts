@@ -5,8 +5,8 @@
  * catalogue holds more than the fields any one implementation reads: bytes a
  * third-party filing system uses, remnants in unused entry slots, tail fields
  * whose meaning this build does not depend on. Rewriting only the modelled
- * fields and zeroing the rest looks correct — the image still mounts, the files
- * are still there — and quietly discards somebody else's data.
+ * fields and zeroing the rest looks correct (the image still mounts, the files
+ * are still there), and quietly discards somebody else's data.
  *
  * So opening a directory captures every byte the parser does not interpret, and
  * writing lays those bytes down first, then the fields that are modelled over
@@ -43,8 +43,8 @@ export interface AdfsPreservedDirectory {
    * entry can carry that this build does not understand: ADFS terminates a
    * short name with a carriage return and leaves the rest of the field holding
    * whatever the previous occupant of that slot left there. Keyed by name
-   * rather than by position so an entry that moves — because a rename resorted
-   * the catalogue — still finds its own bytes rather than its neighbour's.
+   * rather than by position so an entry that moves, because a rename resorted
+   * the catalogue, still finds its own bytes rather than its neighbour's.
    */
   nameFields: Map<string, Uint8Array>;
   /** The tail, minus the name, title and trailing sequence this build writes. */

@@ -10,7 +10,7 @@ import { ROM_SETS, romStorageKey } from './romProfiles';
  * nothing joined them up. The worker removed a `roms/` segment from every
  * request, because jsbeeb asks its base URL for `roms/<path>` while jsbeeb
  * profiles store `<set>/<path>` without it. The Elkulator profiles put `roms/`
- * in the manifest path itself, so their vault keys really do contain it — and
+ * in the manifest path itself, so their vault keys really do contain it, and
  * every ROM of the expanded Electron set was therefore stored under a key the
  * worker would never ask for. Supplied, present in the vault, and answered with
  * 404 the moment the core wanted it.

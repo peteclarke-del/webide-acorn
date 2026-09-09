@@ -15,7 +15,7 @@ namespace App\Observability;
  *
  * So this does not try to strip content out of a message. It decides whether a
  * value is of a shape that could not be content in the first place, and refuses
- * anything else. A refused field is still reported — by name, with the reason —
+ * anything else. A refused field is still reported, by name, with the reason,
  * because a log that silently dropped a field would be a log that lies about
  * what happened.
  *
@@ -30,7 +30,7 @@ final class Redactor
      *
      * Matched against the words of a field name rather than against the name as
      * a whole, so `sourceFiles` and `romBytes` are caught along with `source`
-     * and `bytes`, while `keyboard` is not — a word that merely contains a
+     * and `bytes`, while `keyboard` is not. A word that merely contains a
      * reserved word is a different word.
      *
      * The check applies only to strings. A number cannot be somebody's source,

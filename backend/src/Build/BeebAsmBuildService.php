@@ -75,8 +75,8 @@ final class BeebAsmBuildService
             if ($process['reason'] === 'succeeded' && $errors === 0) {
                 $path = $job.'/.build/output.bin';
                 /* BeebAsm writes the -o output only for a SAVE that names no
-                 * file. A project whose SAVEs are all named — which is every
-                 * project that builds more than one binary — produced nothing
+                 * file. A project whose SAVEs are all named, which is every
+                 * project that builds more than one binary, produced nothing
                  * there, and was told it had not built. What it saved is the
                  * build, so those files are the artifact instead. */
                 $saved = $this->savedArtifact($job, $combined, $request);

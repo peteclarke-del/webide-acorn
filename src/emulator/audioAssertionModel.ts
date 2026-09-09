@@ -2,7 +2,7 @@
  * 811C9DC5. So does a session that had no capture running at all, and so does
  * the fallback used when there is no audio device to capture from. Those three
  * are the same number, which means an assertion written against silence would
- * pass on a session that never listened — the strongest kind of false green,
+ * pass on a session that never listened. The strongest kind of false green,
  * because it looks like evidence.
  *
  * This is the one place that decides what an audio assertion may conclude, so
@@ -21,7 +21,7 @@ export interface AudioCaptureReading {
 }
 
 /** Said in place of a value, so a report never shows a number nobody measured. */
-export const NOT_CAPTURED = 'not captured — this session had no sound capture running';
+export const NOT_CAPTURED = 'not captured. This session had no sound capture running';
 
 /** The reading to use when there was no audio device to capture from at all. */
 export const UNCAPTURED_READING: AudioCaptureReading = {

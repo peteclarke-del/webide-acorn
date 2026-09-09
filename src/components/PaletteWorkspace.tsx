@@ -42,7 +42,7 @@ export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, 
 
   return (
     <section className="palette-workspace" aria-label="Palette editor">
-      <header className="palette-toolbar">
+      <header className="palette-toolbar" role="group" aria-label="Palette tools">
         <label><span>Name</span><input aria-label="Palette name" value={document.name} onChange={(event) => guard(() => parsePaletteDocument({ ...document, name: event.target.value || 'untitled-palette' }))} /></label>
         <label>
           <span>Display mode</span>
@@ -115,7 +115,7 @@ export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, 
             <div><dt>VDU bytes</dt><dd>{output.manifest.byteLength}</dd></div>
             <div><dt>Display mode</dt><dd>{output.manifest.displayMode}</dd></div>
             <div><dt>Flashing</dt><dd>{output.manifest.flashingLogicalColours.length ? output.manifest.flashingLogicalColours.join(', ') : 'none'}</dd></div>
-            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}…</code></dd></div>
+            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}...</code></dd></div>
           </dl>
           <pre aria-label="Generated palette assembler source">{output.assembly}</pre>
           <pre aria-label="Generated palette BASIC statements">{output.basic}</pre>

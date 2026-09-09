@@ -10,7 +10,7 @@
  * So a program can also assert as it runs. It calls a small routine with a
  * number it computed and the number it expected, and the routine writes both
  * into a block of memory the host reads afterwards. The program keeps running
- * either way — a failed assertion is recorded, not fatal — because stopping at
+ * either way (a failed assertion is recorded, not fatal), because stopping at
  * the first failure would hide every later one, and on a machine with no
  * operating system to catch it there is nowhere to stop to.
  *
@@ -30,7 +30,7 @@
 
 export const NATIVE_ASSERTION_SCHEMA = '8bit-net.native-assertions' as const;
 
-/** 'ASRT' — written by the runtime, checked by the reader. */
+/** 'ASRT'. Written by the runtime, checked by the reader. */
 export const SIGNATURE = [0x41, 0x53, 0x52, 0x54] as const;
 export const LAYOUT_VERSION = 1;
 
@@ -75,9 +75,9 @@ export type NativeAssertionResult =
 /**
  * Read a result block out of machine memory.
  *
- * Refuses rather than guesses. Every way the block can fail to be a block —
+ * Refuses rather than guesses. Every way the block can fail to be a block,
  * too short, unsigned, a version this build does not know, a count larger than
- * the capacity — is reported as the runtime not having run, because each of
+ * the capacity. Is reported as the runtime not having run, because each of
  * them is indistinguishable from memory nobody wrote and reporting any of them
  * as results would be inventing them.
  */
@@ -159,7 +159,7 @@ export interface AssertionRuntimeOptions {
  *
  * Only the 6502 is generated. An ARM form would be written the same way, but
  * this build has no ARM execution it could be proved against, and assembly
- * nobody has run is assembly nobody should trust — the 6502 form below is
+ * nobody has run is assembly nobody should trust, the 6502 form below is
  * assembled and executed by a contract.
  */
 export function assertionRuntimeSource(family: NativeCpuFamily, options: AssertionRuntimeOptions): string {

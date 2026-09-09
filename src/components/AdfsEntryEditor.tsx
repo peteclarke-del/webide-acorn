@@ -51,7 +51,7 @@ export function AdfsEntryEditor({ image, entry, onApplied, onNotice, onClose }: 
     if (problem) { onNotice(problem); return; }
     /* Only what actually differs. Sending a field back unchanged would still
      * advance the directory's update sequence, which tells a machine its cached
-     * copy is stale — and saying that when nothing changed is a small lie with
+     * copy is stale, and saying that when nothing changed is a small lie with
      * a real cost on the other side. */
     const change: AdfsEntryChange = {
       ...(name === entry.name ? {} : { name }),

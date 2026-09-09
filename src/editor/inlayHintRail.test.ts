@@ -18,7 +18,7 @@ describe('deciding whether hints can be decorated at all', () => {
 
   it('refuses to decorate under word wrap, and says why', () => {
     /* A wrapped line takes several rows, so a rail beside it would sit against
-     * the wrong lines — a decoration that is confidently wrong. */
+     * the wrong lines. A decoration that is confidently wrong. */
     const rail = inlayHintRail([hint()], { enabled: true, wordWrap: true });
     expect(rail.available).toBe(false);
     expect(rail.unavailableReason).toMatch(/sit against the wrong lines/);

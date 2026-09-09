@@ -2,8 +2,8 @@
  *
  * Reachability analysis is honest but incomplete: a jump through a pointer, a
  * dispatch table, or an entry the loader calls from outside the file all leave
- * real code looking like data. The answer is not to guess — a guessed entry
- * point produces a plausible listing of bytes that were never instructions —
+ * real code looking like data. The answer is not to guess, a guessed entry
+ * point produces a plausible listing of bytes that were never instructions,
  * but to let the reader record what they know and re-run the same deterministic
  * analysis with that knowledge added.
  *
@@ -160,7 +160,7 @@ export function validateAnalysisAnnotations(value: unknown): AnalysisAnnotations
   });
   const ordered = sortedRegions(regions);
   for (let index = 1; index < ordered.length; index += 1) {
-    assert(ordered[index]!.start > ordered[index - 1]!.end, `Regions must not overlap; ${hex(ordered[index - 1]!.start)}–${hex(ordered[index - 1]!.end)} and ${hex(ordered[index]!.start)}–${hex(ordered[index]!.end)} do`);
+    assert(ordered[index]!.start > ordered[index - 1]!.end, `Regions must not overlap; ${hex(ordered[index - 1]!.start)}-${hex(ordered[index - 1]!.end)} and ${hex(ordered[index]!.start)}-${hex(ordered[index]!.end)} do`);
   }
 
   const hintsInput = candidate.indirectTargets ?? [];

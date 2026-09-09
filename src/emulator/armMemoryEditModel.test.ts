@@ -9,7 +9,7 @@ describe('ARM logical-memory edit model', () => {
     expect(() => parseArmMemoryEditBytes('')).toThrow(/one or more/);
     expect(() => parseArmMemoryEditBytes('100')).toThrow(/Invalid/);
     expect(() => validateArmMemoryEdit({ address: 0x3ffffff, bytes: [1, 2] })).toThrow(/wrap/);
-    expect(() => validateArmMemoryEdit({ address: 0x8000, bytes: Array(257).fill(0) })).toThrow(/1–256/);
+    expect(() => validateArmMemoryEdit({ address: 0x8000, bytes: Array(257).fill(0) })).toThrow(/1-256/);
   });
   it('returns a defensive byte copy', () => {
     const bytes = [1, 2];

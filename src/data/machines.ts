@@ -59,7 +59,7 @@ export const machineProfiles: MachineProfile[] = [
     shortLabel: 'Atom',
     generation: '1980 · desktop micro',
     cpu: 'MOS 6502 @ 1 MHz',
-    memory: '2–12 KB base RAM',
+    memory: '2-12 KB base RAM',
     variants: ['Atom 12K', 'Atom 12K + AtomDOS', 'Atom 12K + AtoMMC'],
     roms: [
       { id: 'atom-mos', label: 'Atom MOS 1.0', detail: 'Base MOS and BASIC' },
@@ -90,7 +90,7 @@ export const machineProfiles: MachineProfile[] = [
     roms: [
       {
         id: 'os12-basic2', label: 'OS 1.20 + BASIC II', detail: 'Standard MOS and BASIC',
-        unavailableReason: 'jsbeeb models the BBC B and no Model A. The two differ in fitted RAM and in which interfaces are present, so running a Model A profile on the B model would be a Model B wearing the name — and every difference that matters to a program written for a Model A is one this build would not show. The profile is listed because the product models the machine, not because this build can run it.',
+        unavailableReason: 'jsbeeb models the BBC B and no Model A. The two differ in fitted RAM and in which interfaces are present, so running a Model A profile on the B model would be a Model B wearing the name, and every difference that matters to a program written for a Model A is one this build would not show. The profile is listed because the product models the machine, not because this build can run it.',
       },
       {
         id: 'os10-basic1', label: 'OS 1.00 + BASIC I', detail: 'Early firmware profile',
@@ -193,7 +193,7 @@ export const machineProfiles: MachineProfile[] = [
      * arrived at its load address.
      *
      * The expansions below stay planned, and the reason has changed. It is no
-     * longer that no core can run them — Elkulator runs, and the bridge mounts
+     * longer that no core can run them. Elkulator runs, and the bridge mounts
      * disc images through its own loader. It is that each one needs firmware
      * this vault does not hold: a Plus 1 ROM, an ADFS or DFS ROM. An expansion
      * whose ROM is absent is an expansion that is not fitted, and saying it is
@@ -250,11 +250,37 @@ export const machineProfiles: MachineProfile[] = [
     shortLabel: 'A300',
     generation: '1987 · first-generation ARM',
     cpu: 'ARM2 @ 8 MHz',
-    memory: '512 KB–1 MB RAM',
+    memory: '512 KB-1 MB RAM',
     variants: ['A305 · 512K', 'A310 · 1MB'],
     roms: [
       { id: 'arthur120', label: 'Arthur 1.20', detail: 'Early desktop environment' },
-      { id: 'riscos200', label: 'RISC OS 2.00', detail: 'First RISC OS release' },
+      {
+        id: 'riscos200',
+        label: 'RISC OS 2.00',
+        detail: 'First RISC OS release',
+        /*
+         * The one Archimedes firmware set here that does not start.
+         *
+         * Booted on this build's own A310 core it reaches `RISC OS 1024K /
+         * Acorn ADFS` and then raises two address exceptions, at &0381EDA8 and
+         * &0381E614, both error &80000003, and drops to a supervisor prompt
+         * that does not echo anything typed at it. The exceptions are on screen
+         * before anything is typed, so they belong to the boot.
+         *
+         * It is this build rather than the firmware being wrong, and the
+         * neighbours say so: Arthur 1.20, RISC OS 2.01, 3.00, 3.10 and 3.11 all
+         * boot to their desktops on the same core, from the same vault, driven
+         * the same way. The ROM itself reads correctly too, its BASIC keyword
+         * table comes out of it cleanly and is the table this build ships for
+         * RISC OS 2.
+         *
+         * So it is offered and refused rather than removed. Taking it out would
+         * leave somebody hunting for a release this build lists everywhere
+         * else; refusing it says the machine exists, that this build cannot
+         * start it, and why.
+         */
+        unavailableReason: 'The pinned Arculator build cannot start RISC OS 2.00: it raises two address exceptions during the boot and drops to a supervisor prompt that takes no input. The firmware is not the problem. Arthur 1.20, RISC OS 2.01, 3.00, 3.10 and 3.11 all reach their desktops on the same emulator, so supplying different ROM files will not help. Choose one of those releases.',
+      },
       { id: 'riscos201', label: 'RISC OS 2.01', detail: '1990 maintenance release' },
       { id: 'riscos300', label: 'RISC OS 3.00', detail: 'Compatibility upgrade' },
       { id: 'riscos310', label: 'RISC OS 3.10', detail: '1992 desktop upgrade' },
@@ -277,7 +303,7 @@ export const machineProfiles: MachineProfile[] = [
     shortLabel: 'A400/1',
     generation: '1989 · ARM3-ready workstation',
     cpu: 'ARM2 / ARM3',
-    memory: '1–8 MB RAM',
+    memory: '1-8 MB RAM',
     variants: ['A410/1', 'A420/1', 'A440/1', 'A540'],
     roms: [
       { id: 'riscos201', label: 'RISC OS 2.01', detail: 'A400 series release' },
@@ -301,7 +327,7 @@ export const machineProfiles: MachineProfile[] = [
     shortLabel: 'A3000',
     generation: '1989 · compact ARM desktop',
     cpu: 'ARM2 @ 8 MHz',
-    memory: '1–4 MB RAM',
+    memory: '1-4 MB RAM',
     variants: ['A3000 · 1MB', 'A3000 · 2MB', 'A3000 · 4MB'],
     roms: [
       { id: 'riscos201-a3k', label: 'RISC OS 2.01', detail: 'Original A3000 ROM' },
@@ -323,7 +349,7 @@ export const machineProfiles: MachineProfile[] = [
     shortLabel: 'A5000',
     generation: '1991 · ARM3 desktop',
     cpu: 'ARM3 @ 25/33 MHz',
-    memory: '2–8 MB RAM',
+    memory: '2-8 MB RAM',
     variants: ['A5000', 'A5000 Alpha'],
     roms: [
       {
@@ -352,12 +378,12 @@ export const machineProfiles: MachineProfile[] = [
     shortLabel: 'Risc PC',
     generation: '1994 · later ARM compatibility tier',
     cpu: 'ARM610 / ARM710 / StrongARM',
-    memory: '4–256 MB RAM',
+    memory: '4-256 MB RAM',
     variants: ['Risc PC 600', 'Risc PC 700', 'StrongARM Risc PC'],
     roms: [
       {
         id: 'riscos350', label: 'RISC OS 3.50', detail: 'Original Risc PC ROM',
-        unavailableReason: 'No Risc PC is modelled here: the qualified Arculator slice covers the A310 class, and the Risc PC is a different machine again — ARM610 and later, VIDC20, and a ROM image in a format the Archimedes inventory does not describe. The profile is listed because the product models the machine.',
+        unavailableReason: 'No Risc PC is modelled here: the qualified Arculator slice covers the A310 class, and the Risc PC is a different machine again. ARM610 and later, VIDC20, and a ROM image in a format the Archimedes inventory does not describe. The profile is listed because the product models the machine.',
       },
       {
         id: 'riscos370', label: 'RISC OS 3.70', detail: 'StrongARM-era ROM',

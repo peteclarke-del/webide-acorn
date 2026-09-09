@@ -52,7 +52,7 @@ function launch(id, executable, url, profile) {
 /*
  * Where a browser is allowed to keep the profile this run gives it.
  *
- * A packaged Firefox — the snap on Ubuntu, and Flatpak the same way — is
+ * A packaged Firefox (the snap on Ubuntu, and Flatpak the same way) is
  * confined and cannot see a directory under the system temporary path. Given
  * one it does not fail: it starts, ignores the profile, writes nothing and
  * exits a few seconds later, which from out here is indistinguishable from a
@@ -83,7 +83,7 @@ const suite = await (async () => {
 const output = await mkdtemp(join(tmpdir(), '8bit-net-benchmark-'));
 const profiles = [];
 try {
-  process.stdout.write('Building the workbench and the benchmark page…\n');
+  process.stdout.write('Building the workbench and the benchmark page...\n');
   await run('npx', ['vite', 'build'], { cwd: root, env: { ...process.env, BENCHMARK_OUTPUT_DIR: output } });
 
   const reports = new Map();
@@ -172,7 +172,7 @@ function renderDocument(report, module) {
     'benchmark page in every browser this machine can produce, and records what',
     'each one reported. Nothing here is written by hand.',
     '',
-    'The ceilings are deliberately generous — an order of magnitude above what an',
+    'The ceilings are deliberately generous. An order of magnitude above what an',
     'operation costs today rather than a factor of two. A suite that failed on a',
     'loaded laptop would be switched off within a week, and a suite nobody runs',
     'measures nothing. What these catch is the change that makes an operation cost',
@@ -185,22 +185,22 @@ function renderDocument(report, module) {
     lines.push(`### ${browser.id}`, '', `\`${browser.userAgent}\``, '', `Version ${browser.version} · ${browser.hardwareClass} · ${browser.cores} logical processors`, '', '| Case | Per iteration | Ceiling | Iterations | Produced |', '| --- | --- | --- | --- | --- |');
     for (const measurement of browser.measurements) {
       const item = byId.get(measurement.id);
-      lines.push(`| ${item?.label ?? measurement.id} | ${measurement.millisecondsPerIteration.toFixed(3)} ms | ${item?.budgetMs ?? '—'} ms | ${measurement.iterations} | ${measurement.produced} |`);
+      lines.push(`| ${item?.label ?? measurement.id} | ${measurement.millisecondsPerIteration.toFixed(3)} ms | ${item?.budgetMs ?? '-'} ms | ${measurement.iterations} | ${measurement.produced} |`);
     }
     lines.push('');
   }
   if (report.unmeasuredBrowsers.length) {
     lines.push('## Browsers with no measurement', '', 'Named rather than omitted: a matrix that reported only what it managed to', 'run would get quieter every time something broke.', '');
-    for (const entry of report.unmeasuredBrowsers) lines.push(`- **${entry.id}** — ${entry.reason}`);
+    for (const entry of report.unmeasuredBrowsers) lines.push(`- **${entry.id}**: ${entry.reason}`);
     lines.push('');
   }
   if (report.unmeasuredAreas.length) {
     lines.push('## Areas with no measurement', '');
-    for (const entry of report.unmeasuredAreas) lines.push(`- **${module.AREA_LABELS[entry.area] ?? entry.area}** — ${entry.reason}`);
+    for (const entry of report.unmeasuredAreas) lines.push(`- **${module.AREA_LABELS[entry.area] ?? entry.area}** (${entry.reason}`);
     lines.push('');
   }
   lines.push('## Why each case matters', '');
-  for (const item of module.BENCHMARK_CASES) lines.push(`- **${item.label}** — ${item.matters}`);
+  for (const item of module.BENCHMARK_CASES) lines.push(`- **${item.label}**) ${item.matters}`);
   lines.push('');
   return lines.join('\n');
 }

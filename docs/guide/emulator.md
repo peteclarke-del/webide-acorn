@@ -183,7 +183,7 @@ Inspect the active keyboard policy, transfer host focus deliberately, use the ac
 - If a browser shortcut wins, use the on-screen key surface or Gaming profile where supported.
 - If the adapter reports an error, use Restart adapter. This replaces the isolated frame and random session before accepting further input.
 
-![BBC Model B workbench with the real emulator running and the Machine input panel showing the accessible Acorn keyboard, mapping profile, reviewed text queue and browser conflict notice](../../public/help/emulator-keyboard-input.png)
+![BBC Model B workbench with the real emulator running and the Machine input panel open over the machine frame, showing the accessible Acorn keyboard and the control that captures keyboard focus](../../public/help/emulator-keyboard-input.png)
 
 *Machine input exposes the live focus state, maintained jsbeeb mapping profiles, accessible Acorn keys and bounded text policy beside the genuine BBC framebuffer.*
 
@@ -322,7 +322,7 @@ Poll a selected browser gamepad, then choose real held jsbeeb key edges, the BBC
 - If fire is inverted, verify the software expects active-low System VIA PB4 or PB5.
 - Use Acorn key mapping to distinguish controller delivery problems from native-interface compatibility.
 
-![BBC Model B Machine input panel using the native BBC analogue port with four live ADC channel values and two System VIA fire inputs](../../public/help/emulator-gamepad.png)
+![BBC Model B Machine input panel showing the gamepad section with polling off because no controller is attached, and the controller, interface, dead zone and direction mapping controls it offers](../../public/help/emulator-gamepad.png)
 
 *The same standard controller can use maintained key edges or the real BBC ADC and active-low fire path. Disconnect centres and releases the selected interface.*
 
@@ -377,7 +377,7 @@ Use pointer position and two mouse buttons as a bounded BBC or Master analogue j
 - Move completely outside the emulator frame or choose Release input to clear a stuck fire state.
 - Reload and inspect the live status if the stored preference does not match the intended controller.
 
-![BBC Model B KEYS panel showing the mouse analogue joystick control, exact hardware mapping and mutually exclusive gamepad policy](../../public/help/emulator-bbc-mouse-joystick.png)
+![BBC Model B Machine input panel showing the mouse analogue joystick control, the exact hardware mapping it uses and the policy that makes it mutually exclusive with a gamepad, with no controller attached](../../public/help/emulator-bbc-mouse-joystick.png)
 
 *Pointer position feeds the standard BBC ADC while left and right buttons feed the two active-low System VIA fire inputs.*
 
@@ -492,7 +492,7 @@ Drive and test the five active-low joystick controls implemented by the pinned A
 - If guest code reads another value, verify it sends &A2 to the command register before reading the same &B400 port.
 - Use deterministic Tests to separate guest protocol errors from browser controller delivery.
 
-![Acorn Atom Tests and Machine input panels showing an AtoMMC joystick state, active controller and live port value E9](../../public/help/emulator-atom-atommc.png)
+![Acorn Atom booted from its own kernel and BASIC ROMs with the Machine input panel open over the machine frame, showing the accessible keyboard and the control that captures keyboard focus](../../public/help/emulator-atom-atommc.png)
 
 *The standard controller drives the real AtomMMC2 source while the deterministic plan can assert the exact byte read by guest code at &B400.*
 

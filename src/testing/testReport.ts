@@ -1,8 +1,8 @@
 /*
  * What one assertion was asked for and what the machine gave back.
  *
- * The runtime has always computed both — every assertion kind produces an
- * `actual` beside its `expected` — and the report dropped them, so a failing
+ * The runtime has always computed both, every assertion kind produces an
+ * `actual` beside its `expected`, and the report dropped them, so a failing
  * run said which test failed and never what it saw. That is the difference
  * between a report somebody can act on and one that sends them back to run it
  * again by hand, and it was found the hard way: a conformance case failed
@@ -36,8 +36,8 @@ const MAX_REPORTED_ASSERTIONS = 64;
 /**
  * Render an assertion's expected and actual sides for a report.
  *
- * A byte is shown the way the assertion was written — a memory expectation of
- * `&41` reads back as `&41` rather than as 65 — because a report that renamed
+ * A byte is shown the way the assertion was written, a memory expectation of
+ * `&41` reads back as `&41` rather than as 65, because a report that renamed
  * the value would make somebody check whether it was the same number.
  */
 export function renderAssertionValue(value: unknown): string {
@@ -82,7 +82,7 @@ export function createJUnitTestReport(results: readonly ReportTestResult[], mach
        * reader of a JUnit report looks and a message attribute is one line. */
       const failedAssertions = (row.assertions ?? []).filter((assertion) => !assertion.passed);
       const detail = failedAssertions.length
-        ? `\n${failedAssertions.map((assertion) => `${assertion.source} — expected ${assertion.expected}, got ${assertion.actual}`).join('\n')}\n`
+        ? `\n${failedAssertions.map((assertion) => `${assertion.source}. Expected ${assertion.expected}, got ${assertion.actual}`).join('\n')}\n`
         : '';
       /* Self-closing when there is nothing to add, so a result that carries no
        * assertion detail keeps exactly the shape it had before. */

@@ -32,8 +32,8 @@ describe('key chord normalization', () => {
   it('parses typed text with either separator, platform modifier name or alias', () => {
     expect(parseChord('ctrl shift p')).toBe('Ctrl+Shift+P');
     /* Cmd names the Command key itself now, where it used to fold into the
-     * shared Control role. Nothing stored says Cmd — recorded chords come from
-     * real key events, which still normalise Command to Ctrl — so this changes
+     * shared Control role. Nothing stored says Cmd (recorded chords come from
+     * real key events, which still normalise Command to Ctrl), so this changes
      * what a person can write deliberately and nothing they already have. */
     expect(parseChord('Cmd+/')).toBe('Cmd+/');
     expect(parseChord('Ctrl+/')).toBe('Ctrl+/');
@@ -207,7 +207,7 @@ describe('telling Command apart from Control', () => {
 describe('two-stroke sequences', () => {
   it('reads a sequence separated by a comma, and no more than two strokes', () => {
     /* A comma rather than a space, because the chord parser already takes a
-     * space between modifiers — "ctrl shift p" is one chord — so a space
+     * space between modifiers, "ctrl shift p" is one chord, so a space
      * cannot also mean "then". */
     expect(parseChordSequence('ctrl+k, ctrl+s')).toBe('Ctrl+K, Ctrl+S');
     expect(parseChordSequence('Ctrl+K, S')).toBe('Ctrl+K, S');
@@ -239,7 +239,7 @@ describe('two-stroke sequences', () => {
 
   it('lets a second stroke be a bare letter, and never a first one', () => {
     /* A second stroke is only read while a prefix is open, so it captures
-     * nothing — which is the whole reason sequences are worth having. */
+     * nothing, which is the whole reason sequences are worth having. */
     expect(chordAssignmentError('Ctrl+K, S')).toBeNull();
     expect(chordAssignmentError('S')).toMatch(/cannot capture ordinary typing/);
     expect(chordAssignmentError('Ctrl+K, Tab')).toBeNull();

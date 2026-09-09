@@ -3,7 +3,7 @@
 /* The checked-in benchmark report, held to the suite that produced it.
  *
  * The measurements themselves need browsers, so refreshing the report is a
- * deliberate act — `npm run benchmark` — exactly as approving a golden is. What
+ * deliberate act, `npm run benchmark`, exactly as approving a golden is. What
  * runs on every commit is this: that the report is the shape the suite expects,
  * that it covers what the suite declares, that every figure is inside its
  * ceiling, and that anything unmeasured is named with a reason.

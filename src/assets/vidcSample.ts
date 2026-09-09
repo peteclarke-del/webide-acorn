@@ -1,8 +1,8 @@
 /* Encoding sound samples the way VIDC actually consumes them.
  *
  * This was blocked, deliberately, for want of a primary source. The A310
- * adapter could already observe the hardware — VIDC sound period and frequency,
- * MEMC sound DMA start, end, pointer and position — but the byte format the
+ * adapter could already observe the hardware (VIDC sound period and frequency,
+ * MEMC sound DMA start, end, pointer and position), but the byte format the
  * sound DMA consumes was not established anywhere in this build, and shipping
  * an encoder from recollection would have put fabricated sample data in front
  * of people.
@@ -14,7 +14,7 @@
  *
  * The one thing worth reading twice is the bit order. The datasheet says: "Note
  * that the order of the bits used to generate the sound values differs between
- * VIDC1 and VIDC2." They are not the same byte with a different name — the sign
+ * VIDC1 and VIDC2." They are not the same byte with a different name, the sign
  * bit moves from D7 to D0 and everything shifts. Encoding for the wrong one
  * produces noise, so the part is named at every call rather than defaulted.
  */
@@ -43,7 +43,7 @@ export const VIDC_CHORD_BASE_UNITS = [0, 16, 48, 112, 240, 496, 1008, 2032] as c
 /**
  * The largest magnitude a sample can express: chord 7, point 15.
  *
- * 2032 + 15 × 128 = 3952 sixteenths, which is 247i — exactly the maximum the
+ * 2032 + 15 × 128 = 3952 sixteenths, which is 247i, exactly the maximum the
  * datasheet's figure marks, and the arithmetic agreeing with the printed figure
  * is the check that the step sizes above were read correctly.
  */
@@ -101,7 +101,7 @@ export function unpackVidcSample(byte: number, part: VidcPart): VidcSampleFields
  * The signed level a byte produces, in sixteenths of i.
  *
  * The sign is which of the two output pin pairs the eighth bit steers the DAC
- * to — section 6.10: "The eighth bit steers the DAC output to one of 2 pairs of
+ * to. Section 6.10: "The eighth bit steers the DAC output to one of 2 pairs of
  * output pins, one pair designated '+' and the other pair '-'." A negative
  * number here means that pair, not a two's-complement value.
  */
@@ -115,7 +115,7 @@ export function decodeVidcSample(byte: number, part: VidcPart): number {
  * Encode a linear sample as the nearest value VIDC can actually produce.
  *
  * Nearest rather than truncated, and the error is returned rather than
- * discarded: the encoding is lossy by design — it is a companding law — and a
+ * discarded: the encoding is lossy by design, it is a companding law, and a
  * caller converting a whole waveform is entitled to know how far from it the
  * result landed.
  *
@@ -209,7 +209,7 @@ export type VidcChannelMode = 1 | 2 | 4 | 8;
 /**
  * Stereo position, section 5.5 Table 3.
  *
- * Value 0 is `Undefined` in the datasheet — not centre, and not silence. It is
+ * Value 0 is `Undefined` in the datasheet, not centre, and not silence. It is
  * modelled as its own thing rather than mapped to something reasonable,
  * because a register the documentation declines to define is not one this build
  * gets to define on its behalf.
@@ -269,7 +269,7 @@ export const STEREO_IMAGE_REGISTER_ADDRESSES: Readonly<Record<number, number>> =
  * decoding fails against a measurement rather than against an opinion.
  *
  * This says what the core this product runs does. It is not evidence about
- * VIDC1a silicon, and it does not make the datasheet wrong — an emulator can
+ * VIDC1a silicon, and it does not make the datasheet wrong, an emulator can
  * be wrong too, and this measurement cannot tell the two apart.
  */
 export const A310_MEASURED_LEVELS: ReadonlyArray<{ byte: number; ratio: number }> = Object.freeze([
@@ -286,7 +286,7 @@ export const A310_MEASURED_LEVELS: ReadonlyArray<{ byte: number; ratio: number }
  * Which byte order to encode for, given the machine a sample will be played on.
  *
  * The datasheet's bit order follows the part, and the part follows the machine
- * — except that the A310's VIDC1a is not one of the two the datasheet names,
+ *, except that the A310's VIDC1a is not one of the two the datasheet names,
  * and the qualified core it is played on was measured behaving as VIDC2 rather
  * than as the VIDC1 the part's lineage suggests.
  *
@@ -323,7 +323,7 @@ const MEASURED_PARTS: Record<string, VidcPartChoice> = {
  * that it would be a measurement rather than a transcription. Reading it since
  * corroborates the result and adds one fact the measurement could not have
  * produced: `convbyte` in the pinned core's `src/sound.c` takes the sign from
- * D0, the point from D1 to D4 and the chord from D5 to D7 — the VIDC2 order —
+ * D0, the point from D1 to D4 and the chord from D5 to D7, the VIDC2 order,
  * for every machine except the A500, which it singles out by floppy controller
  * type and decodes in the VIDC1 order instead.
  *

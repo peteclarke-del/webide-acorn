@@ -7,7 +7,7 @@
  * someone else's project could therefore hand you a different computer than the
  * one they wrote for, with no indication that anything had changed.
  *
- * This module keeps the substitution — a workbench has to show something — but
+ * This module keeps the substitution, a workbench has to show something, but
  * makes it visible. Every departure from what was asked for is returned as a
  * diagnostic naming what was requested, what is in effect, and why. Callers
  * show them; nothing is inferred from their absence.

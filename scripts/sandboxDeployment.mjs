@@ -2,7 +2,7 @@
  * What the deployment has to declare for the native build sandbox.
  *
  * The controls that stop a fork bomb, an out-of-memory bomb and a tool phoning
- * home are not in the PHP — they are namespaces and limits the container
+ * home are not in the PHP. They are namespaces and limits the container
  * runtime applies, and they exist only because the Compose file asks for them.
  * Deleting one line there silently removes a control the code cannot replace,
  * so the file is read as a contract rather than trusted as configuration.

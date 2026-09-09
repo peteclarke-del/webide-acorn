@@ -30,7 +30,7 @@ export function resolveArmValueExpression(input: string, symbols: Record<string,
 
 export function validateArmMemoryRead(address: number, length: number): { address: number; length: number } {
   if (!Number.isInteger(address) || address < 0 || address > ARM26_MAX_ADDRESS) throw new Error('ARM memory address must be a 26-bit integer');
-  if (!Number.isInteger(length) || length < 1 || length > ARM_MEMORY_MAX_READ) throw new Error('ARM memory length must be 1–4,096 bytes');
+  if (!Number.isInteger(length) || length < 1 || length > ARM_MEMORY_MAX_READ) throw new Error('ARM memory length must be 1-4,096 bytes');
   if (address + length - 1 > ARM26_MAX_ADDRESS) throw new Error('ARM memory read must not wrap past the 26-bit address space');
   return { address, length };
 }

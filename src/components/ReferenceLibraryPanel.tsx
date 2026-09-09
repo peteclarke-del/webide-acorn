@@ -1,6 +1,6 @@
 /* Managing the reference packs this browser holds.
  *
- * Import, update, remove — and, as prominently as any of those, an account of
+ * Import, update, remove, and, as prominently as any of those, an account of
  * what is held and what it may be used for. A library of documentation is not
  * neutral furniture: a library that is mostly community notes answers
  * differently from one that is mostly manuals, and somebody deciding whether to
@@ -92,14 +92,14 @@ export function ReferenceLibraryPanel({ library, target, onChange, onNotice, now
             disabled={busy}
             onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void importPack(file); }}
           />
-          <Icon name="open" size={14} /> {busy ? 'Reading…' : 'Import a pack'}
+          <Icon name="open" size={14} /> {busy ? 'Reading...' : 'Import a pack'}
         </label>
       </div>
 
       {standing.packs === 0 ? (
         <p className="honest-note" role="status">
-          No packs are held. The workbench still answers from its own maintained knowledge — opcodes, OS calls and
-          hardware registers, each with its citation — and this is where imported manuals would go alongside it.
+          No packs are held. The workbench still answers from its own maintained knowledge (opcodes, OS calls and
+          hardware registers, each with its citation), and this is where imported manuals would go alongside it.
         </p>
       ) : (
         <>

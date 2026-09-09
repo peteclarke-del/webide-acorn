@@ -9,32 +9,44 @@ import { inferTextDialect, inferTokenisedDialect } from './basicDialectInference
 const bytes = (...values: number[]) => Uint8Array.from(values);
 
 describe('how much a tokenised file can say about itself', () => {
-  it('has almost nothing to go on, and that is a fact about the ROMs', () => {
-    /* Of the four tabled BASICs exactly one token belongs to a single dialect.
-     * If that ever stops being true this contract should be the thing that
-     * notices, because every refusal below rests on it. */
+  it('can narrow but never name, and says which bytes are not evidence at all', () => {
+    /*
+     * No token names a single dialect. Four narrow the answer, and nine bytes
+     * that look as though they would are excluded because they mean different
+     * kinds of thing in different dialects.
+     *
+     * That exclusion is the part worth pinning. &C6, &C7 and &C8 are ordinary
+     * keywords on a 6502 BASIC (AUTO, DELETE, LOAD), and are the two-byte
+     * prefixes on an ARM one. &CF to &D3 are the 6502 pseudo-variables and
+     * BASIC V's statement forms. Counting a raw &C7 as proof of a 6502 BASIC
+     * would convict every ARM file that lists anything, and the file would then
+     * look like it carried tokens from two dialects at once.
+     */
+    const ambiguous = new Set<number>();
+    for (const dialect of BASIC_DIALECTS) {
+      for (const prefix of Object.keys(dialect.extended ?? {})) ambiguous.add(Number(prefix));
+      for (const token of Object.keys(dialect.statementForms ?? {})) ambiguous.add(Number(token));
+    }
+    expect([...ambiguous].sort((a, b) => a - b)).toEqual([0xc6, 0xc7, 0xc8, 0xcc, 0xcf, 0xd0, 0xd1, 0xd2, 0xd3]);
+
     const owners = new Map<number, string[]>();
     for (const dialect of BASIC_DIALECTS) {
       for (const token of Object.keys(dialect.tokens).map(Number)) {
+        if (ambiguous.has(token)) continue;
         owners.set(token, [...(owners.get(token) ?? []), dialect.id]);
       }
     }
-    const unique = [...owners].filter(([, dialects]) => dialects.length === 1);
-    expect(unique).toHaveLength(1);
-    expect(unique[0]![0]).toBe(0x7f);
-    expect(unique[0]![1]).toEqual(['bbc-basic-5']);
-  });
+    expect([...owners].filter(([, ids]) => ids.length === 1), 'no token names one dialect').toEqual([]);
 
-  it('names the one dialect a distinguishing token proves', () => {
-    /* &7F, OTHERWISE, which only BASIC V has. */
-    const inferred = inferTokenisedDialect(bytes(0x0d, 0x00, 0x0a, 0x7f, 0x0d));
-    expect(inferred.dialect).toBe('bbc-basic-5');
-    expect(inferred.reason).toMatch(/only BBC BASIC V defines/);
+    const narrowing = [...owners].filter(([, ids]) => ids.length < BASIC_DIALECTS.length).sort((a, b) => a[0] - b[0]);
+    expect(narrowing.map(([token]) => token)).toEqual([0x7f, 0x8e, 0xce, 0xff]);
+    expect(narrowing[0]![1], 'OTHERWISE rules out the 6502 family')
+      .toEqual(['bbc-basic-5-riscos2', 'bbc-basic-5', 'bbc-basic-6']);
   });
 
   it('no longer claims &CE proves BASIC IV, because BASIC V calls it something else', () => {
     /* This is what adding a dialect did to the evidence. &CE was the one token
-     * that identified BASIC IV — EDIT, which no other 6502 BASIC had — and in
+     * that identified BASIC IV (EDIT, which no other 6502 BASIC had), and in
      * BASIC V the same byte is ENDWHILE. A file carrying it could be either, so
      * the honest answer changed from "BASIC IV" to "cannot tell", and it
      * changed on its own because the evidence is derived from the tables rather
@@ -58,8 +70,10 @@ describe('how much a tokenised file can say about itself', () => {
     /* Two dialects' worth of evidence is not a dialect. It is a file that is
      * not what it claims, or a reader that has lost its place. */
     const inferred = inferTokenisedDialect(bytes(0x7f));
-    expect(inferred.dialect).toBe('bbc-basic-5');
-    /* And with nothing distinguishing at all, no claim. */
+    expect(inferred.dialect).toBeNull();
+    expect(inferred.candidates).toEqual(['bbc-basic-5-riscos2', 'bbc-basic-5', 'bbc-basic-6']);
+    /* And with nothing distinguishing at all, no claim and no candidates
+     * narrowed either. */
     expect(inferTokenisedDialect(bytes()).dialect).toBeNull();
   });
 });

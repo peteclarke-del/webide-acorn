@@ -6,7 +6,7 @@
  * trust, because its failure mode is silence: a runner that evaluates nothing
  * and reports "passed" removes the evidence that the product works while
  * looking like the evidence itself. So the Elkulator adapter's runner is
- * measured the same way everything else here is — by running it on the machine
+ * measured the same way everything else here is, by running it on the machine
  * and reading what the machine said.
  *
  * Five plans are run against one small program, and each is there for a
@@ -34,7 +34,7 @@
 import { argv, exit } from 'node:process';
 import { probeElectronRuntime } from './electronRuntimeProbe.mjs';
 
-/* LDA #&42 : STA &2000 : LDX #7 : JMP * — four instructions, one visible
+/* LDA #&42 : STA &2000 : LDX #7 : JMP *, four instructions, one visible
  * memory write, and a halt loop to stop at. */
 export const PROGRAM = Object.freeze([0xa9, 0x42, 0x8d, 0x00, 0x20, 0xa2, 0x07, 0x4c, 0x07, 0x19]);
 export const PROGRAM_ORIGIN = 0x1900;

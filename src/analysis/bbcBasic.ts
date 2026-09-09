@@ -47,7 +47,7 @@ function decodeLineReference(control: number, byte2: number, byte3: number): num
  * product could always read.
  */
 export interface BasicDecodeTables {
-  label: 'BBC BASIC II' | 'BBC BASIC V';
+  label: 'BBC BASIC II' | 'BBC BASIC V' | 'BBC BASIC VI';
   tokens: Record<number, string>;
   /** Keywords written as two bytes, by the prefix that introduces them. */
   extended?: Record<number, Record<number, string>>;

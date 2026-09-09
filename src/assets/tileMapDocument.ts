@@ -369,7 +369,7 @@ export function tileAssetLabel(assetFile: string): string {
  * Run-length encoding of one plane.
  *
  * A run is a count of 1 to 255 followed by the value, so a decoder never has to
- * hold more than two bytes of state and the count is never zero — which is what
+ * hold more than two bytes of state and the count is never zero, which is what
  * lets the generated unpacker use a plain DEC/BNE loop.
  */
 export function rleEncodePlane(values: readonly number[]): number[] {
@@ -480,7 +480,7 @@ export function generateTileMapOutput(document: TileMapDocument): TileMapOutput 
     compressed
       ? `; flags &${flags.toString(16).toUpperCase().padStart(2, '0')}: planes are run-length encoded, ${rawPlaneBytes} bytes of cells in ${compressedPlaneBytes}`
       : validated.encoding === 'rle'
-        ? `; flags &${flags.toString(16).toUpperCase().padStart(2, '0')}: run-length encoding was asked for and declined — it would have taken ${compressedPlaneBytes} bytes against ${rawPlaneBytes} raw, so the planes are raw`
+        ? `; flags &${flags.toString(16).toUpperCase().padStart(2, '0')}: run-length encoding was asked for and declined. It would have taken ${compressedPlaneBytes} bytes against ${rawPlaneBytes} raw, so the planes are raw`
         : `; flags &${flags.toString(16).toUpperCase().padStart(2, '0')}: planes are raw`,
     `.${label}`,
     `EQUB ${header.map((value) => `&${value.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')}`,

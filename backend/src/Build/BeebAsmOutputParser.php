@@ -54,8 +54,8 @@ final class BeebAsmOutputParser
          * placed almost none of them: a real game mapped forty-four addresses
          * out of three and a half thousand listing lines, which is not enough
          * to step through. The listing is emitted in source order, so it is
-         * read twice — forwards from the last line placed, then backwards from
-         * the next one — and a line that is neither unique nor adjacent to
+         * read twice (forwards from the last line placed, then backwards from
+         * the next one), and a line that is neither unique nor adjacent to
          * something already placed stays unmapped rather than being guessed. */
         $rows = [];
         $origin = null;
@@ -208,7 +208,7 @@ final class BeebAsmOutputParser
      * emitted, which is the right origin for the one binary a filename-free
      * SAVE writes and the wrong one for a project that emits several. Graveyard
      * Shift assembles a rules block at &1400 and the game at &1900, and its
-     * game binary was being reported as loading at &1400 — five hundred bytes
+     * game binary was being reported as loading at &1400, five hundred bytes
      * out, which would put every breakpoint and every mapped line in the wrong
      * place.
      *

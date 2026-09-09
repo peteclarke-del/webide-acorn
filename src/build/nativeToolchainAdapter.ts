@@ -81,8 +81,8 @@ const BUILD_OPERATIONS: Record<string, ApiOperationId> = {
  * Whether one native toolchain can be used, and when it cannot, why.
  *
  * This used to answer null for every kind of failure, so an assembler that was
- * installed and working but unreachable — no proxy in front of the build
- * service, most often — looked exactly like one that was not installed at all,
+ * installed and working but unreachable (no proxy in front of the build
+ * service, most often) looked exactly like one that was not installed at all,
  * and the workbench said the toolchain was unavailable to somebody looking at
  * the binary on their own disk. The builder already reports what it examined
  * and what failed; the only thing missing was carrying it this far.

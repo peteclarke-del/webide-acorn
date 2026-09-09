@@ -34,7 +34,7 @@ describe('BBC BASIC V, against what the machine actually did', () => {
 
   it('reads a two-byte keyword as one keyword rather than as its prefix and a token', () => {
     /* &C7 &8E is APPEND. Read a byte at a time it would be two keywords, and
-     * both of them would be words the reader recognises — which is why this
+     * both of them would be words the reader recognises, which is why this
      * fails silently rather than loudly when it is wrong. */
     const listing = decodeTokenizedBasic(program([0xc7, 0x8e]), TABLES);
     expect(listing?.lines[0]?.source).toBe('APPEND');
@@ -84,16 +84,25 @@ describe('BBC BASIC V, against what the machine actually did', () => {
     expect(BASIC_V_MEASUREMENT_SOURCE.firmware).toContain('BBC BASIC V 1.05');
   });
 
-  it('is the only dialect here with two-byte keywords, and the others say so by having none', () => {
+  it('shares its two-byte keywords with BASIC VI, and the 6502 dialects say so by having none', () => {
+    /* Two-byte keywords are an ARM BASIC thing. BASIC VI has them because it is
+     * BASIC V's table under another name (measured, not assumed), so the rule
+     * is about which processor's BASIC a dialect is, not about which single one
+     * of them was written first. A 6502 dialect leaves `extended` undefined
+     * rather than empty, because having no two-byte tokens and having some
+     * nobody has established are different things. */
+    const ARM_DIALECTS = ['bbc-basic-5-riscos2', 'bbc-basic-5', 'bbc-basic-6'];
+    const arm = BASIC_DIALECTS.filter((dialect) => ARM_DIALECTS.includes(dialect.id));
+    expect(arm.map((dialect) => dialect.id)).toEqual(ARM_DIALECTS);
     for (const dialect of BASIC_DIALECTS) {
-      if (dialect.id === 'bbc-basic-5') expect(Object.keys(dialect.extended ?? {})).toHaveLength(3);
+      if (ARM_DIALECTS.includes(dialect.id)) expect(Object.keys(dialect.extended ?? {}), dialect.label).toHaveLength(3);
       else expect(dialect.extended, dialect.label).toBeUndefined();
     }
   });
 });
 
 describe('which BASIC a tokenised file is read against', () => {
-  it('reads an ARM machine’s file as BASIC V and a 6502 machine’s as BASIC II', async () => {
+  it("reads an ARM machine's file as BASIC V and a 6502 machine's as BASIC II", async () => {
     /* The dialect comes from the machine because it is almost never in the
      * file. The same bytes therefore decode to different keywords depending on
      * what somebody selected, and that is correct rather than unfortunate:

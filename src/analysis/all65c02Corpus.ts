@@ -2,8 +2,8 @@
  * Every valid 65C02 opcode, as the pinned assembler actually produced them.
  *
  * These bytes are not written by hand and not produced by this build. They come
- * from BeebAsm's own `all65C02.6502` test — the assembler's exhaustive opcode
- * source — assembled by the pinned BeebAsm, with the mnemonic each opcode is
+ * from BeebAsm's own `all65C02.6502` test, the assembler's exhaustive opcode
+ * source, assembled by the pinned BeebAsm, with the mnemonic each opcode is
  * named by read out of that same source. So the corpus and the answer both come
  * from the assembler, and the disassembler is the only thing being tested.
  *

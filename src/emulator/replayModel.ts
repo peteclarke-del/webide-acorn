@@ -6,8 +6,8 @@ export const DEFAULT_REPLAY_CONFIG: ReplayConfig = { checkpointInterval: 64, che
 export function validateReplayConfig(input: Record<string, unknown>): ReplayConfig {
   const checkpointInterval = Number(input.checkpointInterval ?? DEFAULT_REPLAY_CONFIG.checkpointInterval);
   const checkpointCapacity = Number(input.checkpointCapacity ?? DEFAULT_REPLAY_CONFIG.checkpointCapacity);
-  if (!Number.isInteger(checkpointInterval) || checkpointInterval < 1 || checkpointInterval > 4096) throw new Error('Replay checkpoint interval must be 1–4,096 instructions');
-  if (!Number.isInteger(checkpointCapacity) || checkpointCapacity < 2 || checkpointCapacity > 64) throw new Error('Replay checkpoint capacity must be 2–64');
+  if (!Number.isInteger(checkpointInterval) || checkpointInterval < 1 || checkpointInterval > 4096) throw new Error('Replay checkpoint interval must be 1-4,096 instructions');
+  if (!Number.isInteger(checkpointCapacity) || checkpointCapacity < 2 || checkpointCapacity > 64) throw new Error('Replay checkpoint capacity must be 2-64');
   if (checkpointInterval * checkpointCapacity > 65536) throw new Error('Replay history is limited to 65,536 instruction boundaries');
   return { checkpointInterval, checkpointCapacity };
 }

@@ -4,7 +4,7 @@
  * have a firmware or disk-image extension. That is the most important case and
  * it is not the only one. A release is also wrong if it carries a private key,
  * an access token, someone's captured memory dump, or a copy of a commercial
- * program — and none of those announce themselves by their extension.
+ * program, and none of those announce themselves by their extension.
  *
  * Two things this scanner is careful about.
  *
@@ -32,8 +32,8 @@ export const CAPTURE_EXTENSIONS = /\.(trace|dump|core|coredump|heapsnapshot|memd
 /* Paths that hold a person's own material and are never part of the product. */
 export const PRIVATE_PATHS = [
   /(^|\/)local-roms\//i,
-  /* A real `.env` holds values. A template — `.env.example` and its usual
-   * spellings — holds the names of the variables and is documentation, so it
+  /* A real `.env` holds values. A template, `.env.example` and its usual
+   * spellings, holds the names of the variables and is documentation, so it
    * belongs in the repository and is checked for content like anything else. */
   /(^|\/)\.env(?!\.(?:example|sample|template|dist)$)(\.|$)/i,
   /(^|\/)secrets?\.(json|ya?ml|toml|txt)$/i,
@@ -42,8 +42,8 @@ export const PRIVATE_PATHS = [
 
 /**
  * Secret shapes, each with the thing it identifies. Every pattern here matches
- * a value whose format is a deliberate, published marker — a key header, a
- * vendor's token prefix — rather than a guess from a variable name, because a
+ * a value whose format is a deliberate, published marker (a key header, a
+ * vendor's token prefix), rather than a guess from a variable name, because a
  * scanner that fires on the word `password` is one people learn to ignore.
  */
 export const SECRET_PATTERNS = [
@@ -97,7 +97,7 @@ function allowed(path, ruleId) {
 
 /** The shape of a value, for a report that must not carry the value itself. */
 function shapeOf(value) {
-  return `${value.length} characters, starting ${value.slice(0, 4)}…`;
+  return `${value.length} characters, starting ${value.slice(0, 4)}...`;
 }
 
 /**
@@ -133,7 +133,7 @@ export function scanText(path, text) {
 
 /**
  * Scan a set of files. `read` is given a path and returns its text, or null
- * when the file is not text or cannot be read — which is reported as such
+ * when the file is not text or cannot be read, which is reported as such
  * rather than treated as empty.
  */
 export async function scanRepository(paths, read) {

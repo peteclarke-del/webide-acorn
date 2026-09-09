@@ -2,7 +2,7 @@
  *
  * A file has a name, a length and load addresses; a memory capture has none of
  * those. What it has instead is where it was read from, which the analyser
- * otherwise loses entirely — and losing it is not a small thing. Sixteen
+ * otherwise loses entirely, and losing it is not a small thing. Sixteen
  * sideways banks share one address range, so bytes from bank 4 and bytes from
  * bank 12 disassemble at the same addresses and look identical afterwards. A
  * listing that does not say which bank it came from cannot be compared with
@@ -10,7 +10,7 @@
  *
  * So the context travels with the bytes: the space, the bank when the space is
  * banked, the address they start at, and the cycle they were taken at. The
- * last of those matters because a capture is a moment rather than a document —
+ * last of those matters because a capture is a moment rather than a document,
  * the same read a moment later can be different bytes, and a listing that
  * looked like a file would give no hint of that.
  */

@@ -4,7 +4,7 @@
  * test agrees with whatever the program does next, for ever. Never replacing it
  * means the test becomes noise people learn to scroll past. So the panel puts
  * the decision in front of somebody with what they need to make it: both
- * pictures, where they differ, and — the part that is usually missing — what
+ * pictures, where they differ, and, the part that is usually missing, what
  * has changed about the machine, the firmware and the build since the golden
  * was approved.
  *
@@ -87,7 +87,7 @@ export function GoldenApprovalPanel({ golden, proposal, environment, onApproved,
           </ul>
         ) : (
           <p className="binding-note">
-            Nothing. Same machine, same firmware bytes, same build fingerprint — so this difference is the program,
+            Nothing. Same machine, same firmware bytes, same build fingerprint, so this difference is the program,
             and approving it accepts a change somebody made.
           </p>
         )}

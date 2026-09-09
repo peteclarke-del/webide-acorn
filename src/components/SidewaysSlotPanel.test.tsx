@@ -72,7 +72,7 @@ describe('the sideways banks', () => {
     expect(onChange).toHaveBeenCalledWith([]);
   });
 
-  it('offers no way to empty a bank the machine’s own firmware occupies', () => {
+  it("offers no way to empty a bank the machine's own firmware occupies", () => {
     const layout: SidewaysAssignment[] = [{ bank: 15, romId: 'basic', label: 'BASIC II', reserved: true }];
     render(<SidewaysSlotPanel available layout={layout} onChange={() => {}} onNotice={() => {}} />);
     expect(screen.queryByLabelText('Empty bank 15')).not.toBeInTheDocument();

@@ -143,7 +143,7 @@ describe('opening a project bundle', () => {
 
   it('refuses a bundle whose project was edited after it was created', () => {
     const bundle = bundleOf();
-    bundle.project.name = 'Someone else’s edit';
+    bundle.project.name = "Someone else's edit";
     expect(() => openProjectBundle(serialise(bundle))).toThrow(/has been altered since it was created/);
   });
 

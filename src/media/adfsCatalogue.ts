@@ -169,7 +169,7 @@ export interface AdfsExtent { start: number; length: number }
  * Split out from reading them because writing one back has to visit exactly the
  * same runs in exactly the same order. An ADFS E object can be scattered across
  * several fragments, and a writer that worked that out for itself would be a
- * second answer to a question that already has one — which is how a file comes
+ * second answer to a question that already has one, which is how a file comes
  * back correct from a read and corrupt from a write.
  */
 function objectExtents(image: Uint8Array, format: AdfsCatalogue['format'], entry: Pick<AdfsFileEntry, 'discAddress' | 'length'>, fragments?: Map<number, NewMapFragment[]>): AdfsExtent[] {
@@ -256,8 +256,8 @@ function parseDirectory(directory: Uint8Array, format: AdfsCatalogue['format'], 
  * The discs that carry an old map and an old directory.
  *
  * S, M and L share one structure and differ only in how much disc there is and
- * whether it has two sides. The directory format is measured — see
- * `adfsOldDirectory.ts` — and read there rather than here, because it has
+ * whether it has two sides. The directory format is measured, see
+ * `adfsOldDirectory.ts`, and read there rather than here, because it has
  * nothing in common with the 77-entry directory below beyond being a catalogue.
  */
 const OLD_FORMATS: Readonly<Record<string, { format: AdfsCatalogue['format']; geometry: OldDiscGeometry }>> = Object.freeze({

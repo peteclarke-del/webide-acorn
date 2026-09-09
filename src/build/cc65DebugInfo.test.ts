@@ -2,7 +2,7 @@
 
 /* Checked against a real ld65 debug file rather than one written to suit the
  * parser. `fixtures/cc65-debug-info.c` was compiled and linked by the pinned
- * toolchain — cc65 2.19-1, which reports itself as V2.18 — and the output kept
+ * toolchain (cc65 2.19-1, which reports itself as V2.18), and the output kept
  * exactly as it came out, so what these contracts describe is what the product
  * will actually be handed.
  */
@@ -31,7 +31,7 @@ describe('reading what ld65 recorded', () => {
 
   it('reports the one stated count that this toolchain does not mean as a record count', () => {
     /* `info` says file=517 and the file holds 18 file records. Enforcing that
-     * one would fail every real build, so it is reported and not enforced —
+     * one would fail every real build, so it is reported and not enforced,
      * which is a different thing from pretending the file agreed. */
     expect(info.counts.declared.file).toBe(517);
     expect(info.counts.parsed.file).toBe(18);

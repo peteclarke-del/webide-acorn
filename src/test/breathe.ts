@@ -13,7 +13,7 @@
  *  - The worker cannot answer the runner. Vitest's worker and runner talk over
  *    a channel with a sixty-second deadline, and a file with six eleven-second
  *    cases back to back blocks for seventy. The deadline then expires and the
- *    whole run fails with every test passed — which is how a release gate came
+ *    whole run fails with every test passed, which is how a release gate came
  *    to fail four times on a green tree.
  *
  * Awaiting a macrotask every so often fixes both without changing what is
@@ -27,7 +27,7 @@ export const CASES_BETWEEN_BREATHS = 16;
 /**
  * Yield to the event loop every so often inside a long loop.
  *
- * Call it with the loop index. It awaits a macrotask — not a microtask — so
+ * Call it with the loop index. It awaits a macrotask, not a microtask, so
  * timers, and therefore timeouts, actually get a chance to run.
  */
 export async function breathe(index: number, every = CASES_BETWEEN_BREATHS): Promise<void> {

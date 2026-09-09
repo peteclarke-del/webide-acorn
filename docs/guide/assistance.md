@@ -50,7 +50,7 @@ Request candidates that are valid for the current language position, connected p
 - Switch to the correct processor or machine profile when a valid platform-specific candidate is intentionally filtered.
 - Press Escape to dismiss a list without editing, then move the caret to the intended syntax position and invoke it again.
 
-![Source editor showing a branch operand completion list restricted to connected project labels, target defines and compatible MOS calls](../../public/help/editor-context-completion.png)
+![6502 source editor after typing a branch operand, showing project symbols from the connected assembly files with the file and line each is declared at](../../public/help/editor-context-completion.png)
 
 *A JSR operand excludes unrelated opcodes and identifies each reachable project, build-target or reference candidate.*
 
@@ -173,7 +173,7 @@ Insert documented machine addresses and RISC OS software interrupts in the exact
 3. Read the candidate detail and side-effect warning. Follow its maintained machine-manual citation before reading access-sensitive hardware.
 4. Accept the address. BeebAsm and BBC BASIC receive ampersand hexadecimal, ca65 receives dollar hexadecimal, and C or GNU ARM assembly receives 0x hexadecimal.
 5. For ARM RISC OS code, enter SWI followed by a name prefix, then press Ctrl+Space.
-6. Read the SWI number, entry registers, result registers, ROM compatibility and Programmer’s Reference Manual citation.
+6. Read the SWI number, entry registers, result registers, ROM compatibility and Programmer's Reference Manual citation.
 7. Accept the SWI. The editor inserts its numeric GNU as operand and leaves the descriptive name available in completion and help.
 
 **What should happen**
@@ -303,9 +303,9 @@ Inspect syntax, behavior, parameters, examples, effects, flags, timing, compatib
 - Use Research to search the offline reference when a token is known but does not appear on the active line.
 - Dismiss the panel and focus the token again if a target change invalidated its previous result.
 
-![6502 source editor showing ADC contextual documentation with syntax, flags, effects, examples, related token buttons, a per-addressing-form cycle table and cited datasheet](../../public/help/editor-token-help.png)
+![6502 source editor with the caret on ADC in engine.asm, showing the three addressing forms, the processors that support it, the flags it sets, its result and its effects](../../public/help/editor-token-help.png)
 
-*Keyboard focus and pointer hover share one structured documentation panel. Timing remains separated by addressing form and links retain their source provenance.*
+*Keyboard focus and pointer hover share one structured documentation panel, and the panel scrolls on to examples, related tokens, a per-addressing-form cycle table and the cited datasheet. Timing remains separated by addressing form and links retain their source provenance.*
 
 In the IDE: Help → `#help/token-help`
 

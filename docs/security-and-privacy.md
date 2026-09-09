@@ -11,7 +11,7 @@ Everything you make stays on your machine.
 
 | Thing | Where it lives | How it leaves |
 | --- | --- | --- |
-| Your project — sources, assets, build targets, bookmarks, settings | Your browser's local storage for this site | Only when you export it, write it back to a folder you chose, or download it |
+| Your project. Sources, assets, build targets, bookmarks, settings | Your browser's local storage for this site | Only when you export it, write it back to a folder you chose, or download it |
 | Firmware you supply | Your browser, and never in a build, a bundle or a log | It does not. It is never sent anywhere |
 | A folder you opened from disk | Read in the browser. Written back only when you ask, and only after the browser grants write permission at that moment | It does not leave your machine |
 | Source sent to the native builder | The isolated container, for the length of one build | It has no network route, so it cannot leave |
@@ -58,7 +58,7 @@ excluded by default and require an explicit choice to include.
 
 Report it privately first. Open a GitHub security advisory on the repository, or
 if that is not available to you, open an issue that says only that you have
-found a security problem and asks for a private channel — do not put the detail
+found a security problem and asks for a private channel, do not put the detail
 in a public issue.
 
 Please include what you did, what happened, and what you expected. A proof of

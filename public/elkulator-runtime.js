@@ -1,8 +1,8 @@
 /* 8bit-net Acorn Electron runtime, on the Elkulator core.
  *
  * There are two Electron cores in this build. This is the second: Elkulator
- * compiled to WebAssembly, which is the full machine — sideways ROM banks, the
- * Plus 1 and Plus 3, and a debugger hook before every instruction — where ElkJS
+ * compiled to WebAssembly, which is the full machine (sideways ROM banks, the
+ * Plus 1 and Plus 3, and a debugger hook before every instruction), where ElkJS
  * is a 32 KB machine with two ROMs and no hook at all.
  *
  * Everything this page asks of the machine goes through the bridge in
@@ -100,8 +100,8 @@
     n: 24, o: 25, p: 26, q: 27, r: 28, s: 29, t: 30, u: 31, v: 32, w: 33, x: 34, y: 35, z: 36,
     /* The two punctuation keys are the other way round from what the core's own
      * enumeration suggests: pressing what it calls COLON produces a semicolon
-     * on the machine, and so `*` — which is shift on the colon key, and the
-     * first character of every Acorn command — came out as `+`. Elkulator's
+     * on the machine, and so `*` (which is shift on the colon key, and the
+     * first character of every Acorn command) came out as `+`. Elkulator's
      * matrix carries a note doubting this row, and the machine settled it: with
      * these two swapped, `:` `;` `*` `+` all arrive as themselves. */
     '-': 37, ',': 38, '.': 39, '/': 40, ':': 41, ';': 42,
@@ -113,13 +113,13 @@
     '<': ',', '>': '.', '?': '/', '+': ';', '*': ':',
     /* The key the core enumerates as EQUALS is the Electron's `- =` key, and
      * unshifted it produces a minus. Without this the workbench could not type
-     * a minus at all — which is every negative amplitude in a SOUND statement —
+     * a minus at all, which is every negative amplitude in a SOUND statement,
      * and an equals sign came out as one. */
     '=': '-',
   };
 
   /* Allegro's SDL backend finds its drawing surface with the selector
-   * "#canvas", so that is what the surface is called here — a canvas named
+   * "#canvas", so that is what the surface is called here, a canvas named
    * anything else would not be the one the emulator renders into. */
   const SCREEN_ID = 'canvas';
   const screenElement = () => document.getElementById(SCREEN_ID);
@@ -297,7 +297,7 @@
    * an ADF is, which is knowledge that belongs to the emulator and not to this
    * page. Nothing here touches the host's real filesystem.
    *
-   * The extension matters — it is what selects the format — so it is preserved
+   * The extension matters, it is what selects the format, so it is preserved
    * from the name the workbench gave, and refused when it is not one Elkulator
    * reads, rather than mounting a file the core will silently make nothing of.
    */
@@ -395,7 +395,7 @@
        * is not: it abandons whatever the operating system was in the middle of,
        * with a stack that no longer describes how to get back. On this machine
        * a program launched that way prints correctly until it makes a blocking
-       * OS call — and then the screen clears and the machine ends up back in
+       * OS call, and then the screen clears and the machine ends up back in
        * ROM, with nothing to say why. Entered through CALL, the same program
        * prints, waits for its key, returns, and leaves BASIC working. That was
        * measured both ways.
@@ -417,7 +417,7 @@
    * address inside a cycle budget, and then asked about its registers, its
    * memory and how long it took. Everything else a plan can assert needs a hook
    * this core does not have, and each of those is refused by name below rather
-   * than quietly skipped — an assertion nobody evaluated must not be counted as
+   * than quietly skipped. An assertion nobody evaluated must not be counted as
    * one that passed.
    *
    * Cycles are counted, not instructions. A plan's budget is written in cycles
@@ -428,7 +428,7 @@
    * would call eight cycles is measured at twelve, and that is the number a
    * program actually has to live within.
    *
-   * A stop address is exact — the instruction hook halts the machine on it. A
+   * A stop address is exact. The instruction hook halts the machine on it. A
    * budget is not: this core runs a whole field per animation frame and cannot
    * be interrupted inside one, so a test that never reaches its stop overruns
    * its budget by up to a field before the overrun is noticed. The result says
@@ -436,7 +436,7 @@
    * be inferred from the timeout.
    */
   const TEST_ASSERTION_REFUSALS = {
-    output: 'OUTPUT captures characters at the BBC MOS write vector. The Electron\u2019s operating system is not that one, and this bridge installs no character hook, so the capture would be of nothing.',
+    output: "OUTPUT captures characters at the BBC MOS write vector. The Electron's operating system is not that one, and this bridge installs no character hook, so the capture would be of nothing.",
     audio: 'AUDIO[WRITES] counts writes to a sound chip. The Electron has one tone generator in its ULA and no chip to write to, and the bridge counts no writes.',
     'audio-speaker': 'AUDIO[SPEAKER] counts transitions of a one-bit speaker, which this machine does not have.',
     screen: 'SCREEN hashes a region of the framebuffer. The core renders into its own canvas through Allegro and this bridge publishes no framebuffer to read back.',
@@ -644,7 +644,7 @@
    * Type into the machine on the machine's clock, not the browser's.
    *
    * The first version of this held each key for a number of milliseconds and it
-   * dropped characters — `PRINT 1` arrived as `PINT 1`. The cause is that the
+   * dropped characters, `PRINT 1` arrived as `PINT 1`. The cause is that the
    * two clocks are not the same one: the emulator advances a field per
    * animation frame, so when the browser is busy the machine's time runs slower
    * than wall-clock and a key held for 60 ms of wall-clock can be held for
@@ -879,7 +879,7 @@
    * reaches the emulated matrix without this page adding handlers that would
    * consume the events it is waiting for. */
 
-  setStatus('Waiting for firmware from the local vault…', 'pending');
+  setStatus('Waiting for firmware from the local vault...', 'pending');
   send({ type: 'ready', capabilities: CAPABILITIES, unavailable: UNAVAILABLE, romsLoaded: false });
   window.__elkulatorRuntime = {
     readRegisters, readMemory, isRunning, engine: ENGINE, capabilities: CAPABILITIES, unavailable: UNAVAILABLE,

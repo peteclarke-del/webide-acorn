@@ -5,7 +5,7 @@ import { parseAdfsCatalogue } from './adfsCatalogue';
 describe('the geometries', () => {
   it('are each a whole number of tracks, as the core computes them', () => {
     /* Taken from the pinned core's own loader table, so the arithmetic has to
-     * come out — a geometry whose parts do not multiply to its length would be
+     * come out. A geometry whose parts do not multiply to its length would be
      * a transcription error, and the machine would read a different disc from
      * the one this build thinks it mounted. */
     for (const geometry of ADFS_GEOMETRIES) {
@@ -74,7 +74,7 @@ describe('identifying an image', () => {
 describe('what the catalogue reader says about a disc it cannot list', () => {
   it('says an L-sized image is damaged rather than that it cannot read L discs', () => {
     /* An L disc is read now, so an all-zero image of that length is not an
-     * unsupported format — it is a disc whose free-space map does not check.
+     * unsupported format. It is a disc whose free-space map does not check.
      * Saying the first would send somebody looking for a feature that is there. */
     /* An all-zero image passes the map checksum, because zero is what a sum of
      * zeroes comes to, and is caught by the map disagreeing with the file about

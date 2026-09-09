@@ -7,6 +7,40 @@ import { resolveProjectPalette } from '../assets/paletteDocument';
 
 afterEach(() => { cleanup(); localStorage.clear(); });
 
+/*
+ * The glyph grid's shape, which was wrong in a way nothing could see.
+ *
+ * The cells carried `role="gridcell"` directly inside `role="grid"`, with no
+ * rows between them. WAI-ARIA gives `gridcell` a required context, and without
+ * it a screen reader has nothing to count position within, so it cannot say
+ * which row and column the caret is in, which are the two facts that matter
+ * most when editing a character cell by cell. The rows are laid out with
+ * `display: contents` so the grid still does the layout and nothing moved; the
+ * accessibility tree was checked in a real browser rather than assumed, because
+ * `display: contents` has historically dropped elements from it.
+ */
+describe('the shape of the glyph grid', () => {
+  it('puts every cell inside a row', () => {
+    renderWorkspace();
+    const grid = screen.getByRole('grid');
+    const rows = within(grid).getAllByRole('row');
+    expect(rows).toHaveLength(8);
+    for (const row of rows) expect(within(row).getAllByRole('gridcell')).toHaveLength(8);
+    /* And nothing is left outside one. */
+    const cells = within(grid).getAllByRole('gridcell');
+    expect(cells).toHaveLength(64);
+    for (const cell of cells) expect(cell.closest('[role="row"]'), cell.getAttribute('aria-label') ?? '').not.toBeNull();
+  });
+
+  it('numbers the rows and columns, which is what position is read from', () => {
+    renderWorkspace();
+    const rows = within(screen.getByRole('grid')).getAllByRole('row');
+    expect(rows.map((row) => row.getAttribute('aria-rowindex'))).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']);
+    expect(within(rows[3]!).getAllByRole('gridcell').map((cell) => cell.getAttribute('aria-colindex')))
+      .toEqual(['1', '2', '3', '4', '5', '6', '7', '8']);
+  });
+});
+
 function renderWorkspace(projectFiles: ReturnType<typeof projectHolding> = []) {
   const props = { projectFiles, projectPalette: resolveProjectPalette([], 4), onAddSource: vi.fn(), onAddLiveFont: vi.fn(), onNotice: vi.fn() };
   render(<FontWorkspace {...props} />);

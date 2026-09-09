@@ -1,8 +1,8 @@
 # ADR 0003: pinned BeebAsm compatibility adapter
 
-Status: Accepted for the local binary-output vertical slice  
-Date: 21 August 2026  
-Requirements: BLD-001–BLD-014, MED-001–MED-003, SEC-001–SEC-003
+Status: Accepted for the local binary-output vertical slice
+Date: 21 August 2026
+Requirements: BLD-001-BLD-014, MED-001-MED-003, SEC-001-SEC-003
 
 ## Context and decision
 

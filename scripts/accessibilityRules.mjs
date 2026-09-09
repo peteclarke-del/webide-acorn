@@ -53,12 +53,24 @@ export const CONTRAST_LARGE = 3;
 export const SCAN = `(() => {
   const findings = [];
   const add = (rule, criterion, element, detail) => {
-    const identity = element
-      ? element.tagName.toLowerCase()
-        + (element.id ? '#' + element.id : '')
-        + (element.className && element.className.toString ? '.' + element.className.toString().trim().split(/\\s+/).slice(0, 2).join('.') : '')
-      : 'document';
-    findings.push({ rule, criterion, element: identity.slice(0, 80), detail });
+    /* A bare tag name is not something anybody can act on. Plenty of the
+     * elements these rules catch carry no id and no class of their own, a
+     * <strong> inside a panel, and a finding that says only "strong" sends the
+     * reader to search the page for it. So where the element cannot name
+     * itself, the nearest ancestor that can is named in front of it. */
+    const nameOf = (node) => node.tagName.toLowerCase()
+      + (node.id ? '#' + node.id : '')
+      + (node.className && node.className.toString ? '.' + node.className.toString().trim().split(/\\s+/).filter(Boolean).slice(0, 2).join('.') : '');
+    let identity = 'document';
+    if (element) {
+      identity = nameOf(element);
+      if (!element.id && !(element.className && element.className.toString().trim())) {
+        for (let parent = element.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+          if (parent.id || (parent.className && parent.className.toString().trim())) { identity = nameOf(parent) + ' > ' + identity; break; }
+        }
+      }
+    }
+    findings.push({ rule, criterion, element: identity.slice(0, 110), detail });
   };
 
   const shown = (node) => typeof node.checkVisibility === 'function'
@@ -137,11 +149,33 @@ export const SCAN = `(() => {
   }
 
   /* --- contrast --------------------------------------------------------- */
+  /*
+   * A computed colour, in either shape a browser gives back.
+   *
+   * Chromium returns rgb() for most declarations and color(srgb r g b / a)
+   * for anything that went through color-mix(), which this workbench uses
+   * for a great many fills. Reading only the first shape made every one of
+   * those look like no colour at all, and the walk below then stepped past an
+   * opaque background as though it were not there and compared the text with
+   * whatever was further out. On a light palette that produced near-white text
+   * measured against white: seventy-six findings, none of them real, on
+   * elements whose actual background was dark.
+   */
   const parseColour = (value) => {
-    const match = /rgba?\\(([^)]+)\\)/.exec(value);
-    if (!match) return null;
-    const parts = match[1].split(',').map((part) => Number(part.trim()));
-    return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+    const functional = /rgba?\\(([^)]+)\\)/.exec(value);
+    if (functional) {
+      const parts = functional[1].split(/[,\\s/]+/).filter(Boolean).map((part) => Number(part));
+      if (parts.slice(0, 3).some((part) => Number.isNaN(part))) return null;
+      return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+    }
+    const predefined = /color\\(srgb ([^)]+)\\)/.exec(value);
+    if (predefined) {
+      const parts = predefined[1].split(/[\\s/]+/).filter(Boolean).map((part) => Number(part));
+      if (parts.slice(0, 3).some((part) => Number.isNaN(part))) return null;
+      /* Predefined-space components are 0-1 rather than 0-255. */
+      return { r: parts[0] * 255, g: parts[1] * 255, b: parts[2] * 255, a: parts.length > 3 ? parts[3] : 1 };
+    }
+    return null;
   };
   const luminance = ({ r, g, b }) => {
     const channel = (value) => {
@@ -158,6 +192,12 @@ export const SCAN = `(() => {
       const colour = parseColour(style.backgroundColor);
       if (colour && colour.a === 1) return colour;
       if (colour && colour.a > 0) return null;
+      /* A background this cannot read is not a background that is not there.
+       * Stepping past one reports the text against a surface it is not on, so
+       * an unreadable value makes the contrast undecidable, the same answer a
+       * translucent one gets. A transparent value parses, and rightly keeps
+       * walking. */
+      if (!colour && style.backgroundColor && style.backgroundColor !== 'transparent') return null;
     }
     return { r: 255, g: 255, b: 255, a: 1 };
   };
@@ -179,6 +219,43 @@ export const SCAN = `(() => {
     const required = (bold && size >= 18.66) || size >= 24 ? ${CONTRAST_LARGE} : ${CONTRAST_NORMAL};
     if (ratio + 0.005 < required) {
       add('contrast', '1.4.3', node, 'text at ' + ratio.toFixed(2) + ':1 needs ' + required + ':1 (' + size.toFixed(1) + 'px' + (bold ? ' bold' : '') + ')');
+    }
+  }
+
+  /* --- roles in their required context ------------------------------------ */
+  /*
+   * A role that only means something inside another one, checked to be inside
+   * it. WAI-ARIA gives several roles a required context: a tab belongs to a
+   * tablist, an option to a listbox, a treeitem to a tree. Out of context they
+   * are not merely untidy, they are announced wrongly, a screen reader tells
+   * somebody "tab 1 of 1" for a control that is one of six, or says nothing at
+   * all about position because there is nothing to count within.
+   *
+   * Only elements carrying an explicit role attribute are checked, and a native
+   * element that already implies the container counts as the container: a <tr>
+   * is a row and a <ul> is a list, so a cell inside a real table row is right
+   * even though nothing wrote role="row".
+   */
+  const REQUIRED_CONTEXT = {
+    tab: '[role="tablist"]',
+    option: '[role="listbox"], select, datalist',
+    treeitem: '[role="tree"], [role="group"]',
+    menuitem: '[role="menu"], [role="menubar"]',
+    menuitemradio: '[role="menu"], [role="menubar"]',
+    menuitemcheckbox: '[role="menu"], [role="menubar"]',
+    listitem: '[role="list"], ul, ol, menu',
+    cell: '[role="row"], tr',
+    gridcell: '[role="row"], tr',
+    columnheader: '[role="row"], tr',
+    rowheader: '[role="row"], tr',
+    row: '[role="table"], [role="grid"], [role="treegrid"], [role="rowgroup"], table, thead, tbody, tfoot',
+    rowgroup: '[role="table"], [role="grid"], [role="treegrid"], table',
+  };
+  for (const [role, context] of Object.entries(REQUIRED_CONTEXT)) {
+    for (const node of document.querySelectorAll('[role="' + role + '"]')) {
+      if (!shown(node)) continue;
+      if (node.parentElement && node.parentElement.closest(context)) continue;
+      add('role-context', '1.3.1', node, 'has role ' + role + ', which only means something inside ' + context.split(',')[0].trim());
     }
   }
 
@@ -205,7 +282,7 @@ export const SCAN = `(() => {
      * glyph grid is one pixel of the artwork, and enlarging it past the
      * artwork would change what the editor edits. The exemption is declared in
      * the markup with its reason rather than guessed here from a class name,
-     * so it is reviewable where it is claimed — and an exemption claimed
+     * so it is reviewable where it is claimed, and an exemption claimed
      * without a reason is itself reported. */
     const essential = node.closest('[data-essential-target-size]');
     if (essential) {
@@ -331,7 +408,7 @@ export const FOCUS_VISIBILITY = `(() => {
  * this is not an AA obligation and is not claimed as one. It is checked
  * because honouring a preference a person has set in their operating system is
  * a commitment worth keeping regardless of what the level requires, and
- * because the AA criterion that does apply — 2.2.2 Pause, Stop, Hide — is
+ * because the AA criterion that does apply (2.2.2 Pause, Stop, Hide) is
  * satisfied trivially by there being nothing that moves for five seconds.
  *
  * Run with the preference emulated. Anything still animating or transitioning
@@ -368,7 +445,7 @@ export const REDUCED_MOTION = `(() => {
  *
  * When the system supplies the colours, anything that conveyed meaning only
  * through its own colour stops conveying it. This checks that controls still
- * have a boundary a person can see — a border or an outline — rather than
+ * have a boundary a person can see, a border or an outline, rather than
  * relying on a background that the browser has just replaced.
  */
 export const FORCED_COLOURS = `(() => {
@@ -413,7 +490,7 @@ export const FORCED_COLOURS = `(() => {
  * written: of every translucent element in the built workbench, all of them
  * were disabled or unavailable controls, and there was no translucent
  * background and no backdrop filter anywhere. This rule is what keeps that
- * true — the moment it stops being true, the check says so.
+ * true. The moment it stops being true, the check says so.
  *
  * Decorative translucency is exempted where it says so, with the
  * `data-decorative` attribute. Nothing is exempt for being small or for being
@@ -489,7 +566,7 @@ export const KEYBOARD_REACHABILITY = `(() => {
   const stops = [...document.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')].filter(focusable);
   if (!stops.length) return [{ element: 'document', detail: 'offers no keyboard tab stop at all' }];
 
-  /* A composite widget — a tree, a grid, a tab strip — is entered once and
+  /* A composite widget (a tree, a grid, a tab strip) is entered once and
    * moved through with the arrow keys, so its one tab stop serves every part of
    * it. A group inside such a widget is a subdivision of it rather than a
    * separate destination, and requiring each subdivision to hold its own stop
@@ -534,7 +611,7 @@ export const KEYBOARD_REACHABILITY = `(() => {
  * Dragging cannot be done without a pointer, so anything draggable has to say
  * what to do instead. The alternative is declared in the markup, next to the
  * thing that needs it, rather than listed somewhere a reviewer has to go and
- * find — and an alternative claimed without saying what it is fails, because
+ * find, and an alternative claimed without saying what it is fails, because
  * a claim nobody can check is not an alternative.
  *
  * A destructive action must be reachable and named. A delete that can only be
@@ -589,8 +666,8 @@ export const POINTER_ALTERNATIVES = `(() => {
  *
  * A panel taller than the space it is given is not a cosmetic problem: the
  * entries past the fold cannot be read, reached or operated by anyone, with a
- * pointer or without. The settings column did this — ten panels stacked in a
- * pane with `overflow: hidden` and no scroller — and the list simply ended
+ * pointer or without. The settings column did this, ten panels stacked in a
+ * pane with `overflow: hidden` and no scroller, and the list simply ended
  * partway down with no indication that there was more.
  *
  * An element is reported when its own content overflows it and neither it nor
@@ -699,7 +776,7 @@ export const VISUAL_ALTERNATIVES = `(() => {
 /*
  * The sizes a control is allowed to be, and a check that every one of them is.
  *
- * The workbench had eleven button heights across fifty-one rules — three of
+ * The workbench had eleven button heights across fifty-one rules, three of
  * them inside a single dialog, so two buttons side by side were different
  * sizes. Nothing noticed, because no rule was wrong on its own; the product
  * simply had no shared answer to how large a control is. It has three now, and

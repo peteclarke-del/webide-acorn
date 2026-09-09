@@ -1,7 +1,7 @@
 /*
  * What a BBC Model B+ said when this build ran one.
  *
- * The B+ here is not the engine's — jsbeeb publishes none — so every claim
+ * The B+ here is not the engine's, jsbeeb publishes none, so every claim
  * about it is a claim about code written for this product, and the way to make
  * such a claim worth anything is to let the machine answer.
  *
@@ -73,7 +73,7 @@ export const BBC_BPLUS_PAGED_RAM = Object.freeze({
    * byte here, which is exactly the mistake this is guarding. */
   wroteAtAFFF: 0xa5,
   readBackAtAFFF: 0xa5,
-  /* With ROMSEL restored, &8000 is the language ROM again — so the RAM is an
+  /* With ROMSEL restored, &8000 is the language ROM again, so the RAM is an
    * overlay the machine can lift, not a permanent change to memory. */
   romByteAt8000AfterRestoring: 0xc9,
 });

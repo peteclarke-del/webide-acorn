@@ -24,8 +24,8 @@ export type MachineAssertion =
   | { kind: 'screen-golden'; goldenId: string; x: number; y: number; width: number; height: number; expectedRgbaBase64: string; allowedChannelDelta: number; allowedDifferingPixels: number; source: string }
   | { kind: 'event'; event: MosTestEvent; expected: number; source: string }
   /* An entry count at an address the author names, so a protocol that is not
-   * the BBC MOS — an Atom vector, a program's own dispatcher, a sideways ROM
-   * service entry — can be asserted without this build pretending to know what
+   * the BBC MOS (an Atom vector, a program's own dispatcher, a sideways ROM
+   * service entry) can be asserted without this build pretending to know what
    * lives there. The address is the claim; nothing is named for the user. */
   | { kind: 'event-address'; address: number; expected: number; source: string }
   /* The speaker on an Acorn Atom is one bit of a PPIA port rather than a sound

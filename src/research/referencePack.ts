@@ -1,7 +1,7 @@
 /* What a reference pack is, and what this build refuses to accept as one.
  *
- * The workbench already ships maintained knowledge — opcodes, SWIs, hardware
- * registers — each entry carrying its own citation. That is first-party and
+ * The workbench already ships maintained knowledge (opcodes, SWIs, hardware
+ * registers) each entry carrying its own citation. That is first-party and
  * fixed. A reference pack is the other kind: documentation somebody imports,
  * which this build did not write and cannot vouch for, and which therefore has
  * to carry its own account of where it came from and what may be done with it.
@@ -15,7 +15,7 @@
  * travels with every entry and the interface is required to show it, so nothing
  * below `independent` can be read as authoritative by accident.
  *
- * The second is the licence. A pack may be readable and still not copyable —
+ * The second is the licence. A pack may be readable and still not copyable,
  * most published manuals are exactly that. So permission to quote and
  * permission to insert into somebody's source are recorded separately from the
  * licence name, because "MIT" and "all rights reserved" are not the only two
@@ -43,7 +43,7 @@ export const PACK_LIMITS = {
  * Where an entry's text came from, in descending order of what it can be
  * relied upon to say.
  *
- * `publisher` is the vendor's own documentation — Acorn's manuals, a
+ * `publisher` is the vendor's own documentation, Acorn's manuals, a
  * toolchain's own reference. `independent` is a third party who published under
  * their own name and can be checked. `community` is collectively edited or
  * posted material. `generated` is machine-produced.
@@ -191,7 +191,7 @@ function licence(value: unknown): PackLicence {
   if (!value || typeof value !== 'object') refuse('The pack records no licence. A pack whose terms are unknown is not one this build will hold, because every later question about quoting or inserting from it would have no answer.');
   const source = value as Record<string, unknown>;
   if (typeof source.quotable !== 'boolean' || typeof source.insertable !== 'boolean') {
-    refuse('The licence has to say plainly whether its text may be quoted and whether it may be inserted into somebody’s source. Those are separate permissions and neither is assumed from the other.');
+    refuse("The licence has to say plainly whether its text may be quoted and whether it may be inserted into somebody's source. Those are separate permissions and neither is assumed from the other.");
   }
   if (source.insertable === true && source.quotable !== true) {
     refuse('The licence permits inserting text it does not permit quoting, which cannot be right: inserting is the stronger permission.');
@@ -250,7 +250,7 @@ function citations(value: unknown, entryId: string, entryTier: SourceTier): Refe
  *
  * Nothing is repaired on the way in. A pack with a tier this build does not
  * recognise, or a licence that does not say what may be done with it, is
- * refused rather than given a default — a default here is a claim about
+ * refused rather than given a default. A default here is a claim about
  * somebody else's rights or somebody else's accuracy.
  */
 export function parseReferencePack(value: unknown): ReferencePack {
@@ -276,8 +276,8 @@ export function parseReferencePack(value: unknown): ReferencePack {
     if (!IDENTIFIER.test(entryId)) refuse(`Entry ${index} has identifier "${entryId}", which is not a valid one.`);
     if (seen.has(entryId)) refuse(`Entry identifier "${entryId}" appears twice; a reference nothing can address uniquely cannot be cited.`);
     seen.add(entryId);
-    /* An entry may declare its own tier when a pack mixes material — a manual
-     * with community notes beside it — and inherits the pack's otherwise. */
+    /* An entry may declare its own tier when a pack mixes material, a manual
+     * with community notes beside it, and inherits the pack's otherwise. */
     const entryTier = record.tier === undefined ? packTier : tier(record.tier, `entry ${entryId} tier`);
     const entry: ReferenceEntry = {
       id: entryId,

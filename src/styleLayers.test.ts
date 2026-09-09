@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 const ROOT = process.cwd();
 const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8');
 
-/** Characters left once the balanced `@layer <name> { … }` block is removed. */
+/** Characters left once the balanced `@layer <name> { ... }` block is removed. */
 function outsideLayer(css: string, layer: string): string {
   const opening = new RegExp(`@layer\\s+${layer}\\s*\\{`).exec(css);
   if (!opening) return css;

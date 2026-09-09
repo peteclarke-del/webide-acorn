@@ -11,7 +11,7 @@
  * machine's address space; the analysis describes a file. They only line up if
  * the loaded program's SHA-256 is the digest of the analysed bytes and it was
  * loaded at the origin the analysis assumes. Where that cannot be established,
- * this returns a refusal with the reason rather than an approximate overlay —
+ * this returns a refusal with the reason rather than an approximate overlay,
  * an overlay against the wrong program would be a fabricated claim about which
  * instructions ran.
  */

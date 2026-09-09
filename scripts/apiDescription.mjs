@@ -7,8 +7,8 @@
  * when either side says something the document does not.
  *
  * Written by hand rather than pulled in as a dependency because the subset
- * needed is small — the description is one this build authored, not an
- * arbitrary one — and a generator nobody can read is a contract nobody can
+ * needed is small (the description is one this build authored, not an
+ * arbitrary one), and a generator nobody can read is a contract nobody can
  * check. Every construct it understands is listed in `renderSchema`, and one it
  * does not understand is an error rather than an `unknown` that would quietly
  * turn a typed field into an untyped one.
@@ -166,7 +166,7 @@ export function renderContracts(document) {
  * A concrete path for an operation, with its parameters filled in.
  *
  * Every value is encoded. A project identifier with a slash in it would
- * otherwise address a different route, and the store refuses such a name — but
+ * otherwise address a different route, and the store refuses such a name, but
  * the client should not be the reason it never reaches the store to be refused.
  */
 export function apiPath<Id extends ApiOperationId>(id: Id, values: Record<string, string> = {}): string {

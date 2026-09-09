@@ -1,4 +1,4 @@
-# 8bit-net Dev — Acorn Workbench
+# 8bit-net Dev: Acorn Workbench
 
 A working local-first foundation for a browser-based Acorn development studio.
 It combines an editable project workspace and file analyser with the workbench
@@ -10,7 +10,7 @@ Raw ARM2 builds can enter an explicitly labelled mapped-RAM debug session on
 that core. Its debugger now decodes the genuine packed 26-bit R15 into address,
 N/Z/C/V/I/F and processor mode, displays Arculator's execute/decode latches plus
 an explicitly separate next-fetch preview, and reads the real User/FIQ/IRQ/
-Supervisor R8–R14 banks. A separate validated RISC OS 3 path can wrap a current `&8000` image
+Supervisor R8-R14 banks. A separate validated RISC OS 3 path can wrap a current `&8000` image
 as a typed Absolute `RunImage`, generate its Obey `!Run`, stage both through
 HostFS, and launch the application through the emulated A310 keyboard. AIF and
 RISC OS C remain separate, still-open contracts. The same live A310 adapter now
@@ -113,6 +113,26 @@ npm test
 npm run build
 ```
 
+## Refreshing the help screenshots
+
+Every image in the in-app help is taken by driving the real application in a
+real browser rather than by hand, because taking them by hand is what made them
+go stale. `scripts/helpScreenshotStates.mjs` says, for each image, which state
+it is a picture of and the steps that reach it in the product's own words, and
+what has to be on screen before the shutter opens. A capture that reaches the
+wrong state fails and leaves the committed image alone.
+
+```bash
+npm run dev                                    # the workbench on :5399
+php -S 127.0.0.1:8000 -t backend/public backend/public/index.php   # the build service
+node --experimental-websocket scripts/helpScreenshots.mjs [--only name.png]
+```
+
+The emulator pictures need the machine's own firmware in `local-roms`, which is
+never committed. A picture whose firmware is absent is reported by the name of
+the file that was looked for, and is not taken; it is not counted as a success
+and the earlier image is kept.
+
 ## Current scope
 
 - React, TypeScript, and Vite application shell.
@@ -121,7 +141,10 @@ npm run build
   context links from every workspace, maintained interface screenshots,
   captions, text alternatives, keyboard navigation, target-specific limits and
   recovery procedures. `npm test` verifies screenshot files, related links,
-  selected control names and the help prose rules.
+  selected control names, the help prose rules, and that every image a topic
+  shows has a state it can be taken from again. The pictures themselves come
+  from driving the real application: see Refreshing the help screenshots
+  below.
 - Linked platform, machine, variant, ROM/OS, and capability controls.
 - Browser-local projects with new/open/save/recovery/export, source import,
   editable multi-file tabs, rename/delete/download, modified-state tracking,
@@ -157,7 +180,7 @@ npm run build
   targets and bookmarks that were removed with it, so restoring puts back the
   state that existed rather than an approximation; a name taken in the meantime
   causes a rename rather than an overwrite. The explorer groups sources by
-  origin — authored, imported, generated — and is a real tree: one tab stop,
+  origin (authored, imported, generated), and is a real tree: one tab stop,
   arrow keys between rows, rather than a tab stop per file. Files reorder by
   dragging or, equivalently, with Alt and an arrow, so the operation is not
   pointer-only; a drop into another group is refused with the reason, because
@@ -220,7 +243,7 @@ npm run build
   1770 DFS and ADFS, BBC Master 128 with its combined MOS 3.20 image, and the
   Acorn Atom with its own kernel and BASIC ROMs. A BBC B with the 6502 second
   processor fitted also boots and runs host code. Hardware tests that capture
-  BBC MOS entry addresses, namely `OUTPUT` and `EVENT[…]`, are refused on the
+  BBC MOS entry addresses, namely `OUTPUT` and `EVENT[...]`, are refused on the
   Atom with an explanation, because that machine is a different operating system
   and counting whatever occupies those addresses there would be meaningless.
 - A character-set editor holds eight bytes per glyph at any code from 32 to 255,
@@ -328,7 +351,7 @@ npm run build
 - Project manifest v13 separates the last explicit-save filename/content baseline
   and explicit never-saved state from continuously recovered working content.
   Dirty state and a genuine revert target therefore survive reload without
-  fabricating a baseline for a newly created file; project versions 1–4 migrate
+  fabricating a baseline for a newly created file; project versions 1-4 migrate
   forward and portable export still records a clean saved snapshot. V5 also
   persists named source bookmarks with file/line/column and a bounded source
   anchor, plus target-bound hardware test plans. V7 adds ARM source/target
@@ -340,7 +363,7 @@ npm run build
   logpoint intent, named enableable groups, symbolic conditions and the latest
   eight exact rebuild-resolution outcomes. V13 adds persistent hardware test
   definitions, input sequences, assertions and retained run history for the
-  selected build target; versions 1–12 migrate forward.
+  selected build target; versions 1-12 migrate forward.
 - Source bookmarks are named, enableable, searchable project-wide and visibly
   distinct from breakpoints. Toolbar and Ctrl+Alt+B actions add/remove the caret
   bookmark; Ctrl+Alt+PageUp/PageDown and visible controls navigate enabled marks
@@ -414,12 +437,12 @@ npm run build
   an explanation for incompatible targets. CPU, machine, ROM selection, local
   ROM readiness and capabilities are included in the language-session revision,
   so target changes cannot leave old help or completion results on screen.
-- BBC BASIC automatic numbering has configurable 0–32,767 start/increment
+- BBC BASIC automatic numbering has configurable 0-32,767 start/increment
   values and selects a free intermediate number when the configured step would
   collide with the following line; if no safe number exists it inserts an
   unnumbered line and explains that the program must be renumbered. Whole-
   program renumbering is preview-first: it validates duplicates and overflow,
-  shows a bounded old/new mapping, rewrites direct and `ON … GOTO/GOSUB` list
+  shows a bounded old/new mapping, rewrites direct and `ON ... GOTO/GOSUB` list
   targets, reports unresolved targets, and applies as one explicitly undoable
   edit. The shared lexical scanner protects strings, `DATA`, and `REM` both
   during rewriting and in the editor jump-target list. Range-only renumbering
@@ -517,7 +540,7 @@ npm run build
   key and metrics are visible in the build result, and Rebuild bypasses it once.
 - Browser assembly expansion is stopped before its 100,000-line/2 MiB bounds,
   raw output cannot cross the 16-bit address space, and INCLUDE never resolves
-  outside the in-memory project—even when given a traversal-shaped name.
+  outside the in-memory project, even when given a traversal-shaped name.
 - Debug, size, speed and custom assembler profiles are persisted build inputs.
   They inject reserved, deterministic profile symbols for author-controlled code
   paths and show source fidelity, measured size, runtime and compatibility
@@ -576,7 +599,7 @@ npm run build
   instruction and bytes at PC, installed execute breakpoints and raw bytes above
   the real 6502 stack pointer. It supports instruction step-in, JSR step-over,
   stack-return step-out, run-to address, removable breakpoints and side-effect-
-  free memory reads. Its live memory inspector supports 1–4,096-byte paging,
+  free memory reads. Its live memory inspector supports 1-4,096-byte paging,
   build-symbol and bounded offset navigation, 8/16/32-column hex or decimal
   views, ASCII/Acorn text, byte/wildcard/text search, selectable addresses,
   little-endian pointer following, cycle-stamped snapshots with changed-byte
@@ -596,12 +619,12 @@ npm run build
   physical spaces remain explicitly unavailable until those adapters expose
   reliable physical mappings.
 - The A310 debugger exposes Arculator's side-effect-free current-mapping ARM
-  26-bit logical memory in bounded, non-wrapping 1–4,096-byte captures. It
+  26-bit logical memory in bounded, non-wrapping 1-4,096-byte captures. It
   supports symbol plus offset navigation, paging, 8/16/32-column hex or decimal
   views, ASCII and byte/wildcard search, timestamped snapshot diff, clipboard/
   text/binary export, and following the 26-bit address portion of a selected
   little-endian 32-bit word. The panel states whether a capture was taken while
-  running or paused. Paused current-mapping edits accept 1–256 bytes only when
+  running or paused. Paused current-mapping edits accept 1-256 bytes only when
   every resolved destination is backed by installed physical main RAM, verify
   exact read-back, roll back failed verification, and retain bounded before/
   after history. ROM and device mappings are rejected.
@@ -617,9 +640,9 @@ npm run build
   ARM branch-with-link and runs to the following instruction; other opcodes
   perform one exact instruction step. Run to R14 derives its target from the
   live link register. Permanent breakpoints also support bounded execute-hit
-  thresholds and unsigned comparisons against live R0–R14 or execute-PC; the C
+  thresholds and unsigned comparisons against live R0-R14 or execute-PC; the C
   hook owns both counting and the stop decision. Log-only and pause-and-log
-  actions capture immutable R0–R14, execute-PC and hit count into a 64-event
+  actions capture immutable R0-R14, execute-PC and hit count into a 64-event
   core ring with overwrite accounting, then render only documented template
   placeholders. Source step-in advances through exact core instructions until
   the authoritative PC reaches a different mapped file/line; source step-over
@@ -642,7 +665,7 @@ npm run build
   contract proves exact `MOV; ADD; B` bytes and a counted conditional stop in the
   resulting loop. HostFS/ADFS remain the qualified normal RISC OS application
   paths; the explicit mapping is scoped to raw debugger execution.
-- The A310 debugger can edit R0–R14 while paused and verifies the requested
+- The A310 debugger can edit R0-R14 while paused and verifies the requested
   32-bit value against a subsequent live-core snapshot. Execute-PC editing is
   separately aligned and 26-bit bounded; it preserves the packed status/mode
   bits, stores the core's PC+8 representation and refills the pipeline. Writes
@@ -658,7 +681,7 @@ npm run build
   expression evaluation and memory conditions are not claimed yet.
 - The ROM-aware debugger also provides genuine jsbeeb bus-hook data
   watchpoints for one-byte reads, writes, and value changes in the currently
-  mapped 6502 main-RAM address space (`&0000`–`&7FFF`). Optional byte equality
+  mapped 6502 main-RAM address space (`&0000`-`&7FFF`). Optional byte equality
   or inequality conditions, live access counts, exact triggering instruction
   PC, old/new values, removal, and a bounded event history are exposed. The UI
   declares the width, address space, and emulated implementation. Banked ROM,
@@ -694,7 +717,7 @@ npm run build
   paused state permits it. Exact step-in records actual emulator cycle delta,
   register/flag changes and IRQ/NMI transition; step-over/out effects and full
   bus activity remain part of the wider trace work.
-- An explicit interrupt-history monitor records a bounded 32–1,024-event stream
+- An explicit interrupt-history monitor records a bounded 32-1,024-event stream
   at genuine jsbeeb instruction boundaries. It reports IRQ/NMI line changes,
   core acceptance, interrupt entry proven by the three-byte CPU stack frame,
   RTI exit, PC, emulated cycle, monotonic timestamp and any simultaneously
@@ -703,7 +726,7 @@ npm run build
   reference when one exists and link their PC into live disassembly or memory.
   The UI states the timing cost; stopping removes the hook and restores the
   normal fast CPU path without discarding the bounded history.
-- The Raster Timeline is a separate opt-in, bounded 64–4,096-event recorder
+- The Raster Timeline is a separate opt-in, bounded 64-4,096-event recorder
   over jsbeeb's live beam, CRTC and Video ULA state (or MC6847 facade plus Atom
   PPIA mode/CSS latches). It records frame and VSync edges, mode/control and
   palette changes, configurable scanline samples and optional HSync edges with
@@ -735,7 +758,7 @@ npm run build
   file/line without implying that changed content was executed.
 - The hardware instruction trace is an explicit opt-in recorder: stopping it
   removes all three jsbeeb instruction/read/write hooks and restores the normal
-  fast execution path. While active it keeps a configurable 64–4,096-entry
+  fast execution path. While active it keeps a configurable 64-4,096-entry
   circular buffer with sequence, wall/cycle time, actual cycles, selected CPU,
   mapped address-space context, core-specific decode/effective address,
   before/after registers and flags, IRQ/NMI transitions, up to 24 real data/I/O
@@ -748,7 +771,7 @@ npm run build
   can pause the machine after the requested post records.
   The UI prominently labels timing/performance overhead, overwritten records,
   deliberately skipped samples and per-instruction access drops. Sampling can
-  retain every 1st–1,024th instruction and can remove the raw bus hooks for a
+  retain every 1st-1,024th instruction and can remove the raw bus hooks for a
   lower-overhead summary; independent triggers require unsampled capture. The
   expandable view is bounded to the latest 200 rows, running snapshots to 256,
   while a semantic accessible table pages through the complete stopped buffer
@@ -761,7 +784,7 @@ npm run build
   export them with linked instruction records in trace schema v2. Deterministic
   replay is available separately for the jsbeeb 8-bit adapter while paused.
 - Deterministic replay retains a user-bounded ring of full machine checkpoints
-  (including writable sideways banks) at configurable 1–4,096-instruction
+  (including writable sideways banks) at configurable 1-4,096-instruction
   intervals and a measured in-memory byte total. Reverse step restores the
   nearest retained checkpoint and re-executes to the preceding instruction;
   reverse continue targets the preceding retained checkpoint. A reverse result
@@ -841,7 +864,7 @@ npm run build
   metadata is missing. jsbeeb source stepping uses a live instruction hook and
   a bounded 100,000-instruction outcome rather than inferred UI movement.
 - The A310 ARM state view reports the pinned coprocessor configuration alongside
-  R0–R15, 26-bit status/mode, banked registers and pipeline latches. The current
+  R0-R15, 26-bit status/mode, banked registers and pipeline latches. The current
   qualified profile has `fpa = 0`, so the dedicated panel states that FPA
   hardware and registers are absent. It does not synthesize floating-point state
   from general ARM registers or expose a control unsupported by the core.
@@ -885,8 +908,8 @@ npm run build
   files go on which disc and side, in what order, and how the machine starts
   from them. The set names the build targets it needs and says whether each has
   been built; writing is refused, with the missing targets named, until they
-  have. Capacity comes from the real DFS geometry — whole sectors, 798 of them
-  after the catalogue, at most 31 entries — so a side that will not fit says by
+  have. Capacity comes from the real DFS geometry (whole sectors, 798 of them
+  after the catalogue, at most 31 entries), so a side that will not fit says by
   how much before anything is written, and a side whose files are not all built
   says it cannot be sized yet rather than reporting a wrong total. Writing goes
   through the same DFS and DSD writers, so every side is still reparsed and
@@ -929,7 +952,7 @@ npm run build
   expanded to browser full-screen, with both browser Escape and an accessible
   in-frame exit control.
 - The first Asset Studio increment provides functional character, sprite and
-  tile pixel workspaces with 8–32 pixel dimensions, a four-index palette,
+  tile pixel workspaces with 8-32 pixel dimensions, a four-index palette,
   painting/erasing, wrap shifts, local recovery, deterministic packed 2bpp
   bytes, assembler `EQUB` output and binary download. Assets are now validated
   versioned JSON documents with legacy-draft migration, bounded undo/redo,
@@ -945,7 +968,7 @@ npm run build
   Sprite documents additionally keep an independent one-bit opacity mask and
   bounded hotspot. The mask has its own editor plane, binary download, packing,
   hash and assembler label; generated source also exposes colour and hotspot
-  labels and is reassembled in tests. Sprite animations support 1–64 named,
+  labels and is reassembled in tests. Sprite animations support 1-64 named,
   timed frames with independent pixels/masks/hotspots, duplicate/delete/reorder,
   loop/once preview, whole-animation resize and undo. Generated colour/mask
   streams retain exact frame order and include an assembler-verified runtime
@@ -990,7 +1013,7 @@ npm run build
   vendored GPL provenance, an executable check that no firmware or media image
   is tracked, a headless browser smoke that boots the built workbench and
   fails on any console error, and a cross-browser stage that starts the same
-  build in every engine the machine has — Chromium and Firefox today — and names
+  build in every engine the machine has, Chromium and Firefox today, and names
   every engine it could not start, including Safari, rather than substituting
   another for it. No test is allowed to skip: the gate fails if any test in
   either suite did not run, and a stage that cannot run is reported as skipped

@@ -6,8 +6,8 @@
  * only ever be exported as a download.
  *
  * The File System Access API gives a handle instead, so the same folder can be
- * written back to. It is not available everywhere — at the time of writing
- * Firefox and Safari do not implement `showDirectoryPicker` — so this module
+ * written back to. It is not available everywhere, at the time of writing
+ * Firefox and Safari do not implement `showDirectoryPicker`, so this module
  * reports what the browser can actually do rather than offering a control that
  * would fail when used, and the directory-input path remains for everyone else.
  *

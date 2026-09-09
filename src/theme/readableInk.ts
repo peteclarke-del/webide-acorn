@@ -3,7 +3,7 @@
  * A swatch that shows its index written on the colour it represents is a
  * label on an arbitrary background, and a fixed ink colour fails on half of
  * them. On this product's own palette it measured 1.03:1 against WCAG's 4.5:1
- * — text the same colour as what it sits on, which is text nobody can read.
+ *. Text the same colour as what it sits on, which is text nobody can read.
  *
  * The fix is not a lighter ink. It is choosing, per swatch, whichever of black
  * or white contrasts better with that particular colour, which is the only

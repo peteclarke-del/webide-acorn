@@ -59,7 +59,7 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
 
   return (
     <section className="song-workspace" aria-label="Song editor">
-      <header className="song-toolbar">
+      <header className="song-toolbar" role="group" aria-label="Song tools">
         {!!openable.length && (
           <label className="project-source-picker"><span>From this project</span>
             <select aria-label="Open a song from this project" value="" onChange={(event) => {
@@ -67,7 +67,7 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
               if (!held) return;
               guard(() => parseSongDocument(held.content), `${held.name} opened from this project`);
             }}>
-              <option value="">Choose a song…</option>
+              <option value="">Choose a song...</option>
               {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
             </select>
           </label>
@@ -92,8 +92,8 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
             {profile.detail}. {document.target === 'atom-speaker'
               ? 'The pitch number is the speaker half-period delay count, not a musical pitch, and volume is only on or off because a one-bit speaker has no volume.'
               : document.target === 'electron-ula'
-                ? 'Pitch is the number OSWORD 7 takes, on the machine\u2019s own scale of forty-eight units to the octave, and volume is only on or off: a real Electron was measured playing every amplitude from \u22121 to \u22125 at exactly the same divider. There is one generator, so a note sent anywhere else would replace this one rather than sound beside it.'
-                : 'Pitch and volume are the numbers OSWORD 7 takes: volume 0 is silence and 1 to 15 become amplitudes \u22121 to \u221215, and channel 0 takes pitches 0 to 7.'}
+                ? "Pitch is the number OSWORD 7 takes, on the machine's own scale of forty-eight units to the octave, and volume is only on or off: a real Electron was measured playing every amplitude from -1 to -5 at exactly the same divider. There is one generator, so a note sent anywhere else would replace this one rather than sound beside it."
+                : 'Pitch and volume are the numbers OSWORD 7 takes: volume 0 is silence and 1 to 15 become amplitudes -1 to -15, and channel 0 takes pitches 0 to 7.'}
             {' '}Nothing is synthesised here; build the song and run it to hear the real hardware play it.
           </p>
           <div className="song-grid-scroll">
@@ -141,7 +141,7 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
             <div><dt>Data bytes</dt><dd>{output.manifest.byteLength}</dd></div>
             <div><dt>Rows</dt><dd>{output.manifest.rowCount}</dd></div>
             <div><dt>Silent rows</dt><dd>{output.manifest.silentRows.length}</dd></div>
-            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}…</code></dd></div>
+            <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}...</code></dd></div>
           </dl>
           <p role="status" className="binding-warning">
             The generated player owns zero page &amp;{output.manifest.zeroPage[0]!.toString(16).toUpperCase()} to

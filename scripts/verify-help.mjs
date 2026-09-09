@@ -42,8 +42,8 @@ const maintainedControls = [
   'Declare tile', 'Add object at cursor',
   /* And the workbench menu bar's own entries, which are what the guide's
    * procedures now tell somebody to choose. */
-  'Start from a sample', 'Open a codebase…', 'Export…', 'Revert', 'Signature help', 'Import image…',
-  'Import Tiled…', 'Previous change', 'Next change', 'Scope start',
+  'Start from a sample', 'Open a codebase...', 'Export...', 'Revert', 'Signature help', 'Import image...',
+  'Import Tiled...', 'Previous change', 'Next change', 'Scope start',
 ];
 for (const control of maintainedControls) {
   if (!source.includes(control)) failures.push(`Documented control is absent from the interface source: ${control}`);

@@ -43,7 +43,7 @@ describe('taking a pack into the library', () => {
   });
 
   it('changes nothing when the very same pack is imported again', () => {
-    /* Reasonable to do by accident, so the answer is that nothing changed —
+    /* Reasonable to do by accident, so the answer is that nothing changed,
      * not an error, and not a silent no-op that leaves the person guessing. */
     const first = installPack(emptyLibrary(), pack(), AT);
     const second = installPack(first.library, pack(), LATER);

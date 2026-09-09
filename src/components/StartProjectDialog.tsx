@@ -125,7 +125,7 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
      * map recovered from a byte run whose length allows several grid shapes,
      * and a screen whose file does not name the display mode its bytes are for.
      * Both would need a guess, and a wrong guess produces a plausible, wrong
-     * document — so those wait to be chosen, in the same list, already found.
+     * document, so those wait to be chosen, in the same list, already found.
      */
     setSelectedAssets(nextPlan.derivedAssets.map((asset) => asset.id));
     setSelectedMaps(Object.fromEntries(nextPlan.mapCandidates
@@ -293,7 +293,7 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
               and, where it has them, real-machine test plans. Nothing is read-only and nothing is hidden.
             </p>
             {sampleError && <p className="binding-warning">The sample catalogue failed to load: {sampleError}</p>}
-            {!samples && !sampleError && <p className="honest-empty">Loading the sample catalogue…</p>}
+            {!samples && !sampleError && <p className="honest-empty">Loading the sample catalogue...</p>}
             <ul className="sample-list">
               {(samples ?? []).map((sample) => (
                 <li key={sample.id}>
@@ -367,7 +367,7 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 disabled={reading}
                 onClick={() => void openConnectedFolder()}
               >
-                <Icon name="open" size={14} /> {reading ? 'Reading folder…' : 'Open a folder this browser can write back to'}
+                <Icon name="open" size={14} /> {reading ? 'Reading folder...' : 'Open a folder this browser can write back to'}
               </button>
             ) : (
               <p className="folder-access-note">{folderAccess.reason}</p>
@@ -381,7 +381,7 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 disabled={reading}
                 onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ''; if (files.length) void readFolder(files); }}
               />
-              <Icon name="open" size={14} /> {reading ? 'Reading folder…' : folderAccess.available ? 'Choose a folder to copy in' : 'Choose folder'}
+              <Icon name="open" size={14} /> {reading ? 'Reading folder...' : folderAccess.available ? 'Choose a folder to copy in' : 'Choose folder'}
             </label>
             <label className="folder-picker">
               <input
@@ -391,7 +391,7 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 disabled={reading}
                 onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void readArchive(file); }}
               />
-              <Icon name="open" size={14} /> {reading ? 'Reading archive…' : 'Choose a zip archive'}
+              <Icon name="open" size={14} /> {reading ? 'Reading archive...' : 'Choose a zip archive'}
             </label>
             <p className="folder-access-note">
               An archive is read in this browser and checked before anything is imported: a name that would unpack

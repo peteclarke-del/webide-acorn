@@ -42,8 +42,8 @@ export interface ResolvedLink {
 /*
  * An opcode mnemonic is an opcode whatever else it may also be, and an operand
  * that resolves to an address is an address. Where a thing is genuinely two
- * things — a token in a disassembly that is both a mnemonic and a jump target
- * — both anchors are asked and the results are merged, because either could be
+ * things, a token in a disassembly that is both a mnemonic and a jump target
+ *, both anchors are asked and the results are merged, because either could be
  * what somebody wanted.
  */
 function anchorsFor(origin: LinkOrigin): Array<{ kind: AnchorKind; value: string; number?: number }> {

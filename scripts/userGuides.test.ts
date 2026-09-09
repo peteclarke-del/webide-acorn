@@ -61,8 +61,8 @@ describe('what the guides cover', () => {
 describe('an area with no feature to document', () => {
   it('documents the store and its history, which do ship, and declares only sharing absent', () => {
     /* The first version of this declaration said the build had no server-side
-     * store and no revision history. Both had shipped — in PHP and in React at
-     * once — and the declaration was wrong rather than merely stale. What is
+     * store and no revision history. Both had shipped, in PHP and in React at
+     * once, and the declaration was wrong rather than merely stale. What is
      * genuinely absent is the second person. */
     expect(UNAVAILABLE_AREAS.map((area) => area.id)).toEqual(['sharing']);
     const projects = GUIDE_AREAS.find((area) => area.id === 'projects')!;

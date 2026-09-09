@@ -15,7 +15,7 @@
  *
  * Two kinds of match are distinguished, and the distinction is reported rather
  * than folded into a score. An anchor match means the entry says it documents
- * this exact thing — this opcode, this address, this SWI. A text match means
+ * this exact thing. This opcode, this address, this SWI. A text match means
  * the words appear. The first is an answer; the second is a lead.
  */
 import { isAuthoritative, type ReferenceEntry, type ReferencePack, type SourceTier } from './referencePack';
@@ -95,7 +95,7 @@ function applicabilityOf(pack: ReferencePack, target: SearchTarget | undefined):
  *
  * An anchor match outweighs everything because it is the entry saying it
  * documents this exact thing. Applicability to the caller's machine comes next,
- * then whether the entry may be read as authoritative — a publisher's page
+ * then whether the entry may be read as authoritative, a publisher's page
  * above a forum post about the same call. Text matches sort under all of it.
  */
 const SCORES = {
@@ -199,7 +199,7 @@ export function searchCoverage(library: PackLibrary, options: SearchOptions = {}
 }
 
 /**
- * The references that bear on one thing the editor already knows about — an
+ * The references that bear on one thing the editor already knows about, an
  * opcode under the caret, an address in a disassembly, a SWI in a diagnostic.
  *
  * Separate from the free-text search because the question is different: this

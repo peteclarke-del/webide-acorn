@@ -74,7 +74,7 @@ Control the live 6502 or 65C12 core with registers, flags, breakpoints, logpoint
 - Use Restart to reset the same bound machine. Use Build and debug when source, target or firmware changed.
 - Treat an unavailable control as a capability statement, not a hidden emulation.
 
-![BBC family debugger showing a terminated immutable session, live core state, breakpoints and protocol disclosure](../../public/help/debugger-6502.png)
+![BBC family debugger paused at &1900 in a live jsbeeb session, showing the build fingerprint, output digest, adapter version, three bound ROMs, the decoded call stack and the execution controls](../../public/help/debugger-6502.png)
 
 *The session strip retains exact build, machine, adapter and ROM identity after Stop. The runtime below reports the paused core independently.*
 

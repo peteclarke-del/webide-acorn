@@ -62,7 +62,7 @@ function space(id: MemorySpaceId, label: string, start: number, end: number, wri
 export function validateMemorySpaceRead(map: MemoryMapState, addressSpace: MemorySpaceId, address: number, length: number, bank?: number) {
   const space = map.spaces.find((candidate) => candidate.id === addressSpace);
   if (!space) throw new Error(`Address space ${addressSpace} is not available on this machine`);
-  if (!Number.isInteger(address) || !Number.isInteger(length) || length < 1 || length > 4096 || address < space.start || address > space.end || address + length - 1 > space.end) throw new Error(`${space.label} reads require 1–4096 bytes wholly inside &${space.start.toString(16).toUpperCase().padStart(4, '0')}–&${space.end.toString(16).toUpperCase().padStart(4, '0')}`);
+  if (!Number.isInteger(address) || !Number.isInteger(length) || length < 1 || length > 4096 || address < space.start || address > space.end || address + length - 1 > space.end) throw new Error(`${space.label} reads require 1-4096 bytes wholly inside &${space.start.toString(16).toUpperCase().padStart(4, '0')}-&${space.end.toString(16).toUpperCase().padStart(4, '0')}`);
   if (space.banked && (!Number.isInteger(bank) || bank! < 0 || bank! > 15)) throw new Error('Sideways reads require a bank from 0 to 15');
   return { space, bank: space.banked ? bank : undefined };
 }

@@ -4,7 +4,7 @@
  * because that is the smallest thing FileSwitch will launch and proving that
  * much on a real machine was the point. It is not an application anyone would
  * ship. A real one has `!Boot` so the Filer knows about it before it is run,
- * `!Sprites` so it has an icon, and whatever resources the program loads —
+ * `!Sprites` so it has an icon, and whatever resources the program loads,
  * usually in subdirectories.
  *
  * The model here is a flat list of paths rather than a nested structure,
@@ -131,7 +131,7 @@ export function validateRiscOsApplication(application: RiscOsApplicationPackage)
   const expectedRoot = `!${normalizeApplicationName(application.applicationName)}`;
   if (application.rootDirectory !== expectedRoot || application.launchPath !== expectedRoot) throw new Error('RISC OS application root and launch paths must match its application name.');
   if (application.executableFormat !== 'absolute' || application.executableLoadAddress !== 0x8000) throw new Error('The first application packager supports only RISC OS Absolute executables at &00008000.');
-  if (application.executablePath !== `${expectedRoot}.RunImage`) throw new Error('The Absolute executable must be the application’s RunImage.');
+  if (application.executablePath !== `${expectedRoot}.RunImage`) throw new Error("The Absolute executable must be the application's RunImage.");
 
   const seen = new Set<string>();
   const directories = new Set<string>();
@@ -225,7 +225,7 @@ export function createApplicationArchive(application: RiscOsApplicationPackage):
   validateRiscOsApplication(application);
   const entries: Record<string, Uint8Array> = {};
   /* Copied into this realm's Uint8Array before it is handed to the archiver.
-   * Typed arrays made elsewhere — by a document's own TextEncoder, for one —
+   * Typed arrays made elsewhere, by a document's own TextEncoder, for one,
    * fail an `instanceof` check the archiver uses to tell a file from a folder,
    * and the failure is silent: the bytes come out as a directory of numbered
    * empty entries rather than as the file. */
@@ -237,6 +237,6 @@ export function createApplicationArchive(application: RiscOsApplicationPackage):
 
 function normalizeApplicationName(value: string): string {
   const withoutBang = value.trim().replace(/^!+/, '');
-  if (!/^[A-Za-z][A-Za-z0-9_-]{0,8}$/.test(withoutBang)) throw new Error('Application name must contain 1–9 letters, digits, underscores or hyphens, beginning with a letter.');
+  if (!/^[A-Za-z][A-Za-z0-9_-]{0,8}$/.test(withoutBang)) throw new Error('Application name must contain 1-9 letters, digits, underscores or hyphens, beginning with a letter.');
   return withoutBang;
 }

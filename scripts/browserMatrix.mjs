@@ -4,7 +4,7 @@
  *
  * The release gate has always driven one browser. That proves the build works
  * in Chromium and says nothing about the others, which matters here because the
- * product already knows it behaves differently in them — the folder importer
+ * product already knows it behaves differently in them, the folder importer
  * offers a writable handle where the File System Access API exists and a
  * one-way import where it does not, and that is a real difference a person
  * meets on their first day.
@@ -12,7 +12,7 @@
  * So the same two probes run in every browser the gate can start, and the
  * answers are compared. One probe asks whether the workbench rendered at all;
  * the other asks which platform capabilities the browser provides. The first is
- * a requirement — a browser where the workbench does not render is a failure —
+ * a requirement. A browser where the workbench does not render is a failure,
  * and the second is a record, because a capability one browser lacks is a fact
  * about the web rather than a defect in this build.
  *
@@ -75,7 +75,7 @@ export const PAGE_PROBE = `(() => {
 
 /**
  * Loaded before the application's own script, from the same origin so that the
- * shipped policy — which forbids inline script — permits it.
+ * shipped policy, which forbids inline script, permits it.
  *
  * An error thrown while the application starts leaves an empty document and
  * nothing else to see. Collecting from before it runs is the difference between
@@ -174,7 +174,7 @@ export const RUNTIME_PAGES = Object.freeze([
  *
  * Loading a runtime document on its own says only that its bytes arrived. What
  * the workbench actually depends on is that the page announces itself on its
- * channel, and a page announces to its parent — so on its own it announces to
+ * channel, and a page announces to its parent, so on its own it announces to
  * nobody and a script that threw before announcing looks exactly like one that
  * did not need to.
  *

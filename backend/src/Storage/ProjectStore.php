@@ -274,7 +274,7 @@ final class ProjectStore
      * that was never there, and somebody who finds their work gone deserves to
      * know whether it was deleted or lost.
      *
-     * Content another project still names is kept — deletion frees what only
+     * Content another project still names is kept, deletion frees what only
      * this project held, and nothing else.
      *
      * @return array<string, mixed> the tombstone

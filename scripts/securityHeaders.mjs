@@ -7,7 +7,7 @@
  * blank page and a console full of violations.
  *
  * So the policy is parsed out of the nginx snippets that serve it, checked
- * against the rules below, and — in the release gate — actually applied to the
+ * against the rules below, and, in the release gate, actually applied to the
  * built application while a browser loads and exercises it. The gate fails on a
  * violation, which means the policy and the product cannot drift apart.
  *

@@ -1,7 +1,7 @@
 /* Searching imported documentation, and being told what you are reading.
  *
  * The hard part of a reference panel is not finding text. It is presenting two
- * passages about the same call — one from the manual, one from a forum — in a
+ * passages about the same call (one from the manual, one from a forum), in a
  * way that does not quietly equate them. So results are separated: what may be
  * read as authoritative comes first under its own heading, and everything else
  * comes under a heading that says what it is. Ordering alone would not do it,
@@ -30,7 +30,7 @@ interface ReferencePanelProps {
   target?: SearchTarget;
   /**
    * A question pushed in from elsewhere. An `origin` carries what the workbench
-   * already knew — that this is an opcode, that this operand is an address —
+   * already knew. That this is an opcode, that this operand is an address,
    * and is asked by kind; a bare query is only a word.
    */
   request?: { sequence: number; query: string; origin?: LinkOrigin };
@@ -133,7 +133,7 @@ export function ReferencePanel({
 
   return (
     <section className="reference-panel" aria-label="Imported reference search">
-      <div className="research-toolbar">
+      <div className="research-toolbar" role="group" aria-label="Reference tools">
         <form
           role="search"
           onSubmit={(event) => { event.preventDefault(); run(query); }}
@@ -144,7 +144,7 @@ export function ReferencePanel({
               type="search"
               aria-label="Search imported documentation"
               value={query}
-              placeholder="An opcode, an address, a call — LDA, &FE30, OSWRCH"
+              placeholder="An opcode, an address, a call, LDA, &FE30, OSWRCH"
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
@@ -210,7 +210,7 @@ export function ReferencePanel({
             )}
             {tierFilter === 'all' && unverified.length > 0 && (
               <>
-                <h3 id="reference-unverified">Not a publisher — check anything you depend on</h3>
+                <h3 id="reference-unverified">Not a publisher. Check anything you depend on</h3>
                 <div role="listbox" aria-labelledby="reference-unverified">{unverified.map(renderHit)}</div>
               </>
             )}
@@ -228,7 +228,7 @@ export function ReferencePanel({
                 <p>{selected.entry.body}</p>
 
                 <dl>
-                  <div><dt>From</dt><dd>{selected.packTitle} — {selected.publisher}</dd></div>
+                  <div><dt>From</dt><dd>{selected.packTitle}, {selected.publisher}</dd></div>
                   {selected.entry.citations.length > 0 && (
                     <div>
                       <dt>Cited as</dt>
@@ -236,7 +236,7 @@ export function ReferencePanel({
                         {selected.entry.citations.map((citation) => (
                           <span key={`${citation.title}-${citation.section ?? ''}-${citation.page ?? ''}`}>
                             {[citation.title, citation.section, citation.page ? `p.${citation.page}` : null].filter(Boolean).join(', ')}
-                            {citation.url && <> — <a href={citation.url} target="_blank" rel="noreferrer noopener">read it{' '}<span className="visually-hidden">(opens in a new tab)</span></a></>}
+                            {citation.url && <>, <a href={citation.url} target="_blank" rel="noreferrer noopener">read it{' '}<span className="visually-hidden">(opens in a new tab)</span></a></>}
                           </span>
                         ))}
                       </dd>

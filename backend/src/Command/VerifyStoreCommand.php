@@ -19,7 +19,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * nobody has verified is a copy nobody knows the state of, and a corrupt blob
  * copies exactly as readily as a sound one.
  *
- * It reads and never repairs, and its exit code is the honest one — a damaged
+ * It reads and never repairs, and its exit code is the honest one, a damaged
  * store fails, so this can stand in a restore procedure and stop it rather than
  * printing a warning into a log nobody reads.
  */

@@ -2,7 +2,7 @@
 
 /* The sandbox controls that no PHP test can reach. A fork bomb is stopped by a
  * pids limit, an allocation bomb by a memory limit and a tool phoning home by
- * having no network at all — all three are declared in the Compose file and
+ * having no network at all. All three are declared in the Compose file and
  * nowhere else, so that file is held to a contract here.
  */
 import { readFile } from 'node:fs/promises';

@@ -22,7 +22,7 @@ describe('the machine transport controls', () => {
   });
 
   it('calls the run button what it will actually do', () => {
-    /* With a machine attached it resumes the machine — which is not running
+    /* With a machine attached it resumes the machine, which is not running
      * your program. Your build reaches the machine through Build and debug. */
     const withMachine = transportControls(states[0]![1]).find((control) => control.id === 'run')!;
     expect(withMachine.name).toBe('Resume machine');

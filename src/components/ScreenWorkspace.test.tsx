@@ -8,7 +8,7 @@ import { resolveProjectPalette } from '../assets/paletteDocument';
 /* The editor's actions live in a menu bar, so a test reaches them the way
  * somebody with a pointer does: open the menu, then choose from it. Opening is
  * idempotent, because clicking the bar again would shut a menu that is already
- * open — right for a person, wrong for a test. */
+ * open. Right for a person, wrong for a test. */
 function openMenu(label: string) {
   if (!screen.queryByRole('menu', { name: label })) fireEvent.click(screen.getByRole('menuitem', { name: label }));
   return screen.getByRole('menu', { name: label });

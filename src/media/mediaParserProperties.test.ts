@@ -29,8 +29,21 @@ function random(seed: number) {
   };
 }
 
+/*
+ * The same bytes, from the same seed, written into the buffer directly.
+ *
+ * This was Uint8Array.from({ length }, ...), which goes through the array-like
+ * protocol and costs about eleven times as much: one test body's 120 cases took
+ * 35.5 seconds to generate against a 30 second budget, so these properties
+ * failed on time rather than on a finding, and which of them failed moved
+ * around with the machine's load. Filling the buffer in a loop does the
+ * identical work in 3.2 seconds. The cases, their order and their contents are
+ * unchanged.
+ */
 function noise(next: () => number, length: number): Uint8Array {
-  return Uint8Array.from({ length }, () => Math.floor(next() * 256));
+  const bytes = new Uint8Array(length);
+  for (let index = 0; index < length; index += 1) bytes[index] = Math.floor(next() * 256);
+  return bytes;
 }
 
 /** Sizes that matter: empty, tiny, exactly a sector, real image sizes, odd. */

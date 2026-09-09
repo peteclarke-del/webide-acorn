@@ -28,8 +28,8 @@ describe('when the store is not there', () => {
 });
 
 describe('when the store refuses', () => {
-  it('carries the store’s own wording rather than a status code', async () => {
-    /* The store names the remedy — read the head and merge — and a 409 does
+  it("carries the store's own wording rather than a status code", async () => {
+    /* The store names the remedy, read the head and merge, and a 409 does
      * not. */
     const client = new ProjectStoreClient(vi.fn(async () => answer({
       error: { code: 'REVISION_STALE_PARENT', message: 'This revision was written against nothing but the project is now at 000001-abc. Read the head and merge, or fork from the parent.' },
@@ -87,7 +87,7 @@ describe('carrying content there and back', () => {
   it('round-trips text that is not plain ASCII', async () => {
     /* Source carries names, comments and Acorn characters; content that only
      * survived ASCII would corrupt quietly. */
-    const text = 'LDA #&41 ; “curly” — Ünïcödé ✓\n';
+    const text = 'LDA #&41 ; \u201Ccurly\u201D \u2014 Ünïcödé ✓\n';
     expect(decodeContent(encodeContent(text))).toBe(text);
   });
 

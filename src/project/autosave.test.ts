@@ -121,8 +121,8 @@ describe('restoring the working project', () => {
 describe('a save that the browser accepts and does not keep', () => {
   /* The one failure that costs someone their work is a save reported as
    * successful that did not happen. A browser can accept a write and store
-   * nothing — a private window at its limit, or storage partitioned by an
-   * extension — without throwing anything for the quota branch to catch. */
+   * nothing (a private window at its limit, or storage partitioned by an
+   * extension), without throwing anything for the quota branch to catch. */
   it('reports a write the browser did not keep, and leaves the last good save in place', () => {
     const good = saveProjectSnapshot({ ...newProject(), name: 'Last good' }, NOW);
     expect(good.ok).toBe(true);

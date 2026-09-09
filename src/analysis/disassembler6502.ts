@@ -69,8 +69,8 @@ export function opcodeTable(processor: Processor): Array<Opcode | undefined> {
  *
  * These are the BBC's and not every Acorn machine's, which matters more than it
  * looks. The Atom is a different operating system at different addresses: what
- * a BBC calls OSWRCH at &FFEE is nothing in particular on an Atom, and &FFF4 —
- * OSBYTE on a BBC — is the Atom's own character writer. Assembling or
+ * a BBC calls OSWRCH at &FFEE is nothing in particular on an Atom, and &FFF4,
+ * OSBYTE on a BBC. Is the Atom's own character writer. Assembling or
  * disassembling an Atom program against this table gives confident, wrong
  * answers, so the machine's own table is chosen by the caller. See ATOM_OS_CALLS.
  */
@@ -88,7 +88,7 @@ export const MOS_CALLS: Record<number, string> = {
  *
  * This is deliberately short. Every entry here was established by running a
  * program on a real Atom under this build's own pinned jsbeeb core and watching
- * what the machine did with it — writing a character and seeing it reach the
+ * what the machine did with it. Writing a character and seeing it reach the
  * screen, reading a key and seeing it echoed back. A longer table copied from
  * elsewhere would look more useful and would be worth less, because nothing
  * here would have checked it.
@@ -322,7 +322,7 @@ export function disassemble6502(
       decoded.set(address, row);
       for (let index = 0; index < opcode.size; index += 1) occupied.add(offset + index);
       /* The count of occupied bytes, which is what the walk has actually
-       * decided about — not the queue length, which grows and shrinks for
+       * decided about, not the queue length, which grows and shrinks for
        * reasons that have nothing to do with progress through the file. */
       report({ stage: 'decoding', bytesDone: occupied.size, bytesTotal: bytes.length });
 

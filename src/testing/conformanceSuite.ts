@@ -9,7 +9,7 @@
  * The part that took the most care is the accounting, not the cases. A
  * conformance suite that reports only what it ran tells you nothing about what
  * it did not, and the areas with no cases are exactly the ones worth knowing
- * about — they are where a bug would go unnoticed. So every area the product
+ * about. They are where a bug would go unnoticed. So every area the product
  * claims is enumerated here, whether or not there are cases for it, and an area
  * with none is reported as uncovered rather than omitted.
  *
@@ -96,7 +96,7 @@ export interface ConformanceCase {
   id: string;
   area: ConformanceArea;
   title: string;
-  /** Why this case is worth having — what would go unnoticed without it. */
+  /** Why this case is worth having. What would go unnoticed without it. */
   rationale: string;
   requires: ConformanceRequirement;
   /** The program, in the assembler dialect the workbench builds. */
@@ -118,7 +118,7 @@ export class ConformanceSuiteError extends Error {
  * The cases.
  *
  * Each one is written against documented, checkable behaviour rather than
- * against whatever the emulator currently does — a case derived from the
+ * against whatever the emulator currently does, a case derived from the
  * implementation would pass by construction and prove nothing. Where a
  * behaviour could not be stated from documentation this build already relies
  * on, no case is written and the area is left visibly uncovered, which is the
@@ -146,7 +146,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     stop: 'done',
     assertions: [
       /* PLA leaves the pushed flags in the accumulator, so this is the flags
-       * byte and not the address they were stored at — which is what an
+       * byte and not the address they were stored at, which is what an
        * earlier version of this case asserted, and what the machine caught. */
       'A = &F0',
       /* N and V set, with the unused and break bits PHP pushes: &F0. */
@@ -317,7 +317,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     /* Observed on a BBC Model B with os12-basic2-dfs, three times identically,
      * rather than copied from anywhere: three bytes latched, digest 8D591C50.
      * An earlier attempt at this case held write-enable low for about seven
-     * cycles and latched nothing, reporting 811C9DC5 — the hash function's own
+     * cycles and latched nothing, reporting 811C9DC5, the hash function's own
      * starting value, and so indistinguishable from a run that never listened
      * until audioAssertionModel made that difference explicit. */
     assertions: ['AUDIO[WRITES] = FNV32:8D591C50'].join('\n'),
@@ -392,7 +392,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
      * there. The offsets are what proves it: &11 in slot 14 and &0E in slot 15,
      * observed from this ROM set, and necessarily equal to each other if the
      * write to &FE30 did nothing. This is why the case names the ROM set it
-     * applies to — the offsets are facts about these ROMs, not about the
+     * applies to. The offsets are facts about these ROMs, not about the
      * machine.
      */
     assertions: [
@@ -407,7 +407,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     id: 'breakpoint-maps-address-hook',
     area: 'breakpoint-maps',
     title: 'A named source label resolves to the address the program actually executes',
-    rationale: 'Every breakpoint in this build is an address the assembler produced from a label. If the map were off by even one instruction, breakpoints would appear to work — they would stop somewhere — while stopping in the wrong place, which is worse than not stopping at all because it is believed.',
+    rationale: 'Every breakpoint in this build is an address the assembler produced from a label. If the map were off by even one instruction, breakpoints would appear to work, they would stop somewhere, while stopping in the wrong place, which is worse than not stopping at all because it is believed.',
     requires: { machines: [], capabilities: [], unavailableDetail: 'This case needs a 6502-family machine.' },
     source: [
       'ORG &1900',
@@ -428,7 +428,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
      * what a run reported: X counts down from five to zero, so the instruction
      * at `spin` is entered five times, and the one at `after` once. A map that
      * resolved either label to a neighbouring instruction would give a
-     * different count — one, five, or nothing — so this cannot pass by
+     * different count (one, five, or nothing), so this cannot pass by
      * accident.
      */
     assertions: [
@@ -441,7 +441,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
   {
     id: 'media-dfs-catalogue',
     area: 'media',
-    title: 'The filing system reads a file\u2019s catalogue entry from a mounted disc',
+    title: "The filing system reads a file's catalogue entry from a mounted disc",
     rationale: 'A program reaches a disc through the filing system rather than the controller, and a build whose OSFILE answered from anywhere but the mounted image would let every disc-based program appear to work while reading nothing. The load address is the check, because it is a value the image carries and no default would produce.',
     requires: {
       machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], capabilities: ['dfs'],
@@ -457,7 +457,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
       'ORG &1900',
       '.start',
       /* A machine that has just been reset has the tape filing system
-       * selected, so OSFILE would wait on a cassette that is not there — which
+       * selected, so OSFILE would wait on a cassette that is not there, which
        * is a timeout rather than a failure, and says nothing about the disc.
        * The first attempt at this case did exactly that. */
       ' LDX #<selectdisc',
@@ -500,7 +500,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     /*
      * A = 1 says the filing system found a file rather than nothing or a
      * directory, and the load address it read out of the catalogue is the
-     * &1234 the image declares — a value nothing but the disc could produce.
+     * &1234 the image declares. A value nothing but the disc could produce.
      *
      * The upper two bytes are 0 and are asserted as observed rather than as
      * expected: an earlier version of this case asserted &FFFF for them, on
@@ -536,7 +536,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     },
     /*
      * OSBYTE &EA reads the Tube presence flag. Called to read rather than to
-     * write — X is zero and Y is &FF — it returns the flag in X, and the flag
+     * write, X is zero and Y is &FF, it returns the flag in X, and the flag
      * is non-zero exactly when the operating system has found a Tube.
      */
     source: [
@@ -567,12 +567,12 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     id: 'tube-parasite-execution',
     area: 'tube',
     title: 'A program loaded into the second processor runs there',
-    rationale: 'A second processor that is merely detected is a fact about the host. This is the thing a Tube is for: a program placed in the parasite executes on the parasite, with its own registers and its own memory, and can be asked about afterwards. The case is written so that a pass could not be produced by the host — the same program on the host would leave the parasite untouched, and the assertions are all about the parasite.',
+    rationale: 'A second processor that is merely detected is a fact about the host. This is the thing a Tube is for: a program placed in the parasite executes on the parasite, with its own registers and its own memory, and can be asked about afterwards. The case is written so that a pass could not be produced by the host. The same program on the host would leave the parasite untouched, and the assertions are all about the parasite.',
     requires: {
       /*
        * The Master only. On a BBC B the operating system never hands the
-       * language over — established under EMU-424 by running the pinned core
-       * directly and finding the parasite's RAM entirely untouched — so the
+       * language over, established under EMU-424 by running the pinned core
+       * directly and finding the parasite's RAM entirely untouched, so the
        * capability is `planned` there and this case is not applicable.
        */
       machines: ['master'], capabilities: ['tube'],
@@ -593,7 +593,7 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
      * &8000 is what makes this a check on the parasite rather than a check
      * that happens to have been asked of it. Everything else here would be
      * equally true if the program had been loaded into the host and run there
-     * — the same arithmetic gives the same registers and the same byte in the
+     *. The same arithmetic gives the same registers and the same byte in the
      * same place. On the parasite &8000 is ordinary RAM, holding the language
      * the host transferred; on the host it is a sideways ROM slot, where a
      * write is ignored and a read gives a ROM byte. So writing &42 there and

@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
  *
  * A restore procedure written down and never performed is a belief. This
  * performs it: a store is built, copied, destroyed, restored from the copy, and
- * then read back and compared byte for byte against what was written — because
+ * then read back and compared byte for byte against what was written, because
  * a restore that produces a store which merely opens is not a restore, and the
  * question is whether the content came back.
  *

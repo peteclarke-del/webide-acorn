@@ -1,7 +1,7 @@
 /*
  * A BBC Model B+, built on the core that does not have one.
  *
- * jsbeeb models the Model B, the Master and the Atom, and no B+ — not in the
+ * jsbeeb models the Model B, the Master and the Atom, and no B+, not in the
  * version pinned here and not in the current one. That is why this build could
  * describe a B+ and not run it, and why every capability on that profile said
  * so rather than pretending.
@@ -12,12 +12,12 @@
  * and the difference matters: a Master has ANDY, HAZEL and LYNNE with a control
  * register whose bits mean different things. Running B+ firmware on the Master
  * model would boot something, and it would be wrong exactly where a B+ program
- * differs from a Model B one — which is the only place anybody would use a B+.
+ * differs from a Model B one, which is the only place anybody would use a B+.
  *
  * So this is the smallest honest thing: the Model B machine, with the B+'s own
  * two paging rules written against jsbeeb's own memory tables, and nothing else
  * claimed. What it does is checked by booting the real OS 2.00 and asking the
- * machine — see `bbcBPlusMeasurements.ts` for what it answered.
+ * machine. See `bbcBPlusMeasurements.ts` for what it answered.
  *
  * The memory map inside jsbeeb's array, chosen to match the shape its Master
  * already uses so the video path needs no special case:
@@ -80,7 +80,7 @@ export class BPlusCpu6502 extends Cpu6502 {
     const self = this as unknown as JsBeebMemoryTables;
     if (!(value & BPLUS_ROMSEL_ANDY)) return;
     /* ANDY is twelve kilobytes of RAM laid over the paged ROM at &8000, and it
-     * lives at 0x8000 in the machine's array — the same address it appears at,
+     * lives at 0x8000 in the machine's array. The same address it appears at,
      * so the offset is zero. A Master pages four kilobytes here; a B+ pages
      * three times as much, and a program that uses the extra eight would find
      * ROM underneath if this said 144. */
@@ -95,9 +95,9 @@ export class BPlusCpu6502 extends Cpu6502 {
    *
    * jsbeeb keeps two views of memory: one for ordinary access and one for the
    * bytes an instruction is fetched through. The B+ uses that distinction for
-   * its shadow screen exactly as the Master does — the operating system's
+   * its shadow screen exactly as the Master does, the operating system's
    * screen driver lives at &C000-&DFFF and reaches the shadow while everything
-   * else reaches main memory — so the second view is what carries it.
+   * else reaches main memory, so the second view is what carries it.
    */
   writeBPlusControl(value: number): void {
     this.bplusControl = value & 0xff;
@@ -105,7 +105,7 @@ export class BPlusCpu6502 extends Cpu6502 {
     const shadow = (value & BPLUS_CONTROL.shadow) !== 0;
     const everything = (value & BPLUS_CONTROL.allAccesses) !== 0;
     /* The display is fetched 0x3000 above the offset already, so the shadow at
-     * 0xB000 is reached by adding 0x8000 — the same arithmetic the Master's
+     * 0xB000 is reached by adding 0x8000, the same arithmetic the Master's
      * video path uses, which is why the shadow was put at the same place. */
     self.videoDisplayPage = shadow ? 0x8000 : 0x0000;
     for (let page = BPLUS_SHADOW_PAGES.first; page < BPLUS_SHADOW_PAGES.last; page += 1) {
@@ -148,14 +148,14 @@ export const BPLUS_128_SWRAM: readonly boolean[] = Object.freeze(
  * A B+ machine description, derived from one jsbeeb already has.
  *
  * Derived rather than written out, because everything a B+ shares with a Model
- * B — the clock, the processor, the video, the VIAs — should stay shared. A
+ * B (the clock, the processor, the video, the VIAs) should stay shared. A
  * copy would be a second place for those to drift.
  */
 export function bplusModelFrom<T extends object>(base: T, options: BPlusModelOptions): T {
   /* The models jsbeeb publishes are frozen, on purpose: they are shared across
    * every machine in the process, so one session's settings cannot leak into
    * the next. Defining own properties rather than assigning them keeps that
-   * promise — the original is untouched and this one is its own object. */
+   * promise. The original is untouched and this one is its own object. */
   return Object.create(base, {
     name: { value: options.name ?? 'BBC Model B+ 64K', enumerable: true },
     os: { value: options.os, enumerable: true },

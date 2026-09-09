@@ -33,7 +33,7 @@ export function decodePlainBasic(bytes: Uint8Array, dialect: PlainBasicDialect):
     }
 
     if (!match) warnings.push(`Physical line ${lines.length + 1} has no Atom/BBC line number.`);
-    if (lineNumber < 1 || lineNumber > 32767) warnings.push(`Line number ${lineNumber} is outside 1–32767.`);
+    if (lineNumber < 1 || lineNumber > 32767) warnings.push(`Line number ${lineNumber} is outside 1-32767.`);
     if (seenNumbers.has(lineNumber)) warnings.push(`Line ${lineNumber} is duplicated.`);
     if (lineNumber <= previousLine) warnings.push(`Line ${lineNumber} is out of order.`);
     if (label && seenLabels.has(label)) warnings.push(`Atom label ${label} is declared more than once.`);

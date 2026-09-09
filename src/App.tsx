@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Dispatch, type KeyboardEvent as ReactKeyboardEvent, type SetStateAction } from 'react';
 import { createAnalysisDocument } from './analysis/analysisExport';
 import { createVerified6502AssemblySource } from './analysis/disassemblyAssemblyExport';
 import { createArmAssemblySource, verifyArmAssemblySource, type ArmAssemblyVerification } from './analysis/disassemblyArmAssemblyExport';
 import { correlateRuntimeCoverage, rowCoverageLabel, type RuntimeCoverage } from './analysis/runtimeCoverage';
 import { DiskSetWorkspace, type DiskSetSourceArtifact } from './components/DiskSetWorkspace';
 import { SettingsLayersPanel } from './components/SettingsLayersPanel';
+import { AppearancePanel } from './components/AppearancePanel';
+import { applyAppearance, applyScaleToFrames, readAppearance, saveAppearance, syncFrameScale, watchSystemAppearance, type Appearance } from './theme/appearance';
 import { LimitsPanel } from './components/LimitsPanel';
 import { SystemStatusPanel } from './components/SystemStatusPanel';
 import { ReferenceLibraryPanel } from './components/ReferenceLibraryPanel';
@@ -52,7 +54,7 @@ import { closeOutcome, closeQuestion, type CloseChoice, type CloseQuestion } fro
 import { projectDocuments } from './project/projectDocuments';
 import { ProjectStoreClient } from './cloud/projectStoreClient';
 import { useMediaQuery } from './layout/useMediaQuery';
-import { DEFAULT_PANEL_SIZES, readPanelSizes, resizePanel, workbenchColumns, workspaceRows, writePanelSizes, type PanelId, type PanelOpenState, type PanelSizes } from './layout/panelLayout';
+import { DEFAULT_PANEL_ORDER, DEFAULT_PANEL_SIZES, EDITOR_SLOT, canMovePanel, laidOutSlots, movePanel, normalizePanelOrder, readPanelOrder, readPanelSizes, resizePanel, separatorBefore, workbenchColumns, workspaceRows, writePanelOrder, writePanelSizes, type LayoutSlot, type PanelId, type PanelOpenState, type PanelSizes, type SidePanelId } from './layout/panelLayout';
 import { BuildExecutionError, buildExecutionError, executeBuild, type BuildArtifact, type BuildRequest, type BuildResponse, type BuildResultMetadata } from './build/buildService';
 import { sha256Hex } from './build/digest';
 import { detectNativeToolchains, invokeNativeToolchain, type NativeToolchainProbe, type NativeToolchainStatus } from './build/nativeToolchainAdapter';
@@ -393,6 +395,80 @@ function App() {
   const [runtimeOpen, setRuntimeOpen] = useState(true);
   /* How wide, or for the runtime how tall, each panel is. Held here and written
    * to browser storage, so the arrangement somebody chose survives a reload. */
+  /*
+   * Which order the panels sit in, remembered like their sizes.
+   *
+   * A layout somebody arranged and then lost on reload is worse than one they
+   * could not arrange at all, because they arranged it twice.
+   */
+  const [panelOrder, setPanelOrder] = useState<LayoutSlot[]>(() => {
+    try {
+      return typeof localStorage === 'undefined' ? [...DEFAULT_PANEL_ORDER] : readPanelOrder(localStorage);
+    } catch {
+      return [...DEFAULT_PANEL_ORDER];
+    }
+  });
+
+  const movePanelTo = (panel: SidePanelId, direction: 'left' | 'right') => {
+    setPanelOrder((current) => {
+      const next = movePanel(current, panel, direction);
+      try {
+        if (typeof localStorage !== 'undefined') writePanelOrder(next, localStorage);
+      } catch {
+        /* Remembering the arrangement is a convenience; losing it must not lose
+         * the move already made. */
+      }
+      return next;
+    });
+  };
+
+  /*
+   * Moving a panel, one place at a time, from its own heading.
+   *
+   * Buttons rather than a drag. A drag is the obvious gesture and it is the one
+   * that cannot be done without a pointer; these can be reached by Tab and
+   * pressed by Space, and they say where the panel will go rather than
+   * requiring somebody to try it. A drag could be added on top later, it
+   * cannot be added underneath.
+   *
+   * The control disappears rather than sitting there disabled when a panel is
+   * against the far edge, because a disabled button in a heading is a thing to
+   * read and then discover is not for you.
+   */
+  const PanelMoveControls = ({ panel }: { panel: SidePanelId }) => (
+    <>
+      {canMovePanel(panelOrder, panel, 'left') && (
+        <button
+          className="plain-icon panel-move"
+          type="button"
+          aria-label={`Move this panel one place left`}
+          title="Move this panel one place left"
+          onClick={() => movePanelTo(panel, 'left')}
+        >
+          <Icon name="chevron" size={15} />
+        </button>
+      )}
+      {canMovePanel(panelOrder, panel, 'right') && (
+        <button
+          className="plain-icon panel-move right"
+          type="button"
+          aria-label={`Move this panel one place right`}
+          title="Move this panel one place right"
+          onClick={() => movePanelTo(panel, 'right')}
+        >
+          <Icon name="chevron" size={15} />
+        </button>
+      )}
+    </>
+  );
+
+  /** What each separator is called, which follows the panel and not the side. */
+  const SEPARATOR_LABELS: Record<SidePanelId, string> = {
+    config: 'Resize the target configuration panel',
+    explorer: 'Resize the project explorer',
+    inspector: 'Resize the inspector',
+  };
+
   const [panelSizes, setPanelSizes] = useState<PanelSizes>(() => {
     try { return readPanelSizes(window.localStorage); } catch { return { ...DEFAULT_PANEL_SIZES }; }
   });
@@ -409,6 +485,17 @@ function App() {
   const [analysisOrigin, setAnalysisOrigin] = useState('&1900');
   const [analysisEntry, setAnalysisEntry] = useState('&1900');
   const [analysisProcessor, setAnalysisProcessor] = useState<AnalysisProcessor>(() => analysisProcessorForMachine(machine.cpu));
+  /*
+   * Which ARM BASIC a tokenised file is read as.
+   *
+   * It cannot be inferred from the file. BASIC V and BASIC VI share one keyword
+   * table (measured across seven RISC OS 6 ROMs, each of which carries both
+   * modules), and differ in how a real number is stored, five bytes against
+   * eight. Nothing in the tokens records that, so the only honest thing is to
+   * let the person say which they are looking at, and to default to the one
+   * their machine shipped with.
+   */
+  const [armBasicDialect, setArmBasicDialect] = useState<'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6'>('bbc-basic-5');
   const [analysisActivity, setAnalysisActivity] = useState<{ status: 'idle' | 'running' | 'failed'; message: string }>({ status: 'idle', message: '' });
   const analysisTaskRef = useRef<AnalysisTask | undefined>(undefined);
   const [buildArtifact, setBuildArtifact] = useState<BuildArtifact | null>(null);
@@ -449,6 +536,25 @@ function App() {
   );
   const [runtimeState, setRuntimeState] = useState<CpuSnapshot | null>(null);
   const [romReady, setRomReady] = useState(false);
+  /*
+   * How the workbench looks, which is a choice about legibility rather than
+   * taste and so is applied to the document as it is made.
+   */
+  const [appearance, setAppearance] = useState<Appearance>(() => readAppearance(typeof localStorage === 'undefined' ? null : localStorage));
+  useEffect(() => {
+    const apply = () => {
+      applyAppearance(document.documentElement, appearance, (feature) => window.matchMedia(feature));
+      /* The framed runtimes carry their own copy of the type scale, so the
+       * choice has to be carried into them or the machine's own status line
+       * stays at the shipped size. */
+      applyScaleToFrames(document);
+    };
+    apply();
+    saveAppearance(typeof localStorage === 'undefined' ? null : localStorage, appearance);
+    /* `Match the system` has to keep matching it, so the machine's own settings
+     * are followed while the tab is open rather than read once at startup. */
+    return watchSystemAppearance(typeof window === 'undefined' ? null : window.matchMedia.bind(window), apply);
+  }, [appearance]);
   const [resolvedRomRecords, setResolvedRomRecords] = useState<StoredRom[]>([]);
   const [romInventoryRevision, setRomInventoryRevision] = useState(0);
   const [machineCommand, setMachineCommand] = useState<MachineCommand>();
@@ -810,7 +916,7 @@ function App() {
     setWorkspaceTab('Code');
     /* A name that had to change is said out loud with the reason, so nobody
      * goes looking for the file under the name they typed. */
-    setNotice(reason ? `${created.name} added — the name was changed because ${reason}` : `${created.name} added`);
+    setNotice(reason ? `${created.name} added. The name was changed because ${reason}` : `${created.name} added`);
   };
 
   const addLivePixelAsset = (requestedStem: string, content: string) => {
@@ -925,7 +1031,7 @@ function App() {
     if (!requested || requested.trim() === file.name) return;
     const { name, reason } = namedForProject(requested, project.files.filter((candidate) => candidate.id !== id));
     setProject((current) => ({ ...current, files: current.files.map((candidate) => candidate.id === id ? { ...candidate, name, language: languageForFilename(name), modified: projectFileIsModified(candidate, name, candidate.content) } : candidate) }));
-    setNotice(reason ? `${file.name} renamed to ${name} — the name was changed because ${reason}` : `${file.name} renamed to ${name}`);
+    setNotice(reason ? `${file.name} renamed to ${name}. The name was changed because ${reason}` : `${file.name} renamed to ${name}`);
   };
 
   /* Deleting moves the file to the project's trash together with the build
@@ -1004,13 +1110,13 @@ function App() {
     const task = startAnalysisTask(
       bytes,
       name,
-      { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', tokenisedBasicDialect: processor === 'arm2' || processor === 'arm3' ? 'bbc-basic-5' : 'bbc-basic-2', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) },
+      { origin, entryPoint, processor, basicDialect: machine.id === 'atom' ? 'atom-basic' : 'bbc-basic-ii', tokenisedBasicDialect: processor === 'arm2' || processor === 'arm3' ? armBasicDialect : 'bbc-basic-2', ...(isEmptyAnnotations(annotations) ? {} : { annotations }) },
       /* Bytes the parser has settled, in its own words. A stale worker's
        * progress cannot reach here: the client drops anything whose request
        * identity is not the current one. */
       (progress) => { if (analysisTaskRef.current === task) setAnalysisActivity({ status: 'running', message: describeProgress(progress) }); },
     );
-    analysisTaskRef.current = task; setAnalysisActivity({ status: 'running', message: `Analysing ${bytes.length.toLocaleString()} bytes in an isolated browser worker…` }); setWorkspaceTab('Analyse');
+    analysisTaskRef.current = task; setAnalysisActivity({ status: 'running', message: `Analysing ${bytes.length.toLocaleString()} bytes in an isolated browser worker...` }); setWorkspaceTab('Analyse');
     void task.promise.then((analysis) => {
       if (analysisTaskRef.current !== task) return;
       analysisTaskRef.current = undefined; setAnalysisActivity({ status: 'idle', message: '' });
@@ -1828,31 +1934,31 @@ function App() {
   }));
   const commandDefinitions: WorkbenchCommand[] = [
     { id: 'project-new', label: 'Create new project', short: 'New project', icon: 'new', category: 'Project', keywords: ['clear', 'start'], enabled: true, run: newLocalProject },
-    { id: 'project-open', label: 'Open portable project', short: 'Open project…', icon: 'open', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
-    { id: 'project-start', label: 'Start a project from a sample or a template', short: 'Start from a sample…', icon: 'layers', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => { setStartProjectTab('samples'); setStartProjectOpen(true); } },
+    { id: 'project-open', label: 'Open portable project', short: 'Open project...', icon: 'open', category: 'Project', keywords: ['import', 'json'], enabled: true, run: () => projectInputRef.current?.click() },
+    { id: 'project-start', label: 'Start a project from a sample or a template', short: 'Start from a sample...', icon: 'layers', category: 'Project', keywords: ['sample', 'demo', 'example', 'folder', 'import', 'codebase', 'game'], enabled: true, run: () => { setStartProjectTab('samples'); setStartProjectOpen(true); } },
     /* Its own entry rather than a tab somebody has to know is there: opening a
      * codebase is a different intent from starting from a sample, and the menu
      * offered no way to say so. */
-    { id: 'project-import-codebase', label: 'Start a project from an existing codebase folder', short: 'Open a codebase…', icon: 'folder', category: 'Project', keywords: ['import', 'folder', 'existing', 'source', 'game', 'codebase'], enabled: true, run: () => { setStartProjectTab('folder'); setStartProjectOpen(true); } },
+    { id: 'project-import-codebase', label: 'Start a project from an existing codebase folder', short: 'Open a codebase...', icon: 'folder', category: 'Project', keywords: ['import', 'folder', 'existing', 'source', 'game', 'codebase'], enabled: true, run: () => { setStartProjectTab('folder'); setStartProjectOpen(true); } },
     { id: 'file-save', label: 'Save current source in browser', short: 'Save', icon: 'save', category: 'File', keywords: ['persist', 'local', 'dirty'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: saveCurrentSource },
     { id: 'project-save-all', label: 'Save all project files in browser', short: 'Save all', icon: 'save', category: 'Project', keywords: ['persist', 'local', 'dirty'], enabled: true, run: saveLocalProject },
     { id: 'project-write-folder', label: 'Write project files back to the connected folder', short: 'Write to folder', icon: 'folder', category: 'Project', keywords: ['folder', 'disk', 'save', 'write'], enabled: !!connectedFolder, run: () => { void writeProjectToFolder(); } },
-    { id: 'project-export', label: 'Export portable project', short: 'Export…', icon: 'download', category: 'Project', keywords: ['download', 'bundle', 'private', 'redact'], enabled: true, run: () => setProjectExportOpen(true) },
+    { id: 'project-export', label: 'Export portable project', short: 'Export...', icon: 'download', category: 'Project', keywords: ['download', 'bundle', 'private', 'redact'], enabled: true, run: () => setProjectExportOpen(true) },
     { id: 'file-new', label: 'Create new source file', short: 'New file', icon: 'new', category: 'File', keywords: ['add'], enabled: true, run: () => addSourceFile() },
-    { id: 'file-import', label: 'Import source files', short: 'Import files…', icon: 'open', category: 'File', keywords: ['open', 'multiple'], enabled: true, run: () => sourceInputRef.current?.click() },
-    { id: 'file-analyse', label: 'Analyse local binary or BASIC file', short: 'Analyse a file…', icon: 'terminal', category: 'Analysis', keywords: ['disassemble', 'list', 'inspect'], enabled: true, run: openAnalysisFile },
+    { id: 'file-import', label: 'Import source files', short: 'Import files...', icon: 'open', category: 'File', keywords: ['open', 'multiple'], enabled: true, run: () => sourceInputRef.current?.click() },
+    { id: 'file-analyse', label: 'Analyse local binary or BASIC file', short: 'Analyse a file...', icon: 'terminal', category: 'Analysis', keywords: ['disassemble', 'list', 'inspect'], enabled: true, run: openAnalysisFile },
     { id: 'file-close-editor', label: 'Close current source editor', short: 'Close editor', icon: 'close', category: 'File', keywords: ['tab', 'document'], enabled: !!activeSource, disabledReason: 'No source editor is open', run: () => activeSource && closeSourceEditor(activeSource.id) },
     { id: 'file-close-other-editors', label: 'Close other source editors', short: 'Close others', category: 'File', keywords: ['tabs', 'documents'], enabled: !!activeSource && documents.openIds.length > 1, disabledReason: activeSource ? 'No other source editors are open' : 'No source editor is open', run: () => activeSource && closeOtherSourceEditors(activeSource.id) },
     { id: 'file-close-all-editors', label: 'Close all source editors', short: 'Close all', category: 'File', keywords: ['tabs', 'documents'], enabled: documents.openIds.length > 0, disabledReason: 'No source editors are open', run: closeAllSourceEditors },
     { id: 'file-reopen-editor', label: 'Reopen recently closed source editor', short: 'Reopen editor', category: 'File', keywords: ['tab', 'document', 'history'], enabled: canReopenClosed, disabledReason: 'No recently closed project file is available', run: reopenClosedSourceEditor },
     { id: 'file-revert-editor', label: 'Revert current source to last save', short: 'Revert', category: 'File', keywords: ['discard', 'restore', 'baseline'], enabled: !!activeSource && activeSource.saved !== false && activeSource.content !== (activeSource.savedContent ?? activeSource.content), disabledReason: activeSource?.saved === false ? 'Current source has never been explicitly saved' : activeSource ? 'Current source matches its saved content' : 'No source editor is open', run: () => activeSource && revertSourceFile(activeSource.id) },
-    { id: 'editor-find', label: 'Find and replace in current file', short: 'Find…', icon: 'search', category: 'Editor', keywords: ['search'], enabled: !!activeSource, disabledReason: 'No active source file', run: findInCurrentFile },
-    { id: 'editor-search-project', label: 'Search and replace project', short: 'Search project…', icon: 'search', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
-    { id: 'editor-go-line', label: 'Go to line or project symbol', short: 'Go to line…', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
+    { id: 'editor-find', label: 'Find and replace in current file', short: 'Find...', icon: 'search', category: 'Editor', keywords: ['search'], enabled: !!activeSource, disabledReason: 'No active source file', run: findInCurrentFile },
+    { id: 'editor-search-project', label: 'Search and replace project', short: 'Search project...', icon: 'search', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
+    { id: 'editor-go-line', label: 'Go to line or project symbol', short: 'Go to line...', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
     { id: 'build-active', label: 'Build selected target', short: 'Build', icon: 'build', category: 'Build', keywords: ['compile', 'assemble', 'tokenize'], enabled: canBuild, disabledReason: buildTargetErrors[0] ?? 'Build target is invalid', run: () => { buildActiveSource(); } },
     { id: 'run-active', label: 'Build and run selected target', short: 'Build and run', icon: 'play', category: 'Run', keywords: ['execute', 'emulator'], enabled: canRun, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before running BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: runProgram },
     { id: 'debug-active', label: 'Build and debug selected target', short: 'Build and debug', icon: 'debug', category: 'Debug', keywords: ['breakpoint', 'inspect'], enabled: canDebug, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before debugging BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: () => void startDebugger() },
-    { id: 'debug-run-to', label: 'Debugger: run to address', short: 'Run to address…', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
+    { id: 'debug-run-to', label: 'Debugger: run to address', short: 'Run to address...', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
     { id: 'debug-pause', label: 'Debugger: pause', short: 'Pause', icon: 'pause', category: 'Debug', keywords: ['break', 'suspend'], enabled: debugAttached && !!debugCoreState?.running, disabledReason: !debugAttached ? 'Start a debug session first' : 'The attached core is already paused', run: debugPauseCommand },
     { id: 'debug-stop', label: 'Debugger: stop session', short: 'Stop', icon: 'stop', category: 'Debug', keywords: ['terminate', 'end'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: stopDebugSession },
     { id: 'debug-restart', label: 'Debugger: restart bound machine', short: 'Restart machine', icon: 'reset', category: 'Debug', keywords: ['reset', 'reboot'], enabled: debugAttached, disabledReason: 'No active debug session is attached', run: debugRestartCommand },
@@ -1861,7 +1967,7 @@ function App() {
     { id: 'debug-step-source-over', label: 'Debugger: source step over', short: 'Step over', category: 'Debug', keywords: ['line', 'call'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('over') },
     { id: 'debug-step-source-out', label: 'Debugger: source step out', short: 'Step out', category: 'Debug', keywords: ['return', 'stack', 'r14'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact is required', run: () => debugSourceStepCommand('out') },
     { id: 'debug-run-cursor', label: 'Debugger: run to cursor', short: 'Run to cursor', category: 'Debug', keywords: ['line', 'source'], enabled: debugPaused && !!currentMachineArtifact && !!activeSource, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current source-mapped artifact and active file are required', run: runToCursorCommand },
-    { id: 'debug-run-symbol', label: 'Debugger: run to symbol', short: 'Run to symbol…', category: 'Debug', keywords: ['label', 'function'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current artifact symbol table is required', run: runToSymbolCommand },
+    { id: 'debug-run-symbol', label: 'Debugger: run to symbol', short: 'Run to symbol...', category: 'Debug', keywords: ['label', 'function'], enabled: debugPaused && !!currentMachineArtifact, disabledReason: !debugPaused ? 'Pause an active debug session first' : 'A current artifact symbol table is required', run: runToSymbolCommand },
     { id: 'runtime-continue', label: 'Runtime: continue execution', short: 'Continue', icon: 'play', category: 'Run', keywords: ['resume', 'play'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Hardware CPU is already running' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'run' }) : continueProgram() },
     { id: 'runtime-step', label: 'Runtime: step one instruction', short: 'Step', category: 'Debug', keywords: ['cpu', 'instruction'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Pause the hardware CPU first' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'step' }) : stepProgram() },
     { id: 'runtime-reset', label: 'Runtime: reset machine or program', short: 'Reset', icon: 'reset', category: 'Run', keywords: ['restart'], enabled: !!hardwareState || !!runtimeState, disabledReason: 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'reset' }) : resetProgram() },
@@ -1882,7 +1988,7 @@ function App() {
         : `The project store did not accept this project: ${written.reason}`);
     })(); } },
     { id: 'project-close', label: 'Close this project', short: 'Close project', icon: 'close', category: 'Project', keywords: ['shut', 'discard', 'finish', 'delete', 'stored'], enabled: true, run: () => { void beginCloseProject(); } },
-    { id: 'store-open', label: 'Project store: open a project', short: 'Open from store…', icon: 'cloud', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
+    { id: 'store-open', label: 'Project store: open a project', short: 'Open from store...', icon: 'cloud', category: 'Project', keywords: ['backend', 'persist', 'revision', 'server', 'several'], enabled: true, run: () => { setStartProjectTab('store'); setStartProjectOpen(true); } },
     { id: 'view-runtime', label: `${runtimeOpen ? 'Hide' : 'Show'} machine runtime`, short: 'Machine runtime', checked: runtimeOpen, category: 'View', keywords: ['emulator', 'screen', 'panel'], enabled: true, run: () => setRuntimeOpen((current) => !current) },
     { id: 'view-reset-panels', label: 'Reset panel sizes', short: 'Reset panel sizes', category: 'View', keywords: ['layout', 'width', 'resize', 'default'], enabled: true, run: () => { setPanelSizes({ ...DEFAULT_PANEL_SIZES }); try { writePanelSizes(DEFAULT_PANEL_SIZES, window.localStorage); } catch { /* the arrangement is lost, the session is not */ } setNotice('Panel sizes reset'); } },
     ...workspaceCommands,
@@ -1947,7 +2053,7 @@ function App() {
       items: [
         { id: 'menu-help-here', label: `Help for ${workspaceTab}`, icon: 'book', description: `Open the guide at the ${workspaceTab} workspace`, onSelect: () => openHelp(workspaceHelpTopic) },
         { id: 'menu-help-start', label: 'First run', icon: 'book', description: 'First run and workspace layout', onSelect: () => openHelp('first-run') },
-        { id: 'menu-help-search', label: 'Search the guide…', icon: 'search', description: 'Search and navigate this guide', onSelect: () => openHelp('using-help') },
+        { id: 'menu-help-search', label: 'Search the guide...', icon: 'search', description: 'Search and navigate this guide', onSelect: () => openHelp('using-help') },
         { id: 'menu-help-keys', label: 'Keyboard shortcuts', icon: 'settings', description: 'Review and rebind every workbench chord in Settings', separated: true, onSelect: () => setWorkspaceTab('Settings') },
         { id: 'menu-help-palette', label: 'Command palette', icon: 'terminal', description: 'Search every command the workbench offers', onSelect: () => setCommandPaletteOpen(true) },
       ],
@@ -2143,7 +2249,7 @@ function App() {
       <div
         ref={workbenchRef}
         className={`workbench ${configOpen ? 'config-open' : 'config-closed'} ${explorerOpen ? 'explorer-open' : 'explorer-closed'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}
-        style={{ '--workbench-columns': workbenchColumns(panelOpenState, panelSizes) } as CSSProperties}
+        style={{ '--workbench-columns': workbenchColumns(panelOpenState, panelSizes, panelOrder) } as CSSProperties}
       >
         <aside className="activity-rail" aria-label="Workbench panels">
           <button className={configOpen ? 'rail-button active' : 'rail-button'} type="button" aria-label="Target configuration" onClick={toggleConfigPanel}>
@@ -2160,13 +2266,33 @@ function App() {
           <button className={workspaceTab === 'Settings' ? 'rail-button active' : 'rail-button'} type="button" aria-label="Settings" onClick={() => setWorkspaceTab('Settings')}><Icon name="settings" /></button>
         </aside>
 
-        {configOpen && (
+        {/*
+          * The panels are rendered in the order they are laid out in, rather
+          * than in a fixed sequence with the order applied afterwards by CSS.
+          *
+          * CSS `order` on a grid item would have been a far smaller change and
+          * is the wrong one: it moves a panel on screen and leaves it where it
+          * was in the document, so the Tab order stops matching what somebody
+          * sees. This build measures focus order against document order, and
+          * the two agreeing is the reason it can.
+          *
+          * Each panel keeps the guard it had. A panel can be open and still not
+          * have a column (that is what happens in a window too narrow to place
+          * them beside the editor, where it overlays instead), so the separator
+          * follows `laidOutSlots`, which counts only the panels the grid places,
+          * while the panel itself follows its own open state.
+          */}
+        {(() => {
+          const placed = laidOutSlots(panelOpenState, panelOrder);
+          const panelNodes: Record<LayoutSlot, ReactNode> = {
+            config: configOpen && (
           <aside className="config-panel panel-surface" aria-label="Target configuration">
             <div className="panel-heading">
               <div>
                 <span className="eyebrow">TARGET PROFILE</span>
                 <h2>Machine setup</h2>
               </div>
+              <PanelMoveControls panel="config" />
               <button className="plain-icon" type="button" aria-label="Close target configuration" onClick={() => setConfigOpen(false)}><Icon name="close" size={16} /></button>
             </div>
 
@@ -2200,7 +2326,24 @@ function App() {
               <label>
                 <span>ROM / operating system</span>
                 <select aria-label="ROM and operating system" value={resolved.rom.id} onChange={(event) => setRomId(event.target.value)}>
-                  {machine.roms.map((item) => <option key={item.id} value={item.id}>{item.label}{item.unavailableReason ? ' · not runnable here' : ''}</option>)}
+                  {/*
+                    * A firmware set that cannot run here is offered and refused
+                    * rather than hidden. Hiding it would leave somebody looking
+                    * for a ROM this build lists everywhere else; disabling it
+                    * says the machine exists and that this build cannot start
+                    * it, and the reason is on the option so a pointer or a
+                    * screen reader can reach it.
+                    */}
+                  {machine.roms.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.id}
+                      disabled={Boolean(item.unavailableReason)}
+                      title={item.unavailableReason}
+                    >
+                      {item.label}{item.unavailableReason ? ' · not currently available' : ''}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -2270,15 +2413,14 @@ function App() {
               Open build manifest <Icon name="chevron" size={14} />
             </button>
           </aside>
-        )}
-        {panelOpenState.config && <PanelSeparator panel="config" orientation="vertical" before label="Resize the target configuration panel" size={panelSizes.config} onResize={resizePanelTo} />}
-
-        {explorerOpen && (
+        ),
+            explorer: explorerOpen && (
           <aside className="explorer-panel panel-surface" aria-label="Project explorer">
             <div className="panel-heading compact">
               <div><span className="eyebrow">LOCAL PROJECT</span><h2>{project.name}</h2></div>
               <button className="plain-icon" type="button" aria-label="Export portable project" onClick={() => setProjectExportOpen(true)}><Icon name="download" size={17} /></button>
               <button className="plain-icon" type="button" aria-label="Close this project" onClick={() => void beginCloseProject()}><Icon name="close" size={17} /></button>
+              <PanelMoveControls panel="explorer" />
               <button className="plain-icon" type="button" aria-label="Close project explorer" onClick={() => setExplorerOpen(false)}><Icon name="close" size={16} /></button>
             </div>
             <div className="explorer-actions">
@@ -2307,9 +2449,36 @@ function App() {
               artifacts={retainedArtifacts.length ? retainedArtifacts.map((record) => { const target = project.buildTargets.find((item) => item.id === record.targetId); const current = !!target && !!record.artifact.provenance && provenanceMatches(record.artifact.provenance, target, selectedProjectTarget, project.files); return <div className="artifact-tree-group" key={record.targetId}><button className="tree-item artifact-output" type="button" role="treeitem" tabIndex={-1} onClick={() => { selectBuildTarget(record.targetId); setArtifactDocumentId(undefined); setWorkspaceTab('Build targets'); }}><Icon name="file" size={15} /><span>{record.artifact.provenance?.target.outputName ?? record.targetName}</span><small>{current ? `${record.artifact.bytes.length} B` : 'STALE'}</small></button>{generatedArtifactDocuments(record.artifact, record.metadata).map((document) => <button className="tree-item artifact-document" type="button" role="treeitem" tabIndex={-1} key={document.id} onClick={() => { selectBuildTarget(record.targetId); setArtifactDocumentId(document.id); setWorkspaceTab('Build targets'); }}><Icon name="file" size={13} /><span>{document.filename}</span><small>RO</small></button>)}</div>; }) : <div className="tree-empty"><span>No artifacts yet</span><small>Build a target to retain its generated documents.</small></div>}
             />
           </aside>
-        )}
-        {panelOpenState.explorer && <PanelSeparator panel="explorer" orientation="vertical" before label="Resize the project explorer" size={panelSizes.explorer} onResize={resizePanelTo} />}
+        ),
+            inspector: inspectorOpen && (
+          <aside className="inspector-panel panel-surface" aria-label="Inspector">
+            <div className="inspector-tabs" role="tablist" aria-label="Inspector views">
+              <button className="active" role="tab" aria-selected="true" type="button">Inspector</button>
+              <button role="tab" aria-selected="false" type="button">Problems <span>{problemCount}</span></button>
+              <PanelMoveControls panel="inspector" />
+              <button className="plain-icon inspector-close" type="button" aria-label="Close inspector" onClick={() => setInspectorOpen(false)}><Icon name="close" size={15} /></button>
+            </div>
+            <div className="inspector-scroll">
+              <section className="context-card">
+                <div className="context-kind">{workspaceTab === 'Code' ? 'ACTIVE SOURCE FILE' : 'WORKSPACE STATUS'}</div>
+                <div className="context-title"><code>{workspaceTab === 'Code' ? activeSource?.name : workspaceTab}</code><span>{workspaceTab === 'Code' ? activeSourceLanguage : workspaceTab === 'Media' && latestMedia ? latestMedia.kind === 'disc' ? `drive ${latestMedia.drive}` : 'cassette' : workspaceTab === 'Debugger' && hardwareState ? `hardware ${hardwareState.running ? 'running' : 'paused'}` : workspaceTab === 'Debugger' && runtimeState ? runtimeState.status : workspaceTab === 'Build targets' && buildArtifact ? (isMachineCodeArtifact(buildArtifact) ? buildArtifact.processor : buildArtifact.kind === 'atom-basic-text' ? 'Atom BASIC' : 'BBC BASIC II') : 'no adapter'}</span></div>
+              <p>{workspaceTab === 'Code' ? activeSource?.access === 'read-only' || activeSource?.kind === 'generated' ? `This ${activeSource.kind ?? 'source'} file is read-only${activeSource.generator ? ` and generated by ${activeSource.generator}` : ''}. Inspect, copy, compare or download it; edit its owning input instead.` : `This ${activeSource?.kind ?? 'authored'} file is editable and automatically recovered from browser storage. Use Save to clear its modified state or Export for a portable copy.` : workspaceTab === 'Media' && latestMedia ? `${latestMedia.name} is mounted in the live ${latestMedia.kind === 'disc' ? `drive ${latestMedia.drive}` : 'cassette input'}; the emulator acknowledged ${latestMedia.size.toLocaleString()} bytes.` : workspaceTab === 'Debugger' && hardwareState ? `Live ROM-aware machine state: ${hardwareState.reason} at ${formatAddress(hardwareState.registers.pc)}.` : workspaceTab === 'Debugger' && runtimeState && assemblyArtifact ? `Live ROM-less ${assemblyArtifact.processor.toUpperCase()} debug state from the current build: ${runtimeState.reason}.` : workspaceTab === 'Build targets' && buildArtifact ? (buildArtifact.kind === '6502-binary' ? `Current ${buildArtifact.processor.toUpperCase()} binary, diagnostics, symbols and source map.` : buildArtifact.kind === 'arm-binary' ? 'Current genuine ARM2 raw binary with linked symbols, DWARF source map and ELF evidence. It is not yet a RISC OS application or runnable Archimedes session.' : buildArtifact.kind === 'atom-basic-text' ? 'Current validated Atom BASIC interpreter text, diagnostics and listing.' : 'Current genuine BBC BASIC II tokenized program, diagnostics and listing.') : 'This surface does not have a runtime adapter attached yet. No simulated state is being presented.'}</p>
+                <dl>
+                  <div><dt>Files</dt><dd>{project.files.length}</dd></div>
+                  <div><dt>Modified</dt><dd>{project.files.filter((file) => file.modified).length}</dd></div>
+                  <div><dt>Storage</dt><dd>Browser local</dd></div>
+                </dl>
+                <button type="button" onClick={() => setProjectExportOpen(true)}>Export portable project <Icon name="chevron" size={13} /></button>
+              </section>
 
+              <section className="inspector-section">
+                <div className="section-title"><span>DEBUG SESSION</span><small>{hardwareState ? (hardwareState.running ? 'running' : 'paused') : runtimeState?.status ?? 'disconnected'}</small></div>
+                {hardwareState ? <div className="mini-registers"><code>A {formatByte(hardwareState.registers.a)}</code><code>X {formatByte(hardwareState.registers.x)}</code><code>Y {formatByte(hardwareState.registers.y)}</code><code>SP {formatByte(hardwareState.registers.s)}</code><code>PC {formatAddress(hardwareState.registers.pc)}</code></div> : runtimeState ? <div className="mini-registers"><code>A {formatByte(runtimeState.registers.a)}</code><code>X {formatByte(runtimeState.registers.x)}</code><code>Y {formatByte(runtimeState.registers.y)}</code><code>SP {formatByte(runtimeState.registers.sp)}</code><code>PC {formatAddress(runtimeState.registers.pc)}</code></div> : <p className="honest-empty">No runtime is attached. Build a source or supply the selected ROM set to populate live state.</p>}
+              </section>
+            </div>
+          </aside>
+        ),
+            [EDITOR_SLOT]: (
         <main
           className={`main-workspace ${runtimeOpen ? 'runtime-open' : 'runtime-closed'}`}
           id="main-workspace"
@@ -2431,6 +2600,8 @@ function App() {
                 onOriginChange={setAnalysisOrigin}
                 onEntryChange={setAnalysisEntry}
                 onProcessorChange={setAnalysisProcessor}
+                armBasicDialect={armBasicDialect}
+                onArmBasicDialectChange={setArmBasicDialect}
                 onOpen={openAnalysisFile}
                 candidates={analysisPickerCandidates}
                 onChooseCandidate={chooseAnalysisCandidate}
@@ -2487,7 +2658,7 @@ function App() {
                     <button type="button" onClick={() => { clearQuarantinedSnapshot(); setUnreadableSnapshot(null); setNotice('The preserved copy has been discarded at your request'); }}>Discard it</button>
                   </div>
                 </section>
-              )}<SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProjectStorePanel projectName={project.name} files={storedProjectFiles} onNotice={setNotice} onOpenFiles={(opened) => { for (const file of opened) if (!isStoreManifest(file.name)) addSourceFile(file.name, file.content); }} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><ProfileComparisonPanel /><SystemStatusPanel /><ConformancePanel machineId={machine.id} capabilities={enabledCapabilities} romSetId={resolved.rom.id} /><ReferenceLibraryPanel library={packLibrary} target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }} onNotice={setNotice} onChange={(next) => { setPackLibrary(next); const failure = savePackLibrary(next); if (failure) setNotice(failure); }} /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
+              )}<AppearancePanel appearance={appearance} onChange={setAppearance} /><SettingsLayersPanel projectSettings={project.settings} onProjectSettingsChange={(settings) => setProject((current) => ({ ...current, settings }))} onNotice={setNotice} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><StorageQuotaPanel onNotice={setNotice} /><ProjectStorePanel projectName={project.name} files={storedProjectFiles} onNotice={setNotice} onOpenFiles={(opened) => { for (const file of opened) if (!isStoreManifest(file.name)) addSourceFile(file.name, file.content); }} onDownload={(filename, text) => downloadBlob(new Blob([text], { type: 'application/json' }), safeFilename(filename))} /><ProfileComparisonPanel /><SystemStatusPanel /><ConformancePanel machineId={machine.id} capabilities={enabledCapabilities} romSetId={resolved.rom.id} /><ReferenceLibraryPanel library={packLibrary} target={{ machineId: languageTarget.machineId, processor: languageTarget.processor, dialect: languageTarget.toolchainId }} onNotice={setNotice} onChange={(next) => { setPackLibrary(next); const failure = savePackLibrary(next); if (failure) setNotice(failure); }} /><LimitsPanel /><KeyboardShortcutsPanel bindings={resolvedKeyBindings} overrides={keyBindingOverrides} onChangeOverrides={setKeyBindingOverrides} onNotice={setNotice} /><RomManagerWorkspace machineId={machine.id} romId={resolved.rom.id} enabledCapabilities={enabledCapabilities} onNotice={setNotice} onReadyChange={(ready) => { setRomReady(ready); setRomInventoryRevision((value) => value + 1); }} /></div>
             ) : workspaceTab === 'Help' ? (
               <HelpWorkspace />
             ) : workspaceTab === 'Sound' ? (
@@ -2523,35 +2694,27 @@ function App() {
           {runtimeOpen && <PanelSeparator panel="runtime" orientation="horizontal" before={false} label="Resize the machine runtime" size={panelSizes.runtime} onResize={resizePanelTo} />}
           {runtimeOpen && <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} command={machineCommand} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />}
         </main>
-
-        {panelOpenState.inspector && <PanelSeparator panel="inspector" orientation="vertical" before={false} label="Resize the inspector" size={panelSizes.inspector} onResize={resizePanelTo} />}
-        {inspectorOpen && (
-          <aside className="inspector-panel panel-surface" aria-label="Inspector">
-            <div className="inspector-tabs" role="tablist" aria-label="Inspector views">
-              <button className="active" role="tab" aria-selected="true" type="button">Inspector</button>
-              <button role="tab" aria-selected="false" type="button">Problems <span>{problemCount}</span></button>
-              <button className="plain-icon inspector-close" type="button" aria-label="Close inspector" onClick={() => setInspectorOpen(false)}><Icon name="close" size={15} /></button>
-            </div>
-            <div className="inspector-scroll">
-              <section className="context-card">
-                <div className="context-kind">{workspaceTab === 'Code' ? 'ACTIVE SOURCE FILE' : 'WORKSPACE STATUS'}</div>
-                <div className="context-title"><code>{workspaceTab === 'Code' ? activeSource?.name : workspaceTab}</code><span>{workspaceTab === 'Code' ? activeSourceLanguage : workspaceTab === 'Media' && latestMedia ? latestMedia.kind === 'disc' ? `drive ${latestMedia.drive}` : 'cassette' : workspaceTab === 'Debugger' && hardwareState ? `hardware ${hardwareState.running ? 'running' : 'paused'}` : workspaceTab === 'Debugger' && runtimeState ? runtimeState.status : workspaceTab === 'Build targets' && buildArtifact ? (isMachineCodeArtifact(buildArtifact) ? buildArtifact.processor : buildArtifact.kind === 'atom-basic-text' ? 'Atom BASIC' : 'BBC BASIC II') : 'no adapter'}</span></div>
-              <p>{workspaceTab === 'Code' ? activeSource?.access === 'read-only' || activeSource?.kind === 'generated' ? `This ${activeSource.kind ?? 'source'} file is read-only${activeSource.generator ? ` and generated by ${activeSource.generator}` : ''}. Inspect, copy, compare or download it; edit its owning input instead.` : `This ${activeSource?.kind ?? 'authored'} file is editable and automatically recovered from browser storage. Use Save to clear its modified state or Export for a portable copy.` : workspaceTab === 'Media' && latestMedia ? `${latestMedia.name} is mounted in the live ${latestMedia.kind === 'disc' ? `drive ${latestMedia.drive}` : 'cassette input'}; the emulator acknowledged ${latestMedia.size.toLocaleString()} bytes.` : workspaceTab === 'Debugger' && hardwareState ? `Live ROM-aware machine state: ${hardwareState.reason} at ${formatAddress(hardwareState.registers.pc)}.` : workspaceTab === 'Debugger' && runtimeState && assemblyArtifact ? `Live ROM-less ${assemblyArtifact.processor.toUpperCase()} debug state from the current build: ${runtimeState.reason}.` : workspaceTab === 'Build targets' && buildArtifact ? (buildArtifact.kind === '6502-binary' ? `Current ${buildArtifact.processor.toUpperCase()} binary, diagnostics, symbols and source map.` : buildArtifact.kind === 'arm-binary' ? 'Current genuine ARM2 raw binary with linked symbols, DWARF source map and ELF evidence. It is not yet a RISC OS application or runnable Archimedes session.' : buildArtifact.kind === 'atom-basic-text' ? 'Current validated Atom BASIC interpreter text, diagnostics and listing.' : 'Current genuine BBC BASIC II tokenized program, diagnostics and listing.') : 'This surface does not have a runtime adapter attached yet. No simulated state is being presented.'}</p>
-                <dl>
-                  <div><dt>Files</dt><dd>{project.files.length}</dd></div>
-                  <div><dt>Modified</dt><dd>{project.files.filter((file) => file.modified).length}</dd></div>
-                  <div><dt>Storage</dt><dd>Browser local</dd></div>
-                </dl>
-                <button type="button" onClick={() => setProjectExportOpen(true)}>Export portable project <Icon name="chevron" size={13} /></button>
-              </section>
-
-              <section className="inspector-section">
-                <div className="section-title"><span>DEBUG SESSION</span><small>{hardwareState ? (hardwareState.running ? 'running' : 'paused') : runtimeState?.status ?? 'disconnected'}</small></div>
-                {hardwareState ? <div className="mini-registers"><code>A {formatByte(hardwareState.registers.a)}</code><code>X {formatByte(hardwareState.registers.x)}</code><code>Y {formatByte(hardwareState.registers.y)}</code><code>SP {formatByte(hardwareState.registers.s)}</code><code>PC {formatAddress(hardwareState.registers.pc)}</code></div> : runtimeState ? <div className="mini-registers"><code>A {formatByte(runtimeState.registers.a)}</code><code>X {formatByte(runtimeState.registers.x)}</code><code>Y {formatByte(runtimeState.registers.y)}</code><code>SP {formatByte(runtimeState.registers.sp)}</code><code>PC {formatAddress(runtimeState.registers.pc)}</code></div> : <p className="honest-empty">No runtime is attached. Build a source or supply the selected ROM set to populate live state.</p>}
-              </section>
-            </div>
-          </aside>
-        )}
+            ),
+          };
+          return normalizePanelOrder(panelOrder).map((slot) => {
+            const separator = separatorBefore(placed, placed.indexOf(slot));
+            return (
+              <Fragment key={slot}>
+                {separator && (
+                  <PanelSeparator
+                    panel={separator.panel}
+                    orientation="vertical"
+                    before={separator.before}
+                    label={SEPARATOR_LABELS[separator.panel]}
+                    size={panelSizes[separator.panel]}
+                    onResize={resizePanelTo}
+                  />
+                )}
+                {panelNodes[slot]}
+              </Fragment>
+            );
+          });
+        })()}
       </div>
 
       <footer className="statusbar">
@@ -2573,6 +2736,9 @@ export interface AnalysisWorkspaceProps {
   onOriginChange: (value: string) => void;
   onEntryChange: (value: string) => void;
   onProcessorChange: (value: AnalysisProcessor) => void;
+  /** Which ARM BASIC a tokenised file is read as; the file cannot say. */
+  armBasicDialect: 'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6';
+  onArmBasicDialectChange: (value: 'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6') => void;
   onOpen: () => void;
   /* What the project itself can offer, so reading a program the workbench just
    * built does not mean going and finding it on disk again. */
@@ -2607,7 +2773,7 @@ function ProjectAnalysisPicker({ candidates, onChoose, disabled }: { candidates:
         disabled={disabled}
         onChange={(event) => { const chosen = event.target.value; if (chosen) onChoose(chosen); }}
       >
-        <option value="">Choose a file…</option>
+        <option value="">Choose a file...</option>
         {candidates.map((candidate) => (
           <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.detail}</option>
         ))}
@@ -2618,7 +2784,7 @@ function ProjectAnalysisPicker({ candidates, onChoose, disabled }: { candidates:
 
 export function AnalysisWorkspace({
   file, origin, entryPoint, processor, activity, onOriginChange, onEntryChange,
-  onProcessorChange, onOpen, candidates, onChooseCandidate, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
+  onProcessorChange, armBasicDialect, onArmBasicDialectChange, onOpen, candidates, onChooseCandidate, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
   annotations, history, onAnnotationsChange, onHistoryMove, coverage,
 }: AnalysisWorkspaceProps) {
   const [filter, setFilter] = useState('');
@@ -2770,7 +2936,7 @@ export function AnalysisWorkspace({
     if (end < selectedAddress) { onNotice('The end of a marked span cannot come before its start'); return; }
     editAnnotations(
       (base) => withRegion(base, { start: selectedAddress, end, kind }),
-      `Mark ${analysisAddress(selectedAddress)}–${analysisAddress(end)} as ${kind}`,
+      `Mark ${analysisAddress(selectedAddress)}-${analysisAddress(end)} as ${kind}`,
     );
   };
 
@@ -2886,7 +3052,7 @@ export function AnalysisWorkspace({
 
   return (
     <div className="analysis-workspace">
-      <div className="analysis-toolbar">
+      <div className="analysis-toolbar" role="group" aria-label="Analysis tools">
         <div className="analysis-file-identity">
           <span className={`analysis-kind kind-${file.analysis.kind}`}>{file.analysis.kind === 'bbc-basic' ? 'BASIC' : file.analysis.kind === 'machine-code' ? processor.toUpperCase() : 'TEXT'}</span>
           <div><strong>{file.name}</strong><small>{file.bytes.length.toLocaleString()} bytes · local analysis</small></div>
@@ -2899,13 +3065,39 @@ export function AnalysisWorkspace({
             <button type="button" disabled={activity.status === 'running'} onClick={onReanalyse}>Re-analyse</button>
           </div>
         )}
+        {/*
+          * Which ARM BASIC this listing is being read as.
+          *
+          * Only for a tokenised BASIC file on an ARM, and only because the file
+          * cannot answer it: BASIC V and BASIC VI share one keyword table,
+          * measured across seven RISC OS 6 ROMs, each carrying both modules,
+          * and differ in how a real is stored, five bytes against eight. A
+          * reader that guessed would be guessing about numbers.
+          */}
+        {file.analysis.kind === 'bbc-basic' && (processor === 'arm2' || processor === 'arm3') && (
+          <div className="analysis-options" aria-label="BASIC options">
+            <label>
+              <span>BASIC</span>
+              <select
+                aria-label="ARM BASIC dialect"
+                value={armBasicDialect}
+                onChange={(event) => onArmBasicDialectChange(event.target.value as 'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6')}
+              >
+                <option value="bbc-basic-5-riscos2">BASIC V · RISC OS 2</option>
+                <option value="bbc-basic-5">BASIC V · RISC OS 3 and later</option>
+                <option value="bbc-basic-6">BASIC VI · 8-byte reals</option>
+              </select>
+            </label>
+            <button type="button" disabled={activity.status === 'running'} onClick={onReanalyse}>Re-analyse</button>
+          </div>
+        )}
         <div className="analysis-actions">
           <ProjectAnalysisPicker candidates={candidates} onChoose={onChooseCandidate} disabled={activity.status === 'running'} />
           <button type="button" onClick={onOpen}><Icon name="open" size={14} /> Open</button>
           <button type="button" onClick={exportListing}><Icon name="download" size={14} /> Listing</button>
           {disassembly && (processor === '6502' || processor === '65c02') && <button type="button" disabled={!assemblySource?.verified} title={assemblySource?.verificationMessage} onClick={exportAssemblySource}><Icon name="download" size={14} /> Verified source</button>}
           {disassembly && (processor === '6502' || processor === '65c02') && assemblySource?.verified && <button type="button" onClick={() => file && onAddSource(`${file.name}.${assemblySource.filenameExtension}`, assemblySource.source)}>Add source to project</button>}
-          {armAssemblySource && <button type="button" disabled={armVerifying} title={armVerification?.verificationMessage ?? 'Run the isolated native GNU ARM toolchain before download is enabled'} onClick={() => void verifyOrExportArmSource()}>{armVerification?.verified ? <Icon name="download" size={14} /> : null}{armVerifying ? 'Verifying…' : armVerification?.verified ? 'Verified source' : 'Verify ARM source'}</button>}
+          {armAssemblySource && <button type="button" disabled={armVerifying} title={armVerification?.verificationMessage ?? 'Run the isolated native GNU ARM toolchain before download is enabled'} onClick={() => void verifyOrExportArmSource()}>{armVerification?.verified ? <Icon name="download" size={14} /> : null}{armVerifying ? 'Verifying...' : armVerification?.verified ? 'Verified source' : 'Verify ARM source'}</button>}
           {armAssemblySource && armVerification?.verified && <button type="button" onClick={() => file && onAddSource(`${file.name}.${armAssemblySource.filenameExtension}`, armAssemblySource.source)}>Add source to project</button>}
           <button type="button" onClick={() => void exportStructuredAnalysis()}><Icon name="download" size={14} /> Analysis JSON</button>
         </div>
@@ -2960,7 +3152,7 @@ export function AnalysisWorkspace({
                 </span>
               )}
               <div className="analysis-view-switch" role="group" aria-label="Analysis byte view"><button type="button" aria-pressed={analysisView === 'listing'} onClick={() => setAnalysisView('listing')}>Listing</button><button type="button" aria-pressed={analysisView === 'hex'} onClick={() => setAnalysisView('hex')}>Hex + ASCII</button></div>
-              {analysisView === 'listing' && <label className="analysis-filter"><Icon name="search" size={13} /><span className="visually-hidden">Filter listing</span><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter address, label, instruction…" /></label>}
+              {analysisView === 'listing' && <label className="analysis-filter"><Icon name="search" size={13} /><span className="visually-hidden">Filter listing</span><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter address, label, instruction..." /></label>}
             </div>
             {file.analysis.warnings.map((warning) => <div className="analysis-warning" key={warning}>{warning}</div>)}
             {coverage && (
@@ -3075,7 +3267,7 @@ function AnalysisHexView({
   const rows = Array.from({ length: Math.ceil((end - start) / 16) }, (_, index) => start + index * 16);
   const selected = selectedOffset === null ? undefined : bytes[selectedOffset];
   return <div className="analysis-hex-view">
-    <div className="artifact-inspector-status" role="status">Showing offsets +&amp;{start.toString(16).toUpperCase()}–+&amp;{Math.max(start, end - 1).toString(16).toUpperCase()} of {bytes.length.toLocaleString()} bytes{selected === undefined ? '' : ` · selected ${formatAddress(origin + selectedOffset!, addressWidth)} = ${formatByte(selected)}`}</div>
+    <div className="artifact-inspector-status" role="status">Showing offsets +&amp;{start.toString(16).toUpperCase()}-+&amp;{Math.max(start, end - 1).toString(16).toUpperCase()} of {bytes.length.toLocaleString()} bytes{selected === undefined ? '' : ` · selected ${formatAddress(origin + selectedOffset!, addressWidth)} = ${formatByte(selected)}`}</div>
     <div className="artifact-hex-table" role="table" aria-label="Analysis hexadecimal bytes">
       <div className="artifact-hex-head" role="row"><span>Address</span><span>00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F</span><span>ASCII</span></div>
       {rows.map((offset) => {
@@ -3087,7 +3279,7 @@ function AnalysisHexView({
         </div>;
       })}
     </div>
-    <div className="artifact-window-nav"><button type="button" disabled={start === 0} onClick={() => onWindowChange(artifactWindowStart(start - windowBytes, bytes.length, windowBytes))}>Previous 256 bytes</button><span>{start.toLocaleString()}–{end.toLocaleString()} / {bytes.length.toLocaleString()}</span><button type="button" disabled={end >= bytes.length} onClick={() => onWindowChange(artifactWindowStart(start + windowBytes, bytes.length, windowBytes))}>Next 256 bytes</button></div>
+    <div className="artifact-window-nav"><button type="button" disabled={start === 0} onClick={() => onWindowChange(artifactWindowStart(start - windowBytes, bytes.length, windowBytes))}>Previous 256 bytes</button><span>{start.toLocaleString()}-{end.toLocaleString()} / {bytes.length.toLocaleString()}</span><button type="button" disabled={end >= bytes.length} onClick={() => onWindowChange(artifactWindowStart(start + windowBytes, bytes.length, windowBytes))}>Next 256 bytes</button></div>
   </div>;
 }
 
@@ -3144,7 +3336,7 @@ function ResearchWorkspace({ target, request, onNotice }: { target: LanguageTarg
   };
   return <div className="research-workspace">
     <div className="runtime-heading"><div><span className="eyebrow">OFFLINE LANGUAGE KNOWLEDGE</span><h2>Acorn reference</h2></div>{selected && <div className="runtime-actions"><button type="button" onClick={copySyntax}>Copy syntax</button></div>}</div>
-    <div className="research-toolbar"><div className="research-language" role="group" aria-label="Reference language">{([['bbc-basic', target.machineId === 'atom' ? 'Atom BASIC' : 'BBC BASIC'], ['6502', '6502 / 65C12'], ['arm', 'ARM2 / ARM3'], ['c', 'BBC C']] as Array<[ResearchRequest['language'], string]>).map(([id, label]) => <button type="button" className={language === id ? 'active' : ''} aria-pressed={language === id} onClick={() => { setLanguage(id); setKind('all'); setSelectedToken(''); }} key={id}>{label}</button>)}</div><label><span className="visually-hidden">Search reference</span><input type="search" aria-label="Search reference" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search commands, syntax and descriptions" /></label><label><span className="visually-hidden">Reference category</span><select aria-label="Reference category" value={kind} onChange={(event) => setKind(event.target.value as 'all' | LanguageItem['kind'])}><option value="all">All categories</option>{availableKinds.map((value) => <option value={value} key={value}>{value.toUpperCase()}</option>)}</select></label><span className="research-count" aria-live="polite">{filtered.length} entries</span></div>
+    <div className="research-toolbar" role="group" aria-label="Research tools"><div className="research-language" role="group" aria-label="Reference language">{([['bbc-basic', target.machineId === 'atom' ? 'Atom BASIC' : 'BBC BASIC'], ['6502', '6502 / 65C12'], ['arm', 'ARM2 / ARM3'], ['c', 'BBC C']] as Array<[ResearchRequest['language'], string]>).map(([id, label]) => <button type="button" className={language === id ? 'active' : ''} aria-pressed={language === id} onClick={() => { setLanguage(id); setKind('all'); setSelectedToken(''); }} key={id}>{label}</button>)}</div><label><span className="visually-hidden">Search reference</span><input type="search" aria-label="Search reference" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search commands, syntax and descriptions" /></label><label><span className="visually-hidden">Reference category</span><select aria-label="Reference category" value={kind} onChange={(event) => setKind(event.target.value as 'all' | LanguageItem['kind'])}><option value="all">All categories</option>{availableKinds.map((value) => <option value={value} key={value}>{value.toUpperCase()}</option>)}</select></label><span className="research-count" aria-live="polite">{filtered.length} entries</span></div>
     <div className="research-layout"><div className="research-results" role="listbox" aria-label="Reference results">{filtered.length ? filtered.map((item) => <button type="button" role="option" aria-selected={selected?.token === item.token} className={selected?.token === item.token ? 'selected' : ''} onClick={() => setSelectedToken(item.token)} key={`${item.kind}-${item.token}`}><code>{item.token}</code><span>{item.kind}</span><small>{item.signature}</small></button>) : <div className="honest-empty">No reference entries match this search.</div>}</div><article className="reference-detail" aria-live="polite">{selected ? <><span className="state-pill supported">{selected.kind}</span><h3>{selected.token}</h3>{selected.signature && <pre>{selected.signature}</pre>}<p>{selected.detail}</p><dl><div><dt>Language</dt><dd>{language === 'bbc-basic' ? target.machineId === 'atom' ? 'Atom BASIC' : 'BBC BASIC' : language === '6502' ? '6502 family assembly' : language === 'arm' ? 'ARM2/ARM3 assembly' : 'cc65 BBC C'}</dd></div><div><dt>Available offline</dt><dd>Yes</dd></div><div><dt>Shared with editor</dt><dd>Completion and hover help</dd></div></dl></> : <div className="honest-empty">Choose a different query or category.</div>}</article></div>
   </div>;
 }
@@ -3171,7 +3363,7 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
   const [zoom, setZoom] = useState(1);
   /* The stage drew every cell at sixteen pixels whatever the size of the
    * artwork or of the panel it was in, and nothing in the editor could change
-   * it — the state was set once and never written again. A 32x32 sprite was
+   * it. The state was set once and never written again. A 32x32 sprite was
    * therefore drawn twice as tall as the stage that held it, and what fell off
    * the bottom could only be reached by scrolling a box most people would not
    * notice had scrolled. It fits what it has now, until somebody chooses a
@@ -3298,9 +3490,9 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
           { id: 'add-document', label: 'Add to project', icon: 'file', description: 'Write this editable document into the project', hint: `${stem}.asset.json`, onSelect: () => onAddSource(`${stem}.asset.json`, serializePixelAssetDocument(storedDocument)) },
           { id: 'add-equb', label: 'Add EQUB source', icon: 'code', description: 'Write the generated assembler source into the project', hint: `${stem}.asm`, onSelect: () => onAddSource(`${stem}.asm`, `${output.assembly}\n`) },
           { id: 'add-live-target', label: 'Add build target', icon: 'build', description: 'Create an editable document and a 6502 target that includes it with INCLUDEASSET, so edits stale the build', onSelect: () => onAddLiveAsset(stem, serializePixelAssetDocument(storedDocument)) },
-          { id: 'download-document', label: 'Save document…', icon: 'download', description: 'Download the editable document as a file', separated: true, onSelect: () => downloadBlob(new Blob([serializePixelAssetDocument(storedDocument)], { type: 'application/json' }), `${stem}.asset.json`) },
-          { id: 'download-binary', label: 'Save binary…', icon: 'download', description: 'Download the generated bytes exactly as the machine reads them', hint: `${output.bytes.length} bytes`, onSelect: downloadBinary },
-          ...(document.sprite ? ([{ id: 'download-mask', label: 'Save mask…', icon: 'download', description: 'Download the opacity mask as a separate binary', disabled: !output.maskBytes, onSelect: () => { if (output.maskBytes) downloadBlob(new Blob([output.maskBytes], { type: 'application/octet-stream' }), `${stem}.mask.bin`); } }] satisfies PanelMenuItem[]) : []),
+          { id: 'download-document', label: 'Save document...', icon: 'download', description: 'Download the editable document as a file', separated: true, onSelect: () => downloadBlob(new Blob([serializePixelAssetDocument(storedDocument)], { type: 'application/json' }), `${stem}.asset.json`) },
+          { id: 'download-binary', label: 'Save binary...', icon: 'download', description: 'Download the generated bytes exactly as the machine reads them', hint: `${output.bytes.length} bytes`, onSelect: downloadBinary },
+          ...(document.sprite ? ([{ id: 'download-mask', label: 'Save mask...', icon: 'download', description: 'Download the opacity mask as a separate binary', disabled: !output.maskBytes, onSelect: () => { if (output.maskBytes) downloadBlob(new Blob([output.maskBytes], { type: 'application/octet-stream' }), `${stem}.mask.bin`); } }] satisfies PanelMenuItem[]) : []),
         ] },
         { id: 'encoding', label: 'Encoding', items: [
           /* The generated byte order was a whole row of the editor for one
@@ -3334,7 +3526,7 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
       )}{!!openable.length && (
         <label className="project-source-picker"><span>From this project</span>
           <select aria-label={`Open a ${kindId} document from this project`} value="" onChange={(event) => { const chosen = event.target.value; if (chosen) openFromProject(chosen); }}>
-            <option value="">Choose a document…</option>
+            <option value="">Choose a document...</option>
             {openable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}{entry.detail ? ` · ${entry.detail}` : ''}</option>)}
           </select>
         </label>
@@ -3345,7 +3537,7 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
         * this canvas, and the heading had no room left for them. */}
       <div className="pixel-stage-tools">
         <div className="pixel-zoom" role="group" aria-label="Magnification">
-          <button type="button" aria-label="Show the artwork smaller" disabled={zoom <= PIXEL_ZOOM_STEPS[0]!} onClick={() => stepZoom(-1)}>−</button>
+          <button type="button" aria-label="Show the artwork smaller" disabled={zoom <= PIXEL_ZOOM_STEPS[0]!} onClick={() => stepZoom(-1)}>-</button>
           <span aria-live="off">{Math.round(zoom * 100)}%</span>
           <button type="button" aria-label="Show the artwork larger" disabled={zoom >= PIXEL_ZOOM_STEPS[PIXEL_ZOOM_STEPS.length - 1]!} onClick={() => stepZoom(1)}>+</button>
           <button type="button" aria-pressed={fitToStage} onClick={() => setFitToStage(true)}>Fit</button>
@@ -3355,9 +3547,13 @@ function VersionedPixelAssetWorkspace({ kind, projectPalette, projectFiles, onAd
           <button type="button" role="radio" aria-label="Edit opacity mask" aria-checked={editPlane === 'mask'} className={editPlane === 'mask' ? 'selected' : ''} onClick={() => setEditPlane('mask')}>Opacity mask</button>
         </div>}
       </div>
-      <div className="pixel-pan" ref={panRef}><div className={`pixel-grid ${selectionMode ? 'selecting' : ''} ${editPlane === 'mask' ? 'editing-mask' : ''}`} role="grid" data-essential-target-size="A cell in this grid is one pixel of the artwork. Enlarging it past the artwork would change what the editor edits, so WCAG 2.2 AA 2.5.8 is met by its essential exception. The surrounding tools are full-size targets." aria-label={`${kind} pixel grid`} style={{ gridTemplateColumns: `repeat(${document.width}, 1fr)`, width: `${document.width * 16 * zoom}px`, height: `${document.height * 16 * zoom}px` }}>{document.pixels.map((pixel, index) => { const point = { x: index % document.width, y: Math.floor(index / document.width) }; const selected = selection ? selectionContains(selection, point.x, point.y) : false; const opaque = document.sprite?.mask[index] !== 0; const hotspot = document.sprite?.hotspot.x === point.x && document.sprite?.hotspot.y === point.y; return <button type="button" role="gridcell" aria-selected={selected} aria-label={`Pixel ${point.x + 1},${point.y + 1}, colour ${pixel}${document.sprite ? opaque ? ', opaque' : ', transparent' : ''}${hotspot ? ', hotspot' : ''}${selected ? ', selected' : ''}`} className={`pixel-cell ${selected ? 'selected' : ''} ${!opaque ? 'mask-transparent' : ''} ${hotspot ? 'sprite-hotspot' : ''}`} style={{ background: projectPalette.colours[pixel] ?? projectPalette.colours[0] }} key={index} onClick={() => selectionMode ? chooseSelectionPoint(point) : editPlane === 'mask' && document.sprite ? toggleMask(index) : paint(index)} onContextMenu={(event) => { event.preventDefault(); if (!selectionMode && editPlane === 'colour') paint(index, 0); }} />; })}</div></div><p>{selectionMode ? selectionAnchor ? 'Choose the opposite corner of the rectangle.' : 'Choose the first corner of a rectangular selection.' : editPlane === 'mask' && document.sprite ? 'Click toggles independent opaque/transparent mask pixels.' : 'Left click paints; right click erases.'} Up to 100 changes are undoable; zoomed canvases pan with standard scrolling. {projectPalette.fileName ? `Previewed with ${projectPalette.fileName}.` : 'Previewed with the MODE 5 power-up palette; add a palette document to change it.'}{projectPalette.flashing.length ? ` Colours ${projectPalette.flashing.join(', ')} flash on the machine and only their first phase is shown.` : ''}</p></section>
+      <div className="pixel-pan" ref={panRef}><div className={`pixel-grid ${selectionMode ? 'selecting' : ''} ${editPlane === 'mask' ? 'editing-mask' : ''}`} role="grid" data-essential-target-size="A cell in this grid is one pixel of the artwork. Enlarging it past the artwork would change what the editor edits, so WCAG 2.2 AA 2.5.8 is met by its essential exception. The surrounding tools are full-size targets." aria-label={`${kind} pixel grid`} style={{ gridTemplateColumns: `repeat(${document.width}, 1fr)`, width: `${document.width * 16 * zoom}px`, height: `${document.height * 16 * zoom}px` }}>{/* Cells are wrapped a row at a time. A grid whose cells are not inside rows is malformed:
+              WAI-ARIA gives `gridcell` a required context, and without it a screen reader has nothing to
+              count position within, so it cannot say which row and column the caret is in, the two facts
+              that matter most when editing artwork pixel by pixel. `display: contents` keeps the row out
+              of the layout, so the columns are still laid out by the grid itself and nothing moves. */}{Array.from({ length: document.height }, (_row, y) => <div key={`pixel-row-${y}`} role="row" aria-rowindex={y + 1} style={{ display: 'contents' }}>{document.pixels.slice(y * document.width, y * document.width + document.width).map((pixel, x) => { const index = y * document.width + x; const point = { x, y }; const selected = selection ? selectionContains(selection, point.x, point.y) : false; const opaque = document.sprite?.mask[index] !== 0; const hotspot = document.sprite?.hotspot.x === point.x && document.sprite?.hotspot.y === point.y; return <button type="button" role="gridcell" aria-colindex={x + 1} aria-selected={selected} aria-label={`Pixel ${point.x + 1},${point.y + 1}, colour ${pixel}${document.sprite ? opaque ? ', opaque' : ', transparent' : ''}${hotspot ? ', hotspot' : ''}${selected ? ', selected' : ''}`} className={`pixel-cell ${selected ? 'selected' : ''} ${!opaque ? 'mask-transparent' : ''} ${hotspot ? 'sprite-hotspot' : ''}`} style={{ background: projectPalette.colours[pixel] ?? projectPalette.colours[0] }} key={index} onClick={() => selectionMode ? chooseSelectionPoint(point) : editPlane === 'mask' && document.sprite ? toggleMask(index) : paint(index)} onContextMenu={(event) => { event.preventDefault(); if (!selectionMode && editPlane === 'colour') paint(index, 0); }} />; })}</div>)}</div></div><p>{selectionMode ? selectionAnchor ? 'Choose the opposite corner of the rectangle.' : 'Choose the first corner of a rectangular selection.' : editPlane === 'mask' && document.sprite ? 'Click toggles independent opaque/transparent mask pixels.' : 'Left click paints; right click erases.'} Up to 100 changes are undoable; zoomed canvases pan with standard scrolling. {projectPalette.fileName ? `Previewed with ${projectPalette.fileName}.` : 'Previewed with the MODE 5 power-up palette; add a palette document to change it.'}{projectPalette.flashing.length ? ` Colours ${projectPalette.flashing.join(', ')} flash on the machine and only their first phase is shown.` : ''}</p></section>
       <TargetModePreview pixels={document.pixels} width={document.width} height={document.height} palette={projectPalette} {...(document.sprite ? { mask: document.sprite.mask } : {})} />
-      <section className="pixel-output"><h3>Generated output</h3><p className="pixel-encoding-note">{document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? 'Hardware bit-plane order · four pixels per byte' : 'Portable logical groups · choose a hardware codec before writing screen memory'}</p><div className="asset-summary"><span>{document.width} × {document.height}</span>{frames.length > 1 && <span>{frames.length} ordered frames</span>}<span>{output.bytes.length} colour bytes</span>{output.maskBytes && <span>{output.maskBytes.length} mask bytes</span>}<span>SHA-256 {output.manifest.sha256.slice(0, 12)}…</span>{output.manifest.maskSha256 && <span>Mask {output.manifest.maskSha256.slice(0, 12)}…</span>}</div><pre>{output.assembly}</pre></section>
+      <section className="pixel-output"><h3>Generated output</h3><p className="pixel-encoding-note">{document.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? 'Hardware bit-plane order · four pixels per byte' : 'Portable logical groups · choose a hardware codec before writing screen memory'}</p><div className="asset-summary"><span>{document.width} × {document.height}</span>{frames.length > 1 && <span>{frames.length} ordered frames</span>}<span>{output.bytes.length} colour bytes</span>{output.maskBytes && <span>{output.maskBytes.length} mask bytes</span>}<span>SHA-256 {output.manifest.sha256.slice(0, 12)}...</span>{output.manifest.maskSha256 && <span>Mask {output.manifest.maskSha256.slice(0, 12)}...</span>}</div><pre>{output.assembly}</pre></section>
     </div>
   </div>;
 }
@@ -3483,7 +3679,7 @@ function MediaWorkspace({ machineId, buildArtifact, artifact, armArtifact, conne
   };
   const addHostFileToDfsProject = async () => {
     if (!dfsHostFile) return;
-    if (!dfsHostFile.size || dfsHostFile.size > 798 * 256) { onNotice('A DFS host file must contain 1–204,288 bytes'); return; }
+    if (!dfsHostFile.size || dfsHostFile.size > 798 * 256) { onNotice('A DFS host file must contain 1-204,288 bytes'); return; }
     const name = dfsHostFile.name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_!]/g, '').toUpperCase().slice(0, 7) || 'FILE';
     const base = dfsProject ?? { title: dfsTitle, cycle: 0, bootOption: 0, files: [] };
     const identity = `$.${name}`.toUpperCase(); if (base.files.some((file) => `${file.directory ?? '$'}.${file.name}`.toUpperCase() === identity)) { onNotice(`DFS project already contains $.${name}; rename or remove it first`); return; }
@@ -3878,8 +4074,14 @@ function BuildWorkspace({ artifact, metadata, failure, artifactDocumentId, onArt
     downloadBlob(new Blob([artifact.bytes], { type: 'application/octet-stream' }), artifact.provenance?.target.outputName ?? activeTarget.outputName);
   };
   const downloadFailure = () => failure && downloadBlob(new Blob([JSON.stringify(failure, null, 2), '\n'], { type: 'application/json' }), `${activeTarget.outputName}.failed-result.json`);
+  /*
+   * Opening a generated document gives it the workspace, exactly as opening the
+   * byte inspector does. Left among the target editor, the profile, the
+   * dependency graph and the build log there was no room for it: its heading
+   * sat at the bottom edge and none of its content could be reached.
+   */
   return (
-    <div className={`build-workspace${inspectorSelected ? ' artifact-inspector-mode' : ''}`}>
+    <div className={`build-workspace${inspectorSelected || selectedDocument ? ' artifact-inspector-mode' : ''}`}>
       <div className="runtime-heading"><div><span className="eyebrow">VERSIONED BUILD TARGET · {machineCpu}</span><h2>{activeTarget.name}</h2></div><div className="runtime-actions"><button type="button" onClick={onAdd}>New target</button><button type="button" disabled={targets.length === 1} onClick={onDelete}>Remove</button><button type="button" disabled={errors.length > 0} onClick={onBuild}><Icon name="build" size={14} /> Build</button><button type="button" disabled={errors.length > 0} title="Ignore the browser-session build cache once" onClick={onBuildBypass}>Rebuild</button><button type="button" disabled={buildAllRecords.some((record) => record.status === 'running' || record.status === 'queued')} onClick={onBuildAll}>Build all</button><button type="button" disabled={!buildAllRecords.some((record) => record.status === 'running' || record.status === 'queued')} onClick={onCancelAll}>Cancel all</button><button type="button" disabled={!['queued', 'building'].includes(activity.status)} onClick={onCancel}>Cancel</button><button type="button" disabled={!artifact} aria-pressed={pinned} onClick={onTogglePinned}>{pinned ? 'Retained' : 'Retain artifact'}</button><button type="button" disabled={!artifact || stale || artifact.diagnostics.some((item) => item.severity === 'error')} onClick={() => artifact && onAnalyse(artifact)}>Analyse artifact</button><button type="button" disabled={!artifact || stale || artifact.diagnostics.some((item) => item.severity === 'error')} onClick={downloadArtifact}><Icon name="download" size={14} /> {artifact?.kind === 'atom-basic-text' ? 'Source artifact' : 'Binary'}</button></div></div>
       <section className="build-target-editor" aria-label="Build target editor">
         <label><span>Target</span><select aria-label="Build target" value={activeTarget.id} onChange={(event) => onSelect(event.target.value)}>{targets.map((target) => <option value={target.id} key={target.id}>{target.name}</option>)}</select></label>
@@ -3921,7 +4123,7 @@ function BuildWorkspace({ artifact, metadata, failure, artifactDocumentId, onArt
         {(graph.cycles.length > 0 || graph.missing.length > 0) && <div className="build-graph-errors" role="alert">{graph.cycles.map((cycle) => <span key={cycle.join('-')}>Cycle: {cycle.map((id) => targets.find((target) => target.id === id)?.name ?? id).join(' → ')}</span>)}{graph.missing.map((edge) => <span key={`${edge.targetId}-${edge.dependencyId}`}>Missing dependency {edge.dependencyId}</span>)}</div>}
       </section>
       <div className="build-policy-state" role="status"><span>{activeTarget.buildPolicy === 'manual' ? 'Build only when requested.' : activeTarget.buildPolicy === 'on-save' ? 'Build after an explicit save of the entry file or project.' : 'Build 650 ms after the latest target, source or machine change.'}</span><strong>{pinned ? 'Current artifact retained; background builds are blocked.' : 'Background builds may replace the current artifact.'}</strong></div>
-      <div className={`build-activity status-${activity.status}`} role="status" aria-label="Build activity"><strong>{activity.status.toUpperCase()}</strong><span>{activity.targetName || activeTarget.name} · {activity.trigger}</span><small>{activity.message}</small>{activity.startedAt && <code>{activity.finishedAt ? `${Math.max(0, activity.finishedAt - activity.startedAt)} ms` : 'running…'}</code>}</div>
+      <div className={`build-activity status-${activity.status}`} role="status" aria-label="Build activity"><strong>{activity.status.toUpperCase()}</strong><span>{activity.targetName || activeTarget.name} · {activity.trigger}</span><small>{activity.message}</small>{activity.startedAt && <code>{activity.finishedAt ? `${Math.max(0, activity.finishedAt - activity.startedAt)} ms` : 'running...'}</code>}</div>
       {errors.length > 0 && <div className="build-target-errors" role="alert">{errors.map((error) => <span key={error}>{error}</span>)}</div>}
       {failure && <section className="build-failure-result" aria-label="Normalized failed build result"><header><div><strong>{failure.exit.reason.replaceAll('-', ' ').toUpperCase()}</strong><span>No artifact was produced or implied.</span></div><button type="button" onClick={downloadFailure}><Icon name="download" size={14} /> Export failed result</button></header><div>{failure.diagnostics.map((diagnostic, index) => <button type="button" disabled={!diagnostic.fileId} onClick={() => diagnostic.fileId && onNavigate(diagnostic.fileId, diagnostic.line)} key={`${diagnostic.fileId}-${diagnostic.line}-${index}`}><strong>ERROR</strong><code>{diagnostic.fileName ? `${diagnostic.fileName}:${diagnostic.line}:${diagnostic.column}` : 'configuration'}</code><span>{diagnostic.message}</span></button>)}</div><footer><code>{failure.invocation.adapterId}@{failure.invocation.adapterVersion}</code><span>{failure.inputs.length} declared input{failure.inputs.length === 1 ? '' : 's'}</span><span>{failure.timing.durationMs.toFixed(2)} ms</span><span>cache {failure.cache.status}</span></footer></section>}
       {stale && <div className="build-stale" role="status">The displayed result is stale because its target, machine profile, or declared source inputs changed. Rebuild before download, run, debug, or test.</div>}
@@ -3929,7 +4131,7 @@ function BuildWorkspace({ artifact, metadata, failure, artifactDocumentId, onArt
       {artifact && <nav className="artifact-document-tabs" aria-label="Generated artifact documents"><button type="button" aria-current={!selectedDocument && !inspectorSelected ? 'page' : undefined} onClick={() => onArtifactDocumentChange(undefined)}>Overview</button><button type="button" aria-current={inspectorSelected ? 'page' : undefined} onClick={() => onArtifactDocumentChange('@byte-inspector')}>Byte inspector</button>{documents.map((document) => <button type="button" aria-current={selectedDocument?.id === document.id ? 'page' : undefined} onClick={() => onArtifactDocumentChange(document.id)} key={document.id}>{document.label} <small>RO</small></button>)}</nav>}
       {!artifact ? <div className="honest-empty runtime-empty">Configure a valid target and build it. Diagnostics, listing, symbols and a reproducible artifact identity will appear here.</div> : inspectorSelected ? <ArtifactInspector artifact={artifact} onNavigate={onNavigate} /> : selectedDocument ? <GeneratedArtifactDocumentView artifact={artifact} document={selectedDocument} onNavigate={onNavigate} /> : <>
         <div className="build-summary"><span><strong>{artifact.bytes.length}</strong> bytes</span>{isMachineCodeArtifact(artifact) ? <><span>Origin <strong>{formatAddress(artifact.origin, artifact.kind === 'arm-binary' ? 8 : 4)}</strong></span><span>Entry <strong>{formatAddress(artifact.entryPoint, artifact.kind === 'arm-binary' ? 8 : 4)}</strong></span><span><strong>{Object.keys(artifact.symbols).length}</strong> symbols</span><span><strong>{artifact.dependencies.length}</strong> inputs</span>{artifact.kind === 'arm-binary' && <span>Format <strong>ARM2 raw · not RISC OS</strong></span>}</> : <><span><strong>{artifact.lineCount}</strong> lines</span><span>Dialect <strong>{artifact.dialect}</strong></span></>}<span><strong>{artifact.diagnostics.length}</strong> diagnostics</span></div>
-        {artifact.provenance && <div className="build-provenance" aria-label="Build provenance"><span>Build <code>{artifact.provenance.fingerprint}</code></span><span>Output SHA-256 <code>{artifact.provenance.output.sha256.slice(0, 12)}…</code></span><span>{artifact.provenance.toolchain.label} <code>{artifact.provenance.toolchain.version}</code></span><span>{artifact.provenance.inputs.length} declared input{artifact.provenance.inputs.length === 1 ? '' : 's'}</span>{metadata && <span className={`cache-${metadata.cache.status}`}>Cache <strong>{metadata.cache.status.toUpperCase()}</strong> · {metadata.cache.hits} hit / {metadata.cache.misses} miss · {metadata.cache.entries} entr{metadata.cache.entries === 1 ? 'y' : 'ies'}{metadata.cache.corruptions ? ` · ${metadata.cache.corruptions} rejected` : ''}</span>}</div>}
+        {artifact.provenance && <div className="build-provenance" aria-label="Build provenance"><span>Build <code>{artifact.provenance.fingerprint}</code></span><span>Output SHA-256 <code>{artifact.provenance.output.sha256.slice(0, 12)}...</code></span><span>{artifact.provenance.toolchain.label} <code>{artifact.provenance.toolchain.version}</code></span><span>{artifact.provenance.inputs.length} declared input{artifact.provenance.inputs.length === 1 ? '' : 's'}</span>{metadata && <span className={`cache-${metadata.cache.status}`}>Cache <strong>{metadata.cache.status.toUpperCase()}</strong> · {metadata.cache.hits} hit / {metadata.cache.misses} miss · {metadata.cache.entries} entr{metadata.cache.entries === 1 ? 'y' : 'ies'}{metadata.cache.corruptions ? ` · ${metadata.cache.corruptions} rejected` : ''}</span>}</div>}
         {artifact.diagnostics.length > 0 && <div className="build-diagnostics" aria-label="Build diagnostics">{artifact.diagnostics.map((item, index) => <button type="button" disabled={!item.fileId} onClick={() => item.fileId && onNavigate(item.fileId, item.line)} className={`diagnostic-${item.severity}`} key={`${item.fileId}-${item.line}-${index}`}><strong>{item.severity.toUpperCase()}</strong><code>{item.fileName ? `${item.fileName}:` : 'line '}{item.line}:{item.column}</code><span>{item.message}</span></button>)}</div>}
         <div className="build-result-grid"><section><h3>Listing · activate a mapped row to open source</h3><div className="artifact-listing-rows" role="list" aria-label="Navigable build listing">{listingRows.map((row, index) => <button type="button" role="listitem" disabled={!row.source} onClick={() => row.source && onNavigate(row.source.fileId, row.source.line)} key={`${row.address}-${index}`}><code>{row.text}</code>{row.source && <small>{row.source.fileName}:{row.source.line}</small>}</button>)}</div></section>{isMachineCodeArtifact(artifact) ? <section><h3>Symbols &amp; immutable references</h3>{artifact.dependencies.length > 0 && <div className="build-dependencies"><span>Declared files</span>{artifact.dependencies.map((name) => <code key={name}>{name}</code>)}</div>}<div className="symbol-list">{Object.entries(artifact.symbols).sort((a, b) => a[1] - b[1]).map(([name, address]) => <button type="button" aria-pressed={selectedSymbol === name} onClick={() => setSelectedSymbol(name)} key={name}><code>{name}</code><strong>{formatAddress(address, artifact.kind === 'arm-binary' ? 8 : 4)}</strong></button>)}</div>{selectedSymbol && <div className="artifact-symbol-references"><h4>{selectedSymbol} · {symbolReferences.length} source occurrence{symbolReferences.length === 1 ? '' : 's'}</h4>{symbolReferences.length ? symbolReferences.map((reference) => <button type="button" onClick={() => onNavigate(reference.fileId, reference.line, reference.column, selectedSymbol.length)} key={`${reference.fileId}-${reference.line}-${reference.column}`}><strong>{reference.definition ? 'DEF' : 'REF'}</strong><span>{reference.fileName}:{reference.line}:{reference.column}</span></button>) : <p>Predefined/toolchain symbol; no project source occurrence.</p>}</div>}</section> : artifact.kind === 'atom-basic-text' ? <section><h3>Interpreter source artifact</h3><p className="honest-note">Atom BASIC stores program text rather than BBC-style keyword tokens. This bounded ASCII artifact can be downloaded or entered automatically through the real Atom keyboard/interpreter adapter.</p><pre className="build-listing">{new TextDecoder().decode(artifact.bytes)}</pre></section> : <section><h3>Tokenized program</h3><p className="honest-note">BBC BASIC II keywords and protected line references are encoded in the downloadable program. Execution will attach to the ROM-aware machine adapter.</p><pre className="build-listing">{Array.from(artifact.bytes.slice(0, 128)).map(formatByte).join(' ')}</pre></section>}</div>
       </>}
@@ -4000,7 +4202,7 @@ function ArtifactInspector({ artifact, onNavigate }: { artifact: BuildArtifact; 
       <button type="button" disabled={!search.result?.offsets.length} onClick={() => moveMatch(-1)}>Previous</button><button type="button" disabled={!search.result?.offsets.length} onClick={() => moveMatch(1)}>Next</button>
       <button type="button" onClick={exportWindow}><Icon name="download" size={13} /> Export window</button>
     </div>
-    <div className="artifact-inspector-status" role="status">{search.error || (searchQuery ? `${search.result?.total ?? 0} match${search.result?.total === 1 ? '' : 'es'}${search.result?.truncated ? ' · first 10,000 retained' : ''}` : `${artifact.bytes.length.toLocaleString()} bytes · showing offsets ${windowStart}–${Math.max(windowStart, visibleEnd - 1)}`)}</div>
+    <div className="artifact-inspector-status" role="status">{search.error || (searchQuery ? `${search.result?.total ?? 0} match${search.result?.total === 1 ? '' : 'es'}${search.result?.truncated ? ' · first 10,000 retained' : ''}` : `${artifact.bytes.length.toLocaleString()} bytes · showing offsets ${windowStart}-${Math.max(windowStart, visibleEnd - 1)}`)}</div>
     <div className="artifact-inspector-body">
       <div className="artifact-byte-view">
         {view === 'hex' ? <div className="artifact-hex-table" role="table" aria-label="Artifact hexadecimal bytes"><div className="artifact-hex-head" role="row"><span>Address</span><span>00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F</span><span>ASCII</span></div>{rows.map((offset) => <div role="row" className="artifact-hex-row" key={offset}><button type="button" disabled={!isMachineCodeArtifact(artifact) || !artifact.sourceLocations[origin + offset]} onClick={() => { const location = isMachineCodeArtifact(artifact) ? artifact.sourceLocations[origin + offset] : undefined; if (location) onNavigate(location.fileId, location.line); }}>{origin ? formatAddress(origin + offset) : `+&${offset.toString(16).toUpperCase().padStart(4, '0')}`}</button><span>{Array.from(artifact.bytes.slice(offset, Math.min(offset + 16, visibleEnd))).map((byte, index) => <button type="button" aria-label={`Select byte at ${origin ? formatAddress(origin + offset + index) : `offset ${offset + index}`}: ${formatByte(byte)}`} aria-pressed={selectedOffset === offset + index} className={search.result?.offsets.some((match) => offset + index >= match && offset + index < match + (search.result?.pattern.length ?? 0)) ? 'match' : ''} onClick={() => setSelectedOffset(offset + index)} key={index}>{formatByte(byte)}</button>)}</span><code>{Array.from(artifact.bytes.slice(offset, Math.min(offset + 16, visibleEnd)), (byte) => byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : '·').join('')}</code></div>)}</div> : <pre className="artifact-text-view" tabIndex={0}>{Array.from(artifact.bytes.slice(windowStart, visibleEnd), (byte) => byte === 10 || byte === 13 || byte === 9 ? String.fromCharCode(byte) : byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : '·').join('')}</pre>}
@@ -4125,7 +4327,7 @@ function TestInputEditor({
   /*
    * Recording a real controller.
    *
-   * A gamepad has no events — the browser only reports its state when asked —
+   * A gamepad has no events. The browser only reports its state when asked,
    * so it is polled, and only a change is written down. Recording the state on
    * every frame would fill the two-hundred-and-fifty-six input budget in four
    * seconds with entries that say nothing happened.
@@ -5254,8 +5456,8 @@ function ReplayHistoryPanel({ state, onMachineCommand }: { state: MachineBridgeS
   const toggle = () => {
     if (history.enabled) { onMachineCommand({ type: 'replay-config', enabled: false }); return; }
     const parsedInterval = Number(interval); const parsedCapacity = Number(capacity);
-    if (!Number.isInteger(parsedInterval) || parsedInterval < 1 || parsedInterval > 4096) { setError('Checkpoint interval must be 1–4,096 instructions'); return; }
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 2 || parsedCapacity > 64 || parsedInterval * parsedCapacity > 65536) { setError('Capacity must be 2–64 and retain no more than 65,536 instructions'); return; }
+    if (!Number.isInteger(parsedInterval) || parsedInterval < 1 || parsedInterval > 4096) { setError('Checkpoint interval must be 1-4,096 instructions'); return; }
+    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 2 || parsedCapacity > 64 || parsedInterval * parsedCapacity > 65536) { setError('Capacity must be 2-64 and retain no more than 65,536 instructions'); return; }
     setError(''); onMachineCommand({ type: 'replay-config', enabled: true, checkpointInterval: parsedInterval, checkpointCapacity: parsedCapacity });
   };
   return <section className={`replay-history ${history.enabled ? 'active' : ''}`} aria-label="Deterministic replay history"><div className="replay-controls"><label><span>Checkpoint every</span><select aria-label="Replay checkpoint interval" value={interval} disabled={history.enabled} onChange={(event) => setInterval(event.target.value)}>{[1, 4, 16, 64, 256, 1024, 4096].map((value) => <option value={value} key={value}>{value} instruction{value === 1 ? '' : 's'}</option>)}</select></label><label><span>Checkpoints</span><select aria-label="Replay checkpoint capacity" value={capacity} disabled={history.enabled} onChange={(event) => setCapacity(event.target.value)}>{[2, 4, 8, 16, 32, 64].map((value) => <option value={value} key={value}>{value}</option>)}</select></label><button type="button" disabled={state.running && !history.enabled} onClick={toggle}>{history.enabled ? 'Stop history' : 'Start history'}</button><button type="button" disabled={!history.canReverseStep} onClick={() => onMachineCommand({ type: 'reverse-step' })}>Step back</button><button type="button" disabled={!history.canReverseContinue} onClick={() => onMachineCommand({ type: 'reverse-continue' })}>Previous checkpoint</button>{error && <span role="alert">{error}</span>}</div><div className="replay-facts"><strong>{history.enabled ? 'Deterministic history active' : 'Reverse execution inactive'}</strong><span>{history.overhead}</span><small>Segment {history.segment} · instruction {history.currentInstruction.toLocaleString()} · {history.retainedInstructions.toLocaleString()} reversible · {history.checkpointCount}/{history.config.checkpointCapacity} checkpoints · {(history.checkpointBytes / 1048576).toFixed(1)} MiB measured state</small><p><b>Boundary:</b> {history.boundaryReason}</p><p><b>Verification:</b> {history.lastVerification}</p></div><div className="replay-checkpoints" aria-label="Retained replay checkpoints">{history.checkpoints.slice().reverse().map((checkpoint) => <div key={checkpoint.index}><strong>#{checkpoint.index.toLocaleString()}</strong><code>{formatAddress(checkpoint.pc)}</code><span>{checkpoint.symbol ?? (checkpoint.source ? `${checkpoint.source.fileName}:${checkpoint.source.line}` : `cycle ${checkpoint.cycle.toLocaleString()}`)}</span><small>{(checkpoint.bytes / 1048576).toFixed(2)} MiB</small></div>)}</div></section>;
@@ -5267,7 +5469,7 @@ function DebugSessionPanel({ session, onStop }: { session: DebugSessionRecord | 
   const addressWidth = binding.runProfile.processor.startsWith('arm') ? 8 : 4;
   return <section className="debug-session-binding" aria-label="Immutable debug session binding">
     <header><div><span className={`debug-lifecycle ${session.lifecycle}`}>{session.lifecycle.toUpperCase()}</span><strong>{binding.build.targetName}</strong><small>{session.reason}</small></div><button type="button" disabled={['terminated', 'disconnected'].includes(session.lifecycle)} title={session.lifecycle === 'terminated' ? 'This debug session is already terminated' : 'Pause the machine and terminate this debug session'} onClick={onStop}>Stop session</button></header>
-    <div className="debug-session-summary"><span>Build <code>{binding.build.fingerprint}</code></span><span>SHA-256 <code title={binding.build.outputSha256}>{binding.build.outputSha256.slice(0, 12)}…</code></span><span>{binding.adapter.id} <code>{binding.adapter.version.slice(0, 12)}</code></span><span>{binding.machineTarget.machineId} · {binding.machineTarget.variant}</span><span>Entry <code>{formatAddress(binding.runProfile.entryPoint, addressWidth)}</code></span><span>{binding.roms.length} bound ROM{binding.roms.length === 1 ? '' : 's'}</span></div>
+    <div className="debug-session-summary"><span>Build <code>{binding.build.fingerprint}</code></span><span>SHA-256 <code title={binding.build.outputSha256}>{binding.build.outputSha256.slice(0, 12)}...</code></span><span>{binding.adapter.id} <code>{binding.adapter.version.slice(0, 12)}</code></span><span>{binding.machineTarget.machineId} · {binding.machineTarget.variant}</span><span>Entry <code>{formatAddress(binding.runProfile.entryPoint, addressWidth)}</code></span><span>{binding.roms.length} bound ROM{binding.roms.length === 1 ? '' : 's'}</span></div>
     <details><summary>Exact immutable binding and availability reasons</summary><dl><div><dt>Session</dt><dd><code>{binding.id}</code> · created <time dateTime={binding.createdAt}>{new Date(binding.createdAt).toLocaleString()}</time></dd></div><div><dt>Build output</dt><dd>{binding.build.outputBytes.toLocaleString()} bytes · <code>{binding.build.outputSha256}</code></dd></div><div><dt>Toolchain</dt><dd><code>{binding.build.toolchainId}@{binding.build.toolchainVersion}</code></dd></div><div><dt>Machine manifest</dt><dd><code>{binding.machineTarget.platformClass}/{binding.machineTarget.machineId}/{binding.machineTarget.romId}</code> · {binding.runProfile.capabilities.join(', ') || 'no optional capabilities'}</dd></div><div><dt>Run profile</dt><dd>{binding.runProfile.processor} · origin {formatAddress(binding.runProfile.origin, addressWidth)} · entry {formatAddress(binding.runProfile.entryPoint, addressWidth)} · debug</dd></div><div><dt>Skip instruction</dt><dd>Unavailable. Skipping an arbitrary instruction can violate processor, stack, interrupt and device state, so this adapter does not expose an unsafe PC-only operation.</dd></div></dl><div className="debug-session-roms">{binding.roms.length ? binding.roms.map((rom) => <div key={rom.key}><strong>{rom.filename}</strong><span>{rom.key} · {rom.size.toLocaleString()} bytes</span><code>{rom.sha256}</code></div>) : <p>This session uses the bounded ROM-less diagnostic adapter and has no firmware binding.</p>}</div></details>
   </section>;
 }
@@ -5321,7 +5523,7 @@ function TubeAddressMap({ state }: { state: MachineBridgeSnapshot }) {
     { start: 0xfef8, end: 0xfeff, label: 'Tube ULA I/O', kind: 'io' },
     { start: 0xff00, end: 0xffff, label: 'Parasite RAM', kind: 'ram' },
   ];
-  const map = (label: string, pc: number, regions: Array<{ start: number; end: number; label: string; kind: string }>) => <section aria-label={`${label} 16-bit address map`}><div><strong>{label}</strong><code>PC {formatAddress(pc)}</code></div><div className="tube-map-bar">{regions.map((region, index) => <span className={`kind-${region.kind}`} style={{ flexGrow: region.end - region.start + 1 }} title={`${region.label} ${formatAddress(region.start)}–${formatAddress(region.end)}`} aria-label={`${region.label}, ${formatAddress(region.start)} to ${formatAddress(region.end)}`} key={`${region.start}-${index}`} />)}<i style={{ left: `${pc / 0xffff * 100}%` }} title={`PC ${formatAddress(pc)}`} /></div><div className="tube-map-legend">{regions.map((region, index) => <span key={`${region.label}-${index}`}><i className={`kind-${region.kind}`} />{region.label} {formatAddress(region.start)}–{formatAddress(region.end)}</span>)}</div></section>;
+  const map = (label: string, pc: number, regions: Array<{ start: number; end: number; label: string; kind: string }>) => <section aria-label={`${label} 16-bit address map`}><div><strong>{label}</strong><code>PC {formatAddress(pc)}</code></div><div className="tube-map-bar">{regions.map((region, index) => <span className={`kind-${region.kind}`} style={{ flexGrow: region.end - region.start + 1 }} title={`${region.label} ${formatAddress(region.start)}-${formatAddress(region.end)}`} aria-label={`${region.label}, ${formatAddress(region.start)} to ${formatAddress(region.end)}`} key={`${region.start}-${index}`} />)}<i style={{ left: `${pc / 0xffff * 100}%` }} title={`PC ${formatAddress(pc)}`} /></div><div className="tube-map-legend">{regions.map((region, index) => <span key={`${region.label}-${index}`}><i className={`kind-${region.kind}`} />{region.label} {formatAddress(region.start)}-{formatAddress(region.end)}</span>)}</div></section>;
   return <div className="tube-address-map" aria-label="Tube dual address map">{map('Host mapped CPU view', state.registers.pc, state.memoryMap.regions)}{map('Parasite logical CPU view', tube.registers.pc, parasite)}</div>;
 }
 
@@ -5343,8 +5545,8 @@ function TubeMemoryInspector({ state, memory, onMachineCommand }: { state: Machi
   const bounds = (selected: typeof space) => selected === 'tube-rom' ? { start: 0xf000, end: 0xffff } : { start: 0, end: 0xffff };
   const request = (override?: number) => {
     const address = override ?? parseHexAddress(addressText); const length = Number(lengthText); const range = bounds(space);
-    if (address === null || !Number.isInteger(length) || length < 1 || length > 4096 || address < range.start || address + length - 1 > range.end) { setMessage(`Enter 1–4,096 bytes wholly inside ${formatAddress(range.start)}–${formatAddress(range.end)}.`); return; }
-    if (space === 'tube-logical' && address <= 0xfeff && address + length - 1 >= 0xfef8) { setMessage('Logical reads cannot include Tube ULA I/O at &FEF8–&FEFF. Choose a range on one side of it.'); return; }
+    if (address === null || !Number.isInteger(length) || length < 1 || length > 4096 || address < range.start || address + length - 1 > range.end) { setMessage(`Enter 1-4,096 bytes wholly inside ${formatAddress(range.start)}-${formatAddress(range.end)}.`); return; }
+    if (space === 'tube-logical' && address <= 0xfeff && address + length - 1 >= 0xfef8) { setMessage('Logical reads cannot include Tube ULA I/O at &FEF8-&FEFF. Choose a range on one side of it.'); return; }
     setAddressText(formatAddress(address)); setMatches([]); setMessage(`Reading ${length.toLocaleString()} bytes from ${formatAddress(address)}.`);
     onMachineCommand({ type: 'read-tube-memory', address, length, addressSpace: space, requestId: `tube-memory-${crypto.randomUUID()}` });
   };
@@ -5474,7 +5676,7 @@ function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareSta
       {hardwareState && <RuntimePerformancePanel state={hardwareState.performance} />}
       {/*
         * A machine can be running perfectly and holding somebody else's
-        * program — the operating system, or a build from before. Breakpoints
+        * program. The operating system, or a build from before. Breakpoints
         * set against this build are then armed against nothing, and the only
         * clue was that pressing the machine's own Run resumed the ROM. Saying
         * which control puts this build on the machine is the difference
@@ -5557,11 +5759,11 @@ function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand, on
     const targetSpace = state.memoryMap.spaces.find((space) => space.id === spaceOverride);
     if (address === null || address === undefined) { setMessage('Address must be &hex, $hex, decimal, or a build symbol with one optional offset.'); return; }
     if (count === null) { setMessage('Length must be an integer from 1 to 4096 bytes.'); return; }
-    if (!targetSpace || address < targetSpace.start || address + count - 1 > targetSpace.end) { setMessage(`${targetSpace?.label ?? spaceOverride} reads must stay inside ${targetSpace ? `${formatAddress(targetSpace.start)}–${formatAddress(targetSpace.end)}` : 'its supported range'}.`); return; }
+    if (!targetSpace || address < targetSpace.start || address + count - 1 > targetSpace.end) { setMessage(`${targetSpace?.label ?? spaceOverride} reads must stay inside ${targetSpace ? `${formatAddress(targetSpace.start)}-${formatAddress(targetSpace.end)}` : 'its supported range'}.`); return; }
     if (addressOverride !== undefined) setQuery(formatAddress(addressOverride));
     setSelectedAddress(undefined);
     setSearchResults([]);
-    setMessage(`Reading ${count} bytes from ${formatAddress(address)}…`);
+    setMessage(`Reading ${count} bytes from ${formatAddress(address)}...`);
     onMachineCommand({ type: 'read-memory', address, length: count, addressSpace: spaceOverride, ...(targetSpace.banked ? { bank: bankOverride } : {}), requestId: `inspector-${spaceOverride}-${bankOverride}-${address}-${count}-${Date.now()}` });
   };
   const movePage = (direction: -1 | 1) => {
@@ -5593,7 +5795,7 @@ function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand, on
       if (parsed.some((byte) => byte === null)) throw new Error('RAM edits cannot contain wildcard bytes');
       const bytes = parsed as number[];
       if (address >= 0x8000 || address + bytes.length > 0x8000) throw new Error('RAM edits cannot cross into mapped I/O or ROM at &8000');
-      setMessage(`Writing ${bytes.length} byte${bytes.length === 1 ? '' : 's'} at ${formatAddress(address)}…`);
+      setMessage(`Writing ${bytes.length} byte${bytes.length === 1 ? '' : 's'} at ${formatAddress(address)}...`);
       onMachineCommand({ type: 'write-memory', address, bytes });
     } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
   };
@@ -5613,7 +5815,7 @@ function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand, on
     <h3>Live memory inspector <small>{memory ? `${memory.bytes.length} bytes · ${memory.addressSpaceLabel}${memory.bank === undefined ? '' : ` · bank ${memory.bank}`} · cycle ${memory.capturedAtCycles.toLocaleString()}` : 'no range loaded'}</small></h3>
     <div className="live-memory-map" aria-label={`${state.memoryMap.profile} live memory map`}>
       <div className="memory-map-registers"><strong>{state.memoryMap.profile.toUpperCase()}</strong>{state.memoryMap.romsel === undefined ? <span>No BBC ROMSEL register</span> : <span>ROMSEL &amp;{formatByte(state.memoryMap.romsel)} · bank {state.memoryMap.selectedBank} · {state.memoryMap.selectedBankWritable ? 'sideways RAM' : 'sideways ROM'}</span>}{state.memoryMap.acccon !== undefined && <span>ACCCON &amp;{formatByte(state.memoryMap.acccon)}</span>}</div>
-      <div className="memory-map-regions" role="list" aria-label="Mapped CPU regions">{state.memoryMap.regions.map((region) => <div role="listitem" className={`map-${region.kind}${region.active ? ' active' : ''}`} style={{ flexGrow: region.end - region.start + 1 }} title={`${formatAddress(region.start)}–${formatAddress(region.end)} · ${region.label}${region.detail ? ` · ${region.detail}` : ''}`} key={`${region.start}-${region.end}`}><strong>{region.label}</strong><small>{formatAddress(region.start)}–{formatAddress(region.end)}</small></div>)}</div>
+      <div className="memory-map-regions" role="list" aria-label="Mapped CPU regions">{state.memoryMap.regions.map((region) => <div role="listitem" className={`map-${region.kind}${region.active ? ' active' : ''}`} style={{ flexGrow: region.end - region.start + 1 }} title={`${formatAddress(region.start)}-${formatAddress(region.end)} · ${region.label}${region.detail ? ` · ${region.detail}` : ''}`} key={`${region.start}-${region.end}`}><strong>{region.label}</strong><small>{formatAddress(region.start)}-{formatAddress(region.end)}</small></div>)}</div>
       {state.memoryMap.accconFlags.length > 0 && <div className="memory-map-flags" aria-label="Master ACCCON flags">{state.memoryMap.accconFlags.map((flag) => <span className={flag.set ? 'set' : ''} title={flag.meaning} key={flag.bit}>{flag.bit}</span>)}</div>}
       {state.memoryMap.banks.length > 0 && <div className="sideways-bank-grid" aria-label="Sideways ROM and RAM banks">{state.memoryMap.banks.map((item) => <button type="button" className={`${item.selected ? 'hardware-selected ' : ''}${addressSpace === 'sideways' && bank === item.bank ? 'inspector-selected' : ''}`} aria-label={`Inspect sideways bank ${item.bank} ${item.writable ? 'RAM' : 'ROM'}${item.selected ? ', hardware selected' : ''}`} title={`Bank ${item.bank} · ${item.writable ? 'sideways RAM' : 'ROM'}${item.selected ? ' · current ROMSEL' : ''}`} onClick={() => { setAddressSpace('sideways'); setBank(item.bank); setQuery('&8000'); request(0x8000, 'sideways', item.bank); }} key={item.bank}><strong>{item.bank.toString(16).toUpperCase()}</strong><small>{item.writable ? 'RAM' : 'ROM'}</small></button>)}</div>}
     </div>
@@ -5668,7 +5870,7 @@ function HardwareDisassemblyPanel({ artifact, currentFiles, state, disassembly, 
     if (address === null || address === undefined) { setMessage('Use a 16-bit address, build symbol, or symbol with one bounded offset.'); return; }
     if (!Number.isInteger(count) || count < 1 || count > 256) { setMessage('Instruction count must be an integer from 1 to 256.'); return; }
     if (override !== undefined) setAddressText(formatAddress(override));
-    setMessage(`Decoding ${count} live instructions from ${formatAddress(address)}…`);
+    setMessage(`Decoding ${count} live instructions from ${formatAddress(address)}...`);
     onMachineCommand({ type: 'read-disassembly', address, instructionCount: count, requestId: `disassembly-${address}-${count}-${Date.now()}` });
   };
   useEffect(() => { if (artifact) request(artifact.entryPoint); }, [artifact?.entryPoint]);
@@ -5698,7 +5900,7 @@ function HardwareDisassemblyPanel({ artifact, currentFiles, state, disassembly, 
         {mixed && source && <button type="button" className="mixed-source-row" onClick={() => onNavigateSource(source.fileId, source.line)}><span>{source.fileName}:{source.line}</span><code>{source.text || ' '}</code><small>{staleFiles.includes(source.fileName) ? 'pinned · editor differs' : 'pinned build source'}</small></button>}
       </div>;
     }) ?? <div className="honest-empty">Decode a live range to inspect actual mapped machine bytes.</div>}</div>
-    <p className="disassembly-status" aria-live="polite">{message}</p><p className="honest-note">Bytes and decode come from the live jsbeeb CPU mapping. Source is pinned to the loaded artifact. “Captured” counts only records retained by the opt-in hardware trace; it is not presented as lifetime profiling.</p>
+    <p className="disassembly-status" aria-live="polite">{message}</p><p className="honest-note">Bytes and decode come from the live jsbeeb CPU mapping. Source is pinned to the loaded artifact. "Captured" counts only records retained by the opt-in hardware trace; it is not presented as lifetime profiling.</p>
   </div>;
 }
 
@@ -5750,8 +5952,8 @@ function HardwareTracePanel({ state, onMachineCommand }: { state: MachineBridgeS
     const opcodeValue = opcode.trim() ? parseHexAddress(opcode) : undefined;
     const parsedTriggerValue = triggerKind && triggerKind !== 'interrupt' ? parseHexAddress(triggerValue) : undefined;
     const parsedPre = Number(preTriggerRecords); const parsedPost = Number(postTriggerRecords);
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 64 || parsedCapacity > 4096) { setError('Capacity must be 64–4,096 records'); return; }
-    if (!Number.isInteger(parsedSampleEvery) || parsedSampleEvery < 1 || parsedSampleEvery > 1024) { setError('Sampling interval must be 1–1,024 instructions'); return; }
+    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 64 || parsedCapacity > 4096) { setError('Capacity must be 64-4,096 records'); return; }
+    if (!Number.isInteger(parsedSampleEvery) || parsedSampleEvery < 1 || parsedSampleEvery > 1024) { setError('Sampling interval must be 1-1,024 instructions'); return; }
     if (triggerKind && parsedSampleEvery !== 1) { setError('Independent triggers require every instruction to be sampled'); return; }
     if ((triggerKind === 'memory-read' || triggerKind === 'memory-write') && !captureBus) { setError('Memory triggers require data-bus capture'); return; }
     if (!eventKinds.length) { setError('Select at least one unified event kind'); return; }
@@ -5820,7 +6022,7 @@ function InstructionEffects({ state }: { state: MachineBridgeSnapshot }) {
       <div><span>Addressing</span><strong>{detail.addressingMode}</strong></div>
       <div><span>Effective address</span><strong>{detail.effectiveAddress === undefined ? 'not applicable' : formatAddress(detail.effectiveAddress)}</strong></div>
       <div><span>Operand value</span><strong>{detail.operandValue === undefined ? 'not available' : `&${formatByte(detail.operandValue)}`}</strong></div>
-      <div><span>Pointer / branch</span><strong>{detail.pointerAddress === undefined ? '—' : `ptr ${formatAddress(detail.pointerAddress)}`}{detail.pointerAddress !== undefined && detail.branchTarget !== undefined ? ' · ' : ''}{detail.branchTarget === undefined ? '' : `target ${formatAddress(detail.branchTarget)}`}</strong></div>
+      <div><span>Pointer / branch</span><strong>{detail.pointerAddress === undefined ? '-' : `ptr ${formatAddress(detail.pointerAddress)}`}{detail.pointerAddress !== undefined && detail.branchTarget !== undefined ? ' · ' : ''}{detail.branchTarget === undefined ? '' : `target ${formatAddress(detail.branchTarget)}`}</strong></div>
       <div><span>Page crossing</span><strong>{detail.pageCrossed ? 'yes' : 'no'}</strong></div>
     </div>
     <h3>Last exact step <small>step-in only</small></h3>
@@ -5859,7 +6061,7 @@ function HardwareInspectorPanel({ inspection, onRefresh }: { inspection: Hardwar
   const group = inspection?.groups.find((item) => item.id === selectedGroup) ?? inspection?.groups[0];
   return <div className="hardware-inspector-body">
     <div className="hardware-inspector-nav"><button type="button" className="hardware-refresh" onClick={onRefresh}>Refresh live state</button>{inspection?.groups.map((item) => <button type="button" className={item.id === group?.id ? 'selected' : ''} aria-pressed={item.id === group?.id} key={item.id} onClick={() => setSelectedGroup(item.id)}><strong>{item.label}</strong><small>{item.registers.filter((register) => register.changed).length} changed</small></button>)}</div>
-    {!inspection || !group ? <div className="honest-empty hardware-inspector-empty">Choose Refresh live state to capture authoritative peripheral latches and counters. Mapped I/O is never read.</div> : <><div className="hardware-inspector-table" role="table" aria-label={`${group.label} hardware registers`}><div className="hardware-inspector-head" role="row"><span>Name</span><span>Address</span><span>Current</span><span>Previous</span><span>Access</span><span>Bitfields</span></div>{group.registers.map((register) => <div className={register.changed ? 'hardware-register changed' : 'hardware-register'} role="row" key={register.id}><strong role="cell">{register.name}</strong><code role="cell">{register.address}</code><code role="cell">{formatHardwareValue(register.value, register.width)}</code><code role="cell">{register.previousValue === undefined ? '—' : formatHardwareValue(register.previousValue, register.width)}</code><span role="cell">{register.access}</span><span role="cell" className="hardware-bitfields">{register.bitfields.length ? register.bitfields.map((bit) => <small className={bit.active ? 'active' : ''} key={bit.label}>{bit.label}={bit.value}</small>) : '—'}</span></div>)}</div><aside className="hardware-inspector-source"><strong>{group.label}</strong><span>{group.source}</span><small>sample #{inspection.sequence} · {inspection.profile} profile · cycle {inspection.cycles.toLocaleString()}</small><p>Previous means the preceding explicit inspector sample. Highlighting does not poll the machine or alter interrupt, timer, data, palette, or selected-register state.</p></aside></>}
+    {!inspection || !group ? <div className="honest-empty hardware-inspector-empty">Choose Refresh live state to capture authoritative peripheral latches and counters. Mapped I/O is never read.</div> : <><div className="hardware-inspector-table" role="table" aria-label={`${group.label} hardware registers`}><div className="hardware-inspector-head" role="row"><span>Name</span><span>Address</span><span>Current</span><span>Previous</span><span>Access</span><span>Bitfields</span></div>{group.registers.map((register) => <div className={register.changed ? 'hardware-register changed' : 'hardware-register'} role="row" key={register.id}><strong role="cell">{register.name}</strong><code role="cell">{register.address}</code><code role="cell">{formatHardwareValue(register.value, register.width)}</code><code role="cell">{register.previousValue === undefined ? '-' : formatHardwareValue(register.previousValue, register.width)}</code><span role="cell">{register.access}</span><span role="cell" className="hardware-bitfields">{register.bitfields.length ? register.bitfields.map((bit) => <small className={bit.active ? 'active' : ''} key={bit.label}>{bit.label}={bit.value}</small>) : '-'}</span></div>)}</div><aside className="hardware-inspector-source"><strong>{group.label}</strong><span>{group.source}</span><small>sample #{inspection.sequence} · {inspection.profile} profile · cycle {inspection.cycles.toLocaleString()}</small><p>Previous means the preceding explicit inspector sample. Highlighting does not poll the machine or alter interrupt, timer, data, palette, or selected-register state.</p></aside></>}
   </div>;
 }
 
@@ -5875,10 +6077,10 @@ function RasterTimelinePanel({ state, onMachineCommand }: { state: MachineBridge
   const start = () => {
     const parsedCapacity = Number(capacity); const parsedSample = Number(sampleEvery);
     const x = breakX.trim() ? Number(breakX) : undefined; const y = breakY.trim() ? Number(breakY) : undefined;
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 64 || parsedCapacity > 4096) { setError('Capacity must be 64–4,096 events'); return; }
-    if (!Number.isInteger(parsedSample) || parsedSample < 0 || parsedSample > 625) { setError('Scanline interval must be 0–625'); return; }
-    if (y !== undefined && (!Number.isInteger(y) || y < -1 || y > 624)) { setError('Break Y must be -1–624'); return; }
-    if (x !== undefined && (!Number.isInteger(x) || x < -8 || x > 1023 || x % 8 !== 0 || y === undefined)) { setError('Break X must be -8–1,023 in 8-pixel steps and requires Y'); return; }
+    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 64 || parsedCapacity > 4096) { setError('Capacity must be 64-4,096 events'); return; }
+    if (!Number.isInteger(parsedSample) || parsedSample < 0 || parsedSample > 625) { setError('Scanline interval must be 0-625'); return; }
+    if (y !== undefined && (!Number.isInteger(y) || y < -1 || y > 624)) { setError('Break Y must be -1-624'); return; }
+    if (x !== undefined && (!Number.isInteger(x) || x < -8 || x > 1023 || x % 8 !== 0 || y === undefined)) { setError('Break X must be -8-1,023 in 8-pixel steps and requires Y'); return; }
     setError(''); onMachineCommand({ type: 'raster-monitor', enabled: true, capacity: parsedCapacity, recordHSync, sampleEveryScanlines: parsedSample, ...(breakEvent ? { breakEvent } : {}), ...(x === undefined ? {} : { breakX: x }), ...(y === undefined ? {} : { breakY: y }) });
   };
   const exportTimeline = (format: 'json' | 'text') => {
@@ -5904,8 +6106,8 @@ function PerformanceProfilerPanel({ state, onMachineCommand }: { state: MachineB
   const visibleRows = profile.addresses.filter((row) => !filter.trim() || `${formatAddress(row.address)} ${row.symbol ?? ''} ${row.source?.fileName ?? ''}`.toLowerCase().includes(filter.toLowerCase())).slice(0, 500);
   const start = () => {
     const addresses = Number(maxAddresses); const frames = Number(frameCapacity);
-    if (!Number.isInteger(addresses) || addresses < 256 || addresses > 16384) { setError('Address capacity must be 256–16,384'); return; }
-    if (!Number.isInteger(frames) || frames < 16 || frames > 1024) { setError('Frame capacity must be 16–1,024'); return; }
+    if (!Number.isInteger(addresses) || addresses < 256 || addresses > 16384) { setError('Address capacity must be 256-16,384'); return; }
+    if (!Number.isInteger(frames) || frames < 16 || frames > 1024) { setError('Frame capacity must be 16-1,024'); return; }
     setError(''); onMachineCommand({ type: 'profiler-config', enabled: true, maxAddresses: addresses, frameCapacity: frames, captureBus });
   };
   const exportProfile = (format: 'json' | 'text') => {
@@ -5917,8 +6119,8 @@ function PerformanceProfilerPanel({ state, onMachineCommand }: { state: MachineB
   const maximumFrameCycles = Math.max(1, ...profile.frames.map((frame) => frame.cycles));
   return <div className="profiler-body">
     <div className="profiler-controls"><label><span>Address capacity</span><select aria-label="Profiler address capacity" value={maxAddresses} disabled={profile.enabled} onChange={(event) => setMaxAddresses(event.target.value)}>{[256, 512, 1024, 2048, 4096, 8192, 16384].map((value) => <option key={value}>{value}</option>)}</select></label><label><span>Frame history</span><select aria-label="Profiler frame capacity" value={frameCapacity} disabled={profile.enabled} onChange={(event) => setFrameCapacity(event.target.value)}>{[16, 32, 64, 128, 256, 512, 1024].map((value) => <option key={value}>{value}</option>)}</select></label><label className="profiler-check"><input type="checkbox" checked={captureBus} disabled={profile.enabled} onChange={(event) => setCaptureBus(event.target.checked)} /><span>Capture all bus traffic</span></label><button type="button" onClick={profile.enabled ? () => onMachineCommand({ type: 'profiler-config', enabled: false }) : start}>{profile.enabled ? 'Stop profiler' : 'Start profiler'}</button><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => onMachineCommand({ type: 'profiler-clear' })}>Clear</button>{error && <div role="alert" className="profiler-error">{error}</div>}</div>
-    <aside className={`profiler-status ${profile.enabled ? 'active' : ''}`}><strong>{profile.enabled ? 'Profiling live execution' : 'Fast path active'}</strong><span>{profile.overhead}</span><p>{profile.source}.</p><dl><div><dt>Instructions</dt><dd>{profile.instructions.toLocaleString()}</dd></div><div><dt>Exact cycles</dt><dd>{profile.cycles.toLocaleString()}</dd></div><div><dt>Average CPI</dt><dd>{profile.instructions ? (profile.cycles / profile.instructions).toFixed(2) : '—'}</dd></div><div><dt>Addresses</dt><dd>{profile.uniqueAddresses.toLocaleString()} / {profile.config.maxAddresses.toLocaleString()}</dd></div><div><dt>Untracked</dt><dd>{profile.untrackedInstructions.toLocaleString()}</dd></div></dl><small>Build {profile.buildFingerprint}</small><div><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => setBaseline(structuredClone(profile))}>Set baseline</button><button type="button" disabled={!baseline} onClick={() => setBaseline(null)}>Clear baseline</button></div>{baseline && <small className="profiler-baseline">Compared with {baseline.buildFingerprint} · cycle Δ {(profile.cycles - baseline.cycles).toLocaleString()}</small>}<div><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => exportProfile('json')}>Export JSON</button><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => exportProfile('text')}>Export text</button></div></aside>
-    <div className="profiler-results"><div className="profiler-filter"><label><span>Hotspot filter</span><input aria-label="Profiler hotspot filter" value={filter} placeholder="address, symbol, or source" onChange={(event) => setFilter(event.target.value)} /></label><span>Cycles rank · {visibleRows.length} shown</span></div><div className="profiler-table" role="table" aria-label="Instruction cycle hot spots"><div className="profiler-head" role="row"><span>PC / symbol</span><span>Source</span><span>Instructions</span><span>Cycles / share</span><span>Avg · range</span><span>Δ cycles</span></div>{visibleRows.map((row) => { const base = baselineRows.get(row.address); const delta = row.cycles - (base?.cycles ?? 0); return <div className="profiler-row" role="row" key={row.address}><strong role="cell"><button type="button" onClick={() => onMachineCommand({ type: 'read-disassembly', address: row.address, instructionCount: 24, requestId: `profile-${row.address}-${Date.now()}` })}>{formatAddress(row.address)}</button>{row.symbol && <small>{row.symbol}</small>}</strong><span role="cell">{row.source ? `${row.source.fileName}:${row.source.line}` : 'runtime / ROM'}</span><code role="cell">{row.instructions.toLocaleString()}</code><span role="cell"><b>{row.cycles.toLocaleString()}</b><i style={{ width: `${profile.cycles ? Math.max(1, row.cycles / profile.cycles * 100) : 0}%` }} />{profile.cycles ? (row.cycles / profile.cycles * 100).toFixed(1) : '0.0'}%</span><code role="cell">{(row.cycles / row.instructions).toFixed(2)} · {row.minCycles}–{row.maxCycles}</code><code role="cell" className={delta > 0 ? 'worse' : delta < 0 ? 'better' : ''}>{baseline ? `${delta >= 0 ? '+' : ''}${delta.toLocaleString()}` : '—'}</code></div>})}{!visibleRows.length && <div className="honest-empty">Start profiling, run real code, then pause and stop capture to inspect complete hot spots.</div>}</div></div>
+    <aside className={`profiler-status ${profile.enabled ? 'active' : ''}`}><strong>{profile.enabled ? 'Profiling live execution' : 'Fast path active'}</strong><span>{profile.overhead}</span><p>{profile.source}.</p><dl><div><dt>Instructions</dt><dd>{profile.instructions.toLocaleString()}</dd></div><div><dt>Exact cycles</dt><dd>{profile.cycles.toLocaleString()}</dd></div><div><dt>Average CPI</dt><dd>{profile.instructions ? (profile.cycles / profile.instructions).toFixed(2) : '-'}</dd></div><div><dt>Addresses</dt><dd>{profile.uniqueAddresses.toLocaleString()} / {profile.config.maxAddresses.toLocaleString()}</dd></div><div><dt>Untracked</dt><dd>{profile.untrackedInstructions.toLocaleString()}</dd></div></dl><small>Build {profile.buildFingerprint}</small><div><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => setBaseline(structuredClone(profile))}>Set baseline</button><button type="button" disabled={!baseline} onClick={() => setBaseline(null)}>Clear baseline</button></div>{baseline && <small className="profiler-baseline">Compared with {baseline.buildFingerprint} · cycle Δ {(profile.cycles - baseline.cycles).toLocaleString()}</small>}<div><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => exportProfile('json')}>Export JSON</button><button type="button" disabled={profile.enabled || !profile.instructions} onClick={() => exportProfile('text')}>Export text</button></div></aside>
+    <div className="profiler-results"><div className="profiler-filter"><label><span>Hotspot filter</span><input aria-label="Profiler hotspot filter" value={filter} placeholder="address, symbol, or source" onChange={(event) => setFilter(event.target.value)} /></label><span>Cycles rank · {visibleRows.length} shown</span></div><div className="profiler-table" role="table" aria-label="Instruction cycle hot spots"><div className="profiler-head" role="row"><span>PC / symbol</span><span>Source</span><span>Instructions</span><span>Cycles / share</span><span>Avg · range</span><span>Δ cycles</span></div>{visibleRows.map((row) => { const base = baselineRows.get(row.address); const delta = row.cycles - (base?.cycles ?? 0); return <div className="profiler-row" role="row" key={row.address}><strong role="cell"><button type="button" onClick={() => onMachineCommand({ type: 'read-disassembly', address: row.address, instructionCount: 24, requestId: `profile-${row.address}-${Date.now()}` })}>{formatAddress(row.address)}</button>{row.symbol && <small>{row.symbol}</small>}</strong><span role="cell">{row.source ? `${row.source.fileName}:${row.source.line}` : 'runtime / ROM'}</span><code role="cell">{row.instructions.toLocaleString()}</code><span role="cell"><b>{row.cycles.toLocaleString()}</b><i style={{ width: `${profile.cycles ? Math.max(1, row.cycles / profile.cycles * 100) : 0}%` }} />{profile.cycles ? (row.cycles / profile.cycles * 100).toFixed(1) : '0.0'}%</span><code role="cell">{(row.cycles / row.instructions).toFixed(2)} · {row.minCycles}-{row.maxCycles}</code><code role="cell" className={delta > 0 ? 'worse' : delta < 0 ? 'better' : ''}>{baseline ? `${delta >= 0 ? '+' : ''}${delta.toLocaleString()}` : '-'}</code></div>})}{!visibleRows.length && <div className="honest-empty">Start profiling, run real code, then pause and stop capture to inspect complete hot spots.</div>}</div></div>
     <div className="profiler-detail"><section><h4>Opcode-proven JSR calls</h4>{profile.calls.length ? profile.calls.slice(0, 80).map((call) => <button type="button" key={call.target} onClick={() => onMachineCommand({ type: 'read-disassembly', address: call.target, instructionCount: 24, requestId: `profile-call-${call.target}-${Date.now()}` })}><strong>{call.symbol ?? formatAddress(call.target)}</strong><span>{call.count.toLocaleString()} calls</span></button>) : <div className="honest-empty">No executed JSR call sites.</div>}</section><section><h4>Frame-time timeline</h4>{profile.frames.length ? profile.frames.slice(-80).map((frame) => <div className="profiler-frame" key={frame.frame}><code>F{frame.frame}</code><i style={{ width: `${frame.cycles / maximumFrameCycles * 100}%` }} /><span>{frame.cycles.toLocaleString()}c · {frame.instructions.toLocaleString()}i</span></div>) : <div className="honest-empty">No completed video frame captured.</div>}</section><section><h4>Mapped bus events</h4><p>Reads include instruction and operand fetches.</p>{profile.bus.length ? profile.bus.map((entry) => <div className="profiler-bus" key={entry.region}><strong>{entry.region}</strong><span>{entry.reads.toLocaleString()} R · {entry.writes.toLocaleString()} W</span></div>) : <div className="honest-empty">Enable bus capture for genuine mapped read/write events.</div>}<small>Total {profile.busReads.toLocaleString()} reads · {profile.busWrites.toLocaleString()} writes</small></section></div>
   </div>;
 }
@@ -5935,7 +6137,7 @@ function HardwareRegisterEditor({ state, onMachineCommand }: { state: MachineBri
     for (const name of editableRegisters) {
       const value = parseHexAddress(values[name]);
       const maximum = name === 'pc' ? 0xffff : 0xff;
-      if (value === null || value > maximum) { setError(`${name.toUpperCase()} must be ${name === 'pc' ? '&0000–&FFFF' : '&00–&FF'}`); return; }
+      if (value === null || value > maximum) { setError(`${name.toUpperCase()} must be ${name === 'pc' ? '&0000-&FFFF' : '&00-&FF'}`); return; }
       registers[name] = value;
     }
     setError('');
@@ -6086,7 +6288,7 @@ function ArchimedesDebuggerWorkspace({ connected, state, memory, artifact, sourc
 
   const disassembly = useMemo(() => memory ? disassembleArm(new Uint8Array(memory.bytes), memory.address, state?.pc ?? memory.address, 'arm2') : null, [memory, state?.pc]);
   const status = state ? decodeArm26Status(state.status) : null;
-  const flags = status ? status.flags.map((flag) => `${flag.name}${flag.set ? 1 : 0}`).join(' ') : '—';
+  const flags = status ? status.flags.map((flag) => `${flag.name}${flag.set ? 1 : 0}`).join(' ') : '-';
   const installBreakpointSpecs = (specs: Array<Record<string, unknown>>) => {
     onMachineCommand({ type: 'set-breakpoints', breakpoints: specs });
     setMessage(`${specs.length} ARM breakpoint${specs.length === 1 ? '' : 's'} installed in the live core.`);
@@ -6172,7 +6374,7 @@ function ArchimedesDebuggerWorkspace({ connected, state, memory, artifact, sourc
     {state && <DebugProtocolPanel protocol={state.protocol} />}
     {state && <ArmVariablesPanel artifact={artifact} state={state} memory={memory} onMachineCommand={onMachineCommand} />}
     {state && <RuntimePerformancePanel state={state.performance} />}
-    <div className="arch-debug-toolbar"><button type="button" disabled={!state} onClick={() => onMachineCommand({ type: 'run' })}><Icon name="play" size={14} /> Continue</button><button type="button" disabled={!state || !state.running} title={!state ? 'The ARM adapter is not connected' : !state.running ? 'The ARM core is already paused' : 'Pause at the next instruction boundary'} onClick={() => onMachineCommand({ type: 'pause' })}><Icon name="pause" size={14} /> Pause</button><button type="button" disabled={!state || state.running} title={state?.running ? 'Pause before stepping one instruction' : 'Execute one genuine ARM instruction'} onClick={() => onMachineCommand({ type: 'step' })}><Icon name="debug" size={14} /> Step ARM instruction</button><button type="button" disabled={!state || state.running} title={state?.running ? 'Pause before stepping over a call' : 'Run through a BL call, or step one non-call instruction'} onClick={stepOver}>Step over ARM call</button><button type="button" disabled={!state || state.running || !currentSource} title={!currentSource ? 'The current address has no retained source mapping' : 'Run to a different mapped source line'} onClick={() => sourceStep('in')}>Step source into</button><button type="button" disabled={!state || state.running || !currentSource} title={!currentSource ? 'The current address has no retained source mapping' : 'Step over the current mapped source statement'} onClick={() => sourceStep('over')}>Step source over</button><button type="button" disabled={!state || state.running} title={state?.running ? 'Pause before stepping out' : 'Run to the aligned 26-bit return address held in R14'} onClick={runToLinkRegister}>Step source out to R14</button><button type="button" disabled={!state} title="Reset the same bound A310 and accelerate 5,000 ms of genuine emulation" onClick={() => onMachineCommand({ type: 'reset', fastBootMs: 5000 })}><Icon name="reset" size={14} /> Restart + fast boot</button>{currentSource && <button type="button" onClick={() => onNavigateSource(currentSource.fileId, currentSource.line)}><Icon name="code" size={14} /> {currentSource.fileName}:{currentSource.line}</button>}</div>
+    <div className="arch-debug-toolbar" role="group" aria-label="ARM debugger tools"><button type="button" disabled={!state} onClick={() => onMachineCommand({ type: 'run' })}><Icon name="play" size={14} /> Continue</button><button type="button" disabled={!state || !state.running} title={!state ? 'The ARM adapter is not connected' : !state.running ? 'The ARM core is already paused' : 'Pause at the next instruction boundary'} onClick={() => onMachineCommand({ type: 'pause' })}><Icon name="pause" size={14} /> Pause</button><button type="button" disabled={!state || state.running} title={state?.running ? 'Pause before stepping one instruction' : 'Execute one genuine ARM instruction'} onClick={() => onMachineCommand({ type: 'step' })}><Icon name="debug" size={14} /> Step ARM instruction</button><button type="button" disabled={!state || state.running} title={state?.running ? 'Pause before stepping over a call' : 'Run through a BL call, or step one non-call instruction'} onClick={stepOver}>Step over ARM call</button><button type="button" disabled={!state || state.running || !currentSource} title={!currentSource ? 'The current address has no retained source mapping' : 'Run to a different mapped source line'} onClick={() => sourceStep('in')}>Step source into</button><button type="button" disabled={!state || state.running || !currentSource} title={!currentSource ? 'The current address has no retained source mapping' : 'Step over the current mapped source statement'} onClick={() => sourceStep('over')}>Step source over</button><button type="button" disabled={!state || state.running} title={state?.running ? 'Pause before stepping out' : 'Run to the aligned 26-bit return address held in R14'} onClick={runToLinkRegister}>Step source out to R14</button><button type="button" disabled={!state} title="Reset the same bound A310 and accelerate 5,000 ms of genuine emulation" onClick={() => onMachineCommand({ type: 'reset', fastBootMs: 5000 })}><Icon name="reset" size={14} /> Restart + fast boot</button>{currentSource && <button type="button" onClick={() => onNavigateSource(currentSource.fileId, currentSource.line)}><Icon name="code" size={14} /> {currentSource.fileName}:{currentSource.line}</button>}</div>
     {!state ? <div className="honest-empty runtime-empty">{connected ? 'The isolated A310 core is starting. Live registers will appear after its first instruction snapshot.' : 'Import the selected physical ROM lanes and CMOS in Settings to attach the real ARM2 core.'}</div> : <div className="arch-debug-grid">
       <section className="arch-registers"><div className="panel-heading"><strong>Registers</strong><small>{flags} · {status?.modeName ?? 'unknown'} mode</small></div><div className="arch-register-scroll"><div className="arch-register-grid">{state.registers.map((value, index) => <div key={index} className={index === 15 ? 'program-counter' : ''}><span>{index === 13 ? 'SP/R13' : index === 14 ? 'LR/R14' : index === 15 ? 'R15 execute address' : `R${index}`}</span><strong>{formatAddress(index === 15 ? state.pc : value, 8)}</strong></div>)}</div>{status && <section className="arm26-status" aria-label="ARM2 26-bit program status"><div className="arm-state-heading"><strong>26-bit R15 / PSR</strong><code>{formatAddress(status.raw, 8)}</code><span>{status.modeName} mode · address {formatAddress(status.pc, 8)}</span></div><div className="arm-flag-grid">{status.flags.map((flag) => <div className={flag.set ? 'set' : ''} key={flag.name}><strong>{flag.name}</strong><span>{flag.set ? '1' : '0'}</span><small>{flag.detail}</small></div>)}</div></section>}<section className="arm-pipeline" aria-label="ARM2 instruction pipeline"><div className="arm-state-heading"><strong>Pipeline</strong><span>Core latches are distinct from the next-fetch preview</span></div>{state.pipeline.map((stage, index) => { const decoded = decodeArmWord(stage.word, stage.address, 'arm2'); return <div className={index === 0 ? 'execute' : ''} key={`${stage.address}-${index}`}><strong>{armPipelineStageName(index)}</strong><code>{formatAddress(stage.address, 8)}</code><code>{formatAddress(stage.word, 8)}</code><span>{decoded.mnemonic} {decoded.operand}</span><small>{stage.source}</small></div>; })}</section><section className="arm-banked-registers" aria-label="ARM2 banked registers"><div className="arm-state-heading"><strong>Banked registers</strong><span>Read directly from Arculator's selected register banks</span></div><div role="table" aria-label="ARM2 banked register values"><div role="row" className="arm-bank-head"><span>Mode</span>{Array.from({ length: 7 }, (_, offset) => <span key={offset}>R{offset + 8}</span>)}</div>{state.bankedRegisters.map((bank) => <div role="row" className={bank.mode === state.mode ? 'current' : ''} key={bank.mode}><strong role="cell">{bank.name}</strong>{bank.registers.map((value, offset) => <code role="cell" title={`${bank.name} R${offset + 8} ${formatAddress(value, 8)}`} key={offset}>{formatAddress(value, 8)}</code>)}</div>)}</div></section><dl className="arch-runtime-facts"><div><dt>Core RAM</dt><dd>{state.memoryKiB.toLocaleString()} KiB</dd></div><div><dt>Emulated time</dt><dd>{state.emulationMs.toLocaleString()} ms</dd></div><div><dt>ARM hooks</dt><dd>{state.hookCount.toLocaleString()}</dd></div><div><dt>Breakpoint hit</dt><dd>{state.breakAddress === null ? 'none' : formatAddress(state.breakAddress, 8)}</dd></div></dl></div></section>
       <section className="arch-disassembly"><div className="panel-heading"><strong>Instruction spy</strong><small>{memory ? `${formatAddress(memory.address, 8)} · ${memory.bytes.length} live bytes` : 'no memory sample'}</small></div>{disassembly ? <div className="arch-disassembly-rows">{disassembly.rows.filter((row) => row.kind === 'instruction').map((row) => { const source = artifact?.sourceLocations[row.address]; return <button type="button" key={row.address} className={row.address === state.pc ? 'current' : ''} onDoubleClick={() => applyBreakpoints([row.address])} onClick={() => source && onNavigateSource(source.fileId, source.line)}><span>{formatAddress(row.address, 8)}</span><code>{row.bytes.map(formatByte).join(' ')}</code><strong>{row.mnemonic} {row.operand}</strong><small>{source ? `${source.fileName}:${source.line}` : row.comment ?? ''}</small></button>; })}</div> : <div className="honest-empty">Pause the machine or request memory to populate the live ARM disassembly.</div>}</section>
@@ -6238,7 +6440,7 @@ function ArchimedesMemoryInspector({ memory, state, artifact, persistedBreakpoin
     if (addressOverride !== undefined) setAddressText(formatAddress(address, 8));
     setSelectedAddress(undefined);
     setMatches([]);
-    setMessage(`Reading ${length.toLocaleString()} logical bytes from ${formatAddress(address, 8)}…`);
+    setMessage(`Reading ${length.toLocaleString()} logical bytes from ${formatAddress(address, 8)}...`);
     onMachineCommand({ type: 'read-memory', requestId: `arm-memory-${crypto.randomUUID()}`, address, length });
   };
   const movePage = (direction: -1 | 1) => {
@@ -6298,11 +6500,11 @@ function ArmMemoryMapPanel({ onMachineCommand }: { onMachineCommand: (message: R
     };
     window.addEventListener('message', receive); return () => window.removeEventListener('message', receive);
   }, []);
-  const refresh = () => { requestId.current = `arm-map-${crypto.randomUUID()}`; onMachineCommand({ type: 'read-memory-map', requestId: requestId.current }); setProvenance('Sampling the live MEMC page table…'); };
+  const refresh = () => { requestId.current = `arm-map-${crypto.randomUUID()}`; onMachineCommand({ type: 'read-memory-map', requestId: requestId.current }); setProvenance('Sampling the live MEMC page table...'); };
   const mapped = regions.filter((region) => region.kind !== 'unmapped');
   const filtered = mapped.filter((region) => (kindFilter === 'all' || region.kind === kindFilter) && (!query.trim() || `${formatAddress(region.logicalStart, 8)} ${formatAddress(region.logicalEnd, 8)} ${region.physicalStart === null ? '' : formatAddress(region.physicalStart, 8)}`.includes(query.trim().toUpperCase())));
   const pageCount = Math.max(1, Math.ceil(filtered.length / 100)); const visiblePage = Math.min(page, pageCount); const shown = filtered.slice((visiblePage - 1) * 100, visiblePage * 100);
-  return <section className="arm-memory-map" aria-label="ARM logical to physical memory map"><div><strong>Live MEMC map</strong><span>{mapped.length} mapped region{mapped.length === 1 ? '' : 's'}</span><button type="button" onClick={refresh}>Refresh map</button></div><p aria-live="polite">{provenance}</p>{regions.length ? <><div className="arm-memory-map-strip" aria-hidden="true">{regions.map((region) => <i className={`map-${region.kind}`} style={{ width: `${region.pages / 16384 * 100}%` }} key={region.logicalStart} />)}</div><div className="arm-memory-map-filters"><label><span>Backing</span><select aria-label="ARM memory map backing filter" value={kindFilter} onChange={(event) => { setKindFilter(event.target.value); setPage(1); }}><option value="all">All mapped</option><option value="ram">RAM</option><option value="rom">Main ROM</option><option value="support-rom">Support ROM</option><option value="extension-rom">Extension ROM</option><option value="other">Other</option></select></label><label><span>Address contains</span><input type="search" aria-label="Search ARM memory map" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="&00008000" /></label><span>{filtered.length.toLocaleString()} matches</span></div><div className="arm-memory-map-table" role="table" aria-label="Live ARM MEMC mapped regions">{shown.map((region) => <div role="row" key={region.logicalStart}><strong role="cell">{region.kind}</strong><code role="cell">{formatAddress(region.logicalStart, 8)}–{formatAddress(region.logicalEnd, 8)}</code><span role="cell">{region.physicalStart === null ? 'backing not classified' : `physical ${formatAddress(region.physicalStart, 8)}`}</span><small role="cell">{region.pages.toLocaleString()} × 4 KiB</small></div>)}</div><nav className="arm-memory-map-pages" aria-label="ARM memory map pages"><button type="button" disabled={visiblePage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button><span>Page {visiblePage} of {pageCount} · showing {shown.length}</span><button type="button" disabled={visiblePage === pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Next</button></nav></> : <div className="honest-empty">Refresh to classify all 16,384 live logical pages from Arculator's current mapping pointers.</div>}</section>;
+  return <section className="arm-memory-map" aria-label="ARM logical to physical memory map"><div><strong>Live MEMC map</strong><span>{mapped.length} mapped region{mapped.length === 1 ? '' : 's'}</span><button type="button" onClick={refresh}>Refresh map</button></div><p aria-live="polite">{provenance}</p>{regions.length ? <><div className="arm-memory-map-strip" aria-hidden="true">{regions.map((region) => <i className={`map-${region.kind}`} style={{ width: `${region.pages / 16384 * 100}%` }} key={region.logicalStart} />)}</div><div className="arm-memory-map-filters"><label><span>Backing</span><select aria-label="ARM memory map backing filter" value={kindFilter} onChange={(event) => { setKindFilter(event.target.value); setPage(1); }}><option value="all">All mapped</option><option value="ram">RAM</option><option value="rom">Main ROM</option><option value="support-rom">Support ROM</option><option value="extension-rom">Extension ROM</option><option value="other">Other</option></select></label><label><span>Address contains</span><input type="search" aria-label="Search ARM memory map" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="&00008000" /></label><span>{filtered.length.toLocaleString()} matches</span></div><div className="arm-memory-map-table" role="table" aria-label="Live ARM MEMC mapped regions">{shown.map((region) => <div role="row" key={region.logicalStart}><strong role="cell">{region.kind}</strong><code role="cell">{formatAddress(region.logicalStart, 8)}-{formatAddress(region.logicalEnd, 8)}</code><span role="cell">{region.physicalStart === null ? 'backing not classified' : `physical ${formatAddress(region.physicalStart, 8)}`}</span><small role="cell">{region.pages.toLocaleString()} × 4 KiB</small></div>)}</div><nav className="arm-memory-map-pages" aria-label="ARM memory map pages"><button type="button" disabled={visiblePage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button><span>Page {visiblePage} of {pageCount} · showing {shown.length}</span><button type="button" disabled={visiblePage === pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Next</button></nav></> : <div className="honest-empty">Refresh to classify all 16,384 live logical pages from Arculator's current mapping pointers.</div>}</section>;
 }
 
 function ArchimedesMemoryEditor({ state, artifact, onMachineCommand }: { state: ArchimedesBridgeSnapshot; artifact: ArmArtifact | null; onMachineCommand: (message: Record<string, unknown>) => void }) {
@@ -6348,7 +6550,7 @@ function ArchimedesRegisterEditor({ state, onMachineCommand }: { state: Archimed
       setPending(undefined);
     }
   }, [state.emulationMs, state.pc, state.registers, pending, register]);
-  return <div className="arm-register-editor" aria-label="ARM register editor"><strong>Paused register edit</strong><div><label><span>Register</span><select aria-label="ARM register to edit" value={registerText} onChange={(event) => { const next = Number(event.target.value); setRegisterText(event.target.value); setValueText(formatAddress(next === 15 ? state.pc : state.registers[next] ?? 0, 8)); }}>{Array.from({ length: 16 }, (_, index) => <option value={index} key={index}>{index === 15 ? 'PC / R15 execute address' : index === 14 ? 'R14 / LR' : index === 13 ? 'R13 / SP' : `R${index}`}</option>)}</select></label><label><span>Unsigned value</span><input aria-label="ARM register edit value" value={valueText} onChange={(event) => setValueText(event.target.value)} /></label><button type="button" disabled={state.running} onClick={apply}>Write &amp; verify</button><button type="button" onClick={() => setValueText(formatAddress(liveValue, 8))}>Use live</button></div><p aria-live="polite">{message}</p><small>R0–R14 accept 32-bit values. PC accepts an aligned 26-bit execute address and preserves flags, interrupt masks and mode while refilling the pipeline.</small></div>;
+  return <div className="arm-register-editor" aria-label="ARM register editor"><strong>Paused register edit</strong><div><label><span>Register</span><select aria-label="ARM register to edit" value={registerText} onChange={(event) => { const next = Number(event.target.value); setRegisterText(event.target.value); setValueText(formatAddress(next === 15 ? state.pc : state.registers[next] ?? 0, 8)); }}>{Array.from({ length: 16 }, (_, index) => <option value={index} key={index}>{index === 15 ? 'PC / R15 execute address' : index === 14 ? 'R14 / LR' : index === 13 ? 'R13 / SP' : `R${index}`}</option>)}</select></label><label><span>Unsigned value</span><input aria-label="ARM register edit value" value={valueText} onChange={(event) => setValueText(event.target.value)} /></label><button type="button" disabled={state.running} onClick={apply}>Write &amp; verify</button><button type="button" onClick={() => setValueText(formatAddress(liveValue, 8))}>Use live</button></div><p aria-live="polite">{message}</p><small>R0-R14 accept 32-bit values. PC accepts an aligned 26-bit execute address and preserves flags, interrupt masks and mode while refilling the pipeline.</small></div>;
 }
 
 function ArmLogpointPanel({ state, artifact, persistedBreakpoints, onPersistBreakpoints, onMachineCommand }: { state: ArchimedesBridgeSnapshot; artifact: ArmArtifact | null; persistedBreakpoints: PersistedArmBreakpointIntent[]; onPersistBreakpoints: (intents: PersistedArmBreakpointIntent[]) => void; onMachineCommand: (message: Record<string, unknown>) => void }) {
@@ -6379,9 +6581,9 @@ function ArmLogpointPanel({ state, artifact, persistedBreakpoints, onPersistBrea
   };
   return <section className="arm-logpoint-panel" aria-label="ARM logpoint editor">
     <div className="arm-logpoint-heading"><strong>ARM logpoints</strong><span>{state.logEvents.length} / 64 retained · {state.logEventsDropped} overwritten</span><button type="button" disabled={!state.logEvents.length} onClick={() => onMachineCommand({ type: 'clear-log-events' })}>Clear events</button></div>
-    <div className="arm-logpoint-controls"><label><span>Address / symbol</span><input aria-label="ARM logpoint address" value={addressText} onChange={(event) => setAddressText(event.target.value)} /></label><label><span>Action</span><select aria-label="ARM logpoint action" value={action} onChange={(event) => setAction(event.target.value as typeof action)}><option value="log">Log only</option><option value="pause-log">Pause and log</option></select></label><label><span>Register</span><select aria-label="ARM logpoint condition register" value={registerText} onChange={(event) => setRegisterText(event.target.value)}><option value="">Always</option>{Array.from({ length: 15 }, (_, register) => <option value={register} key={register}>R{register}</option>)}<option value="15">PC</option></select></label><label><span>Compare</span><select aria-label="ARM logpoint condition operator" disabled={!registerText} value={operator} onChange={(event) => setOperator(event.target.value as ArmBreakpointOperator)}><option value="eq">equals</option><option value="ne">not equal</option><option value="lt">less than</option><option value="lte">at most</option><option value="gt">greater than</option><option value="gte">at least</option></select></label><label><span>Value</span><input aria-label="ARM logpoint condition value" disabled={!registerText} value={valueText} onChange={(event) => setValueText(event.target.value)} /></label><label><span>Hit ≥</span><input aria-label="ARM logpoint hit target" type="number" min="1" max="1000000" value={hitTargetText} onChange={(event) => setHitTargetText(event.target.value)} /></label><label className="arm-logpoint-template"><span>Message · {'{pc} {r0}…{r14} {hits}'}</span><input aria-label="ARM logpoint message" maxLength={160} value={template} onChange={(event) => setTemplate(event.target.value)} /></label><button type="button" onClick={install}>Install logpoint</button></div>
+    <div className="arm-logpoint-controls"><label><span>Address / symbol</span><input aria-label="ARM logpoint address" value={addressText} onChange={(event) => setAddressText(event.target.value)} /></label><label><span>Action</span><select aria-label="ARM logpoint action" value={action} onChange={(event) => setAction(event.target.value as typeof action)}><option value="log">Log only</option><option value="pause-log">Pause and log</option></select></label><label><span>Register</span><select aria-label="ARM logpoint condition register" value={registerText} onChange={(event) => setRegisterText(event.target.value)}><option value="">Always</option>{Array.from({ length: 15 }, (_, register) => <option value={register} key={register}>R{register}</option>)}<option value="15">PC</option></select></label><label><span>Compare</span><select aria-label="ARM logpoint condition operator" disabled={!registerText} value={operator} onChange={(event) => setOperator(event.target.value as ArmBreakpointOperator)}><option value="eq">equals</option><option value="ne">not equal</option><option value="lt">less than</option><option value="lte">at most</option><option value="gt">greater than</option><option value="gte">at least</option></select></label><label><span>Value</span><input aria-label="ARM logpoint condition value" disabled={!registerText} value={valueText} onChange={(event) => setValueText(event.target.value)} /></label><label><span>Hit ≥</span><input aria-label="ARM logpoint hit target" type="number" min="1" max="1000000" value={hitTargetText} onChange={(event) => setHitTargetText(event.target.value)} /></label><label className="arm-logpoint-template"><span>Message · {'{pc} {r0}...{r14} {hits}'}</span><input aria-label="ARM logpoint message" maxLength={160} value={template} onChange={(event) => setTemplate(event.target.value)} /></label><button type="button" onClick={install}>Install logpoint</button></div>
     <p aria-live="polite">{message}</p>
-    <div className="arm-logpoint-events" role="log" aria-label="ARM logpoint event history">{state.logEvents.length ? state.logEvents.slice().reverse().map((event) => <div key={event.sequence}><code>#{event.sequence}</code><strong>{formatAddress(event.address, 8)}</strong><span>{renderArmLogpointMessage(event.logMessage, event)}</span><small>match {event.hits.toLocaleString()} · captured R0–R14 and execute-PC</small></div>) : <div className="honest-empty">No ARM logpoint has matched in this loaded debug session.</div>}</div>
+    <div className="arm-logpoint-events" role="log" aria-label="ARM logpoint event history">{state.logEvents.length ? state.logEvents.slice().reverse().map((event) => <div key={event.sequence}><code>#{event.sequence}</code><strong>{formatAddress(event.address, 8)}</strong><span>{renderArmLogpointMessage(event.logMessage, event)}</span><small>match {event.hits.toLocaleString()} · captured R0-R14 and execute-PC</small></div>) : <div className="honest-empty">No ARM logpoint has matched in this loaded debug session.</div>}</div>
   </section>;
 }
 
@@ -6681,8 +6883,8 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
    *
    * There are two of those cores and the ROM set chooses. Both speak the same
    * envelope and report the same state, so everything below treats them
-   * together; where they differ — the page, the channel and what each can be
-   * asked to do — is decided by this one flag. */
+   * together; where they differ (the page, the channel and what each can be
+   * asked to do) is decided by this one flag. */
   const electronRoute = electronRuntimeRoute(engineId);
   const electronMachine = isElectronEngine(engineId);
   const elkulatorMachine = engineId === 'elkulator';
@@ -6712,7 +6914,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
        * A sideways ROM has nowhere to go in this build.
        *
        * The core opens its firmware into named sockets and refuses a name it
-       * does not have — rightly, because a ROM it wrote and never read would be
+       * does not have. Rightly, because a ROM it wrote and never read would be
        * a lie. This build drives no sideways banks on the Electron, so handing
        * it one does not fit an expansion, it refuses the whole machine: with
        * MMFS supplied and a Plus 1 fitted, the runtime answered "emmfs is not a
@@ -6839,6 +7041,36 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
             acceptedCommands: Number(event.data.acceptedCommands ?? 0),
           });
           setMachineError(undefined);
+        }
+        /*
+         * The Elkulator bridge says "media" with an action; jsbeeb and the
+         * A310 say "media-loaded". Only the second was listened for, so a disc
+         * this machine really had mounted was never recorded: the command went
+         * out, the core accepted it and answered, and the workbench went on
+         * showing "No media is mounted in this session". Two vocabularies for
+         * one event, and the workbench spoke one of them.
+         */
+        if (event.data.type === 'media') {
+          const action = String(event.data.action ?? '');
+          if (action === 'load-disc') {
+            const media: MachineMedia = { kind: 'disc', name: String(event.data.name), size: Number(event.data.size), drive: Number(event.data.drive), dirty: false, revision: 0 };
+            onMachineMedia((current) => [...current.filter((item) => !(item.kind === 'disc' && item.drive === media.drive)), media]);
+            onNotice(`${media.name} mounted in Electron drive ${media.drive} · ${String(event.data.source ?? 'the core acknowledged it')}`);
+          }
+          if (action === 'load-tape') {
+            const media: MachineMedia = { kind: 'tape', name: String(event.data.name), size: Number(event.data.size), format: String(event.data.format) };
+            onMachineMedia((current) => [...current.filter((item) => item.kind !== 'tape'), media]);
+            onNotice(`${media.name} mounted in the Electron cassette · ${String(event.data.source ?? 'the core acknowledged it')}`);
+          }
+          if (action === 'eject-disc') {
+            const drive = Number(event.data.drive);
+            onMachineMedia((current) => current.filter((item) => !(item.kind === 'disc' && item.drive === drive)));
+            onNotice(`Electron drive ${drive} emptied`);
+          }
+          if (action === 'eject-tape') {
+            onMachineMedia((current) => current.filter((item) => item.kind !== 'tape'));
+            onNotice('Electron cassette ejected');
+          }
         }
         if (event.data.type === 'memory') onMachineMemory({ address: Number(event.data.address), bytes: event.data.bytes as number[], requestId: String(event.data.requestId), addressSpace: 'mapped', addressSpaceLabel: 'Electron mapped CPU view', capturedAtCycles: 0 });
         if (event.data.type === 'program-loaded') { setMachineProgram(`${String(event.data.format)} · ${Number(event.data.size).toLocaleString()} bytes at ${formatAddress(Number(event.data.address))}`); if (event.data.programManifest) setProgramManifest(event.data.programManifest as ProgramLoadManifest); onNotice(`Program loaded into live Electron RAM at ${formatAddress(Number(event.data.address))} · ElkJS acknowledged`); }
@@ -7085,7 +7317,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           event.target.value = "";
         }}
       />
-      <div className="emulator-toolbar">
+      <div className="emulator-toolbar" role="group" aria-label="Emulator controls">
         <div className="emulator-title">
           <span className={`emulator-led ${poweredMachine ? "live" : ""}`} />
           <strong>{machine}</strong>
@@ -7295,7 +7527,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
             className="icon-button"
             type="button"
             /* Always Pause, because it always shows a pause icon. It used to
-             * be called "Step instruction" when no machine was attached — a
+             * be called "Step instruction" when no machine was attached, a
              * pause icon that stepped, sharing its name with the step control
              * beside it, so two adjacent buttons announced themselves
              * identically and did the same thing. Stepping has its own control;
@@ -7625,420 +7857,6 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           </div>
         </details>
       )}
-      {!collapsed && inputControlsOpen && poweredMachine && (
-        <section
-          id="machine-input-controls"
-          className="machine-input-controls"
-          aria-label="Machine keyboard and input controls"
-        >
-          <header>
-            <div>
-              <strong>Machine input</strong>
-              <span>
-                {inputCaptured
-                  ? "Keyboard focus is captured by the emulator"
-                  : "IDE shortcuts remain active until input is captured"}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                sendMachine({
-                  type: inputCaptured ? "release-input" : "focus-input",
-                })
-              }
-            >
-              {inputCaptured ? "Release input" : "Capture input"}
-            </button>
-            <button
-              type="button"
-              aria-label="Close machine input controls"
-              onClick={() => setInputControlsOpen(false)}
-            >
-              <Icon name="close" size={14} />
-            </button>
-          </header>
-          <div className="machine-input-grid">
-            <section aria-label="On-screen Acorn keyboard">
-              <h3>Acorn keyboard</h3>
-              <p>
-                {fullArchimedesMachine
-                  ? "The A310 canvas accepts the host keyboard and reviewed text. On-screen key taps await a verified SDL mapping."
-                  : "Keys below use jsbeeb host-key identities and operate the live keyboard matrix."}
-              </p>
-              <div
-                className="acorn-keyboard"
-                aria-label="Accessible on-screen Acorn keyboard"
-              >
-                {ACORN_KEY_ROWS.map((row, rowIndex) => (
-                  <div key={rowIndex}>
-                    {row.map((key) => (
-                      <button
-                        type="button"
-                        key={`${key.label}-${key.code}`}
-                        disabled={fullArchimedesMachine}
-                        aria-label={`Press Acorn ${key.label} key`}
-                        onClick={() =>
-                          sendMachine({ type: "tap-key", code: key.code })
-                        }
-                      >
-                        {key.label}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section
-              className="machine-input-policy"
-              aria-label="Keyboard mapping and pasted text policy"
-            >
-              <h3>Mapping and text queue</h3>
-              {full6502Machine && (
-                <label>
-                  <span>jsbeeb mapping profile</span>
-                  <select
-                    value={keyboardLayout}
-                    onChange={(event) => {
-                      const layout = event.target.value as JsBeebKeyboardLayout;
-                      setKeyboardLayout(layout);
-                      writeSetting("machine.keyboardLayout", layout);
-                      sendMachine({ type: "set-keyboard-layout", layout });
-                    }}
-                  >
-                    {JSBEEB_KEYBOARD_LAYOUTS.map((layout) => (
-                      <option value={layout.id} key={layout.id}>
-                        {layout.label}
-                      </option>
-                    ))}
-                  </select>
-                  <small>
-                    {
-                      JSBEEB_KEYBOARD_LAYOUTS.find(
-                        (layout) => layout.id === keyboardLayout,
-                      )?.detail
-                    }
-                  </small>
-                </label>
-              )}
-              <label>
-                <span>Reviewed machine text</span>
-                <textarea
-                  maxLength={MACHINE_TEXT_LIMIT}
-                  value={machineText}
-                  onChange={(event) => setMachineText(event.target.value)}
-                  placeholder="Type or paste plain ASCII text to queue"
-                />
-                <small>
-                  {machineText.length.toLocaleString()} /{" "}
-                  {MACHINE_TEXT_LIMIT.toLocaleString()} characters. CR is
-                  normalized to RETURN. Unsupported Unicode is refused.
-                </small>
-              </label>
-              <button
-                type="button"
-                disabled={!machineText.length}
-                onClick={() =>
-                  sendMachine({ type: "inject-text", text: machineText })
-                }
-              >
-                Queue text to live machine
-              </button>
-              <aside>
-                <strong>Browser conflicts</strong>
-                <span>
-                  F12 is captured as BREAK only after emulator focus. Ctrl, Alt
-                  and browser-reserved shortcuts can remain browser-owned. Use
-                  the on-screen keys or gaming profile on BBC-family targets
-                  when a host shortcut wins.
-                </span>
-              </aside>
-            </section>
-            {full6502Machine && (
-              <section
-                className="machine-key-remaps"
-                aria-label="Custom host key mappings"
-              >
-                <h3>Custom key mappings</h3>
-                <p>
-                  Map a maintained host key identity to an Acorn key after the
-                  selected jsbeeb profile. Browser-reserved shortcuts can still
-                  remain unavailable.
-                </p>
-                <div>
-                  <label>
-                    <span>Host key</span>
-                    <select
-                      aria-label="Custom mapping host key"
-                      value={remapHostCode}
-                      onChange={(event) =>
-                        setRemapHostCode(Number(event.target.value))
-                      }
-                    >
-                      {HOST_REMAP_KEYS.map((key) => (
-                        <option value={key.code} key={key.code}>
-                          {key.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Acorn key</span>
-                    <select
-                      aria-label="Custom mapping Acorn key"
-                      value={remapTargetCode}
-                      onChange={(event) =>
-                        setRemapTargetCode(Number(event.target.value))
-                      }
-                    >
-                      {ACORN_KEY_ROWS.flat().map((key) => (
-                        <option
-                          value={key.code}
-                          key={`${key.label}-${key.code}`}
-                        >
-                          {key.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    disabled={keyRemaps.length >= 32}
-                    onClick={() =>
-                      applyKeyRemaps([
-                        ...keyRemaps.filter(
-                          (remap) => remap.hostCode !== remapHostCode,
-                        ),
-                        {
-                          hostCode: remapHostCode,
-                          targetCode: remapTargetCode,
-                        },
-                      ])
-                    }
-                  >
-                    Add or replace mapping
-                  </button>
-                </div>
-                {keyRemaps.length ? (
-                  <ul>
-                    {keyRemaps.map((remap) => (
-                      <li key={remap.hostCode}>
-                        <span>
-                          {
-                            HOST_REMAP_KEYS.find(
-                              (key) => key.code === remap.hostCode,
-                            )?.label
-                          }{" "}
-                          →{" "}
-                          {
-                            ACORN_KEY_ROWS.flat().find(
-                              (key) => key.code === remap.targetCode,
-                            )?.label
-                          }
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`Remove custom mapping for ${HOST_REMAP_KEYS.find((key) => key.code === remap.hostCode)?.label}`}
-                          onClick={() =>
-                            applyKeyRemaps(
-                              keyRemaps.filter(
-                                (item) => item.hostCode !== remap.hostCode,
-                              ),
-                            )
-                          }
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <small>
-                    No custom mappings. The selected jsbeeb profile applies
-                    unchanged.
-                  </small>
-                )}
-                <button
-                  type="button"
-                  disabled={!keyRemaps.length}
-                  onClick={() => applyKeyRemaps([])}
-                >
-                  Clear custom mappings
-                </button>
-              </section>
-            )}
-            {full6502Machine && (
-              <section className="machine-gamepad" aria-label="Gamepad input">
-                <h3>Gamepad</h3>
-                <label className="gamepad-enabled">
-                  <input
-                    type="checkbox"
-                    checked={gamepadConfig.enabled}
-                    onChange={(event) => {
-                      if (event.target.checked && bbcMouseJoystick) applyBbcMouseJoystick(false);
-                      applyGamepadConfig({ ...gamepadConfig, enabled: event.target.checked });
-                    }}
-                  />{" "}
-                  Enable standard gamepad polling
-                </label>
-                <p>{gamepadStatus}</p>
-                <div className="gamepad-config">
-                  <label>
-                    <span>Controller</span>
-                    <select
-                      aria-label="Gamepad controller index"
-                      value={gamepadConfig.gamepadIndex}
-                      onChange={(event) =>
-                        applyGamepadConfig({
-                          ...gamepadConfig,
-                          gamepadIndex: Number(event.target.value),
-                        })
-                      }
-                    >
-                      {[0, 1, 2, 3].map((index) => (
-                        <option value={index} key={index}>
-                          Gamepad {index + 1}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Interface</span>
-                    <select
-                      aria-label="Gamepad machine interface"
-                      value={gamepadConfig.interfaceMode}
-                      onChange={(event) =>
-                        applyGamepadConfig({
-                          ...gamepadConfig,
-                          interfaceMode: event.target
-                            .value as GamepadInputConfig["interfaceMode"],
-                        })
-                      }
-                    >
-                      <option value="keys">Acorn key mapping</option>
-                      <option
-                        value="bbc-analogue"
-                        disabled={
-                          !["bbc-a", "bbc-b", "bbc-bplus", "master"].includes(
-                            machineProfile.machineId,
-                          )
-                        }
-                      >
-                        BBC analogue port
-                      </option>
-                      <option value="atom-atommc" disabled={!atomMmcJoystickSupported}>
-                        Atom AtoMMC port
-                      </option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Axis dead zone</span>
-                    <input
-                      aria-label="Gamepad axis dead zone"
-                      type="number"
-                      min="0.1"
-                      max="0.9"
-                      step="0.05"
-                      value={gamepadConfig.deadZone}
-                      onChange={(event) =>
-                        applyGamepadConfig({
-                          ...gamepadConfig,
-                          deadZone: Number(event.target.value),
-                        })
-                      }
-                    />
-                  </label>
-                  {gamepadConfig.interfaceMode === "keys" &&
-                    GAMEPAD_ACTIONS.map((action) => (
-                      <label key={action.id}>
-                        <span>{action.label}</span>
-                        <select
-                          aria-label={`Gamepad ${action.label} Acorn key`}
-                          value={gamepadConfig.mapping[action.id]}
-                          onChange={(event) =>
-                            applyGamepadConfig({
-                              ...gamepadConfig,
-                              mapping: {
-                                ...gamepadConfig.mapping,
-                                [action.id]: Number(event.target.value),
-                              },
-                            })
-                          }
-                        >
-                          {ACORN_KEY_ROWS.flat().map((key) => (
-                            <option
-                              value={key.code}
-                              key={`${action.id}-${key.label}-${key.code}`}
-                            >
-                              {key.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ))}
-                </div>
-                <output aria-live="polite">
-                  {gamepadConfig.interfaceMode === "bbc-analogue"
-                    ? "Axes 0 to 3 feed ADC channels 0 to 3. Buttons 0 and 1 feed active-low System VIA PB4 and PB5."
-                    : gamepadConfig.interfaceMode === "atom-atommc"
-                      ? "Axes 0/1 and the d-pad feed the active-low AtoMMC direction bits. Either fire button feeds its single fire bit."
-                    : gamepadActive.length
-                      ? `Held: ${gamepadActive.map((id) => GAMEPAD_ACTIONS.find((action) => action.id === id)?.label).join(", ")}`
-                      : "No mapped controls held"}
-                </output>
-                <small>
-                  {gamepadConfig.interfaceMode === "bbc-analogue"
-                    ? "BBC joystick axes are inverted by hardware convention: left and up are 65,535, right and down are 0. Disconnect centres all channels and releases both fire inputs."
-                    : gamepadConfig.interfaceMode === "atom-atommc"
-                      ? "Guest software reads the five active-low controls with AtoMMC CMD_READ_PORT at &B400. Disconnect returns the port to &FF."
-                    : "Standard axes 0/1, d-pad buttons 12 to 15 and buttons 0/1 generate real held key edges. Disconnect releases every active key."}
-                </small>
-              </section>
-            )}
-            {bbcAnalogueSupported && (
-              <section className="machine-bbc-mouse-joystick" aria-label="BBC mouse analogue joystick">
-                <h3>Mouse analogue joystick</h3>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={bbcMouseJoystick}
-                    onChange={(event) => applyBbcMouseJoystick(event.target.checked)}
-                  />{" "}
-                  Drive the BBC analogue port from the live display
-                </label>
-                <output aria-live="polite">{bbcMouseJoystickStatus}</output>
-                <small>
-                  Pointer position feeds ADC channels 0 and 1 using the BBC
-                  inverted convention. Left and right buttons feed active-low
-                  System VIA PB4 and PB5. Leaving the display or losing focus
-                  centres both axes and releases fire. Enabling this mode
-                  disables standard gamepad polling so two host devices cannot
-                  fight over the same hardware input.
-                </small>
-              </section>
-            )}
-            {fullArchimedesMachine && (
-              <section
-                className="machine-archimedes-mouse"
-                aria-label="A310 mouse input"
-              >
-                <h3>A310 mouse</h3>
-                <p>
-                  Move over the live display for absolute RISC OS pointer input.
-                  Left, right and middle buttons use Arculator's real host mouse
-                  path.
-                </p>
-                <output aria-live="polite">{archimedesMouseStatus}</output>
-                <small>
-                  Canvas coordinates are scaled to the live framebuffer. Leaving
-                  the display, releasing input, losing focus, resetting or
-                  powering off releases every mouse button.
-                </small>
-              </section>
-            )}
-          </div>
-        </section>
-      )}
       {!collapsed &&
         (poweredMachine ? (
           <div
@@ -8052,7 +7870,12 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
               title={`${machine} hardware emulator`}
               sandbox="allow-scripts allow-same-origin"
               allow="fullscreen; autoplay"
-              onLoad={() => setFrameLoaded(true)}
+              onLoad={(event) => {
+                setFrameLoaded(true);
+                /* A machine that has just arrived gets the text size that is in
+                 * force, rather than the one its own page shipped with. */
+                syncFrameScale(event.currentTarget, document.documentElement);
+              }}
               style={scaledViewport}
             />
             <button
@@ -8138,6 +7961,420 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
                 </>
               )}
             </div>
+            {inputControlsOpen && (
+              <section
+                id="machine-input-controls"
+                className="machine-input-controls"
+                aria-label="Machine keyboard and input controls"
+              >
+                <header>
+                  <div>
+                    <strong>Machine input</strong>
+                    <span>
+                      {inputCaptured
+                        ? "Keyboard focus is captured by the emulator"
+                        : "IDE shortcuts remain active until input is captured"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      sendMachine({
+                        type: inputCaptured ? "release-input" : "focus-input",
+                      })
+                    }
+                  >
+                    {inputCaptured ? "Release input" : "Capture input"}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Close machine input controls"
+                    onClick={() => setInputControlsOpen(false)}
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                </header>
+                <div className="machine-input-grid">
+                  <section aria-label="On-screen Acorn keyboard">
+                    <h3>Acorn keyboard</h3>
+                    <p>
+                      {fullArchimedesMachine
+                        ? "The A310 canvas accepts the host keyboard and reviewed text. On-screen key taps await a verified SDL mapping."
+                        : "Keys below use jsbeeb host-key identities and operate the live keyboard matrix."}
+                    </p>
+                    <div
+                      className="acorn-keyboard"
+                      aria-label="Accessible on-screen Acorn keyboard"
+                    >
+                      {ACORN_KEY_ROWS.map((row, rowIndex) => (
+                        <div key={rowIndex}>
+                          {row.map((key) => (
+                            <button
+                              type="button"
+                              key={`${key.label}-${key.code}`}
+                              disabled={fullArchimedesMachine}
+                              aria-label={`Press Acorn ${key.label} key`}
+                              onClick={() =>
+                                sendMachine({ type: "tap-key", code: key.code })
+                              }
+                            >
+                              {key.label}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  <section
+                    className="machine-input-policy"
+                    aria-label="Keyboard mapping and pasted text policy"
+                  >
+                    <h3>Mapping and text queue</h3>
+                    {full6502Machine && (
+                      <label>
+                        <span>jsbeeb mapping profile</span>
+                        <select
+                          value={keyboardLayout}
+                          onChange={(event) => {
+                            const layout = event.target.value as JsBeebKeyboardLayout;
+                            setKeyboardLayout(layout);
+                            writeSetting("machine.keyboardLayout", layout);
+                            sendMachine({ type: "set-keyboard-layout", layout });
+                          }}
+                        >
+                          {JSBEEB_KEYBOARD_LAYOUTS.map((layout) => (
+                            <option value={layout.id} key={layout.id}>
+                              {layout.label}
+                            </option>
+                          ))}
+                        </select>
+                        <small>
+                          {
+                            JSBEEB_KEYBOARD_LAYOUTS.find(
+                              (layout) => layout.id === keyboardLayout,
+                            )?.detail
+                          }
+                        </small>
+                      </label>
+                    )}
+                    <label>
+                      <span>Reviewed machine text</span>
+                      <textarea
+                        maxLength={MACHINE_TEXT_LIMIT}
+                        value={machineText}
+                        onChange={(event) => setMachineText(event.target.value)}
+                        placeholder="Type or paste plain ASCII text to queue"
+                      />
+                      <small>
+                        {machineText.length.toLocaleString()} /{" "}
+                        {MACHINE_TEXT_LIMIT.toLocaleString()} characters. CR is
+                        normalized to RETURN. Unsupported Unicode is refused.
+                      </small>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!machineText.length}
+                      onClick={() =>
+                        sendMachine({ type: "inject-text", text: machineText })
+                      }
+                    >
+                      Queue text to live machine
+                    </button>
+                    <aside>
+                      <strong>Browser conflicts</strong>
+                      <span>
+                        F12 is captured as BREAK only after emulator focus. Ctrl, Alt
+                        and browser-reserved shortcuts can remain browser-owned. Use
+                        the on-screen keys or gaming profile on BBC-family targets
+                        when a host shortcut wins.
+                      </span>
+                    </aside>
+                  </section>
+                  {full6502Machine && (
+                    <section
+                      className="machine-key-remaps"
+                      aria-label="Custom host key mappings"
+                    >
+                      <h3>Custom key mappings</h3>
+                      <p>
+                        Map a maintained host key identity to an Acorn key after the
+                        selected jsbeeb profile. Browser-reserved shortcuts can still
+                        remain unavailable.
+                      </p>
+                      <div>
+                        <label>
+                          <span>Host key</span>
+                          <select
+                            aria-label="Custom mapping host key"
+                            value={remapHostCode}
+                            onChange={(event) =>
+                              setRemapHostCode(Number(event.target.value))
+                            }
+                          >
+                            {HOST_REMAP_KEYS.map((key) => (
+                              <option value={key.code} key={key.code}>
+                                {key.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Acorn key</span>
+                          <select
+                            aria-label="Custom mapping Acorn key"
+                            value={remapTargetCode}
+                            onChange={(event) =>
+                              setRemapTargetCode(Number(event.target.value))
+                            }
+                          >
+                            {ACORN_KEY_ROWS.flat().map((key) => (
+                              <option
+                                value={key.code}
+                                key={`${key.label}-${key.code}`}
+                              >
+                                {key.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          disabled={keyRemaps.length >= 32}
+                          onClick={() =>
+                            applyKeyRemaps([
+                              ...keyRemaps.filter(
+                                (remap) => remap.hostCode !== remapHostCode,
+                              ),
+                              {
+                                hostCode: remapHostCode,
+                                targetCode: remapTargetCode,
+                              },
+                            ])
+                          }
+                        >
+                          Add or replace mapping
+                        </button>
+                      </div>
+                      {keyRemaps.length ? (
+                        <ul>
+                          {keyRemaps.map((remap) => (
+                            <li key={remap.hostCode}>
+                              <span>
+                                {
+                                  HOST_REMAP_KEYS.find(
+                                    (key) => key.code === remap.hostCode,
+                                  )?.label
+                                }{" "}
+                                →{" "}
+                                {
+                                  ACORN_KEY_ROWS.flat().find(
+                                    (key) => key.code === remap.targetCode,
+                                  )?.label
+                                }
+                              </span>
+                              <button
+                                type="button"
+                                aria-label={`Remove custom mapping for ${HOST_REMAP_KEYS.find((key) => key.code === remap.hostCode)?.label}`}
+                                onClick={() =>
+                                  applyKeyRemaps(
+                                    keyRemaps.filter(
+                                      (item) => item.hostCode !== remap.hostCode,
+                                    ),
+                                  )
+                                }
+                              >
+                                Remove
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <small>
+                          No custom mappings. The selected jsbeeb profile applies
+                          unchanged.
+                        </small>
+                      )}
+                      <button
+                        type="button"
+                        disabled={!keyRemaps.length}
+                        onClick={() => applyKeyRemaps([])}
+                      >
+                        Clear custom mappings
+                      </button>
+                    </section>
+                  )}
+                  {full6502Machine && (
+                    <section className="machine-gamepad" aria-label="Gamepad input">
+                      <h3>Gamepad</h3>
+                      <label className="gamepad-enabled">
+                        <input
+                          type="checkbox"
+                          checked={gamepadConfig.enabled}
+                          onChange={(event) => {
+                            if (event.target.checked && bbcMouseJoystick) applyBbcMouseJoystick(false);
+                            applyGamepadConfig({ ...gamepadConfig, enabled: event.target.checked });
+                          }}
+                        />{" "}
+                        Enable standard gamepad polling
+                      </label>
+                      <p>{gamepadStatus}</p>
+                      <div className="gamepad-config">
+                        <label>
+                          <span>Controller</span>
+                          <select
+                            aria-label="Gamepad controller index"
+                            value={gamepadConfig.gamepadIndex}
+                            onChange={(event) =>
+                              applyGamepadConfig({
+                                ...gamepadConfig,
+                                gamepadIndex: Number(event.target.value),
+                              })
+                            }
+                          >
+                            {[0, 1, 2, 3].map((index) => (
+                              <option value={index} key={index}>
+                                Gamepad {index + 1}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Interface</span>
+                          <select
+                            aria-label="Gamepad machine interface"
+                            value={gamepadConfig.interfaceMode}
+                            onChange={(event) =>
+                              applyGamepadConfig({
+                                ...gamepadConfig,
+                                interfaceMode: event.target
+                                  .value as GamepadInputConfig["interfaceMode"],
+                              })
+                            }
+                          >
+                            <option value="keys">Acorn key mapping</option>
+                            <option
+                              value="bbc-analogue"
+                              disabled={
+                                !["bbc-a", "bbc-b", "bbc-bplus", "master"].includes(
+                                  machineProfile.machineId,
+                                )
+                              }
+                            >
+                              BBC analogue port
+                            </option>
+                            <option value="atom-atommc" disabled={!atomMmcJoystickSupported}>
+                              Atom AtoMMC port
+                            </option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Axis dead zone</span>
+                          <input
+                            aria-label="Gamepad axis dead zone"
+                            type="number"
+                            min="0.1"
+                            max="0.9"
+                            step="0.05"
+                            value={gamepadConfig.deadZone}
+                            onChange={(event) =>
+                              applyGamepadConfig({
+                                ...gamepadConfig,
+                                deadZone: Number(event.target.value),
+                              })
+                            }
+                          />
+                        </label>
+                        {gamepadConfig.interfaceMode === "keys" &&
+                          GAMEPAD_ACTIONS.map((action) => (
+                            <label key={action.id}>
+                              <span>{action.label}</span>
+                              <select
+                                aria-label={`Gamepad ${action.label} Acorn key`}
+                                value={gamepadConfig.mapping[action.id]}
+                                onChange={(event) =>
+                                  applyGamepadConfig({
+                                    ...gamepadConfig,
+                                    mapping: {
+                                      ...gamepadConfig.mapping,
+                                      [action.id]: Number(event.target.value),
+                                    },
+                                  })
+                                }
+                              >
+                                {ACORN_KEY_ROWS.flat().map((key) => (
+                                  <option
+                                    value={key.code}
+                                    key={`${action.id}-${key.label}-${key.code}`}
+                                  >
+                                    {key.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          ))}
+                      </div>
+                      <output aria-live="polite">
+                        {gamepadConfig.interfaceMode === "bbc-analogue"
+                          ? "Axes 0 to 3 feed ADC channels 0 to 3. Buttons 0 and 1 feed active-low System VIA PB4 and PB5."
+                          : gamepadConfig.interfaceMode === "atom-atommc"
+                            ? "Axes 0/1 and the d-pad feed the active-low AtoMMC direction bits. Either fire button feeds its single fire bit."
+                          : gamepadActive.length
+                            ? `Held: ${gamepadActive.map((id) => GAMEPAD_ACTIONS.find((action) => action.id === id)?.label).join(", ")}`
+                            : "No mapped controls held"}
+                      </output>
+                      <small>
+                        {gamepadConfig.interfaceMode === "bbc-analogue"
+                          ? "BBC joystick axes are inverted by hardware convention: left and up are 65,535, right and down are 0. Disconnect centres all channels and releases both fire inputs."
+                          : gamepadConfig.interfaceMode === "atom-atommc"
+                            ? "Guest software reads the five active-low controls with AtoMMC CMD_READ_PORT at &B400. Disconnect returns the port to &FF."
+                          : "Standard axes 0/1, d-pad buttons 12 to 15 and buttons 0/1 generate real held key edges. Disconnect releases every active key."}
+                      </small>
+                    </section>
+                  )}
+                  {bbcAnalogueSupported && (
+                    <section className="machine-bbc-mouse-joystick" aria-label="BBC mouse analogue joystick">
+                      <h3>Mouse analogue joystick</h3>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={bbcMouseJoystick}
+                          onChange={(event) => applyBbcMouseJoystick(event.target.checked)}
+                        />{" "}
+                        Drive the BBC analogue port from the live display
+                      </label>
+                      <output aria-live="polite">{bbcMouseJoystickStatus}</output>
+                      <small>
+                        Pointer position feeds ADC channels 0 and 1 using the BBC
+                        inverted convention. Left and right buttons feed active-low
+                        System VIA PB4 and PB5. Leaving the display or losing focus
+                        centres both axes and releases fire. Enabling this mode
+                        disables standard gamepad polling so two host devices cannot
+                        fight over the same hardware input.
+                      </small>
+                    </section>
+                  )}
+                  {fullArchimedesMachine && (
+                    <section
+                      className="machine-archimedes-mouse"
+                      aria-label="A310 mouse input"
+                    >
+                      <h3>A310 mouse</h3>
+                      <p>
+                        Move over the live display for absolute RISC OS pointer input.
+                        Left, right and middle buttons use Arculator's real host mouse
+                        path.
+                      </p>
+                      <output aria-live="polite">{archimedesMouseStatus}</output>
+                      <small>
+                        Canvas coordinates are scaled to the live framebuffer. Leaving
+                        the display, releasing input, losing focus, resetting or
+                        powering off releases every mouse button.
+                      </small>
+                    </section>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         ) : fullMachine && !machinePowered ? (
           <div className="emulator-empty emulator-powered-off">

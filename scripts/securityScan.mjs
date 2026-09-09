@@ -2,7 +2,7 @@
  *
  * SEC-901 asks for SAST, dependency, container, secret and licence scans, an
  * SBOM review, DAST, fuzzing and an independent penetration test. Several of
- * those already run in this gate under their own names — PHPStan is the PHP
+ * those already run in this gate under their own names, PHPStan is the PHP
  * static analysis, `hygiene` is the secret scan, `licenceCompliance` and the
  * SBOM are their own stages, and the property and adversarial suites are the
  * fuzzing. What was missing was the one that goes stale fastest: a check of
@@ -12,8 +12,8 @@
  * the design. Every other check fails because this repository changed; this one
  * fails because the world did. A dependency that was clean this morning can be
  * a critical advisory this afternoon with nothing here having moved. So the
- * threshold is set where a person would actually act — high and critical fail,
- * moderate and low are reported and do not — and the report always says what
+ * threshold is set where a person would actually act (high and critical fail,
+ * moderate and low are reported and do not), and the report always says what
  * was scanned, so a run that scanned nothing cannot read as a run that found
  * nothing.
  */
@@ -50,13 +50,13 @@ export const UNSCANNED = Object.freeze([
  * The JSON document inside a tool's output.
  *
  * Both of these audits print their report to stdout and occasionally print
- * something else there first — a notice about a newer version, a warning about
+ * something else there first. A notice about a newer version, a warning about
  * a slow advisory database. Requiring the whole stream to parse turned one of
  * those into "nothing says whether the backend dependencies were scanned",
  * which failed a release on a tree whose dependencies were in fact clean.
  *
- * Taking the outermost braces keeps the guarantee that matters — a report was
- * produced and read — while tolerating a line of chatter around it. Output with
+ * Taking the outermost braces keeps the guarantee that matters, a report was
+ * produced and read, while tolerating a line of chatter around it. Output with
  * no document in it at all still fails, because that is the case the message is
  * about.
  *
@@ -94,7 +94,7 @@ export function readNpmAudit(raw) {
  * Read a `composer audit --format=json` document.
  *
  * Composer reports advisories per package rather than a severity tally, and
- * treats an abandoned package as a separate finding — which it is: a package
+ * treats an abandoned package as a separate finding, which it is: a package
  * nobody maintains will not be fixed when something is found in it.
  *
  * @param {string} raw

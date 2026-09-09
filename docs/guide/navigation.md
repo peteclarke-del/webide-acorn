@@ -62,7 +62,7 @@ Move through exact project source, current build addresses, matched code scopes,
 - Open Compare saved when several additions and removals need to be reviewed together.
 - Use Ctrl+G by filename when an expected file has no symbols and therefore is absent from symbol-only results.
 
-![BBC BASIC editor showing project and routine breadcrumbs, a matched FOR NEXT scope, navigation controls, live diagnostics and changed source lines](../../public/help/editor-source-navigation.png)
+![BBC BASIC editor with the caret inside a counted loop, showing the project and file breadcrumb, the matched FOR and NEXT scope over physical lines 3 to 5 with its Start and End controls, and the documentation for the statement at the caret](../../public/help/editor-source-navigation.png)
 
 *The source navigation surface keeps structural scope, diagnostic traversal, saved-change traversal and recent file access beside the active editor.*
 
@@ -207,7 +207,7 @@ Derive a bounded incoming and outgoing call graph from exact parsed project sour
 - After editing an include or call, close and invoke Call hierarchy again so the current language revision is used.
 - Use the live Debugger stack when a call is indirect, generated, conditional at runtime or supplied by ROM code.
 
-![6502 source editor showing one incoming JSR caller and one outgoing JSR callee for DRAW, with separate Open call site and Open callee controls and the exact source locations](../../public/help/editor-call-hierarchy.png)
+![6502 source editor showing the two incoming JSR callers and two outgoing JSR callees of draw_player, with separate Open call site and Open callee controls and the exact source locations](../../public/help/editor-call-hierarchy.png)
 
 *The parsed hierarchy includes main calling draw and draw calling plot. The nearby BNE draw branch is deliberately absent, and each proven call edge provides source and destination navigation.*
 
@@ -305,7 +305,7 @@ Open the exact retained artifact address and immutable source-occurrence evidenc
 - The build workspace highlights the requested symbol with aria-pressed state and a visible selected style.
 - The notice gives the name, address, lack of editable declaration and read-only artifact destination.
 - Source occurrences use immutable artifact source maps rather than a fresh text search.
-- A repeated open request is consumed after selection, so later visits to Build targets preserve the user’s current symbol choice.
+- A repeated open request is consumed after selection, so later visits to Build targets preserve the user's current symbol choice.
 - Changing source, target, machine, toolchain or build identity removes generated symbols from completion and navigation until a successful rebuild.
 
 **Limits**
@@ -444,7 +444,7 @@ Choose the exact relationship you need in connected C project source instead of 
 - Rebuild after changing conditional defines, then consult build provenance for the effective compiler inputs.
 - Use the immutable SDK document view for angle-bracket headers and record its SHA-256 when reporting an SDK relationship gap.
 
-![C project editor after Type definition selected the byte typedef in api.h, with Declaration, Implementation and Type definition controls visible and the exact api.h line reported in the status bar](../../public/help/editor-c-relationships.png)
+![C project editor after Type definition followed the byte parameter from main.c into api.h and selected the typedef on line 4, with the status bar reporting the exact file and line](../../public/help/editor-c-relationships.png)
 
 *The explicit Type definition action selects byte in the connected project header. Declaration and Implementation remain separate Navigate menu actions for the draw prototype and function body.*
 

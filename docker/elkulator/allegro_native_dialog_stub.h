@@ -1,7 +1,7 @@
 /* Allegro's native-dialog addon, declared but not implemented.
  *
  * Allegro has no native-dialog backend for SDL, so the addon builds no library
- * at all on this platform — the linker simply cannot find it. That is not a
+ * at all on this platform. The linker simply cannot find it. That is not a
  * gap to be filled: a native file chooser and a native menu bar are the host
  * operating system's furniture, and a page has neither. The IDE supplies its
  * own file handling and its own menus, exactly as it does for the Archimedes
@@ -26,7 +26,7 @@ typedef struct ALLEGRO_FILECHOOSER ALLEGRO_FILECHOOSER;
 #define ALLEGRO_FILECHOOSER_SAVE              2
 
 /* The event a menu click would post. Its value matches Allegro's own so that
- * it cannot collide with a real event type, and nothing here ever posts one —
+ * it cannot collide with a real event type, and nothing here ever posts one,
  * the event loop simply never sees this case. */
 #define ALLEGRO_EVENT_MENU_CLICK              40
 

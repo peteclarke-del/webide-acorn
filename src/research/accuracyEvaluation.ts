@@ -8,7 +8,7 @@
  *
  * The invariants are all versions of one idea. Two passages of text about the
  * same thing are not equally trustworthy, and the panel must never present them
- * as though they were — not by labelling, not by ordering, and not by omission.
+ * as though they were, not by labelling, not by ordering, and not by omission.
  *
  * A run against an empty library reports that it examined nothing. That is the
  * distinction this file exists to keep: "checked and found nothing wrong" and
@@ -74,7 +74,7 @@ export function evaluateAccuracy(library: PackLibrary, target?: SearchTarget): A
 
   for (const held of library.packs) {
     /* A pack that permits inserting what it does not permit quoting cannot be
-     * described coherently, and the parser refuses it — this catches a library
+     * described coherently, and the parser refuses it, this catches a library
      * assembled some other way. */
     exercised.add('insertable-implies-quotable');
     if (held.pack.licence.insertable && !held.pack.licence.quotable) {

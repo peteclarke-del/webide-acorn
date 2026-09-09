@@ -1,6 +1,6 @@
 # ADR 0005: ARM2 build boundary before Archimedes execution
 
-Status: accepted; raw ARM2 assembler/linker and bounded live-debug handoff implemented  
+Status: accepted; raw ARM2 assembler/linker and bounded live-debug handoff implemented
 Date: 21 August 2026
 
 ## Context
@@ -28,7 +28,7 @@ by a generated script into an ELF evidence file. `objcopy` extracts a raw
 little-endian binary. `objdump`, `nm`, `readelf`, the linker map and decoded
 DWARF lines supply retained evidence and normalized symbols/source locations.
 The project selects a word-aligned origin and inclusive maximum within the ARM2
-26-bit address space; the default bounded range is `&00008000–&000FFFFF`.
+26-bit address space; the default bounded range is `&00008000-&000FFFFF`.
 
 The normalized artifact kind is `arm-binary`, processor `arm2`, container format
 `raw`, and `riscOsFiletype: null`. The UI states that this is not a RISC OS

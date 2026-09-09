@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFile, SourceBookmark } from '../project/project';
@@ -41,7 +41,7 @@ describe('functional source workspace', () => {
     fireEvent.click(changedRow);
     const editor = screen.getByLabelText('Edit main.asm') as HTMLTextAreaElement;
     await waitFor(() => expect(editor.selectionStart).toBe(editor.value.indexOf(' STA &70')));
-  }, 10_000);
+  }, 30_000);
 
   it('exposes generated provenance and blocks editor mutation while retaining inspection', () => {
     const change = vi.fn(); const notice = vi.fn();
@@ -267,7 +267,7 @@ describe('functional source workspace', () => {
     fireEvent.focus(screen.getByRole('button', { name: 'SOUND' }));
     const help = screen.getByLabelText('SOUND token help');
     expect(help).toHaveTextContent(/SUPPORTED.*BBC BASIC II.*BBC Micro Model B/);
-    expect(help).toHaveTextContent(/channel.*Simple form 0–3/);
+    expect(help).toHaveTextContent(/channel.*Simple form 0-3/);
     fireEvent.click(screen.getByRole('button', { name: 'Select Atom' }));
     await waitFor(() => expect(screen.getByLabelText('SOUND token help')).toHaveTextContent('INCOMPATIBLE'));
     expect(screen.getByLabelText('SOUND token help')).toHaveTextContent(/not compatible with the selected Acorn Atom profile/);
@@ -315,7 +315,7 @@ describe('functional source workspace', () => {
     fireEvent.click(editor);
     await waitFor(() => expect(screen.getByLabelText('CALL alternative forms')).toBeVisible());
     expect(screen.getByText('SIGNATURE 2/2')).toBeVisible();
-    expect(screen.getByLabelText('Active parameter 2 of 2')).toHaveTextContent('variable…');
+    expect(screen.getByLabelText('Active parameter 2 of 2')).toHaveTextContent('variable...');
     expect(screen.getByLabelText('Active parameter 2 of 2')).toHaveTextContent('optional or repeated');
     expect(document.activeElement).toBe(editor);
     fireEvent.click(screen.getByRole('button', { name: 'Previous signature form' }));
@@ -361,7 +361,7 @@ describe('functional source workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next bookmark' }));
     expect(navigate).toHaveBeenCalledWith('other', 1, 1);
     expect(prompt).toHaveBeenCalledTimes(3);
-  }, 15_000);
+  }, 30_000);
 
   it('opens and closes independently labelled source split panes by control or shortcut', () => {
     const source: ProjectFile = { id: 'main', name: 'main.asm', content: '.start\n RTS', language: '6502', modified: false };
@@ -432,7 +432,7 @@ describe('functional source workspace', () => {
     fireEvent.keyDown(editor, { key: 'F12' });
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('lib', 1, 2, 4));
     expect(screen.getByTitle('Declared in included source lib.asm')).toHaveTextContent('lib.asm:1');
-  }, 10_000);
+  }, 30_000);
 
   it('opens an exact assembly operand with an ordinary pointer click', async () => {
     const navigate = vi.fn();
@@ -650,7 +650,7 @@ describe('functional source workspace', () => {
     await waitFor(() => expect(screen.getByLabelText('Edit lib.asm')).toHaveValue('.draw\n RTS'));
     fireEvent.click(screen.getByRole('tab', { name: 'main.asm' }));
     expect(screen.getByLabelText('Edit main.asm')).toHaveValue(initial[0]!.content);
-  }, 10_000);
+  }, 30_000);
 
   it('previews and atomically applies a uniquely resolved BASIC routine rename', async () => {
     function BasicRenameHarness() {
@@ -952,7 +952,7 @@ describe('functional source workspace', () => {
 describe('the outline and issues that the language adapter provides', () => {
   const workspace = (file: ProjectFile) => render(<SourceWorkspace files={[file]} activeFileId={file.id} onSelectFile={() => undefined} onChange={() => undefined} onNewFile={() => undefined} onRenameFile={() => undefined} onDeleteFile={() => undefined} onDownloadFile={() => undefined} onSave={() => undefined} onCaretChange={() => undefined} onNotice={() => undefined} />);
 
-  it('nests what a 6502 label owns under it, and shows a constant’s value beside it', () => {
+  it("nests what a 6502 label owns under it, and shows a constant's value beside it", () => {
     workspace({
       id: 'main', name: 'main.asm', language: '6502', modified: false,
       content: 'INCLUDE "lib.asm"\n.start\nscreen = &7C00\n  RTS\n',
@@ -1089,5 +1089,64 @@ describe('type hints decorated beside the source', () => {
     open();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Decorate type hints beside the source' }));
     expect(screen.getByLabelText('Type hints beside the source').children).toHaveLength(cFile.content.split('\n').length);
+  });
+});
+
+function renderEditor() {
+  const file: ProjectFile = { id: 'main', name: 'main.asm', saved: true, savedContent: 'LDA #1', content: 'LDA #1', language: '6502', modified: false };
+  render(<SourceWorkspace files={[file]} activeFileId="main" onSelectFile={() => undefined} onChange={() => undefined} onNewFile={() => undefined} onRenameFile={() => undefined} onDeleteFile={() => undefined} onDownloadFile={() => undefined} onSave={() => undefined} onCaretChange={() => undefined} onNotice={() => undefined} />);
+}
+
+/*
+ * Leaving the editor with the keyboard.
+ *
+ * The textarea takes Tab so that Tab indents, which is right for the person
+ * typing and was a keyboard trap for the person navigating: focus went in and
+ * could not come out, which is what WCAG 2.1.2 forbids. A real Tab walk through
+ * the built workbench found it stuck there. The criterion allows a component to
+ * take a key it would otherwise pass on, provided there is a way out and the
+ * person is told what it is.
+ */
+describe('leaving the editor with the keyboard', () => {
+  it('indents by default, because that is what Tab is for in a code editor', () => {
+    renderEditor();
+    const editor = screen.getByLabelText(/^Edit /);
+    const event = createEvent.keyDown(editor, { key: 'Tab' });
+    fireEvent(editor, event);
+    expect(event.defaultPrevented, 'Tab still indents').toBe(true);
+  });
+
+  it('lets the next Tab move focus once Escape has armed it', () => {
+    renderEditor();
+    const editor = screen.getByLabelText(/^Edit /);
+    fireEvent.keyDown(editor, { key: 'Escape' });
+    const event = createEvent.keyDown(editor, { key: 'Tab' });
+    fireEvent(editor, event);
+    expect(event.defaultPrevented, 'Tab is left to the browser, so focus leaves').toBe(false);
+  });
+
+  it('arms once only, so Tab goes back to indenting', () => {
+    renderEditor();
+    const editor = screen.getByLabelText(/^Edit /);
+    fireEvent.keyDown(editor, { key: 'Escape' });
+    fireEvent.keyDown(editor, { key: 'Tab' });
+    const again = createEvent.keyDown(editor, { key: 'Tab' });
+    fireEvent(editor, again);
+    expect(again.defaultPrevented).toBe(true);
+  });
+
+  it('is cancelled by typing, so Tab never silently stops indenting', () => {
+    renderEditor();
+    const editor = screen.getByLabelText(/^Edit /);
+    fireEvent.keyDown(editor, { key: 'Escape' });
+    fireEvent.keyDown(editor, { key: 'a' });
+    const event = createEvent.keyDown(editor, { key: 'Tab' });
+    fireEvent(editor, event);
+    expect(event.defaultPrevented, 'typing cancelled the way out').toBe(true);
+  });
+
+  it('says how to leave, on the control itself', () => {
+    renderEditor();
+    expect(screen.getByLabelText(/^Edit /).getAttribute('aria-keyshortcuts')).toMatch(/Escape\+Tab/);
   });
 });

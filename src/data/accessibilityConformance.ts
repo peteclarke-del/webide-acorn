@@ -9,7 +9,7 @@
  *   partial     a rule decides part of it and the rest is manual, with the
  *               split stated rather than glossed
  *   n/a         the product has no content the criterion applies to, with the
- *               reason — never as a way of avoiding the work
+ *               reason. Never as a way of avoiding the work
  *
  * The distinction that carries the most weight is between `automated` and
  * `manual`. A scan can find a control with no accessible name; it cannot tell
@@ -18,8 +18,8 @@
  *
  * `n/a` is used sparingly and always with the reason, because it is the entry
  * that is easiest to abuse. Every one here rests on the product genuinely not
- * having that kind of content — no video, no audio track, no authentication,
- * no timed process — and each would stop being `n/a` the day it did.
+ * having that kind of content (no video, no audio track, no authentication,
+ * no timed process), and each would stop being `n/a` the day it did.
  */
 
 export type Verification = 'automated' | 'manual' | 'partial' | 'n/a';
@@ -62,7 +62,7 @@ export const CRITERIA: readonly Criterion[] = Object.freeze([
   { id: '2.1.4', name: 'Character Key Shortcuts', level: 'A', verification: 'automated', evidence: 'Every workbench chord is declared in one binding table, every binding uses a modifier, and each can be changed or unbound in Settings. The table is contract-checked.' },
   { id: '2.2.1', name: 'Timing Adjustable', level: 'A', verification: 'n/a', evidence: 'Nothing in the product has a time limit. A build, a run and a test each continue until they finish or are stopped.' },
   { id: '2.2.2', name: 'Pause, Stop, Hide', level: 'A', verification: 'automated', evidence: 'The gate rule reduced-motion reports anything animating for longer than a twentieth of a second once the preference is set, and nothing moves for five seconds unprompted.' },
-  { id: '2.3.1', name: 'Three Flashes or Below Threshold', level: 'A', verification: 'manual', evidence: 'The interface itself does not flash. An emulated machine can flash because the program being written makes it, which is the program author’s content rather than this product’s; the help says so.' },
+  { id: '2.3.1', name: 'Three Flashes or Below Threshold', level: 'A', verification: 'manual', evidence: "The interface itself does not flash. An emulated machine can flash because the program being written makes it, which is the program author's content rather than this product's; the help says so." },
   { id: '2.4.1', name: 'Bypass Blocks', level: 'A', verification: 'manual', evidence: 'A skip link to the editor is present and is verified by a person following it from a cold load.' },
   { id: '2.4.2', name: 'Page Titled', level: 'A', verification: 'automated', evidence: 'The gate rule document-title requires a non-empty title.' },
   { id: '2.4.3', name: 'Focus Order', level: 'A', verification: 'manual', evidence: 'Judged by a person tabbing through each workspace. A rule can say every group is reachable; it cannot say the order is sensible.' },
@@ -174,10 +174,10 @@ export function renderConformanceChecklist(): string {
     '',
     '## What the answers mean',
     '',
-    '- **Automated** — a rule in the release gate decides it, and the rule is named. It runs on every build.',
-    '- **Partly automated** — a rule decides part of it and the rest is manual. Both halves are stated rather than glossed.',
-    '- **Manual** — only a person can decide it, and what they have to do is stated.',
-    '- **Not applicable** — the product has no content the criterion applies to, with the reason. Each would stop being not applicable the day the product gained that kind of content.',
+    '- **Automated** (a rule in the release gate decides it, and the rule is named. It runs on every build.',
+    '- **Partly automated**) a rule decides part of it and the rest is manual. Both halves are stated rather than glossed.',
+    '- **Manual** (only a person can decide it, and what they have to do is stated.',
+    '- **Not applicable**) the product has no content the criterion applies to, with the reason. Each would stop being not applicable the day the product gained that kind of content.',
     '',
     `Of ${summary.total} Level A and AA success criteria: ${summary.automated} are decided automatically, ${summary.partial} partly, ${summary.manual} by a person, and ${summary.notApplicable} do not apply.`,
     '',
@@ -196,7 +196,7 @@ export function renderConformanceChecklist(): string {
     '## What is not claimed',
     '',
     'Level AAA is out of scope for this claim. Where the product happens to meet',
-    'a AAA criterion — honouring the reduced-motion preference, for one — it is',
+    'a AAA criterion (honouring the reduced-motion preference, for one) it is',
     'not counted here, because meeting one criterion of a level is not conformance',
     'to it.',
     '',

@@ -7,7 +7,7 @@
  *
  * The panel therefore does two things the editor cannot. It draws the artwork
  * at the mode's own pixel shape, and it says which of the colours in use the
- * mode has nowhere to put — leaving those pixels empty rather than substituting
+ * mode has nowhere to put. Leaving those pixels empty rather than substituting
  * something, because a preview that looked right and a build that did not would
  * be worse than being told.
  */

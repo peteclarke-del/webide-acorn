@@ -141,7 +141,7 @@ export function KeyboardShortcutsPanel({ bindings, overrides, onChangeOverrides,
                                 autoFocus
                                 readOnly
                                 aria-label={`Press the new chord for ${binding.label}`}
-                                value={recordedChord ? formatChord(recordedChord) : 'Press a chord…'}
+                                value={recordedChord ? formatChord(recordedChord) : 'Press a chord...'}
                                 onKeyDown={(event) => {
                                   if (event.key === 'Escape') { event.preventDefault(); stopRecording(); return; }
                                   event.preventDefault();

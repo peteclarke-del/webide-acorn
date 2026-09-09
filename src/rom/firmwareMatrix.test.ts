@@ -79,7 +79,7 @@ describe('the firmware matrix', () => {
   });
 
   it('says a run without firmware is a run that did not happen', () => {
-    /* The alternative — a substitute image, or a quiet ROM-less mode — would
+    /* The alternative (a substitute image, or a quiet ROM-less mode) would
      * make a pipeline report a pass for a machine it never started. */
     expect(renderFirmwareMatrix()).toContain('a run without firmware is reported as a run');
   });

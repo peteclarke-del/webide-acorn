@@ -9,7 +9,7 @@ prose around it.
 
 The workbench is a single-page React application with no server of its own for
 anything a browser can do. Source is edited, assembled, analysed and run in the
-tab. One service sits behind it — an isolated container that runs the native
+tab. One service sits behind it. An isolated container that runs the native
 toolchains, because ca65, BeebAsm and GNU binutils are real programs and cannot
 be honestly reimplemented in JavaScript.
 
@@ -51,7 +51,7 @@ flowchart LR
 ```
 
 There is no fourth arrow. Nothing is uploaded, no analytics leave the machine,
-and no network path exists from the build sandbox at all — which is why the
+and no network path exists from the build sandbox at all, which is why the
 absence is drawn rather than left to be inferred.
 
 ## Containers
@@ -83,7 +83,7 @@ flowchart TB
 ```
 
 Four things this diagram deliberately does not contain, because they do not
-exist: there is **no job orchestration** — a build is a request that returns a
+exist: there is **no job orchestration**. A build is a request that returns a
 result, and per-tenant fairness and a queue are open work; there is **no object
 storage** separate from the store's own blobs; there is **no reference index
 service**, because reference packs are imported into the browser and searched
@@ -98,27 +98,31 @@ they are wired and idle rather than absent.
 | `src/api` | The typed client contracts, generated from `api/openapi.json` and never edited by hand. Every caller builds its request from the route table here rather than spelling a path, so a route that moves in the description fails to compile. |
 | `src/analysis` | Disassembly, annotation, coverage correlation and export. Reads bytes; never executes them. |
 | `src/benchmark` | What is measured, what is deliberately not, and the operations a benchmark run performs. It is built only when the benchmark asks for it and never ships. |
-| `src/assets` | The editable asset documents — pixels, palettes, fonts, tile maps, screens, songs — and their generators. |
+| `src/assets` | The editable asset documents (pixels, palettes, fonts, tile maps, screens, songs), and their generators. |
 | `src/build` | The toolchain registry, the browser-local 6502 assembler and BASIC tokeniser, the build graph and the native adapter. |
 | `src/cloud` | Talking to the project store, and reporting honestly when there is none. Local mode does not depend on any of it. |
 | `src/components` | The workbench surfaces. Presentation and interaction; the rules they present live in the modules above. |
 | `src/data` | Machine profiles, and the generated compatibility and conformance documents. |
 | `src/editor` | Editing operations, document lifecycle, preferences, encodings and line endings. |
 | `src/emulator` | Adapter contract, debug models, and everything that talks to a running machine. |
-| `src/language` | The language adapter API, the project language index, completion, and the maintained first-party knowledge — opcodes, OS calls, hardware registers — that ships with the build. |
+| `src/language` | The language adapter API, the project language index, completion, and the maintained first-party knowledge (opcodes, OS calls, hardware registers) that ships with the build. |
 | `src/layout` | How wide and how tall each workbench panel is, what may change it, and the rule that a resize never squeezes the editor below the width it can be read at. |
 | `src/media` | Disk, tape and ROM image readers and writers. |
 | `src/profiles` | Machine and configuration resolution, and portability comparison. |
 | `src/project` | The project document, its schema and migrations, import, bundles, trash and limits. |
 | `src/rom` | Firmware manifests and adapter support, which decides what this build can actually run. |
-| `src/research` | Imported reference packs: their schema, the library that holds them, search, cross-linking and licensed insertion. Separate from `src/language` because the two answer for different things — what this build maintains, and what somebody brought to it. |
+| `src/research` | Imported reference packs: their schema, the library that holds them, search, cross-linking and licensed insertion. Separate from `src/language` because the two answer for different things. What this build maintains, and what somebody brought to it. |
 | `src/settings` | Layered settings: defaults, then the person's, then the project's. |
 | `src/testing` | Hardware test plans and their execution model. |
+| `src/theme` | The appearance choice (theme, contrast and type scale), and the audit that measures the palettes against WCAG rather than trusting them. Colours themselves live in `src/theme.css`; this decides which palette the document is shown, and holds it to a number. |
 | `src/commands` | The workbench command set and the one key-binding table every chord resolves from. |
 | `src/help` | The in-app help topics and their integrity checks. |
 | `src/platform` | The few places a browser capability is wrapped rather than used directly. |
 | `src/runtime` | The 6502 core used for hardware test execution, separate from the emulator adapters. |
 | `src/samples` | The worked sample projects, which open through the ordinary project parser. |
+
+The interface's own map (which region holds what, and why) is in
+`docs/information-architecture.md`.
 
 ## The rules the code follows
 
@@ -136,8 +140,8 @@ codebase states the thing, the reason and the remedy. "Failed" on its own is
 treated as a defect, and the limits register refuses an entry written that way.
 
 **Two declarations of one fact are a defect.** Where the same thing was stated
-twice — accepted project formats, commit characters, security policy directives,
-compatibility claims — one of the two is now derived from the other and a
+twice (accepted project formats, commit characters, security policy directives,
+compatibility claims) one of the two is now derived from the other and a
 contract proves they cannot drift. Several of those pairs had already drifted
 when they were found.
 
@@ -170,7 +174,7 @@ for the two cores with licence positions worth reading before changing them.
 
 A language adapter is the single declaration of what a language offers:
 classification, outline, and diagnostics that one file can support on its own.
-The boundary is the point of the API — an adapter sees one file, so it reports
+The boundary is the point of the API. An adapter sees one file, so it reports
 a duplicate label but never an unresolved symbol, because an included file it
 cannot see may declare it. Whole-project questions belong to the project
 language service, which has the include graph.
@@ -190,14 +194,15 @@ The full policy, with every versioned surface and what it promises, is in
 
 Three layers, and each exists because the other two cannot answer its question.
 
-- **Contracts** — pure functions and models, run under Vitest. These state what
+- **Contracts** (pure functions and models, run under Vitest. These state what
   the code must do in the words of the problem, not the implementation.
-- **Component contracts** — the real surfaces under jsdom, driven the way a
+- **Component contracts**) the real surfaces under jsdom, driven the way a
   person drives them.
-- **The release gate** — `npm run ci`. Types, help integrity, the whole test
+- **The release gate**, `npm run ci`. Types, help integrity, the whole test
   suite with its coverage floors, the backend suite, PHPStan and the PHP
   formatter, a dependency vulnerability scan of both halves, the production
-  build, vendored-file provenance, repository hygiene, and a headless Chromium
+  build, vendored-file provenance, repository hygiene, the writing rule that
+  keeps punctuation nobody typed out of the prose, and a headless Chromium
   run against the built artefact under the shipped security headers.
 
 The browser stage is where layout, policy and accessibility are settled, because
@@ -235,13 +240,19 @@ development server proxies the same prefix to `http://127.0.0.1:8000`, or to
 `BACKEND_ORIGIN` when it is set. Without that proxy every toolchain manifest
 request is answered with the workbench's own `index.html`, and the workbench
 reports the native toolchains as unavailable while the assembler sits installed
-on the machine — which is exactly what happened before the proxy existed.
+on the machine, which is exactly what happened before the proxy existed.
 
 A toolchain that cannot be used now says why: the build service did not answer,
 answered a page rather than a manifest, runs a different adapter version, or
 reported a specific readiness check as failed. The readiness detail comes
 straight from the manifest, so a missing binary names the path it was looked
 for at.
+
+The C SDK documents the editor opens read-only are served by the same service.
+It looks for the BBC runtime headers where an install puts them,
+`/usr/local/share/8bit-net/cc65-bbc/include`, then falls back to the copy in
+`backend/resources/cc65-bbc/include`, so a checkout run with `php -S` serves
+them without any configuration. `CC65_BBC_INCLUDE` overrides both.
 
 The store needs somewhere to write. In the container that is the mounted
 volume; outside it, `PROJECT_STORE_ROOT` has to name a directory the backend may
@@ -257,22 +268,22 @@ which is how these tools arrive outside the container.
 
 ## Adding things
 
-**A machine profile** — add it to `src/data/machines.ts` with its variants, ROM
+**A machine profile**. Add it to `src/data/machines.ts` with its variants, ROM
 sets and capabilities, each capability marked `supported`, `preview` or
 `planned`. Then add an adapter support record in `src/rom/adapterSupport.ts`
 saying which engine runs it or why none does. The compatibility matrix and its
 contracts pick both up automatically. Marking a capability `supported` that the
 build cannot drive will fail the machine catalogue contract.
 
-**A toolchain** — add a manifest to `src/build/buildTarget.ts` and bump the
+**A toolchain**. Add a manifest to `src/build/buildTarget.ts` and bump the
 registry version, so an artifact can still be traced to what produced it.
 
-**A language adapter** — implement the interface in
+**A language adapter**, implement the interface in
 `src/language/languageAdapter.ts` and register it. The validator contract will
 require an identifier, a label, the dialects it actually implements, and all
 three methods.
 
-**A limit** — add it to `src/project/limits.ts` importing the constant from the
+**A limit**. Add it to `src/project/limits.ts` importing the constant from the
 module that enforces it. The validator requires the reason the limit exists and
 what happens on reaching it, and refuses an entry that says only that something
 fails.
@@ -284,7 +295,7 @@ Vendored third-party code is checksummed and its upstream revision recorded in
 vendored file that is patched carries its patch in `docker/` and the reason in
 its `PROVENANCE.md`, so a future update knows what to reapply and why.
 
-Runtime dependencies are deliberately few — React, Vite, jsbeeb and fflate. Each
+Runtime dependencies are deliberately few, React, Vite, jsbeeb and fflate. Each
 addition is a licence position and a supply-chain surface, and is worth the
 argument.
 

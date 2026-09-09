@@ -17,7 +17,7 @@ export interface RomRequirement {
    * MMFS, the Advanced File Manager and the ElkWiFi firmware are cartridge and
    * sideways ROMs somebody may put in a Plus 1. None of them is the Plus 1, and
    * treating them as required meant switching the Plus 1 on demanded four more
-   * ROMs and left the machine unready — so the expansion could not be fitted at
+   * ROMs and left the machine unready, so the expansion could not be fitted at
    * all. They are offered when the capability is on and never required.
    */
   offeredByCapability?: string;
@@ -37,7 +37,7 @@ export interface RomRequirement {
    * somewhere this build does not yet provide.
    *
    * Absent means the core has a socket of its own for it and will be handed it.
-   * A value names the mount it needs — a sideways bank, a Tube parasite — and
+   * A value names the mount it needs (a sideways bank, a Tube parasite), and
    * this build has none of those on the Electron, so the ROM is held back. The
    * core refuses a name it has no socket for and refuses the whole machine with
    * it, so "held back" is the difference between an expansion that is not
@@ -125,8 +125,8 @@ export const ROM_SETS: RomSetDefinition[] = [
      * The same machine with the earlier BASIC.
      *
      * BASIC I and BASIC II are different languages to a program that can tell
-     * them apart — OPENUP, the OSCLI keyword and several error messages arrive
-     * with II — so a build targeting the earlier one deserves a machine that
+     * them apart (OPENUP, the OSCLI keyword and several error messages arrive
+     * with II), so a build targeting the earlier one deserves a machine that
      * actually has it rather than a note saying it is close enough. The engine
      * model is the same; only the image in the language socket differs, and the
      * vault serves each set from its own directory.
@@ -158,7 +158,7 @@ export const ROM_SETS: RomSetDefinition[] = [
      * The BBC Model B+, on the machine this build adds to the engine.
      *
      * The operating system is 16 KB. On a real B+ 64K it shares one 32 KB part
-     * at IC71 with BASIC II — the operating system in the upper half — so a
+     * at IC71 with BASIC II, the operating system in the upper half, so a
      * dump of that part has to be split, and the two halves supplied here as
      * the operating system and the language. A B+ 128 dump of OS 2.00 on its
      * own is 16 KB already.
@@ -255,7 +255,7 @@ export const ROM_SETS: RomSetDefinition[] = [
       elkCarried('zemmfs', 'ZEMMFS · MMFS variant', 'roms/ZEMMFS.rom', 'plus1', 'A further MMFS build carried by the 1MHzPi project.'),
       elkCarried('afm', 'Advanced File Manager 1.09', 'roms/AFM1V09.rom', 'plus1', 'Advanced File Manager, a filing-system front end used with MMFS.'),
       elkCarried('rhplus1', 'Retro Hardware Plus 1 support 1.33', 'roms/RHPLUS133.rom', 'plus1', 'Support ROM for the Retro Hardware Plus 1 reimplementation, which is the board the 1MHzPi work uses.'),
-      elkCarried('elkwifi', 'ElkWiFi 1MHz bus firmware', 'roms/elkwifi.rom', '1mhzpi', 'Built from the 1MHzPi project\u2019s own source rather than obtained; re-import after a firmware rebuild. Its size is not a round 16 KB.', [16384, 16406]),
+      elkCarried('elkwifi', 'ElkWiFi 1MHz bus firmware', 'roms/elkwifi.rom', '1mhzpi', "Built from the 1MHzPi project's own source rather than obtained; re-import after a firmware rebuild. Its size is not a round 16 KB.", [16384, 16406]),
       /* The Electron's Tube is on the Plus 1's expansion connector, so the
        * client ROM is a 4 KB parasite image rather than a sideways one. */
       rom('tube6502', '6502 Tube client 1.20', 'roms/6502tube_120.rom', [4096], 'extension', false, 'tube', {
@@ -293,7 +293,7 @@ export function requiredRomRequirements(definition: RomSetDefinition, enabledCap
  * Whether every requirement a fitted machine has is met by what was supplied.
  *
  * Counting requirements one by one is not the same question. Where several
- * belong to one alternative group, any one of them answers for the group — a
+ * belong to one alternative group, any one of them answers for the group, a
  * Plus 3 with ADFS is a Plus 3, and asking for the DFS as well describes no
  * machine anybody owns.
  */

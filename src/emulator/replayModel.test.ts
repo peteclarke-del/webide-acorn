@@ -4,7 +4,7 @@ import { appendReplayWriteDigest, replayVerificationMatches, validateReplayConfi
 describe('deterministic replay model', () => {
   it('bounds checkpoint memory and instruction history', () => {
     expect(validateReplayConfig({ checkpointInterval: 64, checkpointCapacity: 16 })).toEqual({ checkpointInterval: 64, checkpointCapacity: 16 });
-    expect(() => validateReplayConfig({ checkpointInterval: 0 })).toThrow(/1–4,096/);
+    expect(() => validateReplayConfig({ checkpointInterval: 0 })).toThrow(/1-4,096/);
     expect(() => validateReplayConfig({ checkpointInterval: 4096, checkpointCapacity: 64 })).toThrow(/65,536/);
   });
 

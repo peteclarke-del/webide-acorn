@@ -7,7 +7,7 @@
  *
  * A UEF is a header and then a sequence of chunks, each an identifier, a length
  * and that many bytes. The structure is all this module claims to know. It does
- * not claim to know what any particular chunk means — a UEF carries origin
+ * not claim to know what any particular chunk means, a UEF carries origin
  * text, inlay scans, position markers and tone data among other things, and
  * asserting a meaning this build has not implemented would be inventing detail
  * about somebody's tape.

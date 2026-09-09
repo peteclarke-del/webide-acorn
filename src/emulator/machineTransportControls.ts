@@ -1,7 +1,7 @@
 /*
  * What the machine's transport controls are called, and why it matters.
  *
- * These four buttons — run, pause, step, reset — sit in the emulator panel and
+ * These four buttons (run, pause, step, reset) sit in the emulator panel and
  * do two different jobs depending on whether a real machine is attached or the
  * bounded ROM-less runtime is. Their names did not follow that, and two of them
  * were wrong in ways that cost a person real time:
@@ -12,7 +12,7 @@
  *    tooltip is not an accessible name.
  *  - The pause button was called "Step instruction" when no machine was
  *    attached, and stepped. So a pause icon stepped, and two adjacent buttons
- *    announced themselves identically — one of the few things a screen reader
+ *    announced themselves identically. One of the few things a screen reader
  *    user cannot work around, because the name is all they have.
  *
  * The names are computed here so they can be tested as a set, which is the

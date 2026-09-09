@@ -55,7 +55,7 @@ describe('rewriting a directory that has not changed', () => {
     /* A short name ends with a carriage return and the rest of the ten-byte
      * field is whatever the previous occupant of that slot left there. Every
      * other byte of an entry is modelled, so this is the whole of what an entry
-     * can carry that this adapter does not understand — and a writer that
+     * can carry that this adapter does not understand, and a writer that
      * padded the field out would destroy all of it while still producing an
      * image that mounts and lists correctly. */
     const bytes = image();

@@ -8,7 +8,7 @@
  *
  * The report exists to answer one question honestly: which completed
  * requirements say how they were verified, and which do not. A tick with
- * nothing behind it is the failure this is for — it looks like progress and is
+ * nothing behind it is the failure this is for. It looks like progress and is
  * not, and the only way to see it is to count.
  *
  * It reports three states rather than two, because two would be a lie in both
@@ -38,7 +38,7 @@ export function parseBacklog(markdown) {
 
     /* A requirement is a top-level checkbox whose text opens with an
      * identifier. Anything else at that level is a note and is not traced. */
-    /* An identifier can carry more than two segments — AST-INC-01 — so the
+    /* An identifier can carry more than two segments, AST-INC-01, so the
      * pattern takes every hyphenated part rather than stopping at the first,
      * which would read that as AST-INC and then fail to match the line. */
     const top = /^- \[([ x])\] ([A-Z][A-Z0-9]*(?:-[0-9A-Z]+)+)\s+(.*)$/.exec(line);
@@ -128,7 +128,7 @@ function shorten(text, limit) {
   const clean = text.replace(/\s+/g, ' ').trim();
   if (clean.length <= limit) return clean;
   const cut = clean.slice(0, limit);
-  return `${cut.slice(0, cut.lastIndexOf(' '))}…`;
+  return `${cut.slice(0, cut.lastIndexOf(' '))}...`;
 }
 
 /** The report, as Markdown. Deterministic, so a test can compare it. */
@@ -158,14 +158,14 @@ export function renderTraceability(requirements) {
     'It answers one question: which completed requirements say how they were',
     'verified, and which do not. A tick with nothing behind it looks like',
     'progress and is not, and the only way to see it is to count. Nothing here',
-    'decides whether the evidence is good — only whether it was recorded, which',
+    'decides whether the evidence is good (only whether it was recorded, which',
     'is the part a machine can settle.',
     '',
     '## What the three states mean',
     '',
-    '- **Traced** — the requirement records its verification under an Evidence heading, where it can be found.',
-    '- **Described** — the requirement names contracts, tests or a browser run in its prose but not under that heading. The work was done; the record is harder to follow.',
-    '- **Untraced** — neither. This is the finding.',
+    '- **Traced**) the requirement records its verification under an Evidence heading, where it can be found.',
+    '- **Described** (the requirement names contracts, tests or a browser run in its prose but not under that heading. The work was done; the record is harder to follow.',
+    '- **Untraced**) neither. This is the finding.',
     '',
     '## Where the work stands',
     '',

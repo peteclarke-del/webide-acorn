@@ -1,7 +1,7 @@
-# Acorn Web IDE — Delivery TODO and Traceability Backlog
+# Acorn Web IDE: Delivery TODO and Traceability Backlog
 
-Status: Draft for stakeholder review  
-Date: 20 August 2026  
+Status: Draft for stakeholder review
+Date: 20 August 2026
 Companion specification: `docs/requirements-specification.md`
 
 ## 1. Rules for using this backlog
@@ -20,8 +20,8 @@ Companion specification: `docs/requirements-specification.md`
    estimated. Untraced has stayed at zero as the backlog has grown: the report
    currently shows 106 traced, 66 described and 0 untraced across 172 completed
    requirements of 294 tracked, and its untraced section reads "None". Those numbers are regenerated rather than
-   maintained — `npm run traceability` rewrites the report, and its contract
-   runs in the release gate — so a tick added without evidence appears in the
+   maintained (`npm run traceability` rewrites the report, and its contract
+   runs in the release gate), so a tick added without evidence appears in the
    next report rather than passing unnoticed, and the figures quoted here are
    a snapshot of a document that is the authority.
 - [ ] GOV-004 Maintain one requirement-to-design-to-test traceability matrix.
@@ -32,7 +32,7 @@ Companion specification: `docs/requirements-specification.md`
 - [ ] GOV-007 Review architecture, accessibility, security, privacy, legal,
   operations, and test impact at each release gate.
 
-## 2. Phase 0 — product, legal, and feasibility discovery
+## 2. Phase 0: product, legal, and feasibility discovery
 
 ### 2.1 Product definition
 
@@ -40,9 +40,9 @@ Companion specification: `docs/requirements-specification.md`
   that does not copy Web64 or third-party trademarks/artwork (DEC-001, UX-004).
 - [ ] P0-002 Validate personas and journeys through interviews/tasks covering a
   beginner, 6502 expert, RISC OS developer, educator, porter, and assistive-
-  technology users (P-01–P-07, J-01–J-08).
+  technology users (P-01-P-07, J-01-J-08).
 - [ ] P0-003 Record the exact public-release target profiles and the definition of
-  “supports the Acorn line” (DEC-002, ACC-001–ACC-003).
+  "supports the Acorn line" (DEC-002, ACC-001-ACC-003).
   - [x] **The definition exists and is a vocabulary rather than a sentence.**
     `src/rom/adapterSupport.ts` distinguishes three states, because they mean
     different things to somebody deciding whether to start: *runnable*, the
@@ -56,8 +56,8 @@ Companion specification: `docs/requirements-specification.md`
     stops matching, so the list of what this build supports cannot drift from
     what it does.
   - [ ] **What is not recorded is which of them a public release would claim.**
-    That is a scope decision — how much of the Acorn line the first release says
-    it covers — and it belongs with the acceptance GOV-001 asks for rather than
+    That is a scope decision, how much of the Acorn line the first release says
+    it covers, and it belongs with the acceptance GOV-001 asks for rather than
     with the code. Every fact needed to make it is generated; the choice is not
     mine.
 - [ ] P0-004 Convert the Web64 baseline table into demonstration scripts and
@@ -71,8 +71,8 @@ Companion specification: `docs/requirements-specification.md`
     minimisation taken to its end is collecting nothing, and this product has no
     question it needs a person's behaviour to answer.
   - [x] The constraint the item names is met by construction rather than by
-    policy. Local mode has no network path at all — the workbench edits, builds,
-    runs and debugs with the network unplugged — so analytics could not become a
+    policy. Local mode has no network path at all (the workbench edits, builds,
+    runs and debugs with the network unplugged), so analytics could not become a
     prerequisite for it even if somebody later wanted them to be.
   - [x] Evidence: the `browsers` and `smoke` gate stages load the built
     workbench under its shipped content security policy, whose `connect-src` is
@@ -89,7 +89,7 @@ Companion specification: `docs/requirements-specification.md`
     real survey, and it is written up under EMU-423: `dmcoles/elkjs` was the
     only maintained browser Electron, its memory model read to settle what it
     could honestly provide, and `stardot/elkulator` identified as the only route
-    to the expansions — with the Allegro 5 fork that made a WebAssembly port
+    to the expansions, with the Allegro 5 fork that made a WebAssembly port
     possible found by looking rather than assumed. Both were adopted, because
     they answer different questions.
   - [ ] **Later ARM systems were not surveyed.** No candidate has been
@@ -118,7 +118,7 @@ Companion specification: `docs/requirements-specification.md`
     none for any core; nor has any core been assessed for what it does to a
     screen reader beyond the workbench around it offering structured
     alternatives. Both are real gaps rather than absences with a reason.
-- [x] P0-012 Prototype—not productize—emulator contracts for pause, instruction
+- [x] P0-012 Prototype, not productize, emulator contracts for pause, instruction
   step, registers, banked memory, source/address breakpoints, state snapshot,
   input injection, video/audio capture, and instruction/bus trace.
   - [x] Every contract on that list has been proved against a running machine,
@@ -134,14 +134,14 @@ Companion specification: `docs/requirements-specification.md`
     refuses all four by name and the Elkulator one offers them. Discovering that
     by building against two cores is the whole value of prototyping first.
   - [x] Evidence: the adapter contract tests for each core hold its declared
-    capabilities to what its runtime actually implements — 10 for ElkJS, 13 for
+    capabilities to what its runtime actually implements, 10 for ElkJS, 13 for
     Elkulator including that every offered capability names a bridge entry point
     that exists, and `src/emulator/adapterContract.test.ts` for the shared
     vocabulary. Each was proved by a headless run against a real machine and the
     runs are recorded under EMU-423 and EMU-424.
 - [x] P0-013 Inventory toolchains for BeebAsm-compatible 6502, general 6502/
   65C02, BASIC tokenization, 8-bit C, ARM assembly/linking, and RISC OS C
-  (BLD-001–BLD-004, DEC-005).
+  (BLD-001-BLD-004, DEC-005).
   - [x] Evaluate the first two external 6502 candidates. The primary-source,
     scored decision in `docs/toolchain-evaluation.md` selects ca65/ld65 as the
     next native adapter because it proves object/link lifecycle and later C
@@ -151,7 +151,7 @@ Companion specification: `docs/requirements-specification.md`
     ADR 0005.
   - [x] **All six families are now inventoried, and the last one's answer is
     that nothing usable exists.** ADR 0009 records the RISC OS C candidate and
-    its status — accepted direction, toolchain unavailable — which is a
+    its status (accepted direction, toolchain unavailable), which is a
     finding rather than an omission: an inventory that reported no candidate
     and an inventory that reported one nobody can obtain are different
     conclusions, and this is the second. BASIC tokenisation is this build's own,
@@ -162,8 +162,8 @@ Companion specification: `docs/requirements-specification.md`
     `backend` gate stage runs all four adopted toolchains against their real
     binaries, so an inventory entry that stopped being true fails there.
   - [ ] Application packaging is not a toolchain and was not inventoried. A
-    RISC OS application directory is written here — `src/media/riscOsApplication.ts`
-    — but what would package one for distribution is a separate question nobody
+    RISC OS application directory is written here, `src/media/riscOsApplication.ts`,
+    but what would package one for distribution is a separate question nobody
     has asked yet.
 - [ ] P0-014 Prove diagnostic parsing, label/source-map generation, deterministic
   output, cancellation, sandboxing, licence, and version pinning for each
@@ -197,10 +197,10 @@ Companion specification: `docs/requirements-specification.md`
     ADR 0005 records why this is not represented as RISC OS or runnable
     Archimedes output. The parent remains open for RISC OS C and packaging.
 - [x] P0-015 Inventory media and asset format implementations and run malicious-
-  input review before adopting a parser (MED-001–MED-009, SEC-003).
+  input review before adopting a parser (MED-001-MED-009, SEC-003).
   - [x] **No parser was adopted, which is the finding this item exists to
-    produce.** Every media format this product reads is implemented here —
-    fifteen modules covering DFS single and double sided, ADFS S, M, L, D and E
+    produce.** Every media format this product reads is implemented here.
+    Fifteen modules covering DFS single and double sided, ADFS S, M, L, D and E
     with both map and directory formats, Atom ATM, RISC OS application
     directories, UEF chunks, tape and disc sets. Nothing third-party parses a
     file somebody supplies, so there is no upstream parser's malicious-input
@@ -208,17 +208,17 @@ Companion specification: `docs/requirements-specification.md`
   - [x] That decision was made for a stated reason rather than by default: these
     are small, well-understood formats, and a parser that refuses precisely is
     worth more here than one that is merely popular. What the review becomes,
-    given that, is the discipline the parsers are written under — every one
+    given that, is the discipline the parsers are written under, every one
     validates before it allocates, bounds what it will read, and refuses by
     naming what is wrong rather than repairing it into something plausible.
   - [x] Evidence: 156 contracts across `src/media`, of which 27 assert a refusal
-    by name — a length that is no disc, a signature that is missing, a catalogue
+    by name. A length that is no disc, a signature that is missing, a catalogue
     that points off the disc, a directory that loops, a half-written directory,
     an image whose map disagrees with its own size. A parser that started
     accepting malformed input fails there.
 - [x] P0-016 Produce ROM/firmware matrix by profile: required/optional ROM,
   version, ownership, redistribution status, user-supplied flow, accepted hashes,
-  storage/share rules, and clean CI substitute (TGT-008–TGT-009, DEC-004).
+  storage/share rules, and clean CI substitute (TGT-008-TGT-009, DEC-004).
   - [x] **`docs/firmware.md` is generated from the manifests rather than
     maintained beside them.** It names every ROM of every set with its purpose,
     whether it is required or which capability makes it needed, the lengths that
@@ -227,7 +227,7 @@ Companion specification: `docs/requirements-specification.md`
     it and fails the gate the moment it stops matching the code, which is the
     only way a matrix like this stays true.
   - [x] The positions this item asks about are stated rather than implied.
-    Nothing is redistributed, because nothing ships — no ROM or media image is
+    Nothing is redistributed, because nothing ships. No ROM or media image is
     in this repository or the image and an executable check refuses one that is
     added. Ownership does not change: the images are the person's, stored
     origin-private in their own browser, served to the emulator frame through a
@@ -249,10 +249,10 @@ Companion specification: `docs/requirements-specification.md`
     are present rather than assumed.
 - [ ] P0-017 Produce manuals/reference-content matrix with title, owner, version,
   applicable targets, licence, allowed indexing/snippets/cache, citation URL,
-  update/removal process (RSH-001–RSH-007, DEC-008).
+  update/removal process (RSH-001-RSH-007, DEC-008).
   - [x] **The matrix has two halves and this build ships only one of them.** The
-    first-party half is the maintained knowledge in `src/language` — opcodes, OS
-    calls, SWIs and hardware registers — where every entry carries its own
+    first-party half is the maintained knowledge in `src/language` (opcodes, OS
+    calls, SWIs and hardware registers), where every entry carries its own
     citation, and that is written here rather than imported, so its owner,
     licence and update process are this repository's.
   - [x] The second half is not content this product holds at all. A reference
@@ -264,15 +264,15 @@ Companion specification: `docs/requirements-specification.md`
     is cached off their machine.
   - [ ] **What is missing is a matrix of actual documents, and it cannot be
     produced from here.** Which manuals a person may index, and on what terms,
-    is a question about specific publications and their rights holders — the
+    is a question about specific publications and their rights holders, the
     Acorn manuals, the Advanced User Guides, the PRMs. Naming them and their
     terms is a licensing exercise and a decision, not a record of one this build
     has already made.
 - [ ] P0-018 Complete dependency licence/security review and approve selected
   candidates. Unresolved assets block architecture selection (ARC-09, SEC-008).
   - [x] **The review found an obligation named and not met.** Three components
-    ship under a copyleft licence — jsbeeb under GPL-3.0-or-later, the vendored
-    ElkJS and the Arculator core under GPL-2.0 — and each is conveyed in what
+    ship under a copyleft licence (jsbeeb under GPL-3.0-or-later, the vendored
+    ElkJS and the Arculator core under GPL-2.0), and each is conveyed in what
     this product distributes. Arculator travelled with its licence, an archive
     of the exact upstream source it was built from, its patch and its build
     hashes. jsbeeb and ElkJS shipped a licence file and nothing else. The image
@@ -287,7 +287,7 @@ Companion specification: `docs/requirements-specification.md`
     somebody remembers. The gate reads which shipped packages the bill of
     materials classifies as copyleft and fails if any of them, or any component
     recorded in `licenceCompliance.mjs`, lacks its licence or its source in the
-    image — so a shipped copyleft package nobody has accounted for is a failure
+    image, so a shipped copyleft package nobody has accounted for is a failure
     rather than a silence. Four contracts cover it, including that removing any
     one licence or source line is caught.
   - [x] **The backend was not in the inventory at all.** A licence review that
@@ -311,11 +311,11 @@ Companion specification: `docs/requirements-specification.md`
 
 - [x] P0-020 Define and validate the machine-profile JSON schema, inheritance/
   composition rules, stable IDs, status vocabulary, migrations, and extension
-  preservation (TGT-001–TGT-007).
+  preservation (TGT-001-TGT-007).
   - [x] The schema is `src/profiles/profileManifest.ts` and it is validated on
     every path in from outside the session rather than trusted. Identities are
-    stable strings, the status vocabulary is a closed set — supported, preview,
-    planned — and a capability whose state is not one of them is dropped by name
+    stable strings, the status vocabulary is a closed set (supported, preview,
+    planned), and a capability whose state is not one of them is dropped by name
     instead of guessed at.
   - [x] **Composition is a resolution rather than an inheritance chain.** A
     machine, a variant, a firmware profile and a set of capabilities resolve to
@@ -335,8 +335,8 @@ Companion specification: `docs/requirements-specification.md`
     shipped profile without change, each refusal by name, and that a malformed
     accent corrects rather than losing the machine over a colour.
 - [x] P0-021 Model Atom variants and legal ROM/storage prerequisites.
-  - [x] Two variants — the tape machine and the one with the floating-point ROM
-    — each with the ROM set it needs, in `src/data/machines.ts` and
+  - [x] Two variants. The tape machine and the one with the floating-point ROM.
+    Each with the ROM set it needs, in `src/data/machines.ts` and
     `src/rom/romProfiles.ts`. The kernel and BASIC are required; the
     floating-point ROM is a capability with its own image.
   - [x] Storage is modelled as a prerequisite rather than a checkbox. AtomDOS
@@ -354,8 +354,8 @@ Companion specification: `docs/requirements-specification.md`
     is refused, and 12 in `src/rom/romProfiles.test.ts` for the ROM sets.
 - [ ] P0-022 Model BBC A/B, DFS controller/filing-system differences, common
   regional variants, input, video, sound, and sideways slots.
-  - [x] The Model A and Model B are separate machines with the memory each had
-    — 16 KB and 32 KB — rather than one machine with a switch, and the Model A
+  - [x] The Model A and Model B are separate machines with the memory each had,
+    16 KB and 32 KB, rather than one machine with a switch, and the Model A
     carries the Model B interface upgrade as a capability, which is what it
     actually was.
   - [x] **The filing-system differences are modelled where they matter, which is
@@ -381,32 +381,32 @@ Companion specification: `docs/requirements-specification.md`
     publishes no B+ model, so none of that behaviour can be executed here and
     nothing can check the model against a machine. A contract asserts against
     the engine's own model list that no such model exists, so the claim follows
-    the code and will fail if a future engine adds one — but until something can
+    the code and will fail if a future engine adds one, but until something can
     run a B+, this is a description and says so.
 - [x] P0-024 Model base Electron, Plus 1, Plus 3, memory and storage expansions;
   reject combinations the emulator cannot reproduce.
   - [x] The base machine, the Plus 1 and the Plus 3 are modelled, with the
     cassette interface, sideways RAM, the joystick and the 1MHzPi firmware
     beside them, and the `electron-expanded` ROM set declares the images each
-    needs — the Plus 1 support ROM, Acorn ADFS, Electron DFS, three MMFS builds,
+    needs. The Plus 1 support ROM, Acorn ADFS, Electron DFS, three MMFS builds,
     Advanced File Manager, the Retro Hardware Plus 1 ROM, the ElkWiFi firmware
     and the 6502 Tube client.
   - [x] **A combination the core cannot reproduce is refused rather than
     offered.** Each expansion carries the state the running core justifies and
-    the requirement that would make it real — `sideways` says it needs the
-    Elkulator core because ElkJS decodes every unclaimed bank to BASIC — and
+    the requirement that would make it real, `sideways` says it needs the
+    Elkulator core because ElkJS decodes every unclaimed bank to BASIC, and
     resolution drops a planned capability with that requirement quoted rather
     than enabling something the machine would not do.
   - [x] Evidence: 12 contracts in `src/rom/romProfiles.test.ts`, 5 of which
-    cover the Electron expansion set — its pinned engine, the required-versus-
+    cover the Electron expansion set (its pinned engine, the required-versus-
     gated split, the accepted sizes, the boards covered and where each ROM
-    mounts — with the advertising rule in `src/rom/adapterSupport.test.ts`, and
+    mounts), with the advertising rule in `src/rom/adapterSupport.test.ts`, and
     the refusal of a planned capability among the 19 in
     `src/profiles/profileRegistry.test.ts`.
 - [ ] P0-025 Model Master 128, Turbo, 512, and Compact as host/expansion profiles
   rather than names only.
-  - [x] The Master 128 and the Compact are firmware variants of one machine —
-    MOS 3.20, MOS 3.50 and Compact MOS 5.10 — and the Turbo is what it was in
+  - [x] The Master 128 and the Compact are firmware variants of one machine.
+    MOS 3.20, MOS 3.50 and Compact MOS 5.10, and the Turbo is what it was in
     hardware: an internal 65C102 second processor, modelled as the Tube
     capability rather than as a separate name. That is the host-plus-expansion
     shape the item asks for, and it is the one place in this build where a Tube
@@ -422,8 +422,8 @@ Companion specification: `docs/requirements-specification.md`
 - [x] P0-026 Model ARM2/ARM3 Archimedes groups only after verifying equivalent
   hardware; model RISC OS version/ROM and storage separately.
   - [x] The A300 and A400/1 are separate machines rather than one group, and the
-    firmware is a separate axis: each carries its RISC OS versions as variants —
-    Arthur 1.20 through RISC OS 3.11 on the A300 — and every one of those names
+    firmware is a separate axis: each carries its RISC OS versions as variants.
+    Arthur 1.20 through RISC OS 3.11 on the A300, and every one of those names
     a firmware profile in `src/rom/archimedesRom.ts` with the four byte-lane
     ROMs it is built from and its CMOS image. Version, ROM and machine are three
     things, and the model keeps them three.
@@ -449,10 +449,10 @@ Companion specification: `docs/requirements-specification.md`
     and carries the tier's own wording, and `src/data/compatibilityMatrix.test.ts`
     holds the published document to it.
 - [x] P0-028 Model sideways ROM/RAM slots, shadow/private/hazel memory, ROM
-  overlaps, storage, network, and external devices (TGT-020–TGT-026).
+  overlaps, storage, network, and external devices (TGT-020-TGT-026).
   - [x] Sideways slots are a model rather than a label. `src/rom/sidewaysSlots.ts`
     holds the sixteen banks, because sixteen is architectural, and a bank number
-    decides service-call priority and which ROM answers a `*` command first — so
+    decides service-call priority and which ROM answers a `*` command first, so
     a bank is something a person assigns and the product does not choose for
     them.
   - [x] Shadow and Hazel are modelled where the hardware had them and not where
@@ -474,7 +474,7 @@ Companion specification: `docs/requirements-specification.md`
   - [x] **The schema exists and is exercised, for one processor.** A test plan
     declares `PROCESSOR = HOST` or `PROCESSOR = PARASITE`, and that declaration
     decides which machine a program is loaded into, whose registers and memory
-    are read, and which assertions are even offered — `OUTPUT` and `EVENT` are
+    are read, and which assertions are even offered, `OUTPUT` and `EVENT` are
     host MOS entries the parasite never executes, and `SCREEN` and `AUDIO` are
     host hardware it does not have, so each is refused by name rather than
     quietly answering about the wrong machine.
@@ -497,10 +497,10 @@ Companion specification: `docs/requirements-specification.md`
 
 - [x] P0-040 Draw system context and container diagrams separating browser,
   Symfony API, job orchestration, isolated build/runtime workers, persistence,
-  object storage, reference index, and shared administration (ARC-01–ARC-07).
+  object storage, reference index, and shared administration (ARC-01-ARC-07).
   - [x] Both are in `docs/architecture.md`. The context diagram has three
-    external things — a person, the firmware they own and the reference
-    documentation they own — and no fourth arrow, because nothing is uploaded,
+    external things (a person, the firmware they own and the reference
+    documentation they own), and no fourth arrow, because nothing is uploaded,
     no analytics leave the machine and the build sandbox has no network path at
     all. The absence is drawn rather than left to be inferred.
   - [x] The container diagram separates the workbench document, the emulator
@@ -509,7 +509,7 @@ Companion specification: `docs/requirements-specification.md`
     worker and the project store inside the container, with the channel each
     edge actually uses.
   - [x] **Four of the containers this item names are absent, and the diagram
-    says so instead of drawing them empty.** There is no job orchestration — a
+    says so instead of drawing them empty.** There is no job orchestration, a
     build is a request that returns a result, and a queue with per-tenant
     fairness is open work under BLD-302; no object storage separate from the
     store's own content-addressed blobs; no reference index service, because
@@ -524,16 +524,16 @@ Companion specification: `docs/requirements-specification.md`
   - [x] The contexts are the module table in `docs/architecture.md`, and they
     are enforced rather than described: a contract fails the gate if the
     document names a module directory that does not exist or misses one that
-    does. Two of them are worth naming because the boundary is deliberate —
+    does. Two of them are worth naming because the boundary is deliberate,
     `src/language` is the knowledge this build maintains and `src/research` is
     what somebody brought to it, kept apart because they answer for different
     things; and `src/runtime` is the 6502 core used for hardware test execution,
     kept apart from the emulator adapters it would otherwise be confused with.
   - [x] The domain contracts are `api/openapi.json`, which is the contract
     rather than a description of one: twenty routes, twenty-eight schemas and
-    the single shape every refusal takes. Both sides are checked against it —
-    the generated TypeScript clients here and the real routes and real answers
-    in the backend — and no caller may spell a path itself.
+    the single shape every refusal takes. Both sides are checked against it.
+    The generated TypeScript clients here and the real routes and real answers
+    in the backend, and no caller may spell a path itself.
   - [x] Evidence: 10 contracts in `src/api/contracts.test.ts`, including that
     no `/api/` literal exists anywhere in the product outside the generated
     module and that no declared route goes uncalled; the backend conformance
@@ -544,8 +544,8 @@ Companion specification: `docs/requirements-specification.md`
   - [x] ADR 0010 records it: manifests over content-addressed blobs, so history
     over a project that barely changes costs almost nothing and restoring an old
     revision is reading one rather than reconstructing it. Consistency is
-    optimistic — a commit names the revision it was written against and a stale
-    parent is refused — which is the access pattern a single writer with an
+    optimistic, a commit names the revision it was written against and a stale
+    parent is refused, which is the access pattern a single writer with an
     undo history actually has.
   - [x] Backup and recovery are no longer only in the ADR: `docs/operations.md`
     is the procedure, and `backend/tests/Storage/StoreRecoveryTest.php` performs
@@ -573,18 +573,30 @@ Companion specification: `docs/requirements-specification.md`
     have no implementation**, and an ADR for a decision nobody has had to make
     is a guess with a number on it. Both belong with BLD-302 and the cloud
     phase.
-  - [ ] Adapter discovery and reference indexing are implemented but not written
-    up: adapter support is a table in `src/rom/adapterSupport.ts` checked
-    against each engine's own model list, and reference indexing happens in the
-    browser over imported packs. Each deserves an ADR saying why it is not a
-    registry and not a service; that is writing, and it is not done.
+  - [x] **Adapter discovery and reference indexing are now written up.** ADR
+    0011 records adapter discovery as a compiled table rather than a runtime
+    registry, and states the reason plainly: with a registry, "can this machine
+    run?" becomes answerable only after an adapter has loaded, so no test and no
+    type can hold it, whereas the table is checked at build time and by a unit
+    test that runs where no firmware exists. It also records why the three
+    states are distinguished and why the limitations are hand-written prose
+    rather than capability flags. Every boundary found so far has been
+    conditional in a way a boolean makes wrong. ADR 0012 records reference
+    indexing as browser-side over imported packs, and the ground for rejecting a
+    service is a licence one before it is an engineering one: most documentation
+    worth indexing may not be redistributed, so a server that held it would be
+    republishing documents it has no right to republish. Each load-bearing claim
+    in both was checked against the code rather than asserted, the jsbeeb model
+    comparison is `allModels` imported into `adapterSupport.test.ts`, the
+    licence refusal is `permitted: false` in `referenceInsertion`, and the pack
+    bounds are enforced at parse rather than at search.
 - [ ] P0-044 Define API schemas, error envelope, idempotency, pagination, binary
   transfer, job state machines, event ordering/backpressure, and version policy
-  (API-002–API-007).
+  (API-002-API-007).
   - [x] **Schemas and the error envelope are defined and are the contract.**
     `api/openapi.json` declares twenty routes, twenty-eight schemas and the one
     shape every refusal takes, and writing it down found four real defects
-    rather than confirming what was believed — among them `error.fields`
+    rather than confirming what was believed, among them `error.fields`
     serialising as a list where a client was typed against a map.
   - [x] Binary transfer is defined as base64 inside the declared schemas, with
     the size ceilings the store publishes, and nginx refuses at the same figure
@@ -608,7 +620,7 @@ Companion specification: `docs/requirements-specification.md`
     reasons.** Every collection this API returns is bounded by a limit the store
     itself publishes, so there is nothing to page through; adding a cursor would
     describe a scale this product does not have. A job state machine needs jobs,
-    and a build here is a request that returns a result — the queue, its
+    and a build here is a request that returns a result, the queue, its
     fairness and its states are BLD-302, which is open. Both should be defined
     when the thing they describe exists, and not before.
 - [ ] P0-045 Threat-model all assets and boundaries in SEC-001 and assign controls,
@@ -652,7 +664,7 @@ Companion specification: `docs/requirements-specification.md`
 - [ ] P0-047 Define capability/resource-scope catalogue and shared-admin
   integration (ARC-07, CLD-003, SEC-005).
 - [x] P0-048 Define privacy data inventory and retention/export/deletion/audit/
-  telemetry policies (CLD-004–CLD-008, SEC-006, SEC-009).
+  telemetry policies (CLD-004-CLD-008, SEC-006, SEC-009).
   - [x] `docs/security-and-privacy.md` is the inventory: what the product holds
     and where, what is deliberately not collected, how long anything is kept,
     how it is deleted and how it is exported. It is written to be read by the
@@ -672,14 +684,14 @@ Companion specification: `docs/requirements-specification.md`
     observability contracts under PLAT-204 cover the correlation identifier and
     the redaction.
 - [ ] P0-049 Approve measurable SLOs, browser matrix, size/concurrency limits,
-  recovery objectives, and performance budgets (NFR-001–NFR-010).
+  recovery objectives, and performance budgets (NFR-001-NFR-010).
   - [x] Four of the five are measured rather than proposed. The browser matrix
     is a gate stage that starts the workbench and all four runtime documents in
     every engine the machine has and names every engine it could not. The size
     and concurrency limits are published by the store and enforced at both the
     controller and nginx. The recovery objectives are stated as what this store
-    actually gives — the recovery point is the backup interval, because there is
-    no replication — and the exercise runs on every gate. The performance
+    actually gives (the recovery point is the backup interval, because there is
+    no replication), and the exercise runs on every gate. The performance
     budgets are `docs/benchmarks.md`, generated from real runs.
   - [ ] **Approval is the part that is missing, and it is not mine to give.**
     Every figure above is a measurement; an SLO is a promise, and turning one
@@ -693,22 +705,177 @@ Companion specification: `docs/requirements-specification.md`
   are understood; threat model and architecture ADR set are approved. Only then
   may implementation begin.
 
-## 3. Phase 1 — experience and design system foundation
+## 3. Phase 1: experience and design system foundation
 
 ### 3.1 Information architecture and prototypes
 
-- [ ] UX-100 Map project, workspace, asset, emulator, debugger, inspector,
+- [x] UX-100 Map project, workspace, asset, emulator, debugger, inspector,
   research, settings, account, and status information architecture (UX-001).
-- [ ] UX-101 Prototype desktop workbench at reference and minimum supported
-  resolutions with resizable/collapsible/movable panels (UX-001–UX-003).
-- [ ] UX-102 Prototype narrow reflow at 320 CSS px, 200% text zoom, mobile/tablet,
+  - [x] `docs/information-architecture.md` maps the four regions of the frame,
+    the four panels and what each answers, the ten workspaces and the nine asset
+    editors, and the status bar. It is read off the product rather than proposed
+    for it: the lists are the ones the code builds its tabs and panels from.
+  - [x] **The account is in the map as an absence, which is the honest entry.**
+    Nothing signs in, nothing is owned by anybody, and every project lives in the
+    browser. That is why the cloud work is a phase rather than a panel, and why
+    there is no control for it in the title bar. One that cannot do anything is
+    a claim this build does not make.
+  - [x] Two things the map states because they are decisions rather than
+    accidents: the machine runtime sits below the editor and not beside it,
+    because a screen is wider than it is tall and so is a workbench; and there
+    is no folder tree, because a project is a flat set of files with kinds and a
+    tree for a dozen files is ceremony.
+  - [x] Every workspace is reachable three ways (the rail, the tab strip and
+    the View menu), because the rail is quick, the strip says where you are, and
+    the menu is the one a keyboard reaches without knowing the layout.
+- [x] UX-101 Prototype desktop workbench at reference and minimum supported
+  resolutions with resizable/collapsible/movable panels (UX-001-UX-003).
+  - [x] **Resizable, and by keyboard as well as by pointer.** Four panels.
+    Configuration, explorer, inspector and runtime, each have a
+    `role="separator"` that takes focus, reports `aria-valuenow`, moves on the
+    arrow keys, jumps to the extremes on Home and End, and returns to its
+    starting size on Enter or Space, which is the way back from a drag somebody
+    regrets. The drag itself uses Pointer Events, so it works under a finger as
+    well as a mouse. Sizes are bounded per panel and remembered.
+  - [x] **Collapsible.** Each of those panels closes from a labelled control,
+    "Close target configuration", "Close project explorer", "Close inspector",
+    and the emulator panel collapses separately.
+  - [x] Reference and minimum resolutions are checked on every build rather than
+    prototyped once: the `smoke` stage lays the workbench out at 1440x900,
+    900x700, 700x600, 640x512 and 320x480 and fails if the page scrolls
+    horizontally, if a box reaches past the viewport with nothing to scroll it,
+    or if a control ends up out of reach.
+  - [x] **Movable, from each panel's own heading.** The three side panels move
+    one place at a time, and a panel that runs out of room on its side crosses
+    the editor and is on the other one, which is what pressing the same button
+    again should do. The arrangement is remembered, because a layout somebody
+    arranged and then lost on reload is worse than one they could not arrange at
+    all: they arranged it twice.
+  - [x] **The order is one list with the editor in it, not a side per panel.**
+    A side per panel cannot say what order two panels on the same side are in
+    without a second field, and the two fields can then disagree. One list says
+    both at once: a panel's side is whether it comes before or after the editor,
+    and moving it is a swap with its neighbour, so crossing the editor falls out
+    of the rule rather than being a case to write.
+  - [x] **Rendered in that order rather than reordered by CSS afterwards.**
+    `order` on a grid item would have been a much smaller change and is the
+    wrong one: it moves a panel on screen and leaves it where it was in the
+    document, so the Tab order stops matching what somebody sees. This build
+    measures focus order against document order, that is what UX-105's Tab walk
+    does, and the two agreeing is the reason it can.
+  - [x] **Buttons rather than a drag.** A drag is the obvious gesture and the
+    one that cannot be done without a pointer. These are reachable by Tab,
+    pressed with Space, and say where the panel will go instead of requiring
+    somebody to try it. A drag can be added on top later; it cannot be added
+    underneath. The control disappears rather than sitting disabled at the far
+    edge, because a disabled button in a heading is a thing to read and then
+    discover is not for you.
+  - [x] Measured in the built workbench: the panels start `Target configuration
+    | Project explorer | EDITOR | Inspector`, one press of the configuration
+    panel's right arrow gives `Project explorer | Target configuration | EDITOR
+    | Inspector`, and `["explorer","config","editor","inspector"]` is what the
+    browser has stored afterwards.
+  - [x] **The 200% text-zoom check caught this change breaking the layout,
+    which is the first thing it has been for.** Adding a control to the
+    inspector's heading pushed its close button past the edge of the window at
+    twice the type scale, with nothing to scroll it back. Two rows that had
+    never needed to wrap now do: the panel heading, and the inspector's tab
+    strip, which was a fixed 35-pixel row chosen when it held two tabs and a
+    close button. Both were already tight at that size and one more control
+    tipped them over.
+  - [x] `src/layout/panelOrder.test.ts` holds the model, including the part that
+    is easy to get wrong: the columns and the elements are generated from one
+    list so they cannot disagree about how many separators there are, which
+    would otherwise show up as everything after the mistake being one column
+    out. A stored order is something a person can edit, so anything unknown,
+    duplicated or missing is repaired rather than rendering an empty workbench.
+- [x] UX-102 Prototype narrow reflow at 320 CSS px, 200% text zoom, mobile/tablet,
   and browser zoom without two-dimensional page scrolling (UX-003, UX-006).
-- [ ] UX-103 Define global action bar order and state for new/open/save/import/
+  - [x] **320 CSS px and browser zoom are measured on every build, not
+    prototyped.** The `smoke` stage lays the workbench out at five sizes down to
+    320x480, which is also a 400% zoom of 1280, and 640x512, a 200% zoom of
+    1280x1024. Each asserts no horizontal scrolling, so two-dimensional page
+    scrolling fails the gate rather than being reviewed for.
+  - [x] **200% text zoom is checked as its own criterion**, because page zoom
+    does not cover it: WCAG 1.4.4 is about resizing the text and leaving the
+    page alone. The type scale is set to double at an ordinary viewport and 81
+    controls stay reachable at 26px with nothing clipped. The check fails first
+    if the scale did not take effect, so it cannot pass by changing nothing.
+  - [x] Touch is not a separate path to maintain: the panel separators and the
+    editable canvases use Pointer Events, which a finger drives as well as a
+    mouse, so there is no mouse-only interaction to reflow around.
+  - [x] What is not claimed is a device: no phone or tablet has been driven
+    here, and the evidence above is a desktop browser at those viewports.
+    Hardware testing belongs with the browser matrix in A11Y-903.
+- [x] UX-103 Define global action bar order and state for new/open/save/import/
   export/build/run/cloud/about/help and accessible overflow behavior.
-- [ ] UX-104 Define target/configuration selector, comparison view, compatibility
+  - [x] **Order and state are declared once and derived, not listed twice.** The
+    bar is File, Project, Edit, Build, Debug, View, Help; the order lives in
+    `workbenchMenus` and each menu's contents come from the command table by
+    category, so a command cannot appear in a menu without also being a command,
+    with the shortcut and the enabled rule that go with it. An entry is disabled
+    when its command is unavailable, carries its chord as a hint, and puts the
+    reason it is greyed in the tooltip rather than beside the label, a sentence
+    next to every unavailable entry makes the menu as wide as the longest of
+    them. Entries that toggle carry `checked`.
+  - [x] **Overflow is a wrap and it was measured rather than assumed.** At 1600,
+    700 and 320 wide and at 1280 with text at twice the scale, all seven menus
+    stay reachable, nothing scrolls and nothing is clipped; the bar takes a
+    second row at 320 and the workspace tabs take three at 700 and below.
+  - [x] An overflow menu was not used, and that is a choice rather than an
+    omission: the "..." that collects what did not fit hides the item somebody
+    wants behind a control that does not say what is behind it, and the set
+    changes with the window. A wrap costs a row and hides nothing. Written up in
+    `docs/primitives.md` beside the other patterns.
+  - [x] Cloud is not in the bar because there is no cloud yet. Adding an entry
+    for it now would be a menu item that does nothing, which is the kind of
+    claim this build does not make; it belongs with CLD-800 and the rest.
+- [x] UX-104 Define target/configuration selector, comparison view, compatibility
   warnings, support badges, ROM prerequisites, and profile manifest summary.
+  - [x] All six exist and are wired to the same profile data rather than to
+    six descriptions of it: the four cascading selectors for platform class,
+    Acorn system, model and ROM; `ProfileComparisonPanel`, which puts any two
+    configurations side by side; the portability warnings; the SUPPORTED,
+    PREVIEW and PLANNED pills, whose text is the capability's own `state`;
+    the firmware vault's readiness, which is `romRequirementsMet` over what has
+    actually been supplied; and the build manifest the target panel opens.
+  - [x] **The comparison view answers a question the warnings cannot, which is
+    why both exist.** The warnings are raised when a project is opened, which is
+    the right moment to be told and the wrong moment to be deciding, by then
+    the choice is made. The comparison is the other half: pick any two
+    configurations before choosing and see what would not survive a move.
+  - [x] A ROM set this build cannot start is part of this item too, and is
+    handled where it is chosen: the entry is unselectable, says so, and gives
+    the reason on the option, see EMU-429.
 - [ ] UX-105 Define focus movement across docks, tabs, toolbars, trees, editor,
   emulator, canvas alternatives, inspector, modals, and notifications.
+  - [x] **The editor was a keyboard trap, and a Tab walk with real key presses
+    found it.** The textarea takes Tab so that Tab indents, which is right for
+    the person typing and was fatal for the person navigating: focus went in and
+    could not come out by any key, so somebody using the keyboard had no way out
+    but to reload the page. WCAG 2.1.2 permits a component to hold a key it
+    would otherwise pass on, but only where there is a way out and the person is
+    told what it is. Escape now arms the way out, the next Tab moves focus and
+    disarms it, typing anything else disarms it too so Tab never quietly stops
+    indenting, and `aria-keyshortcuts` announces `Escape+Tab` on the control.
+  - [x] **The gate now walks the workbench with trusted Tab presses**, because a
+    synthesised Tab event does not move focus. A check built on one would walk
+    nothing and report cleanly. It reaches 220 distinct controls in 240 presses.
+    Where a control does not pass Tab on, it is asked whether it advertises a
+    way out, and then that way out is used and checked to work: an advertised
+    escape that does nothing is worse than none at all. Proved by removing the
+    editor's escape, which produced exactly that message.
+  - [x] Two of my own mistakes are worth recording, because both are the same
+    mistake. The first rule required Tab always to move focus, which would have
+    demanded the editor stop indenting; the criterion does not say that. The
+    second identified the focused element by tag, class and label, and the
+    capability toggles are a column of bare `<input type="checkbox">` named by a
+    wrapping label, so every one produced the same string and the walk reported
+    a trap where focus had simply moved on by one. It identifies elements by
+    position in the tree now, which is unique whether or not an element says
+    anything about itself.
+  - [x] Focus order itself needs nothing: there is no positive `tabIndex`
+    anywhere in the product, only `0` and `-1`, so the order is document order.
 - [ ] UX-106 Define command palette taxonomy and default/remappable shortcuts,
   including conflict detection with browser and emulated keyboards (EDT-008).
   - [x] `src/commands/keyBindings.ts` is now the single declared inventory of
@@ -751,7 +918,7 @@ Companion specification: `docs/requirements-specification.md`
     some chords collide but that while a machine is running *every* key press
     is taken: `keyDown` in the pinned jsbeeb's `src/keyboard.js` calls
     `evt.preventDefault()` before it has looked at any modifier, and then hands
-    the key on as `keyInterface.keyDown(code, evt.shiftKey)` — Shift and
+    the key on as `keyInterface.keyDown(code, evt.shiftKey)`, Shift and
     nothing else. So a chord does two surprising things at once: it never
     reaches the workbench, and the machine receives it as the *unmodified* key.
     Ctrl+S over a BASIC prompt types S. That is what each binding now says,
@@ -760,20 +927,20 @@ Companion specification: `docs/requirements-specification.md`
     unusable over a running machine is perfectly usable everywhere else, and a
     paused machine takes nothing at all.
   - [x] Two-stroke sequences, separated by a comma rather than the space most
-    editors use — the chord parser already accepts a space between modifiers,
+    editors use. The chord parser already accepts a space between modifiers,
     so "ctrl shift p" is one chord and a space cannot also mean "then". Two is
     the limit: a third stroke is not a shortcut any more, and every stroke is
     time the workbench holds a key press back from whatever else wanted it. A
     held prefix is spent by the press that follows it whether or not that press
     completed anything, because a prefix that survived a stroke it did not
-    complete would be finished off by the next unrelated key — the failure that
+    complete would be finished off by the next unrelated key, the failure that
     makes people stop trusting sequences. Only the first stroke has to keep
     clear of ordinary typing; a bare letter as a second stroke captures
     nothing, which is what makes sequences worth having. They are recorded by
     pressing twice, because a comma cannot be typed into a field that is
     capturing key presses, and a third press starts over.
   - [x] Command and Control can be assigned separately. `Ctrl+` keeps meaning
-    the shared role — Command on an Apple keyboard, Control everywhere else —
+    the shared role. Command on an Apple keyboard, Control everywhere else,
     because every binding written before this means that and has to keep
     meaning it. A press of Command now offers `Cmd+X` first and `Ctrl+X`
     second, so a binding that named Command wins and one that named the shared
@@ -801,26 +968,308 @@ Companion specification: `docs/requirements-specification.md`
 
 ### 3.2 Original visual language and component contracts
 
-- [ ] UX-120 Create original logo/icon family and document permissible Acorn-
+- [x] UX-120 Create original logo/icon family and document permissible Acorn-
   inspired motifs and prohibited copied/trademark usage (UX-004).
-- [ ] UX-121 Define semantic theme tokens for every state listed by UX-005 and
+  - [x] **The identity is original and drawn rather than imported.** The mark is
+    two ellipses crossing at different angles around a lit dot, several
+    machines turning around one piece of work, built from CSS borders in the
+    workbench and four SVG shapes in the favicon, so there is no artwork in it
+    and nothing to trace back to a source. The icon family is thirty-two icons,
+    all drawn in `Icon.tsx` and none imported.
+  - [x] **What is borrowed is stated and is a family resemblance rather than a
+    copy.** The palette is a green on near-black with a cream ink, which is what
+    those machines' own displays looked like; and the machine names are used
+    because no other words say which machine somebody selected. Naming a thing
+    to say what it is, is not using its owner's mark as your own.
+  - [x] **What will not be taken is listed by name** in `docs/identity.md`:
+    Acorn's acorn, the BBC's marks, the RISC OS and Archimedes device marks, any
+    styling that imitates them, any implication of endorsement, and manual
+    artwork or screenshots as decoration.
+  - [x] `src/identity.test.ts` holds the two parts that are not judgement: the
+    mark and the icons import no artwork (an `<image>`, an `xlink:href` or a
+    base64 payload appearing is the moment worth noticing rather than the moment
+    it ships), and the product claims no relationship with the people who made
+    the machines. The `hygiene` gate stage already refuses captures reaching the
+    repository, which is the other way that artwork arrives by accident.
+  - [x] **Whether this is sufficient is not mine to say, and the document says
+    so.** It records the product's position; the licence and trademark review is
+    a separate item and deliberately last.
+- [x] UX-121 Define semantic theme tokens for every state listed by UX-005 and
   validate dark, light, system, and high-contrast themes.
-- [ ] UX-122 Validate token contrast across normal/large text, controls, focus,
+  - [x] **The light theme had never been rendered, and that is why it was
+    wrong.** It was a complete `:root[data-theme='light']` block and nothing in
+    the product ever set `data-theme`, so it existed only as text. Unrendered,
+    it had come to declare its own surfaces and inherit every foreground from
+    `:root`: colours chosen against a near-black editor were being set on cream.
+    `--theme-primary-light`, which sets emphasis text in a hundred and fourteen
+    places, measured 1.01:1 against the paper behind it. All six syntax colours
+    measured between 1.6 and 1.9. It now declares its own inks, accents and
+    syntax colours, each keeping its hue and darkened until it clears 5:1.
+    A little above the 4.5 it must reach, so that a later change to a surface
+    does not quietly put it back under.
+  - [x] **High contrast and reduced transparency now exist**, which UX-005 asks
+    for and neither of which was there. The two high-contrast palettes hold text
+    to 7:1 and the border that identifies a control to 4.5:1, keeping every hue
+    so it is the same interface rather than a second design; only the tokens
+    that had to move are listed, because several dark syntax colours already
+    measure above 10:1 and repeating them would be two places to change one
+    colour. Reduced transparency makes the modal backdrop opaque and turns off
+    the display's scanlines, shadow-mask grille and vignette, which are
+    translucent overlays on the picture.
+  - [x] **`system` is resolved in script rather than by a media query, and the
+    reason is worth recording.** The stylesheet holds each palette exactly once,
+    under `:root` and an attribute selector. A media query cannot join a
+    selector list, so following the operating system in CSS would need a second
+    copy of the light palette that nothing keeps in step with the first, which
+    is precisely how that palette lost its foreground colours. `applyAppearance`
+    resolves the setting and `watchSystemAppearance` re-applies when the machine
+    changes, so one copy still follows the computer.
+  - [x] **The text size now reaches the machine's own page, which was the one
+    place the setting stopped working.** The Electron and Archimedes runtimes
+    are framed pages that cannot see `theme.css`, so each carries its own copy
+    of the type scale, a constant. Raising the workbench's text size left the
+    machine's status line and output pane at the shipped size. The two
+    properties are now copied onto the framed document, which is same-origin,
+    rather than passed through the frame's URL: changing the URL remounts the
+    iframe and remounting the iframe restarts the emulator, and nobody expects a
+    machine to reboot because they made the text bigger. The size is read from
+    the workbench's own root rather than from the stored choice, so a frame that
+    arrives later, somebody opens the emulator after changing the size, is
+    given what is actually in force by the same path.
+  - [x] **The default is dark, deliberately, which is not what a new product
+    would choose.** Defaulting the theme to the machine's setting would mean
+    anybody whose computer is set to light opening a completely
+    different-looking application one morning without having asked for it; this
+    workbench has only ever been dark, so light is offered rather than imposed.
+    Contrast does follow the machine, because asking an operating system for
+    more contrast is already a deliberate act by somebody who needs it, and
+    honouring it changes colours rather than the character of the interface.
+  - [x] All four palettes are validated rather than asserted: `contrastAudit.ts`
+    parses `theme.css`, resolves each palette the way a browser does, an
+    override block laid over the one beneath it, and measures every declared
+    pairing. `PALETTE_TARGETS` holds the standard palettes to AA and the
+    high-contrast ones to AAA, and a case fails if a high-contrast palette ever
+    overrides nothing, since it would then pass by being the standard one.
+  - [x] Evidence: `src/theme/contrastAudit.test.ts` resolves all four palettes
+    out of `src/theme.css` and measures every pairing in each, and
+    `src/theme/appearance.test.ts` covers resolving `system` against the machine
+    in both directions, an explicit choice overriding it, releasing the media
+    listeners again, and a browser that throws on an unknown media feature.
+    `src/components/AppearancePanel.test.tsx` checks each control offers exactly
+    the choices its module defines, read inside its own control because theme
+    and contrast both offer "Match the system".
+- [x] UX-122 Validate token contrast across normal/large text, controls, focus,
   charts, syntax, diagnostics, breakpoint, trace, selection, and disabled states.
-- [ ] UX-123 Specify reusable accessible primitives: button/icon button, split
+  - [x] **Measured, not reviewed.** Every text token is held to the normal-text
+    4.5:1 rather than the large-text 3:1, because a token is not a size: the
+    same `--theme-muted` sets captions and headings, so the stricter figure is
+    the only one true everywhere. Translucent colours are flattened over their
+    backdrop before comparing, since an overlay at 78% opacity is not the colour
+    it declares.
+  - [x] **The dark theme's control border was the live defect.** `--theme-line`
+    measured between 1.39 and 1.98 against every surface it is drawn on, the
+    border of about five hundred buttons, inputs and selects, and the boundary
+    WCAG 1.4.11 asks to reach 3:1 because it is what tells somebody where a
+    control is. It is one token rather than a new control-only variant, because
+    the same hairline separates panels and two nearly identical greys would be
+    the inconsistency this workbench exists not to have. `--theme-selection` was
+    darkened for the same reason, so that `--theme-faint` set on it clears 4.5.
+  - [x] Charts and diagnostics are covered by the same pairings rather than by
+    rows of their own, and that is a finding rather than a gap: neither has a
+    palette. The build graph draws headings in `--theme-secondary` and captions
+    in `--theme-faint` on `--theme-surface-2`; the three diagnostic lists use
+    `--theme-warning`, `--theme-danger` and `--theme-muted` on surfaces 1 and 2.
+    The only chart-specific custom property in the stylesheets is
+    `--graph-depth`, which is an indent and not a colour.
+  - [x] **Disabled controls now say it one way.** There were nine different
+    opacities meaning "this is disabled", .35, .38, .4, .42, .45, .55, .58, .7.
+    Across forty-six rules, so the same state looked different depending on
+    which panel it was in. They are one token now. The first attempt at this
+    also introduced a disabled *colour* alongside the dimming, which sounds more
+    thorough and measured worse than what it replaced: a muted ink at half
+    opacity came out at 1.58:1 where the plain text at .4 had been 3.43:1. Two
+    ways of saying "inactive" applied together do not say it twice, they
+    subtract twice. Dimming is the single mechanism, at .55 rather than .4, so
+    disabled text reads at 5.25:1 in the dark theme against the 3.43:1 it had.
+    The unused `--theme-disabled` palette entry was removed rather than given a
+    use it never had. WCAG 1.4.3 exempts disabled text from its contrast rule;
+    that is not a reason to make it harder to read than it was.
+  - [x] **Nineteen references to ten custom properties that were never
+    defined** were found while doing this and fixed. An undefined property does
+    not fall back: the declaration is invalid at computed-value time and becomes
+    `unset`, so an undefined colour inherits, an undefined background paints
+    nothing, and `border: 1px solid var(--undefined)` removes the border because
+    `border-style` reverts to `none`. `--theme-on-primary` was the label colour
+    on four buttons filled with `--theme-primary`; `--theme-green` was the only
+    thing showing a sprite-animation button was pressed; `--theme-line-soft` was
+    the divider in two tables that therefore had none; `--theme-active` was a
+    focus-visible background that never appeared; three dialogs and a popover
+    asked for shadows by names nobody had defined. `tokenReferences.test.ts`
+    holds this, and excuses only the eight properties set from script, checking
+    that something really does set each, so the exclusion list cannot become a
+    way of hiding the same defect.
+  - [x] Evidence: the audit fails on sabotage as well as passing, it was
+    written before the fixes and reported the nine dark-theme and forty-four
+    light-theme pairings that were below target, which are the measurements
+    quoted above. `src/theme/tokenReferences.test.ts` was likewise written
+    against the unfixed stylesheet and listed the ten undefined properties.
+  - [x] **The gate now re-measures contrast in every palette, and doing so found
+    that the rule itself was wrong.** The accessibility scan had always run in
+    whatever the page happened to be set to, which is the dark theme; a palette
+    nothing renders is a palette nothing checks. Sweeping all four found
+    seventy-six findings, and none of them were real. Chromium returns
+    `color(srgb r g b / a)` for anything that went through `color-mix()`, which
+    this workbench uses for a great many fills, and the rule's colour parser
+    understood only `rgb()`. An unreadable background was then treated as no
+    background at all, so the walk stepped past an opaque surface and compared
+    the text against whatever lay further out, on a light palette, white. The
+    parser now reads both shapes, and a background it still cannot read makes
+    the contrast undecidable rather than being stepped over, which is the answer
+    a translucent background already got.
+  - [x] With the rule reading fills correctly it found three real defects it had
+    been unable to see, one of them in the dark theme that had been passing for
+    months: the ACTIVE chip in the project tree sits on the tinted background of
+    the item it marks rather than on the panel, and measured 3.67:1 there. The
+    other two were mine, from the same afternoon, text on the machine's bezel
+    was first fixed by re-pointing the ink tokens across the whole
+    `.runtime-console` subtree, which was worse, because that subtree holds a
+    status panel painting a theme surface of its own and it inherited near-white
+    text onto cream at 1.01:1. A container cannot lend a colour to descendants
+    that bring their own background, so the text is named directly instead.
+  - [x] A finding now names the nearest ancestor that can identify itself. Half
+    of these were reported as `strong` and `small` and nothing more, which sends
+    the reader to search nineteen workspaces for them; `div.runtime-console > p`
+    is a finding somebody can act on.
+- [x] UX-123 Specify reusable accessible primitives: button/icon button, split
   button, menu, tabs, tree, list/grid, combobox, form/error, toolbar, dialog,
   notification, splitter, status, tooltip, command palette, and virtualized table.
-- [ ] UX-124 Define canvas accessibility adapter pattern with structured view,
+  - [x] **`docs/primitives.md` states all sixteen, read off the source rather
+    than proposed for it**, with the contract each is held to and, where a
+    pattern is deliberately not used, the reason. Declaring a role the product
+    does not honour is worse than not declaring it.
+  - [x] **Writing it down found the pixel editors were malformed grids.** Cells
+    carried `role="gridcell"` directly inside `role="grid"` with no rows between
+    them, 448 of them on one workspace. WAI-ARIA gives `gridcell` a required
+    context and without it a screen reader has nothing to count position within,
+    so it cannot say which row and column the caret is in, the two facts that
+    matter most when editing artwork pixel by pixel. Both grids now own rows,
+    laid out with `display: contents` so the grid still performs the layout and
+    nothing moved on screen. That technique has historically dropped elements
+    from the accessibility tree, so it was checked rather than assumed: Chromium
+    reports a grid with 8 rows and 64 cells for a character and 16 rows and 256
+    cells for a sprite.
+  - [x] **A new gate rule holds every role to its required context**, which is
+    how the grids were found. It checks only elements carrying an explicit role
+    and accepts a native element that already implies the container, so a cell
+    inside a real `<tr>` is right even though nothing wrote `role="row"`.
+  - [x] **Fourteen toolbars are now labelled groups.** They were bare `<div>`s
+    and `<header>`s, so a screen reader could reach every button and could not
+    tell where one bar ended and the next began. They are deliberately not
+    `role="toolbar"`: that pattern promises arrow-key navigation with a roving
+    tabindex, and declaring it without implementing it would tell somebody their
+    arrow keys do something they do not. A labelled group claims what is true.
+  - [x] Two named patterns are not used and say so: there is no split button,
+    because where a default action exists it is its own button beside the menu;
+    and there is no `role="tooltip"`, because the native `title` is positioned,
+    dismissed and exposed by the browser without the focus and hover management
+    an ARIA tooltip has to get right.
+  - [x] Evidence: `src/components/FontWorkspace.test.tsx` asserts every cell is
+    inside a row and that the rows and columns are numbered; the `smoke` stage
+    applies the role-context rule across nineteen workspaces, and it was proved
+    by the 448 findings it produced before the grids were fixed.
+- [x] UX-124 Define canvas accessibility adapter pattern with structured view,
   keyboard actions, live coordinates/value, and text alternatives (UX-007).
-- [ ] UX-125 Define empty/loading/stale/offline/error/permission/quota/unsupported
+  - [x] **The pattern was already in the product and unwritten, and it has two
+    halves rather than one.** An editable canvas (the screen editor, the tile
+    map) is `aria-hidden`, because a bitmap read out cell by cell tells nobody
+    anything; the wrapper takes focus and arrow keys, and a `role="status"`
+    region beside it says where the caret is and what is under it, live, so it
+    follows the caret. A canvas that only shows something (the golden-image
+    comparison, the map overview) carries an `aria-label` and is not hidden,
+    because there is something worth announcing and nothing to operate.
+  - [x] `scripts/canvasAlternatives.test.ts` refuses the third treatment: a
+    canvas that is neither hidden nor named, which a screen reader announces as
+    nothing at all and which may be the only place some data appears. It also
+    refuses a hidden canvas whose file has no live region, because hiding is
+    only honest when something else says what is there. Proved by removing one
+    canvas's `aria-hidden`.
+  - [x] Written up in `docs/primitives.md` beside the other patterns, including
+    the note that the pixel grids are not canvases at all, they are a `grid` of
+    `row`s of `gridcell` buttons, one per pixel, each with its own label.
+- [x] UX-125 Define empty/loading/stale/offline/error/permission/quota/unsupported
   states and prevent layout shift or ambiguous spinners.
+  - [x] **The convention was already there and unwritten, and measuring it found
+    it holds.** Fifty-four empty states are written as literal sentences naming
+    the condition that applies, "No media is mounted in this session", "No real
+    Tube ULA access has crossed the wrapped core boundary yet", "The selected
+    toolchain supplied address symbols and source locations, but no type
+    records". A search for the generic placeholders that usually accumulate (No
+    data, Nothing here, Loading..., Please wait, N/A, Coming soon) returns
+    thirty-four matches and every one is a false positive: an identifier called
+    `isEmptyAnnotations`, an "Empty trash" button, "Empty" as the name of a tile
+    brush. There is no generic placeholder in the product.
+  - [x] **There are no spinners, which is a stronger answer than unambiguous
+    ones.** Nothing in the interface turns indefinitely. The only looping
+    animation in the stylesheet is `screen-blink`, the machine's own cursor
+    imitating a BBC Micro's blinking block, which is a picture of hardware
+    rather than a claim about progress. `src/theme/waitingStates.test.ts` holds
+    that: an animation that repeats for ever is a spinner however it is drawn,
+    and the one allowance is checked to still describe something real so it
+    cannot outlive what it was written for.
+  - [x] Not every empty state names a next step, and that is deliberate rather
+    than an oversight: thirty-seven of the fifty-four do not, and they are the
+    ones where nothing has happened yet, "No breakpoint log events in this
+    debug session" sits beside the controls that would produce some. Requiring
+    an imperative in all of them would add words that say less than the panel
+    around them already does.
+  - [x] Evidence: the four-palette accessibility sweep in the `smoke` stage
+    renders these states in nineteen workspaces and holds every one of them to
+    its contrast target, so they are checked as rendered text rather than only
+    as strings in the source.
 - [ ] UX-126 Define wording, Acorn number/address conventions, dates/units,
   localization readiness, and no-colour-only status patterns.
+  - [x] **The Acorn number convention is settled and now held.** Acorn wrote
+    hexadecimal with an ampersand and capital digits, and this product is read
+    by people who have been reading `&` for forty years. Of the hundred and
+    fifty-odd places that convert a number to hex, a hundred write `&` with
+    capitals and padding and thirty-two more write `&` with capitals where the
+    width genuinely varies, such as a BASIC token byte; the remainder are label
+    names and digests, which are not addresses. The sigil is deliberately not
+    always `&`: `formatAddress` writes `0x` into C and ARM source and `$` into
+    ca65 assembly, because those are the notations those assemblers accept.
+    `src/theme/acornConventions.test.ts` refuses an Acorn address written with
+    lower-case digits, and was proved by sabotaging one.
+  - [x] Status is not carried by colour alone, and the gate checks it where it
+    matters most: the `forced-colours` condition is emulated with the system
+    palette replacing the product's own, and every control is required to keep a
+    boundary a person can see. The state pills carry their words (SUPPORTED,
+    PREVIEW, PLANNED), rather than only a hue.
+  - [ ] **Localisation readiness is not done and should not be claimed.** Every
+    string in the product is inline English; there is no message catalogue and
+    no formatting boundary to put one behind. Dates and sizes do go through
+    `toLocaleString`, so those would follow a locale already, but the words
+    would not. This is the part of UX-126 that is real work rather than a
+    convention to write down, and it is what keeps the item open.
+  - [x] **The wording guide is written, and read off the product rather than
+    invented for it.** `docs/wording.md` states the voice the four hundred and
+    fifty refusals are already written in (name the thing, the measurement and
+    the consequence, and never claim more than was measured), with the product's
+    own sentences as the examples. It also records the number convention, the
+    menu convention (a word or two, detail in the tooltip), the empty-state rule
+    and the no-colour-only rule, and it ends by saying plainly which part of
+    UX-126 is not done. Each factual claim was checked: 86 uses of KiB against 5
+    of MB, three declared control heights, and the quoted messages taken
+    verbatim.
+  - [x] `docs/theming.md` was brought up to date at the same time. It described
+    one palette and now describes four, says why `system` is resolved in script
+    rather than by a media query, and states what neither instrument checks: a
+    deployment override is measured by neither the token audit nor the rendered
+    sweep, because both read this repository's own palette.
 
 ### 3.3 Accessibility test foundation
 
 - [x] A11Y-100 Publish WCAG 2.2 AA conformance checklist mapped to components and
-  journeys (UX-006–UX-011, QLT-005).
+  journeys (UX-006-UX-011, QLT-005).
   - [x] `docs/accessibility-conformance.md` lists all 55 Level A and AA success
     criteria of WCAG 2.2, each with how it is verified rather than with a
     claim: 13 decided automatically by a named release-gate rule, 9 partly, 22
@@ -834,7 +1283,7 @@ Companion specification: `docs/requirements-specification.md`
     ends up believing it is accessible. A contract requires every automated
     entry to name the rule behind it, every partial entry to say which half is
     manual, and every not-applicable entry to name what the product does not
-    have and explain it — that last being the entry easiest to abuse.
+    have and explain it. That last being the entry easiest to abuse.
   - [x] Writing it caught two citation errors in the accessibility rules
     themselves. Duplicate identifiers were cited against 4.1.1 Parsing, which
     WCAG 2.2 removed; they are now cited against 4.1.2, because what still
@@ -856,9 +1305,9 @@ Companion specification: `docs/requirements-specification.md`
     `npm run conformance` regenerates it.
 - [x] A11Y-101 Add static linting and automated browser accessibility scans with
   explicit limitations and blocker thresholds.
-  - [x] The release gate now scans every workspace the tab strip offers —
-    eighteen of them, read from the page so a new one is covered the day it is
-    added — against eight rules, each naming the WCAG success criterion it
+  - [x] The release gate now scans every workspace the tab strip offers.
+    Eighteen of them, read from the page so a new one is covered the day it is
+    added, against eight rules, each naming the WCAG success criterion it
     checks so a finding traces to the requirement rather than to somebody's
     preference: controls and images without an accessible name, duplicate
     identifiers, document language and title, heading levels that skip,
@@ -866,21 +1315,21 @@ Companion specification: `docs/requirements-specification.md`
     own background, targets below the minimum size, and any claim of the
     essential exception made without a reason.
   - [x] The limitation is stated rather than implied. The scan declares what it
-    cannot decide — whether a name is meaningful rather than merely present,
+    cannot decide. Whether a name is meaningful rather than merely present,
     whether a reading order makes sense, whether a live region announces at a
     useful moment, whether an alternative conveys what the visual did, and
-    screen-reader behaviour itself — and those stay in the manual matrix. An
+    screen-reader behaviour itself, and those stay in the manual matrix. An
     automated scan that implied full coverage would be worse than none.
   - [x] The threshold is zero, and it is real: the first run found 126
     findings across eleven distinct problems, and the gate stayed red until
-    every one was fixed or exempted with a reason. Verified in both directions
-    — darkening one colour token produced 324 findings and restoring it
+    every one was fixed or exempted with a reason. Verified in both directions.
+    Darkening one colour token produced 324 findings and restoring it
     returned to zero, so the scan can fail and a passing run means something.
   - [x] What it found and what was done about it. One colour token was at
     3.96:1 in the dark theme and 3.08:1 in the light one, failing 1.4.3 in
     every workspace; both were recomputed to clear 4.5:1 on the lightest
     surface each appears on. Palette swatches wrote their index on a colour the
-    user chose, measuring 1.03:1 — text the same colour as what it sits on —
+    user chose, measuring 1.03:1. Text the same colour as what it sits on,
     and now pick black or white per swatch by luminance, which is the only
     approach that works for a colour the product does not choose. Fifty-seven
     controls were 22 pixels tall against the 24 that 2.5.8 requires, a failure
@@ -891,7 +1340,7 @@ Companion specification: `docs/requirements-specification.md`
     lighter surface than it was tuned for.
   - [x] The pixel and glyph grids claim 2.5.8's own essential exception, and
     claim it in the markup with the reason attached rather than by a class name
-    the scanner guesses at, so the exemption is reviewable where it is made —
+    the scanner guesses at, so the exemption is reviewable where it is made,
     and an exemption claimed without a reason is itself reported. A cell in
     those grids is one pixel of the artwork, and enlarging it past the artwork
     would change what the editor edits.
@@ -912,7 +1361,7 @@ Companion specification: `docs/requirements-specification.md`
     arrow keys, which is the pattern those roles prescribe; counting their rows
     as missing tab stops would report correct code as broken. What is checked
     is that every group holding focusable content is itself reachable, and that
-    focus can always leave wherever it is — with the trap check skipped when
+    focus can always leave wherever it is, with the trap check skipped when
     there is only one stop, since then there is nowhere to go and the check
     would only be reporting that the page is small.
   - [x] Dragging cannot be done without a pointer, so anything draggable has to
@@ -920,8 +1369,8 @@ Companion specification: `docs/requirements-specification.md`
     it rather than listed somewhere a reviewer has to go and find. The project
     tree declares Alt with an arrow, which is the same operation a drag
     performs. An alternative claimed without being stated fails, because a
-    claim nobody can check is not an alternative. Every destructive action —
-    delete, remove, purge, discard, erase, clear, empty, revert — is checked to
+    claim nobody can check is not an alternative. Every destructive action.
+    Delete, remove, purge, discard, erase, clear, empty, revert, is checked to
     be reachable from the keyboard.
   - [x] The rule is refused the chance to pass vacuously: the gate counts what
     was draggable while the scan ran and fails if the answer is none, and it
@@ -946,8 +1395,8 @@ Companion specification: `docs/requirements-specification.md`
 - [x] A11Y-104 Add zoom, text spacing, reflow, forced-colours, reduced-motion,
   reduced-transparency, focus visibility, and touch-target checks.
   - [x] Zoom, reflow and touch targets are in the release gate. The workbench
-    is measured at five sizes down to the 320 CSS pixels WCAG 1.4.10 names —
-    which is also 400% zoom on a 1280-pixel display — with no horizontal
+    is measured at five sizes down to the 320 CSS pixels WCAG 1.4.10 names,
+    which is also 400% zoom on a 1280-pixel display, with no horizontal
     scrolling, nothing out of reach and no control clipped; and every pointer
     target is measured against the 24-pixel minimum, with the essential
     exception declared in the markup where it is claimed.
@@ -955,8 +1404,8 @@ Companion specification: `docs/requirements-specification.md`
     now checked with the condition actually turned on rather than by reading
     the stylesheet, because a rule that declares support for one of these looks
     correct in the source and can still do nothing on screen. Text spacing
-    applies the overrides WCAG 1.4.12 names — line height one and a half times,
-    paragraphs twice, letters and words spaced — and measures every element
+    applies the overrides WCAG 1.4.12 names (line height one and a half times,
+    paragraphs twice, letters and words spaced), and measures every element
     that holds text for content taller than a box that cannot scroll. Focus
     visibility focuses each control in turn and compares its outline, shadow,
     border, background and underline against the same element unfocused:
@@ -970,8 +1419,8 @@ Companion specification: `docs/requirements-specification.md`
     border, outline, underline or text, so once the system supplied the colours
     nothing marked them as controls at all. They now take a border in that mode
     only, the active rail button and workspace tab take a Highlight outline,
-    and the range, colour and file inputs — which draw their own track and
-    button that the system replaces — take one too.
+    and the range, colour and file inputs, which draw their own track and
+    button that the system replaces, take one too.
   - [x] Evidence: 6 further contracts covering text a fixed box cuts off, a
     container whose children scroll being left alone, something clipped to a
     pixel for a screen reader being left alone, a control that looks identical
@@ -982,8 +1431,8 @@ Companion specification: `docs/requirements-specification.md`
     recorded here was that the product carries no meaning in translucency, and
     a position is not a check: the same sentence would have been written on the
     day it stopped being true. The condition is now emulated in the release gate
-    with a rule that reports anything read *through* translucency — a
-    translucent background, or a backdrop filter — and any element opacity that
+    with a rule that reports anything read *through* translucency (a
+    translucent background, or a backdrop filter), and any element opacity that
     is not a disabled or unavailable control.
   - [x] The scope of that rule was measured before it was written rather than
     guessed. Against the built workbench, thirty-six elements are drawn at
@@ -1010,12 +1459,12 @@ Companion specification: `docs/requirements-specification.md`
   prototype for desktop and reflow; shared component contracts cover every
   interaction required by the first vertical slice.
 
-## 4. Phase 2 — platform skeleton and local project loop
+## 4. Phase 2: platform skeleton and local project loop
 
 ### 4.1 Repository and deployable foundations
 
 - [ ] PLAT-200 Scaffold React/TypeScript/Vite client and supported PHP/Symfony
-  services only after P0-GATE (ARC-02–ARC-04).
+  services only after P0-GATE (ARC-02-ARC-04).
 - [x] PLAT-201 Provide Docker Compose, container health checks, migrations,
   named development volumes, safe `.env.example`, and fresh-clone startup.
   - [x] Two services in `compose.yaml`, plus a third behind a CI profile. The
@@ -1030,7 +1479,7 @@ Companion specification: `docs/requirements-specification.md`
   - [x] There are no migrations, and that is a property rather than an omission:
     the product has no database. A project lives in the browser, and the builder
     keeps nothing between builds. `.env.example` carries one variable, the host
-    port, and no value that could be a secret — the hygiene scanner tells a
+    port, and no value that could be a secret, the hygiene scanner tells a
     template apart from a real `.env` and still reads it for content.
   - [x] Evidence: the full lifecycle run recorded under DOC-903, which built
     both images from a clean state, started them, confirmed health, the served
@@ -1075,18 +1524,18 @@ Companion specification: `docs/requirements-specification.md`
     found still holding that port a day later. The gate attached to it, reported
     a first-render control count three times the true figure because the page it
     measured had a project open from the previous day, and eventually hung
-    outright — the failure this stage exists to prevent, produced by the stage
+    outright. The failure this stage exists to prevent, produced by the stage
     itself.
   - [x] The port is now refused before anything is launched if something is
     already answering on it, naming the port and how to clear it; a browser that
-    exits before accepting a connection — which is exactly what Chromium does on
-    that hand-off — is reported rather than worked around; and any profile left
+    exits before accepting a connection, which is exactly what Chromium does on
+    that hand-off, is reported rather than worked around; and any profile left
     by an earlier run is removed before launch, with the run refused if it
     cannot be, so starting from a browser that has seen nothing is a guarantee
     rather than a hope. Teardown waits for the browser to exit, escalating to
     SIGKILL, instead of signalling it and deleting the directory underneath it.
   - [x] Evidence: both refusals were proved by deliberate breakage rather than
-    by reading the code — port 9137 was occupied by a foreign browser, and a
+    by reading the code. Port 9137 was occupied by a foreign browser, and a
     profile directory was made unremovable. Each produced its own message and
     neither hung. The first-render count is now stable at 95 across consecutive
     runs, where it had been drifting upward as state accumulated; the 319 that
@@ -1119,8 +1568,8 @@ Companion specification: `docs/requirements-specification.md`
     covering 1,043 browser tests and 55 backend tests with nothing skipped in
     either, and a workbench that rendered 95 controls with no console errors.
   - [x] A coverage policy is now part of the gate, measured in the same run as
-    the suite rather than a second pass. The floors — 65% statements and lines,
-    80% branches and functions — sit just under what the suite achieves today,
+    the suite rather than a second pass. The floors (65% statements and lines,
+    80% branches and functions) sit just under what the suite achieves today,
     which is deliberate: coverage is a floor against regression and not a target
     to chase. A high figure says a line ran, never that anything was checked
     about it, so a floor set at what is already true catches code added without
@@ -1133,8 +1582,8 @@ Companion specification: `docs/requirements-specification.md`
     correctness is settled elsewhere. Current: 67.33% statements, 82.69%
     branches, 81.99% functions across 1,507 tests.
   - [x] The backend now has static analysis and a formatter, both in the gate
-    as an `analysis` stage. PHPStan runs at level 8 — the highest the code
-    passes clean — set there for the same reason the coverage floors are set at
+    as an `analysis` stage. PHPStan runs at level 8, the highest the code
+    passes clean, set there for the same reason the coverage floors are set at
     what the suite already achieves: a floor guards against regression rather
     than being a number to chase. Level 9 forbids every `mixed`, which for code
     whose job is decoding arbitrary JSON is a change worth making deliberately
@@ -1146,7 +1595,7 @@ Companion specification: `docs/requirements-specification.md`
     an error in a later PHP. `hexdec` was used as an array key, which is a
     float wherever the value is wide enough. A closure captured a process it no
     longer used. And six docblocks put `@param` and `@return` on one line,
-    where the second tag is read as prose — so those return types had never
+    where the second tag is read as prose, so those return types had never
     been checked by anything at all.
   - [x] The formatter is deliberately not a preset. PSR-12 would rewrite this
     codebase's compact single-line guards into multi-line blocks, which is a
@@ -1158,8 +1607,8 @@ Companion specification: `docs/requirements-specification.md`
     gate, because a gate that rewrote files would report a pass on a tree it
     had just changed.
   - [x] The suite is also held at zero PHPUnit deprecations, a count that was
-    one — a data provider declared in a doc-comment, which PHPUnit 12 will stop
-    reading — and is now zero. A deprecation is a failure that has not happened
+    one (a data provider declared in a doc-comment, which PHPUnit 12 will stop
+    reading), and is now zero. A deprecation is a failure that has not happened
     yet, and holding the count where it already is costs nothing.
   - [x] Evidence: both refusals were proved by deliberate breakage rather than
     by reading the code. A class returning a string from an `int` method failed
@@ -1185,23 +1634,23 @@ Companion specification: `docs/requirements-specification.md`
     before: each declared for itself where a route lived and none of them would
     have failed when a route moved. They now build every request from the route
     table, and a test asserts there is no `/api/` literal anywhere in the
-    product outside the generated module — which is a check that fails the
+    product outside the generated module, which is a check that fails the
     moment somebody adds one back. The reverse is asserted too: a route no
     client calls is named in the test rather than left to be discovered.
   - [x] **The server half is real requests through the real kernel, and it
     found four genuine defects rather than confirming what was written.** The
     conformance test compares the router's routes with the description's in
-    both directions, then drives every route — a whole store lifecycle, writing
+    both directions, then drives every route (a whole store lifecycle, writing
     a revision, listing, reading it back, colliding on a stale parent and
-    deleting — and validates each answer against the schema declared for the
+    deleting), and validates each answer against the schema declared for the
     status it actually came back with. What it found: `error.fields` serialised
     as `[]` rather than `{}` whenever a refusal carried no field detail, which
     is most of them, so a client typed against a map was handed a list; the
     BeebAsm manifest was missing `packageVersion` that the other three
     manifests of the same declared schema all carry; the build routes enforce a
     `X-8bit-Net-Request` header and answer 403 without it, which nothing had
-    written down; and my own description had guessed at three shapes — `unmet`,
-    `readiness` and `toolchains` — and been wrong about all three. The first
+    written down; and my own description had guessed at three shapes (`unmet`,
+    `readiness` and `toolchains`), and been wrong about all three. The first
     two were fixed in the server, the second two in the description.
   - [x] Nothing in the conformance test is conditional on the environment. A
     build route answers 200 where the toolchains are installed and 503 where
@@ -1211,18 +1660,18 @@ Companion specification: `docs/requirements-specification.md`
   - [x] The validator it uses is written here rather than pulled in, because
     the subset needed is small and a generator nobody can read is a contract
     nobody can check. It fails on a keyword it does not implement rather than
-    ignoring it — silently passing a rule it did not understand is how a
-    validator comes to be trusted for something it never checked — and a test
+    ignoring it, silently passing a rule it did not understand is how a
+    validator comes to be trusted for something it never checked, and a test
     asserts the description uses nothing outside that subset.
 - [x] PLAT-204 Implement structured logging/correlation/redaction and baseline
-  metrics/traces without capturing source or ROM contents (NFR-005–NFR-007).
+  metrics/traces without capturing source or ROM contents (NFR-005-NFR-007).
   - [x] There is now one writer and one owner of the correlation identifier
     rather than six places that each formatted their own line. The identifier
     is taken from the `X-Correlation-ID` header the API already answered on,
-    accepted only when it is of a shape that could not carry anything else —
-    a caller-supplied string ends up in a log file, and an arbitrary one would
+    accepted only when it is of a shape that could not carry anything else.
+    A caller-supplied string ends up in a log file, and an arbitrary one would
     let a caller write whatever they liked into the record, including lines
-    that read like other records — and returned on every response so a person
+    that read like other records, and returned on every response so a person
     reporting a problem can quote the identifier the log lines carry.
   - [x] Redaction is by construction rather than by stripping. A value is
     logged only if it is of a shape that could not be content: a number, a
@@ -1233,7 +1682,7 @@ Companion specification: `docs/requirements-specification.md`
     judgement is one-sided on purpose: over-refusing costs a diagnostic
     message, and the other direction costs somebody their source.
   - [x] One record per request carrying method, route name, status, duration and
-    body sizes — the measurements the service-level objectives are written
+    body sizes. The measurements the service-level objectives are written
     against, and none of them a copy of anything. The route name is recorded
     rather than the path, because a path can carry a caller's own strings and a
     route name cannot. An unhandled exception records its class and location and
@@ -1246,8 +1695,8 @@ Companion specification: `docs/requirements-specification.md`
 - [x] PLAT-205 Integrate liveness/readiness and dependency/toolchain status into
   shared administration under scoped capabilities.
   - [x] Readiness now says why, not only whether. Each toolchain manifest builds
-    its readiness from named checks — this executable, that version against the
-    pinned one, this licence file — and derives the summary from them, so the
+    its readiness from named checks (this executable, that version against the
+    pinned one, this licence file), and derives the summary from them, so the
     summary cannot disagree with the detail. Every failure names what was
     examined and what to do about it; a pinned-version mismatch reports both
     numbers, because "wrong version" without saying which is not something
@@ -1291,8 +1740,8 @@ Companion specification: `docs/requirements-specification.md`
     distributed, so an unproven case over-reports rather than misses.
   - [x] Licence classification handles the expressions npm actually publishes.
     An OR expression is as permissive as its most permissive arm; an AND
-    expression binds every arm at once and is copyleft the moment one arm is —
-    treating `Apache-2.0 AND LGPL-3.0-or-later AND MIT` as permissive because
+    expression binds every arm at once and is copyleft the moment one arm is.
+    Treating `Apache-2.0 AND LGPL-3.0-or-later AND MIT` as permissive because
     one arm is MIT would drop a real obligation. The `-only` and `-or-later`
     spellings are recognised, since those are what the registry carries. An
     expression it does not recognise is reported as unrecognised rather than
@@ -1321,7 +1770,7 @@ Companion specification: `docs/requirements-specification.md`
 ### 4.2 Profiles, configuration, and manifests
 
 - [x] PRF-200 Implement machine/expansion profile registry, schema validation,
-  migration, capability negotiation, and stable IDs (TGT-001–TGT-009).
+  migration, capability negotiation, and stable IDs (TGT-001-TGT-009).
   - [x] The shipped catalogue is validated rather than trusted, by a contract
     test that names each problem and where it is: a duplicate machine or ROM
     identifier, an unregistered platform class, a missing label or description,
@@ -1339,8 +1788,8 @@ Companion specification: `docs/requirements-specification.md`
     reason on it.
   - [x] Profile schema versioning and migration now exist for manifests that
     arrive from outside this build. The shipped catalogue is a literal checked
-    by a contract and cannot be wrong at run time; a manifest is the other case
-    — written elsewhere, exported by an older build, or carried in a project —
+    by a contract and cannot be wrong at run time; a manifest is the other case.
+    Written elsewhere, exported by an older build, or carried in a project,
     and none of it can be assumed. A manifest declares its version, every
     version this product has written stays readable, and one from a newer build
     is refused by name rather than parsed as though the fields it lacks were
@@ -1353,7 +1802,7 @@ Companion specification: `docs/requirements-specification.md`
   - [x] Anything this build cannot use is dropped and named, never guessed at.
     A capability whose state is not one this product defines is dropped rather
     than defaulted, because defaulting to supported would claim hardware and
-    defaulting to planned would silently remove a capability the machine has —
+    defaulting to planned would silently remove a capability the machine has,
     neither is this build's decision. An unknown platform class is reported with
     the profile still usable and marked as needing a check, because a partly
     usable profile beats a refused one provided nothing was invented in silence.
@@ -1406,22 +1855,22 @@ Companion specification: `docs/requirements-specification.md`
   - [x] The target configuration panel already carried platform class, machine,
     the model-and-memory variant, the firmware set, a hardware summary of CPU,
     memory, ROM note and firmware readiness, and a capability list covering
-    storage, input and every supported expansion — each with its state, the
+    storage, input and every supported expansion, each with its state, the
     prose saying what a planned one still needs, and the control disabled with
     the reason when a peripheral belongs to a variant that is not selected.
     Fitted memory is shown and not editable, which is correct: it is a property
     of the variant rather than a setting.
   - [x] Sideways banks were the real gap, and the reason they matter is why.
-    Mounting worked by derivation — enable a capability and the ROM it needs was
-    mounted somewhere — which is enough to run a machine and not enough to
+    Mounting worked by derivation, enable a capability and the ROM it needs was
+    mounted somewhere, which is enough to run a machine and not enough to
     develop for one. A sideways ROM's bank decides its service-call priority, so
     it decides which ROM answers a star command first and which wins when two
     claim the same name, and none of that is visible if the product picks the
     number. A bank is now something a person assigns.
   - [x] All sixteen banks are shown, filled or not, because an empty bank is
     information: it is where the next ROM goes and its number is what that ROM's
-    priority will be. Sixteen is stated as architectural — the ROM select
-    register is four bits wide — while which banks a particular machine has
+    priority will be. Sixteen is stated as architectural, the ROM select
+    register is four bits wide, while which banks a particular machine has
     fitted and what its own firmware occupies is taken from the ROM set
     definition rather than assumed, because this build will not claim that BASIC
     lives in a particular bank on a particular model unless its own data says so.
@@ -1468,7 +1917,7 @@ Companion specification: `docs/requirements-specification.md`
     variants and firmware the chosen machine actually has offered.
   - [x] It shows the same answer the warnings show, from the same comparison,
     because two surfaces answering one question differently would be worse than
-    one — and it says so on the panel. Where nothing differs it says so rather
+    one, and it says so on the panel. Where nothing differs it says so rather
     than showing an empty table, and where the differences are real but none
     stops work moving it says that too, because a panel that always finds
     something to warn about is one nobody reads. Anything the build had to
@@ -1551,8 +2000,8 @@ Current implemented increment (the broader tickets below remain open):
     errors.
   - [x] A folder opened through the File System Access API keeps its handle for
     the session, so the project can be written back into the folder it came
-    from rather than only downloaded. The browsers without the API — Firefox
-    and Safari at the time of writing — are told plainly what they cannot do
+    from rather than only downloaded. The browsers without the API, Firefox
+    and Safari at the time of writing, are told plainly what they cannot do
     instead of being offered a control that would fail, and the one-way
     directory input remains for them. Writing asks for write permission at the
     point of saving, never at import; a refusal writes nothing at all. Only
@@ -1590,7 +2039,7 @@ Current implemented increment (the broader tickets below remain open):
     `engine.asm` through the real selector with the reason shown, the created
     project's build target naming `engine.asm` and producing `engine.bin`, the
     command then enabled, and all three sources written back into the same
-    folder with their content intact — zero console errors.
+    folder with their content intact, zero console errors.
 - [x] PRJ-200 Finalize versioned project and portable bundle schemas (PRJ-001).
   - [x] Which project formats are accepted is now derived from a single version
     number rather than restated as two hand-maintained lists of every version
@@ -1610,8 +2059,8 @@ Current implemented increment (the broader tickets below remain open):
     state; a contract on the version parser covering leading zeros, a zero
     version, a non-numeric suffix, a different schema prefix and a non-string;
     both newer-document refusals; and a whole-document round trip that
-    populates every section — breakpoints, bookmarks, both breakpoint models
-    with their groups, analysis annotations and project settings — serialises,
+    populates every section (breakpoints, bookmarks, both breakpoint models
+    with their groups, analysis annotations and project settings) serialises,
     reopens and compares the documents whole, so a field added to the model
     without parser support fails here rather than being discovered as data
     lost from someone's project. A second contract compares the document's key
@@ -1626,7 +2075,7 @@ Current implemented increment (the broader tickets below remain open):
     name that can be written. It folds path separators, removes the characters
     and control codes no common filesystem accepts, refuses `.` and `..` as
     filenames, drops a trailing dot or space that Windows would discard
-    silently — turning two distinct names into one file — renames the
+    silently, turning two distinct names into one file, renames the
     twenty-two Windows device names, and caps length while keeping the
     extension so the language is still known. A name that had to change is
     reported with the reason when a file is created or renamed, because
@@ -1634,8 +2083,8 @@ Current implemented increment (the broader tickets below remain open):
     that is not there.
   - [x] Transactions. A save now reads back what it wrote and compares it. A
     browser can accept a write and store nothing, or store part of it, without
-    throwing anything for the quota branch to catch — a private window near its
-    limit, or storage partitioned by an extension — and a save reported as
+    throwing anything for the quota branch to catch (a private window near its
+    limit, or storage partitioned by an extension), and a save reported as
     successful that did not happen is the one failure that costs someone their
     work. A mismatch is undone, restoring the previous snapshot, and reported
     with both byte counts.
@@ -1650,14 +2099,14 @@ Current implemented increment (the broader tickets below remain open):
     separators, refused characters and control codes, both directory names, a
     kept leading dot, trailing dots and spaces, all twenty-two device names and
     the names that merely resemble them, length capping, a usable name from
-    every degenerate input, and idempotence — a name the rule produced is never
+    every degenerate input, and idempotence. A name the rule produced is never
     changed again; 8 write-path contracts; and 6 storage contracts covering a
     write the browser did not keep with and without a previous save, a
     truncated write with its rollback, the measured usage, an unreadable store
     reporting nothing rather than zero, and the usage figure appearing in the
     quota message.
 - [x] PRJ-202 Implement project tree operations, undo/trash, drag and keyboard
-  alternatives, authored/imported/SDK/generated/build groups (PRJ-003–PRJ-005).
+  alternatives, authored/imported/SDK/generated/build groups (PRJ-003-PRJ-005).
   Sources are grouped as authored, imported and generated. A separate SDK group
   is not carried: nothing in the product marks a file as coming from an SDK, and
   inventing the distinction would mean asserting an origin the data does not
@@ -1715,8 +2164,8 @@ Current implemented increment (the broader tickets below remain open):
   - [x] A zip archive is now a third way source arrives, alongside the
     directory input and the File System Access API, and it reaches the same
     import plan as the other two so a person sees the same preview whichever
-    route the source took. Acorn source is passed around as archives — a forum
-    attachment, a release, a backup of a working directory — and until now none
+    route the source took. Acorn source is passed around as archives (a forum
+    attachment, a release, a backup of a working directory), and until now none
     of that could be opened without unpacking it by hand first.
   - [x] An archive is hostile input, and every claim in one is checked rather
     than believed. A name that is absolute or contains `..` is refused by name,
@@ -1724,8 +2173,8 @@ Current implemented increment (the broader tickets below remain open):
     a path stored where content should be, so it is reported as a link rather
     than followed. An encrypted entry and a compression method this reader does
     not implement are each named rather than producing rubbish. The declared
-    uncompressed size is bounded before anything is expanded, and — because a
-    header can simply lie — decompression stops at the bound rather than after
+    uncompressed size is bounded before anything is expanded, and, because a
+    header can simply lie, decompression stops at the bound rather than after
     it, so the memory a hostile archive can make the tab allocate is the limit
     and not whatever the archive felt like producing. Every entry's CRC-32 is
     checked against the archive's own record, which catches a truncated entry,
@@ -1736,15 +2185,15 @@ Current implemented increment (the broader tickets below remain open):
     `DecompressionStream` does the work, so there is no dependency to audit.
   - [x] The reader is central-directory-first, and takes each entry's data
     offset from its own local header rather than assuming the two extra fields
-    match — they routinely do not, and assuming otherwise reads from the wrong
+    match. They routinely do not, and assuming otherwise reads from the wrong
     place.
   - [x] Duplicates, encoding and quota were already handled by the importer the
     archive feeds: flat-name collisions are renamed and reported, undecodable
     files are excluded with the reason, and the per-file, file-count and
     project-total limits apply to an archive exactly as to a folder.
   - [x] Evidence: 18 archive contracts, every one driving a real zip built byte
-    by byte in the test and deflated by the platform's own CompressionStream —
-    stored and deflated entries, a trailing archive comment, backslash names,
+    by byte in the test and deflated by the platform's own CompressionStream.
+    Stored and deflated entries, a trailing archive comment, backslash names,
     the ignored build directories, all four escaping name shapes, a symbolic
     link and an ordinary Windows file that must not be mistaken for one, an
     encrypted entry, an unimplemented method, an over-declared size, a
@@ -1785,7 +2234,7 @@ Current implemented increment (the broader tickets below remain open):
     Downloading produced a bundle with a project digest and two file digests.
     Feeding an altered copy back through the real Open project input was refused
     with `This bundle has been altered since it was created: the project digest
-    is efdbbb58… not the 5eac5ad5… it records`, and the open project was
+    is efdbbb58... not the 5eac5ad5... it records`, and the open project was
     untouched. The intact bundle then opened, reporting `bundle verified against
     its manifest · 2 files · 2 build targets · 1 toolchain`. Zero console
     errors.
@@ -1801,9 +2250,9 @@ Current implemented increment (the broader tickets below remain open):
     layer below answers, and the settings surface says which layer was ignored
     and why. Writing an invalid value is refused with the same reason rather
     than stored and discovered later at the point of use.
-  - [x] The registry takes its value sets from the modules that own them —
-    the scale modes, display effects, runtime speeds, volume and the key-remap
-    and gamepad validators — so a setting can never offer something the runtime
+  - [x] The registry takes its value sets from the modules that own them.
+    The scale modes, display effects, runtime speeds, volume and the key-remap
+    and gamepad validators, so a setting can never offer something the runtime
     would refuse. A contract test compares the two, and caught exactly that:
     the first draft offered runtime speeds of 1, 2, 4 and 8 where the machine
     accepts 0.5, 1, 2 and 4.
@@ -1849,8 +2298,8 @@ Current implemented increment (the broader tickets below remain open):
     person chooses to.
   - [x] The status line carries the save state, reading `Saved` or `NOT SAVED`,
     with the time and size of the last successful save in its title.
-  - [x] Storage that is unavailable entirely — blocked by policy or a private
-    window — is reported as unavailable rather than as an empty project.
+  - [x] Storage that is unavailable entirely, blocked by policy or a private
+    window, is reported as unavailable rather than as an empty project.
   - [x] 11 unit contracts cover the outcomes, including a simulated
     `QuotaExceededError` proving the previous snapshot survives, a snapshot that
     is valid JSON but not a project, and storage that throws on read.
@@ -1863,7 +2312,7 @@ Current implemented increment (the broader tickets below remain open):
     chosen. Zero console errors.
 - [x] PRJ-207 Create target-aware template catalogue schema and two lawful
   templates for the first machine slice.
-  - [x] The samples are finished programs — the right thing for reading, the
+  - [x] The samples are finished programs. The right thing for reading, the
     wrong thing for starting, because someone who wants to write their own game
     has to delete a maze first. A template is the other half: a small,
     complete, buildable skeleton with the machine it was written for recorded
@@ -1874,7 +2323,7 @@ Current implemented increment (the broader tickets below remain open):
     offers them. A capability the machine lists as planned is not a capability:
     the product says elsewhere that planned means not fitted, so a template
     depending on one is refused rather than offered and then found to fail. A
-    template is offered, or it is listed with the reason it cannot be — never
+    template is offered, or it is listed with the reason it cannot be, never
     offered and broken.
   - [x] Two templates for the BBC Model B. A MODE 7 starter in 6502 assembly
     that selects the teletext screen through VDU 22, prints a zero-terminated
@@ -1882,12 +2331,12 @@ Current implemented increment (the broader tickets below remain open):
     to BASIC rather than hanging, staying inside the &70 workspace the OS
     reserves for user programs. A disk catalogue starter in BASIC II that reads
     a file's load address, execution address and length through OSFILE with
-    A%=5, without loading the file — the starting point for anything that keeps
+    A%=5, without loading the file. The starting point for anything that keeps
     its data on disk. The second requires the DFS capability and says so; the
     first requires nothing beyond the base machine and runs on a cassette
     Model B too.
-  - [x] Both are original to this product and each carries its provenance —
-    author, licence and a sentence on what it does and does not derive from —
+  - [x] Both are original to this product and each carries its provenance.
+    Author, licence and a sentence on what it does and does not derive from,
     so the licence review at the end of this project has a statement to check
     rather than an assumption to make. They call documented OS entry points,
     which is an interface rather than a work; nothing is taken from Acorn
@@ -1896,8 +2345,8 @@ Current implemented increment (the broader tickets below remain open):
     assembler: it had no `NAME = expr` constants at all. BeebAsm accepts them
     and real Acorn source is full of them, so any project imported from a
     BeebAsm tree assembled everywhere except here. Constants are now supported,
-    with a value that must be evaluable where it is written — one depending on
-    a label further down is reported rather than silently resolved to zero —
+    with a value that must be evaluable where it is written, one depending on
+    a label further down is reported rather than silently resolved to zero,
     and restating a MOS call the assembler already knows is accepted when the
     values agree and reported with both values when they do not, because almost
     every listing opens by writing out the calls it uses.
@@ -1907,7 +2356,7 @@ Current implemented increment (the broader tickets below remain open):
     machine profile, an absent variant, ROM set and capability named
     separately, a planned capability refused, the split between what a
     cassette-only machine can and cannot run, a machine with no templates at
-    all, and — for each template — parsing through the ordinary project parser
+    all, and, for each template, parsing through the ordinary project parser
     with nothing arriving already modified, a build target that validates
     against its own machine, a build with no diagnostics that produces the same
     bytes twice, and the project name being taken or defaulted. Seven assembler
@@ -1945,9 +2394,9 @@ below are finished):
 - [x] BBC BASIC numbering now accepts configurable start/increment values,
   inserts a safe number from an available gap instead of colliding, and reports
   when no number is available. A whole-program renumber preview validates the
-  BBC BASIC II 0–32,767 range, duplicate input numbers and final overflow;
+  BBC BASIC II 0-32,767 range, duplicate input numbers and final overflow;
   presents old/new mappings and unresolved targets; updates direct plus
-  `ON … GOTO/GOSUB` list references; and applies as one edit with explicit
+  `ON ... GOTO/GOSUB` list references; and applies as one edit with explicit
   undo. One shared scanner preserves strings, DATA and REM during both rewrite
   and jump-target discovery. Unit contracts cover mapping, protected text,
   ambiguity, overflow and gap selection; the production browser contract proves
@@ -1985,14 +2434,14 @@ below are finished):
   pruning, keyboard routing and per-file save semantics.
 - [x] The remaining EDT-009 command set now includes split line, tab-stop-aware
   tab-to-spaces conversion, direct join/case/whitespace shortcuts, C `//` line
-  and `/* … */` block comments, and bounded selection/document formatting for
+  and `/* ... */` block comments, and bounded selection/document formatting for
   the registered BBC BASIC and 6502 adapters. Each transformation is one
   command-history entry. Revert requires explicit confirmation, restores the
   last explicit-save content, clears command undo because revert is deliberately
   non-undoable, and can be cancelled without mutation. Project format v5 stores
   saved name/content baselines and an explicit never-saved state separately from
   crash-recovery content, so dirty state and genuine revert survive reload
-  without inventing a baseline for a new file; v1–v4 imports migrate forward. Unit,
+  without inventing a baseline for a new file; v1-v4 imports migrate forward. Unit,
   component and deployed Chromium contracts prove formatting, splitting,
   recovered dirty state, cancel/confirm revert and zero browser errors.
 - [x] The first EDT-216 source-bookmark slice replaces session-only line diamonds
@@ -2003,7 +2452,7 @@ below are finished):
   anchor tracks deterministic line insertion/movement; deleted anchors become
   explicit orphan records with candidate navigation and manual recovery instead
   of silently binding to unrelated code. File deletion cleans owned marks and
-  v1–v4 projects migrate safely. Descriptions, persistence-scope choices and
+  v1-v4 projects migrate safely. Descriptions, persistence-scope choices and
   Project format v14 now adds bounded descriptions and explicit project/private
   persistence scope. Private records remain in browser recovery but portable
   export excludes the complete record by default. A modal export review shows
@@ -2049,7 +2498,7 @@ below are finished):
   flow prove SOUND argument 4/4, `PROCdraw` definition navigation and dynamic
   completion without browser errors. Cross-file/SDK navigation, overload forms,
   full type metadata and migration of every future async provider remain open
-  under EDT-208–EDT-215 rather than being implied by this increment.
+  under EDT-208-EDT-215 rather than being implied by this increment.
 - [x] The next EDT-213 signature slice resolves the innermost still-open BASIC
   invocation, so declared nested `FN`/`PROC` calls receive their own active
   parameter and the enclosing command resumes after the nested call closes.
@@ -2184,7 +2633,7 @@ below are finished):
     host-ownership reporting.
   - [x] The last piece was the go-to surface telling the truth about what it
     could not find. An empty result list reads as "there is no such thing",
-    which is a different statement from "this build carries no address map" —
+    which is a different statement from "this build carries no address map",
     and only one of them is usually true. Every way of coming up empty now says
     which: a build with no source-to-address map says so and says how to get
     one, an address below everything the build maps names the lowest mapped
@@ -2209,8 +2658,8 @@ below are finished):
     === ...)` chains in several files at once. That works until a dialect is
     added, at which point it has to be added everywhere and is inevitably added
     in some places and not others. An adapter is now the one declaration of
-    what a language offers — classification, outline and single-file
-    diagnostics — with a registry, a resolver and a validator run by a
+    what a language offers (classification, outline and single-file
+    diagnostics), with a registry, a resolver and a validator run by a
     contract.
   - [x] The boundary is deliberate and is the reason the API is worth having.
     An adapter sees one file, so it reports only what one file can support: a
@@ -2232,7 +2681,7 @@ below are finished):
     to it, with the constant's value and a macro's parameters carried as the
     detail. Diagnostics report a label declared twice in this file naming the
     first, a constant restated at a different value naming both, and every
-    unbalanced macro — never closed, opened inside another, closed without
+    unbalanced macro. Never closed, opened inside another, closed without
     being opened.
   - [x] Project manifests get an adapter too. The asset, tile-map, palette,
     font, song, test-plan, disk-set, settings, bundle, annotation and project
@@ -2240,8 +2689,8 @@ below are finished):
     enough to deserve an outline and a straight answer when a brace is missing,
     rather than being treated as plain text. A schema this build knows passes
     silently; one it does not know is reported as uncheckable rather than as
-    wrong. Locating a JSON failure took three message shapes — a line and
-    column, a byte position, and an excerpt of the surrounding text — and where
+    wrong. Locating a JSON failure took three message shapes (a line and
+    column, a byte position, and an excerpt of the surrounding text), and where
     none of them yields a position the diagnostic says the parser did not
     report where, rather than pointing at line one as though it meant it.
   - [x] The editor's outline panel now comes from the registry, indented by
@@ -2252,7 +2701,7 @@ below are finished):
     at ENDMACRO, exact line and column, each diagnostic, the silence about
     symbols an adapter cannot see, every manifest state, and a property that no
     reported JSON position ever falls outside the document; plus 5 workspace
-    contracts driving the real panel — nesting and detail on screen, a
+    contracts driving the real panel. Nesting and detail on screen, a
     duplicate label navigated to, silence for an included symbol, a manifest
     outlined and its broken JSON reported, and the flat fallback for a language
     with no adapter.
@@ -2278,7 +2727,7 @@ below are finished):
     without an accessible name, a single-file problem reported as a word and
     not by colour; the editor, the outline and the symbol search all reachable
     and focusable from the keyboard, Escape clearing the search, and parameter
-    help that does not take focus — help that steals focus makes an editor
+    help that does not take focus. Help that steals focus makes an editor
     unusable with a screen reader, because every keystroke then lands somewhere
     else; a composition kept rather than dropped, characters outside the basic
     plane kept whole rather than cut in half into a replacement character,
@@ -2288,7 +2737,7 @@ below are finished):
   - [x] Reflow and zoom are checked in a real browser and are now part of the
     release gate rather than a one-off, because a layout regression is
     invisible until someone is using a small window and by then it has
-    shipped. Five sizes, down to the 320 CSS pixels WCAG 1.4.10 names — which
+    shipped. Five sizes, down to the 320 CSS pixels WCAG 1.4.10 names, which
     is also what 400% zoom on a 1280-pixel display produces. The measurement
     uses the browser's own visibility test, so a closed disclosure is not
     counted as content that has to fit, and it treats a control inside a
@@ -2301,8 +2750,8 @@ below are finished):
     in fact forcing it wider than the viewport. The emulator toolbar did the
     same below 640 pixels. Both now wrap: they hold popup menus whose panels a
     scroll container would clip, so wrapping is the only correct answer. With
-    those fixed the workbench reflows cleanly at every size down to 320 pixels
-    — no horizontal scrolling, nothing out of reach, and no console errors.
+    those fixed the workbench reflows cleanly at every size down to 320 pixels.
+    No horizontal scrolling, nothing out of reach, and no console errors.
 - [x] EDT-206 Implement the complete editing command set in EDT-009, including
   cut/copy/paste, line and selection operations, comments, indentation,
   formatting, save-all, reopen-closed, keyboard bindings, and predictable undo.
@@ -2389,8 +2838,8 @@ below are finished):
     array of pointers and was reported as a pointer, `void (*handler)(int)` is a
     function pointer and was reported as a variable of type `void`, `int a, *b,
     c[3]` is three different types flattened into one, and
-    `unsigned char screen[8][8]` lost a dimension. None of that failed loudly —
-    a missed declaration simply makes the completion list short, which reads as
+    `unsigned char screen[8][8]` lost a dimension. None of that failed loudly.
+    A missed declaration simply makes the completion list short, which reads as
     "this file has no such symbol" and is wrong. The parser reads the grammar
     the way C reads it, from the innermost identifier outwards, and returns
     nothing for a declaration it cannot read rather than guessing, so nothing
@@ -2403,7 +2852,7 @@ below are finished):
     symbol that will not exist when the code is built, and the failure appears
     at compile time with no connection back to the suggestion that caused it. A
     declaration in a branch this build does not take is now offered as
-    unavailable with the condition named, rather than hidden — which would make
+    unavailable with the condition named, rather than hidden, which would make
     it unfindable. The third state is the important one: a condition like
     `#if VERSION > 2` needs a value and an expression evaluator, so it is
     reported as unsettled rather than guessed, because guessing would be a
@@ -2420,15 +2869,15 @@ below are finished):
     service.
   - [ ] Complete hardware and module SWI catalogues, debug type records and
     linked snippet fields keep EDT-209 open. The two catalogues are the ones
-    that cannot be written from here: they are reference data — RISC OS SWI
-    numbers and register contracts, hardware register maps — and writing them
+    that cannot be written from here: they are reference data (RISC OS SWI
+    numbers and register contracts, hardware register maps), and writing them
     from memory would put invented technical detail in front of users. They
     need a cited source in the repository first, the way the MOS entry-point
     table and the W65C02S instruction data already have one.
 - [x] EDT-210 Implement accessible completion interaction: explicit/automatic
   trigger, filtering/ranking, candidate kind and source, signature/summary,
   replacement range, commit characters, keyboard acceptance, dismissal,
-  ambiguity, incompatibility, and stale-result states (EDT-011–EDT-013).
+  ambiguity, incompatibility, and stale-result states (EDT-011-EDT-013).
   - [x] Explicit completion now retains maintained but target-incompatible
     matches as non-inserting UNAVAILABLE options with the exact compatibility
     warning, while automatic completion continues to exclude them. Kind and
@@ -2440,9 +2889,9 @@ below are finished):
   - [x] Completion now finds a candidate by the characters in it rather than
     only the ones it starts with: typing every character of `draw_sprite` to
     reach it is not how anyone works, and was the only way. A match is scored
-    by where the characters land — the start of a token, or a boundary after an
-    underscore, a dot or a capital, is worth far more than the middle of a word
-    — with a run kept together, every skipped character costing, a shorter
+    by where the characters land. The start of a token, or a boundary after an
+    underscore, a dot or a capital, is worth far more than the middle of a word,
+    with a run kept together, every skipped character costing, a shorter
     candidate preferred, and the typed case rewarded. Characters not present in
     order at all mean the candidate is not offered, rather than offered last.
   - [x] Scattered matches are a separate, lower tier and are never mixed into
@@ -2455,7 +2904,7 @@ below are finished):
     rather than looking like an unrelated suggestion.
   - [x] Commit punctuation is deliberately sparse, because a commit character
     that fires when someone meant to type the character silently rewrites what
-    they wrote — which is worse than not having one. So `(` accepts a callable,
+    they wrote, which is worse than not having one. So `(` accepts a callable,
     and in assembly `,` and `)` accept a symbol, because an operand ends with
     one or the other and with nothing else. Nothing commits on a letter, digit,
     space, full stop or hyphen, since all of them occur inside real tokens, and
@@ -2472,7 +2921,7 @@ below are finished):
     boundaries, camel case, tightness, length, case, the two-character
     threshold, tier ordering, reported match positions, and every commit-
     character rule including the characters that must never commit; plus 4
-    editor contracts driving the real completion list — a symbol accepted on a
+    editor contracts driving the real completion list, a symbol accepted on a
     comma with the comma typed, the same key typing normally with nothing
     open, a scattered match shown with its marked characters and its
     explanation, and a prefix match ranked above one that merely contains the
@@ -2503,8 +2952,8 @@ below are finished):
     exactly one visual row, so with word wrap on it refuses and says why
     instead of drawing rows against the wrong lines. A line carrying several
     hints shows the leftmost and says how many there are, rather than looking
-    as though it had one type when it has three, and every line gets a row —
-    rows only for lines that carry a hint would put every row below the first
+    as though it had one type when it has three, and every line gets a row.
+    Rows only for lines that carry a hint would put every row below the first
     one line out.
   - [x] Evidence: 9 rail contracts covering the refusals, the ordering, the
     multiple-hint count and the detail carrying everything the panel knows, and
@@ -2517,8 +2966,8 @@ below are finished):
     `id=0,val="00"`, and points every C symbol at it. So this build says that
     plainly instead of decoding a type it would have had to infer from
     somewhere else. What the file does carry about a C symbol is exact and is
-    now reported — its storage class, its frame offset, and the address of the
-    assembler symbol behind a static or extern — alongside the addresses each
+    now reported (its storage class, its frame offset, and the address of the
+    assembler symbol behind a static or extern) alongside the addresses each
     line of C actually produced and where each segment was linked. The reader
     checks its own completeness against the record counts the file states about
     itself and refuses a file it could only partly read, because a debug file
@@ -2527,12 +2976,12 @@ below are finished):
     not mean as a record count is reported rather than enforced, and said so.
   - [x] Evidence: 11 parser contracts and 2 document contracts, checked against
     a real ld65 debug file kept exactly as the pinned toolchain produced it from
-    `src/build/fixtures/cc65-debug-info.c` — not one written to suit the parser.
+    `src/build/fixtures/cc65-debug-info.c`, not one written to suit the parser.
     The completeness check is proved by deleting records from that real file and
     watching the file itself notice.
 - [ ] EDT-212 Implement pointer-hover and keyboard-focus token help with syntax,
   definition, parameters, examples, side effects, flags/cycles, compatibility,
-  deprecation, related items, and cited detailed documentation (EDT-015–EDT-016).
+  deprecation, related items, and cited detailed documentation (EDT-015-EDT-016).
   - [x] Pointer hover and keyboard focus now share the same polite-live semantic
     token documentation. The panel exposes syntax, definition, parameter ranges,
     result, effects, examples, compatibility, flags, every addressing-form cycle
@@ -2553,7 +3002,7 @@ below are finished):
     and now is: hovering an undocumented keyword reports which machines have
     it, what token each uses, and that nobody has described it yet. An empty
     panel reads as "this is not a keyword"; it is one, and those are different
-    things. Five pseudo-variables — HIMEM, LOMEM, PAGE, PTR and TIME — carry
+    things. Five pseudo-variables (HIMEM, LOMEM, PAGE, PTR and TIME) carry
     two tokens each, one for reading and one for assigning, and both are
     reported because showing one would leave the other decoding as an unknown
     byte.
@@ -2583,14 +3032,14 @@ below are finished):
     There is no type information in the build output to read, which the build's
     own artifact document already says in those words rather than filling the
     gap with something inferred. What would change this is a toolchain that
-    records types — a newer cc65, or a different C compiler qualified through
-    the toolchain gate — not more work here. Until then, what the file does
+    records types (a newer cc65, or a different C compiler qualified through
+    the toolchain gate), not more work here. Until then, what the file does
     carry about a C symbol is its storage class and its frame offset, and those
     are exact and already surfaced.
 - [ ] EDT-214 Implement click/tap and keyboard navigation for assembly branch/
   jump/call operands, BASIC line references, C/ARM functions, macros, includes,
   labels/data, OS calls/SWIs, hardware symbols, SDK files, and generated sources
-  with ambiguity/bank/staleness handling (EDT-018–EDT-020).
+  with ambiguity/bank/staleness handling (EDT-018-EDT-020).
   - [x] A first direct-activation slice now follows exact parsed BBC/Atom BASIC
     line and routine references, 6502 jump/call/branch operands, ARM branches and
     direct C calls with a normal pointer or touch activation. F12, double-click,
@@ -2627,8 +3076,8 @@ below are finished):
     There is no type information in the build output to read, which the build's
     own artifact document already says in those words rather than filling the
     gap with something inferred. What would change this is a toolchain that
-    records types — a newer cc65, or a different C compiler qualified through
-    the toolchain gate — not more work here. Until then, what the file does
+    records types (a newer cc65, or a different C compiler qualified through
+    the toolchain gate), not more work here. Until then, what the file does
     carry about a C symbol is its storage class and its frame offset, and those
     are exact and already surfaced.
 - [ ] EDT-215 Implement definition/declaration/implementation/type-definition,
@@ -2671,8 +3120,8 @@ below are finished):
     There is no type information in the build output to read, which the build's
     own artifact document already says in those words rather than filling the
     gap with something inferred. What would change this is a toolchain that
-    records types — a newer cc65, or a different C compiler qualified through
-    the toolchain gate — not more work here. Until then, what the file does
+    records types (a newer cc65, or a different C compiler qualified through
+    the toolchain gate), not more work here. Until then, what the file does
     carry about a C symbol is its storage class and its frame offset, and those
     are exact and already surfaced.
 - [x] EDT-216 Implement named source bookmarks, gutter/command actions,
@@ -2707,7 +3156,7 @@ below are finished):
     destination collision, 32,767 overflow and surrounding-line ordering all
     block apply. Preview, cancel, stale-source rejection, atomic apply and exact
     complete-source undo are functional. Model and component tests plus a real
-    browser apply prove rows 2–4, three mappings and two cross-program reference
+    browser apply prove rows 2-4, three mappings and two cross-program reference
     updates. Maintained help provides a 14-step technical procedure and a real
     screenshot.
 - [x] EDT-219 Implement BASIC direct line/reference navigation, missing/duplicate
@@ -2808,7 +3257,7 @@ below are finished):
     references and 16 control contracts, the clean Docker build succeeds, and
     both port-8090 services report healthy.
 
-## 5. Phase 3 — build, diagnostics, artifacts, and media
+## 5. Phase 3: build, diagnostics, artifacts, and media
 
 ### 5.1 Adapter runtime and sandbox
 
@@ -2818,8 +3267,8 @@ below are finished):
     `stardot.beebasm` server adapters share build target, result, provenance and
     artifact contracts without conflating their source dialects.
   - [x] **Closed on the state it is actually in rather than the state it was in
-    when that note was written.** The registry now holds eight toolchains — four
-    browser-local and four native — behind one `ToolchainManifest` shape and one
+    when that note was written.** The registry now holds eight toolchains, four
+    browser-local and four native, behind one `ToolchainManifest` shape and one
     lookup. All four native adapters run through the same readiness model, the
     same process runner and the same `8bit-net.native-build-response` envelope,
     which is what makes the lifecycle common rather than four lifecycles that
@@ -2835,7 +3284,7 @@ below are finished):
     new privileges, no network at all, and bounded memory, CPU and process
     count; each job gets its own directory under a `tmpfs` and is removed
     afterwards. The wall clock that stops a runaway tool had no test until the
-    gate started failing on it — a constant nothing asserted, so the protection
+    gate started failing on it. A constant nothing asserted, so the protection
     could have been deleted anywhere without notice. It is contracted now, along
     with the distinction between a tool that overruns and one that merely
     fails.
@@ -2849,8 +3298,8 @@ below are finished):
   - [x] All four native adapters emit that envelope, and the debug metadata it
     carries is read rather than described: the linker's own debug file supplies
     where a variable lives and what a function's frame looks like, and where the
-    toolchain records nothing — cc65 writes one empty type record and points
-    every C symbol at it — the artifact document says so in those words instead
+    toolchain records nothing, cc65 writes one empty type record and points
+    every C symbol at it, the artifact document says so in those words instead
     of filling the gap with something inferred.
 - [x] BLD-304 Implement content-addressed cache with integrity, tenant separation,
   declared inputs, metrics, invalidation tests, and bypass control.
@@ -2865,7 +3314,7 @@ below are finished):
     before it reports a timeout, so by the time a timeout could be caught the
     parent links identifying the tool's descendants had already been rewritten
     by the kernel. The runner owns its deadline now, and sweeps the tree while
-    it is still a tree — proved against a bounded fork bomb twenty-four wide
+    it is still a tree. Proved against a bounded fork bomb twenty-four wide
     and three deep, every member of which outlives the deadline and writes a
     file if it survived.
   - [x] That test then failed once in the gate and was right to. Enumerating a
@@ -2873,14 +3322,14 @@ below are finished):
     its parent sees the child exit and runs whatever came next on the shell
     line, which on a loaded machine is how three of the twenty-four survived a
     sweep that had already found them. The tree is stopped before any of it is
-    killed — shallowest first, so nothing is spawned behind the sweep — and
+    killed (shallowest first, so nothing is spawned behind the sweep), and
     only then taken apart.
   - [x] Cleanup was four copies of one recursion, each ignoring every failure
     it met. There is one workspace now: it repairs the permissions a tool can
     leave behind, never follows a link out of the job, and reports whatever it
     could not remove. The contract is held to the disk rather than to a
-    manufactured failure — the workspace is gone if and only if the removal
-    said so — and is exercised against a writer still filling the directory
+    manufactured failure, the workspace is gone if and only if the removal
+    said so, and is exercised against a writer still filling the directory
     while cleanup runs, which is the cancellation race in its damaging form.
   - [x] Fork bombs, allocation bombs and network attempts are stopped by
     namespaces and limits that live in the deployment description and nowhere
@@ -2907,7 +3356,7 @@ open):
     force is the value published in the manifest.
   - [x] The flakiness itself was worth understanding rather than retrying. The
     ARM build failed three times on the shared runner reporting `timeout` on a
-    build that takes under 200ms on a quiet machine — the tools run in
+    build that takes under 200ms on a quiet machine, the tools run in
     milliseconds, so five seconds is a guard against a tool that will never
     finish, not a budget. What it measures, though, is the machine: a process
     stalled by an unrelated neighbour fails a build that was never slow. The
@@ -2930,7 +3379,7 @@ open):
   production build pass, and a deployed two-worker build-all contract reports
   zero browser errors. The ca65 and BeebAsm local native slices now share this
   lifecycle too; public multi-tenant scheduling and isolation remain open under
-  BLD-300–BLD-302 rather than being implied by the local worker.
+  BLD-300-BLD-302 rather than being implied by the local worker.
 - [x] The browser-local BLD-303 result path now returns versioned,
   command-independent metadata for every completed adapter invocation: pinned
   adapter/engine/machine/profile/dependency identity, normalized exit/error/
@@ -2963,7 +3412,7 @@ open):
   shared caching and server tenant separation are answered by the server cache
   below rather than being claimed by this browser-session cache.
 - [x] **The native builder now keeps results between requests.** All four
-  server adapters — ca65/ld65, BeebAsm, cc65 C and the ARM binutils — consult
+  server adapters (ca65/ld65, BeebAsm, cc65 C and the ARM binutils) consult
   one content-addressed cache before running anything. The key is built from
   every value that reaches the toolchain: the adapter and its version, the
   pinned toolchain digest, the machine, the profile and its options, the
@@ -2975,7 +3424,7 @@ open):
   A build's output is not only bytes: the listing and dependency documents
   carry the source itself, so a cache that crossed owners would be a way to
   read somebody else's program. Identical inputs would give identical outputs,
-  so sharing would in principle be safe — but "in principle" holds only while
+  so sharing would in principle be safe, but "in principle" holds only while
   the key covers everything, and a key is exactly the kind of thing that grows
   a gap. Entries are partitioned by owner *and* the owner is mixed into the
   key, so two separate things have to be wrong before one tenant can be handed
@@ -2984,7 +3433,7 @@ open):
   waiting to be found.
 - [x] A hit is a hit because the build matches, not because a hash did. Every
   read re-hashes the stored envelope against the digest the entry carries, and
-  checks the entry's own record of its inputs against the ones being built —
+  checks the entry's own record of its inputs against the ones being built,
   which is what a key with a gap in it would look like from the inside. A
   failure of either is counted as a corruption, logged, and the entry removed,
   because an entry that fails one of those is not a miss but a fault worth
@@ -3001,11 +3450,11 @@ open):
   result nobody can tell from a real one is one nobody can debug.
 - [x] Rebuild means rebuild on both sides. `cache.bypass` in the request runs
   the toolchain and replaces what was stored, and the browser adapter sends it
-  whenever the workbench's own Rebuild is used — a cache with no way past it is
+  whenever the workbench's own Rebuild is used. A cache with no way past it is
   a cache nobody can trust.
 - [x] **The browser-session cache stays in memory, on purpose.** Persisting it
-  would spend somebody's browser storage quota — the same quota their projects
-  use — to save work that costs almost nothing: a browser-local build is a
+  would spend somebody's browser storage quota, the same quota their projects
+  use, to save work that costs almost nothing: a browser-local build is a
   JavaScript assembler that finishes in milliseconds. The builds worth keeping
   are the ones that run a real assembler in a container, and those are what the
   server cache holds. This is a decision rather than an omission, and it is
@@ -3128,7 +3577,7 @@ open):
   - [x] Project format v6 persists multiple bounded hardware test plans per build
     target with name, stop symbol/address, assertion source, cycle budget and
     test-all enablement. Plans are editable without ROMs, removed with their
-    target, and versions 1–5 migrate without losing saved baselines. Emulator
+    target, and versions 1-5 migrate without losing saved baselines. Emulator
     test commands/results now carry opaque request identities, allowing test all
     to build through the bounded worker graph and then serialize enabled plans
     through the single real hardware emulator. Invalid plans and failed builds
@@ -3210,13 +3659,13 @@ open):
     sandbox boundary, licence differences, reproducibility risks and adversarial
     acceptance plan in `docs/toolchain-evaluation.md`.
   - [x] BeebAsm 1.11 is now a genuinely readiness-gated, independently selected
-    BBC-style target—not a decorative option. The exact-source container build,
+    BBC-style target, not a decorative option. The exact-source container build,
     source policy, real diagnostic/label/listing parser, normalized result,
     language completion/hover provider, and deployed build/debug proof coexist
     with ca65/ld65 through the shared adapter lifecycle.
 - [x] BLD-328 Implement 8-bit C adapter after ABI/runtime/debug/licence review.
   - [x] ADR 0004 records the audited upstream runtime gap, supported BBC
-    B/B+/Master ABI, `&1900–&69FF` default code/data range, `&7200` software
+    B/B+/Master ABI, `&1900-&69FF` default code/data range, `&7200` software
     stack, zero-page/hardware-stack preservation, SDK boundary, licence and
     deliberately unsupported library surfaces.
   - [x] `cc65.c-bbc` is readiness-gated and independently selected. It compiles
@@ -3291,7 +3740,7 @@ open):
     Every hardware test so far asserts from outside: the host stops the machine
     at an address and reads its registers and memory. That is the right way to
     check what a program left behind and it cannot check anything that happened
-    in between — a loop correct on its last iteration and wrong on its fourth
+    in between. A loop correct on its last iteration and wrong on its fourth
     looks identical from outside, and a routine called twenty times can only be
     judged on the twentieth. A program now calls a small routine with what it
     computed and what it expected, and the host reads the record afterwards.
@@ -3315,10 +3764,10 @@ open):
     six times anything larger is not, and a limit that cannot be exceeded beats
     a wider one that is wrong above some value nobody documents.
   - [x] Evidence: 15 contracts in `src/testing/nativeAssertions.test.ts`, six of
-    them assembling and executing the runtime — a pass, a failure carrying both
+    them assembling and executing the runtime. A pass, a failure carrying both
     numbers, a high-byte-only difference that a one-byte comparison would call
     a pass, execution continuing across a failure, six records proving the
-    stride past the first, and overflow counted rather than dropped — and the
+    stride past the first, and overflow counted rather than dropped, and the
     rest covering every way a block can fail to be one.
   - [ ] Only the 6502 is generated. An ARM form would be written the same way,
     but this build has no ARM execution to prove it against, and the whole
@@ -3374,9 +3823,9 @@ Current implemented increment:
     warning-free SSD import/edit, and writer→independent-reader byte validation
     are implemented.
   - [x] DFS unknown-metadata preservation. Opening an image now captures the
-    catalogue bytes this adapter does not model — the two bits of the boot-option
+    catalogue bytes this adapter does not model (the two bits of the boot-option
     byte Acorn DFS leaves unused and third-party filing systems do not, and
-    whatever follows the last catalogue entry in each catalogue sector — and
+    whatever follows the last catalogue entry in each catalogue sector), and
     rewriting lays them down before the entries that are modelled, so both
     catalogue sectors come back byte for byte when nothing has changed. Where a
     larger catalogue has to claim some of those bytes, the count is returned and
@@ -3388,7 +3837,7 @@ Current implemented increment:
     needs and the sectors the disc declares, and a geometry a DFS catalogue
     could not express is refused.
   - [x] ADFS unknown-metadata preservation. Opening a directory now captures
-    everything the parser does not interpret — the bytes between the sequence
+    everything the parser does not interpret, the bytes between the sequence
     byte and the first entry, the entry slots after the terminator, the tail
     beyond the fields this build writes, and each entry's whole ten-byte name
     field. That last one is the entirety of what an ADFS entry can carry
@@ -3423,15 +3872,15 @@ Current implemented increment:
     identifier and size.
   - [x] Evidence: 13 UEF chunk contracts, 13 ADFS directory preservation
     contracts, 12 ADFS edit contracts and 6 contracts on the editing panel
-    itself — that it says what it will not touch before anything is changed,
+    itself. That it says what it will not touch before anything is changed,
     that a refused name or address disables the action rather than being
     reported after the fact, that only the fields that actually differ are sent
     (sending one back unchanged would still advance the directory's update
     sequence and tell a machine its cached copy was stale, which is a small lie
     with a real cost), and that a directory is offered no address fields
     because they mean nothing there. The two preservation claims were
-    checked by deliberate breakage — removing the name-field preservation fails
-    the round trip and the remnant contract, and passes everything else — and
+    checked by deliberate breakage (removing the name-field preservation fails
+    the round trip and the remnant contract, and passes everything else), and
     the edit contract proves an edit changes no byte of the image outside the
     single directory block it rewrites.
 - [x] MED-301 Implement artifact hex/binary/text viewer, search, compare, source/
@@ -3475,7 +3924,7 @@ Current implemented increment:
   - [x] **Mounting and listing are different capabilities, and this build has
     them to different extents.** Every ADFS geometry the pinned core can read
     now mounts: S at 160 KiB, M at 320 KiB, L at 640 KiB, D and E at 800 KiB
-    and F at 1600 KiB. The geometries are not written from memory — they are
+    and F at 1600 KiB. The geometries are not written from memory, they are
     the `loaders[]` table in the core's own `src/disc.c` and the `adf_loadex`
     calls beside it, which is the code that will actually be asked to read
     whatever is mounted. Taking them from anywhere else would mean this build
@@ -3497,7 +3946,7 @@ Current implemented increment:
     itself printed. The reader reproduces that listing exactly.
   - [x] Two things the measurement settled that no amount of care would have.
     **The attributes are not a byte**: they are the top bits of the first four
-    characters of the name — read, write, locked, directory — so a reader taking
+    characters of the name (read, write, locked, directory), so a reader taking
     the name as ASCII would render `alpha` as `\xE1\xECpha` and lose the
     attributes entirely. And **a double-sided image is interleaved**: ADFS
     numbers L sectors through all eighty tracks of side 0 and then all eighty of
@@ -3515,8 +3964,8 @@ Current implemented increment:
     reader was right rather than merely untested.
   - [ ] **The directory check byte is recorded and not verified, and the reader
     says so.** The algorithm was not established: a broad search over
-    accumulator shapes — forward and reverse, with and without carry, with and
-    without a rotate, over every plausible range and seed — reproduced none of
+    accumulator shapes (forward and reverse, with and without carry, with and
+    without a rotate, over every plausible range and seed) reproduced none of
     the twelve directories measured across four discs. Checking it against a
     guess would be worse than not checking it, because it would reject good
     discs and call them damaged. What is verified instead is stated: both
@@ -3534,7 +3983,7 @@ Current implemented increment:
     has.
   - [ ] **S and M discs are read with the structure L was measured with, and
     that is said rather than implied.** RISC OS 3.11 offers F, E, D and L and no
-    others — its own `*Help Format` says so — so no S or M disc could be
+    others, its own `*Help Format` says so, so no S or M disc could be
     produced on the machine this build runs. The three share one catalogue and
     differ only in size and sides. Nothing is assumed of a particular disc, so a
     file that is not this shape is refused rather than misread.
@@ -3544,7 +3993,7 @@ Current implemented increment:
     single-sided disc maps straight through, that a directory loop is reported
     rather than followed, and that a half-written directory, a missing
     signature and an off-disc sector are each refused by name. The measured
-    sectors are kept in `src/media/adfsOldMeasurements.ts` — five structures,
+    sectors are kept in `src/media/adfsOldMeasurements.ts`, five structures,
     run-length encoded, because a disc image may not enter this repository.
   - [x] Evidence: 10 contracts in `src/media/adfsGeometry.test.ts` covering the
     geometry arithmetic, identification by length narrowed by extension, a
@@ -3555,7 +4004,7 @@ Current implemented increment:
     files rather than one, laying each down in its own contiguous fragment in
     catalogue order with the remainder of the disc as a single free fragment.
     It never fragments a file and never reuses freed space, because nothing on a
-    freshly written image has been freed — that restraint is why the allocation
+    freshly written image has been freed. That restraint is why the allocation
     map and the catalogue cannot disagree. The catalogue is sorted by name, so
     the order files were handed over never shows up on the disc and two requests
     differing only in order produce identical images. A disc that will not fit
@@ -3608,7 +4057,7 @@ Current implemented increment:
   - [x] Extend the package model to complete application trees, `!Boot`,
     `!Sprites`, arbitrary typed resources, archives and ADFS transfer images.
     The package is now version 2 and holds any number of typed files at any
-    depth, described only by their paths — the tree is derived where one is
+    depth, described only by their paths. The tree is derived where one is
     needed rather than stored a second time, because two descriptions of one
     structure are two things to keep correct. Names whose type RISC OS decides
     are enforced rather than assumed: `!Run` and `!Boot` must be Obey files and
@@ -3621,7 +4070,7 @@ Current implemented increment:
   - [x] ADFS transfer images and archives. `createApplicationDisc` writes the
     whole application directory, subdirectories and all, through the same ADFS E
     writer the media workspace uses, so the image is read back through this
-    build's own parser before it is offered — the transfer path for a machine
+    build's own parser before it is offered. The transfer path for a machine
     with no HostFS. `createApplicationArchive` stores each file under its
     `,xxx` name, which is how the filetypes survive a machine that knows nothing
     about RISC OS metadata; the archive is stored rather than compressed, so the
@@ -3701,6 +4150,16 @@ Current implemented increment:
     refuses with that reason instead of returning a short read.
   - [x] Evidence: 29 contracts in `src/media/mediaParserProperties.test.ts`. No
     parser crashed or returned a malformed structure on any generated input.
+  - [x] **Four of those 29 were failing on the clock rather than on a finding.**
+    The generator built each case with `Uint8Array.from({ length }, ...)`, which
+    goes through the array-like protocol and costs about eleven times what a
+    plain fill does: one test body's 120 cases took 35.5 seconds to produce
+    against a 30 second budget, so the suite failed, and which four parsers
+    failed moved with the machine's load. Measured rather than guessed at, the
+    parsers themselves are all under a millisecond and the cost was entirely in
+    generating the input. Filling the buffer in a loop produces the identical
+    bytes from the identical seed in 3.2 seconds, so the cases, their order and
+    their contents are unchanged and the suite now passes in 42 seconds.
 - [x] ANL-300 Add bounded, browser-local file loading with filename, byte size,
   explicit analysis status and no implicit execution/upload (ANL-001).
   - [x] Evidence: 9 file-analysis contracts covering dialect routing, load and
@@ -3745,12 +4204,12 @@ Current implemented increment:
    listing.
 - [x] ANL-306 Add deterministic entry/subroutine/loop/branch labels, semantic
   routine naming, MOS entry-point names, hardware-region notes and proved VDU
-  control annotation (ANL-010–ANL-011).
+  control annotation (ANL-010-ANL-011).
   - [x] Evidence: Covered by the disassembler contracts, one of which proves
    calls are followed, routines named, and MOS entry points annotated while
    data is left as data.
 - [x] ANL-307 Add editable load/entry/CPU controls, user label overrides,
-  click-to-target/reference navigation and human-readable export (ANL-012–ANL-014).
+  click-to-target/reference navigation and human-readable export (ANL-012-ANL-014).
   - [x] Evidence: Covered by the annotated-disassembly contracts for a
    recorded label winning over a generated one and for a recorded comment
    placed before the derived one, and by the analysis accessibility contracts
@@ -3796,12 +4255,12 @@ Current implemented increment:
     banks share one address range, so bytes from bank 4 and bytes from bank 12
     disassemble at the same addresses and look identical afterwards, and a
     listing that does not say which bank it came from cannot be compared with
-    anything — including itself an hour later.
+    anything, including itself an hour later.
   - [x] A capture is a moment rather than a document, and says so: the same
     read at another cycle can hold different bytes, which a listing presented
     like a file would give no hint of. Its origin is the address the bytes were
     read from, which is the one thing certainly true about it, and it claims no
-    execution address at all — nothing about a window of memory says anything
+    execution address at all. Nothing about a window of memory says anything
     is entered at its start, and defaulting one would invent a fact about
     somebody's program. The analyser's own entry defaults to the origin, which
     is a choice a reader can see and change.
@@ -3821,7 +4280,7 @@ Current implemented increment:
   safely (ANL-005, ANL-017).
   - [ ] BASIC V and VI keep this open. Everything else it asks for is done, and
     what is missing is a validated reader for the ARM BASIC table rather than
-    effort — see below.
+    effort, see below.
   - [x] First Atom slice routes numbered text through the selected Atom target,
     labels it as Atom rather than BBC BASIC, preserves exact source-byte offsets
     across CR/LF/CRLF input, extracts compact lower-case line labels and numeric
@@ -3832,8 +4291,8 @@ Current implemented increment:
     typo in it, and nothing finds that typo until somebody's program decodes
     wrongly in one place. `scripts/extractBasicTokens.mjs` reads a table from a
     language ROM, and what makes that trustworthy is that it **reproduces the
-    BASIC II table this repository already carried** — transcribed
-    independently and by hand — which a contract checks without needing a ROM.
+    BASIC II table this repository already carried**, transcribed
+    independently and by hand, which a contract checks without needing a ROM.
     All four tables also end at the same keyword, `HIMEM`, which is
     corroboration that the rule for where a table stops belongs to the table.
     BASIC I, II, III (US) and IV are now tabled, with the digest of the
@@ -3842,23 +4301,23 @@ Current implemented increment:
   - [x] **The reason BASIC V and VI are absent was itself wrong, and has been
     measured rather than restated.** The claim here was that their table has a
     different shape. It does not: BBC BASIC V 1.05, read out of a RISC OS 3.11
-    image, lays its table out exactly like the 6502 ones — keyword, token byte,
-    flag byte, beginning at `AND` &80 — and the same reader takes all 161
+    image, lays its table out exactly like the 6502 ones (keyword, token byte,
+    flag byte, beginning at `AND` &80), and the same reader takes all 161
     entries of it, ending at `WIDTH` where BASIC's own " unlistable token"
     message begins.
   - [x] **What was actually wrong was the reader's terminator, and it is
     fixed.** It stopped at a flag byte with the top bit set, on the reasoning
     that such a byte is code rather than a flag. That gives the right answer on
-    all four 6502 ROMs and the wrong one on ARM, where &80 is an ordinary flag —
-    it is what `INSTR(`, `LEFT$(`, `MID$(` and every other keyword ending in a
-    bracket carries — so the table was cut off at `INT`, two thirds of the way
+    all four 6502 ROMs and the wrong one on ARM, where &80 is an ordinary flag.
+    It is what `INSTR(`, `LEFT$(`, `MID$(` and every other keyword ending in a
+    bracket carries, so the table was cut off at `INT`, two thirds of the way
     through, with no sign that anything had been lost. The terminator is now the
     keyword pattern alone, which stops in exactly the same place on every 6502
     ROM read here, 126 entries ending at `HIMEM`, and stops correctly on ARM.
   - [x] **BASIC V ships, and the two-byte encoding was measured rather than
     read off the bits.** An ARM BASIC prefixes some keywords, so twenty-three
-    token bytes in that table are shared by two or three keywords each — `&8E`
-    is `APPEND`, `CASE`, `OPENIN` and `SUM` — and no reading of the flag byte
+    token bytes in that table are shared by two or three keywords each (`&8E`
+    is `APPEND`, `CASE`, `OPENIN` and `SUM`), and no reading of the flag byte
     settled which prefix each takes. The obvious one did not survive contact
     with the data: it put `APPEND` and `SUM` in the same group under the same
     token.
@@ -3872,8 +4331,8 @@ Current implemented increment:
     `&49` and `&4A` take `&C8`, and `&43` marks a pseudo-variable whose table
     token is its read form with a separate write form at `&CF` to `&D3`.
   - [x] Two things turned up that no table could have said. `ELSE` has two
-    tokens — `&CC` where it begins a statement and its table token `&8B` inside
-    a one-line `IF` — and neither is derivable from the flag, which is the same
+    tokens, `&CC` where it begins a statement and its table token `&8B` inside
+    a one-line `IF`, and neither is derivable from the flag, which is the same
     for `THEN`. And the `&8D` line-number encoding was confirmed against ten
     numbers spanning every carried bit, after the first implementation of it was
     found wrong by that comparison rather than by reasoning.
@@ -3882,7 +4341,7 @@ Current implemented increment:
     nobody can repeat is a claim. That contract runs without a ROM, a browser or
     an emulator.
   - [x] **Adding the dialect changed what a file can prove, and the code noticed
-    on its own.** `&CE` used to be the one token that identified a dialect —
+    on its own.** `&CE` used to be the one token that identified a dialect,
     `EDIT`, which only BASIC IV had. In BASIC V the same byte is `ENDWHILE`, so
     a file carrying it could be either and the honest answer became "cannot
     tell". The inference derives its evidence from the tables rather than
@@ -3897,52 +4356,242 @@ Current implemented increment:
     all ninety-four measured lines decode back to the text that was typed, that
     the same second byte after each of the three prefixes is three different
     keywords, that a truncated two-byte keyword is reported rather than
-    invented, and that the 6502 decode is unchanged — a decoder that looked for
+    invented, and that the 6502 decode is unchanged, a decoder that looked for
     prefixes everywhere would quietly alter what every existing file says.
-  - [ ] **BASIC VI is still absent, and what it waits on is now known exactly.**
-    It is the same language with eight-byte reals, supplied as a separate
-    `BASIC64` module, and its tokens are widely said to be identical to BASIC
-    V's. Every ROM in this machine's firmware collection has now been searched
-    for one and none holds it: the Risc PC images carry BASIC V, and on those
-    versions BASIC64 shipped on disc rather than burnt into ROM. So this waits
-    on a BASIC64 image rather than on effort. Shipping a table on the strength
-    of what is said about it rather than what was measured is the thing this
-    work exists not to do.
-  - [x] The BASIC V table gained independent corroboration. It was read out of
-    two further ROMs from a different machine and two later operating systems —
-    the Risc PC's RISC OS 4.02 and 4.39 — both giving 161 entries ending at
-    `WIDTH` and agreeing with the shipped table on 160 of them. The two
-    differences are the ones already explained: one ROM lists `COLOR` where
-    another lists `COLOUR` at the same &FB, and the six pseudo-variable and
-    second-`ELSE` forms are not in a ROM's linear keyword table because they
-    were measured on a running machine. Three ROMs across three operating
-    systems is stronger evidence than any published table, and a published table
-    checked against this one agreed with 21 of its 123 entries.
-  - [x] Evidence: 7 contracts in `scripts/extractBasicTokens.test.ts` covering
-    the terminator in both families, built as fixtures in the ROMs' own shape
-    rather than copied out of firmware, so they run everywhere. The reproduction
-    of the hand transcription still holds.
-  - [x] **Abbreviation expansion follows the ROM's own order.** `P.` is PRINT
-    because PRINT is what the table reaches first, not because it sorts first —
-    PAGE and PI come earlier alphabetically. Two dialects can legitimately
-    expand the same abbreviation differently and do: the US ROM lists `COLOR`
-    first and the Master lists `COLOUR`, so `COLO.` is a different keyword on
-    each machine. Nothing inside a string, a REM tail or a DATA payload is ever
-    expanded, an unterminated string protects the rest of its line, and a
-    prefix matching nothing is left as written with the reason said.
-  - [x] **Inference refuses, and the tables show why that is the common case.**
-    Of the four 6502-family BASICs read here, exactly one token belongs to a
-    single dialect — `&CE`, `EDIT`, which only BASIC IV has. Every other token
-    is shared, so a tokenised BBC BASIC file almost never says which ROM wrote
-    it, and an inference that answered anyway would be inventing a dialect for
-    nearly every file it saw. It names BASIC IV where `EDIT` proves it, names
-    Atom where a line label proves it, and otherwise says plainly that the
-    dialect has to come from the machine. A file carrying tokens from more than
-    one dialect is refused rather than resolved in favour of the commonest.
-  - [x] Evidence: 8 table contracts including the reproduction of the hand
-    transcription, 14 abbreviation contracts and 7 inference contracts — among
-    them one asserting that exactly one token distinguishes the four dialects,
-    so if that ever changes the thing that notices is a test rather than a user.
+  - [x] **BASIC VI is in ROM after all, and the earlier note here was wrong.**
+    It said BASIC64 "shipped on disc rather than burnt into ROM". The user
+    challenged that directly, and they were right: it is a ROM module. What that
+    note actually rested on was a search of the images then held, which cover
+    RISC OS 2.00 to 4.39, and BASIC64 genuinely is absent from all of those. A
+    local absence was turned into a claim about what Acorn shipped, which is not
+    a thing a search can establish.
+
+    Two traps had made the negative worse than it looked. Most Acorn ARM ROM
+    images are stored interleaved, so a plain string search reads scrambled
+    bytes: `BASIC` does not occur in the A310 or A5000 images at all until they
+    are de-interleaved four ways, and the Risc PC pairs need two-byte-wide
+    interleaving. Any absence reported from those images without de-interleaving
+    was worthless.
+
+    The user then supplied a 51 MB archive of every RISC OS ROM from 2.00 to
+    6.16, which settles it. **`BASIC64` appears in seven images, all of them
+    RISC OS 6**. ROM606, ROM610 (both builds), ROM614 (both), ROM616 (both),
+    and in none of the twenty-eight earlier ones. In ROM616 it carries a module
+    header reading `BASIC64 / BASIC VI / 1.37 (05 Mar 2007)`, and the module's
+    own banner reads "BASIC VI (64 bit FP) assembled on 05 Mar 2007".
+  - [x] **Its token table is measured, and is identical to BASIC V's.** That was
+    the thing this item refused to take on trust, and it is now checked three
+    ways rather than asserted. Each RISC OS 6 image carries two token tables,
+    one in the `BASIC` module and one in `BASIC64`; the two are identical within
+    every image. All seven images give the same 161-entry table with the same
+    digest. And that table matches, position for position, the BASIC V table
+    this repository already ships, which was read independently out of RISC OS
+    3.11. So a BASIC VI dialect can be shipped as sharing BASIC V's table with
+    its own provenance, on the strength of what was measured rather than what is
+    widely said.
+  - [x] **BASIC VI now ships, and can be chosen.** `BBC_BASIC_6` shares BASIC
+    V's tables *by reference* rather than carrying a second copy, because two
+    copies of a table that has been shown to be one table is how the copies come
+    to disagree; it carries its own provenance, naming the RISC OS 6.16 ROM and
+    the BASIC VI 1.37 module, because the tables are shared and the measurement
+    is not. `src/analysis/basicVI.test.ts` holds both halves of that.
+  - [x] **It is reachable, which is the part that is easy to skip.** The two
+    dialects share one keyword table and differ in how a real is stored, five
+    bytes against eight, and nothing in the tokens records that, so a file
+    cannot answer which it is and the person has to. The Analyse workspace
+    offers the choice on a tokenised BASIC file on an ARM, and nowhere else,
+    because nowhere else is the question asked. A dialect that is declared and
+    cannot be chosen is a dialect nobody has, which is exactly the state the
+    light theme was in before anything rendered it.
+  - [x] The dialect test that ends every 6502 table at `HIMEM` now names the ARM
+    dialects as a set rather than excluding one id, so the next ARM BASIC is
+    held to the ARM rule instead of quietly failing the 6502 one.
+  - [x] **A correction to the sentence above about BASIC VI.** It said the RISC
+    OS 6 table matches the shipped BASIC V table "position for position", which
+    was measured on the keywords alone. Reading the whole archive found the raw
+    tables are not byte-identical: `STRING$(` carries flag `&80` in RISC OS 3.11
+    and `&82` in 6.16, at the same token `&C4`. It changes nothing the product
+    derives (`encodingOf` reads `&08`, `&04` and `&40`, and both values leave
+    it a plain one-byte token, checked entry by entry with zero differences), so
+    sharing the tables is still right. But "identical" was the wrong word and
+    the keyword-only comparison was the wrong check to draw it from.
+- [x] **ANL-311 A tokenised RISC OS 2 BASIC program was decoded wrongly, and
+  nothing said so.** Reading every ARM ROM in the archive found five distinct
+  BASIC keyword tables, not one: 157 entries in the three Arthur ROMs, 158 in
+  RISC OS 2.00, and 161 in three later variants. The product shipped one table,
+  read from RISC OS 3.11, and used it for every ARM machine.
+
+  A correction to my own first attempt at this: the 157-entry table is Arthur's,
+  not RISC OS 2.00's. The archive names its images as the version times a
+  hundred, so ROM030 is Arthur 0.30, and the dialect was generated from it and
+  labelled RISC OS 2 before that was noticed. It is now read from the four
+  byte-lane ROMs the A310 core is actually given, the firmware this product's
+  `riscos200` profile boots, which gives 158 entries. Arthur's table is that
+  one less `OVERLAY`, with no token meaning anything different, which is why the
+  mistake produced no wrong keyword and why this one dialect reads an Arthur
+  program correctly as well.
+  - [x] **The tables are not additive, which is what made it a defect rather
+    than a gap.** RISC OS 3.11 inserted `CRUNCH` at `&C7 &90` and shifted every
+    two-byte token after it, so `&C7 &94` is `LOAD` on RISC OS 2 and `LIST` on
+    3.11, `&C7 &95` is `LVAR` and `LOAD`, `&C7 &96` is `NEW` and `LVAR`. A RISC
+    OS 2 program read with the later table printed keywords the program does not
+    contain, confidently. The A310 this build qualifies shipped with RISC OS 2.
+  - [x] `BBC_BASIC_5_RISCOS2` is read out of ROM030 by the same reader as the
+    others, and the reason to trust it on that image is that it reproduces the
+    shipped RISC OS 3.11 table exactly (every keyword, every token and every
+    two-byte group), from ROM311. It carries its own table rather than sharing
+    one, which is the opposite of what BASIC VI does and for the same reason:
+    both follow what was measured.
+  - [x] It is selectable. The Analyse workspace's ARM BASIC control now offers
+    RISC OS 2, RISC OS 3 and later, and BASIC VI.
+  - [x] **Two tables cover all five, and that is measured rather than hoped.**
+    The reassignment happens in exactly one place, the two-byte `&C7` group, and
+    it has exactly two shapes: fourteen entries in Arthur and RISC OS 2.00, and
+    eighteen in every later ROM including the Pace variant. Comparing the token
+    maps of the pairs inside each shape finds no slot meaning a different
+    keyword. RISC OS 2.01 adds `OVERLAY` and reassigns nothing, and the Pace
+    2-era table reassigns nothing against 3.11. So the defect class is closed by
+    these two dialects rather than needing one per ROM.
+  - [x] Where a table is a strict subset with no reassignment, one dialect
+    reads both, and that is the case here: Arthur cannot use `OVERLAY` because
+    Arthur has no such keyword, so nothing in an Arthur program decodes wrongly
+    against the RISC OS 2.00 table.
+  - [ ] **Statement forms are still not established for RISC OS 2, and the
+    attempt is worth recording because it got most of the way and stopped.**
+    BASIC V's were not read from a ROM, a linear keyword table does not carry
+    them, but measured by typing into a running RISC OS 3.11 machine on this
+    build's own A310 core.
+
+    What now works: the A310 boots RISC OS 2.00 through the product's own path,
+    from the four byte-lane ROMs and the RISC OS 2 CMOS, with the vault
+    reporting a local set ready. The frame accepts commands once they carry the
+    session and a sequence number that advances, which is the isolation the
+    product enforces and which the measurement observes rather than bypasses.
+    `read-memory` answers, `inject-text` is queued and acknowledged, and two
+    capabilities the runtime lacked were added to get that far.
+
+    What stopped it, narrowed by a second attempt that replaced guesswork with a
+    search. Rather than assume where `PAGE` is, a line was typed carrying a
+    distinctive number and the whole of `&8000`-`&40000` was read back and
+    searched for it. An area that contains the application slot on a 1 MB
+    machine, so it contains BASIC's program wherever `PAGE` happens to sit. The
+    scan completed with every read answered and the number is not there. So
+    BASIC did not take the input, rather than the input having gone somewhere
+    unexpected.
+
+    Two things that are now ruled out. Focus is not the cause: `pressMachineKey`
+    writes scancodes straight into the core with `arc_webide_set_host_key`, so a
+    headless page that never received a click is irrelevant. And the frame is
+    not wedged: `read-memory` answered sixty-four times during that scan.
+
+    With the screen visible, the answer is plain and it is not about the
+    measurement at all: **RISC OS 2.00 does not boot on this A310 slice.** It
+    reaches `RISC OS 1024K / Acorn ADFS` and then raises two address exceptions,
+    `&0381EDA8` and `&0381E614`, both error `&80000003`, and drops to a
+    supervisor prompt that does not echo anything typed at it. The exceptions
+    are on screen before anything is typed, so they belong to the boot.
+
+    The control settles that this is the firmware and not the harness: the same
+    driver, the same core, the same steps, with RISC OS 3.11 in place of 2.00,
+    boots cleanly to the desktop with its icon bar. So the statement forms are
+    blocked behind a machine that does not start, which is a larger thing than
+    this item and is recorded as EMU-429.
+- [x] **EMU-429 RISC OS 2.00 does not boot on the qualified A310 slice, and is
+  now offered and refused rather than silently broken.** The
+  machine reaches `RISC OS 1024K / Acorn ADFS` and then raises two address
+  exceptions, at `&0381EDA8` and `&0381E614`, both error number `&80000003`,
+  and drops to a supervisor prompt that does not echo anything typed at it.
+  - [x] **It is this build rather than the firmware, and the neighbours settle
+    it.** Every Archimedes release this machine offers was booted the same way,
+    on the same core, from the same vault: Arthur 1.20 reaches its blue desktop
+    with the tan icon bar, RISC OS 2.01, 3.00, 3.10 and 3.11 all reach theirs.
+    RISC OS 2.00 alone does not. The ROM reads correctly too, its BASIC keyword
+    table comes out of it cleanly and is the table this build now ships for
+    RISC OS 2, so the firmware is intact and the core cannot run it.
+  - [x] The entry is unselectable now and says why. It is refused rather than
+    removed: taking it out would leave somebody hunting for a release this build
+    lists everywhere else, while refusing it says the machine exists, that this
+    build cannot start it, and what happens if it tries. The reason is on the
+    option itself, so a pointer or a screen reader reaches it, and the label
+    reads "not currently available".
+  - [x] `src/data/unavailableRoms.test.ts` holds it, and holds the part that is
+    easy to lose: an entry carrying a reason must be *unselectable*, not merely
+    annotated. A reason that renders as a label suffix and nothing else leaves
+    the option still choosable, which is how this was before. Proved by removing
+    the `disabled` attribute.
+  - [ ] **What is still open is the core, not the interface.** Making the A310
+    slice run RISC OS 2.00 is emulator work rather than product work.
+  - [ ] **The obvious way round it was tried and does not exist.** RISC OS 2.01
+    does boot, so it looked like the machine to measure on instead, until its
+    ROM was read. That image carries the same module names as 2.00, `BASIC`
+    among them, and none of BASIC's contents: two occurrences of the bare word
+    against nineteen in 2.00, no `*BASIC [-help|-chain` syntax line, and no
+    keyword table at all where 2.00 has a complete one. Whatever the reason, no
+    table can be read out of it by the reader that reads every other ARM ROM
+    here, so 2.01 cannot supply the measurement either.
+  - [ ] Arthur 1.20 both boots and has a readable table, and is still not the
+    answer: its table is 157 entries against RISC OS 2.00's 158, so it is a
+    different build of BASIC, and measuring one interpreter to describe another
+    is the assumption this work exists not to make. It would be a data point
+    about Arthur, recorded as Arthur's.
+  - [ ] So the RISC OS 2 statement forms need one of two things and neither is
+    small: Arculator made to run RISC OS 2.00, or a reader that can find BASIC
+    inside the RISC OS 2.01 ROM. Until then the dialect ships without them and
+    says so, which costs a program that assigns to `HIMEM`, `PAGE`, `TIME`,
+    `LOMEM` or `PTR`, or uses the multi-line `ELSE`, those tokens decode as
+    unknown rather than wrongly, which is the failure this build prefers.
+
+- [x] **EMU-428 `capture-screen` answered once per session and then stopped.** The
+  A310 runtime replies to the first `capture-screen` with a PNG blob and to
+  none of the later ones, in the same session, with no error and no rejection.
+  Every other command keeps working, including sixty-four `read-memory` calls
+  after the last successful capture. `captureScreen` hands the work to
+  `canvas.toBlob`, whose callback simply does not run the second time.
+  - [x] It mattered well beyond a screenshot: the screen is the only way to see
+    where a machine has got to, and without it a driver has to infer the state
+    from memory, which is what stopped the RISC OS 2 measurement above.
+  - [x] **The guess was right and the answer was already in the repository.** A
+    WebGL canvas discards its drawing buffer at the end of every frame unless
+    asked not to, and SDL creates the context, so the attribute has to be forced
+    before anything can create one. The Elkulator runtime already did exactly
+    this and recorded the same reasoning; the A310 runtime did not. Measured
+    after the fix: eight captures across two sessions, every one answered, each
+    within three and a half seconds.
+  - [x] A second fault of my own was in the way of seeing it: the driver waited
+    a fixed 2.5 seconds for a reply from a machine running at about a fifth of
+    real speed, so even the captures that did work looked like failures. It
+    polls now, the same as the memory reads do.
+
+  - [x] **Two runtime capabilities came out of the attempt and are worth having
+    on their own.** The A310 keyboard could type letters, digits, space and six
+    punctuation marks. Enough for the `Run <path>` it was written for, and not
+    enough to type `HIMEM=1`. It now types the punctuation a BASIC line needs,
+    and only the characters whose key is in the same place on the UK layout the
+    machine boots with and the US layout SDL names its scancodes from: `"`, `@`
+    and `#` are deliberately still refused, because a wrong mapping types a
+    different character rather than failing, and a measurement built on one
+    records something the machine never saw.
+  - [x] `press-function-key` exposes what only the application launcher could
+    do. F12 is how anybody reaches a RISC OS supervisor prompt, and the keyboard
+    has no star key, so before this there was no way to a command line at all.
+    `src/emulator/archimedesKeyboard.test.ts` reads the runtime's own source for
+    both, including that the function-key numbering still agrees with the F12
+    scancode the launcher presses.
+  - [x] **Dialect inference was rebuilt twice while this landed, and both times
+    for the same reason.** It asked which tokens exactly one dialect defines,
+    then which tokens exactly one table defines; each time a dialect was added
+    the evidence appeared to vanish, when what had actually happened is that it
+    reached less far. A token now maps to the set of dialects that define it: a
+    set of one names a dialect, a smaller-than-all set narrows to those, and
+    `&7F` still says a file is an ARM BASIC and none of the four 6502 ones.
+  - [x] **That rebuild exposed a mistake before it shipped.** Counting every
+    token as evidence would have convicted every ARM file that lists anything:
+    `&C6`, `&C7` and `&C8` are ordinary keywords on a 6502 BASIC (AUTO, DELETE,
+    LOAD), and the two-byte prefixes on an ARM one, and `&CF`-`&D3` are the 6502
+    pseudo-variables and BASIC V's statement forms. A byte that means a
+    different kind of thing in different dialects is ambiguous by construction
+    and is not evidence; nine are excluded by name, and four tokens narrow.
+
 - [ ] ANL-310 Add ARM2/ARM3 and other claimed machine/Tube CPU disassemblers
   behind processor-specific contracts and complete opcode golden suites
   (ANL-007, ANL-017).
@@ -3961,8 +4610,8 @@ Current implemented increment:
   - [x] **The Tube 6502 and 65C102 have their corpus, and it is exhaustive.**
     The 65C102 in a 6502 second processor and the 65C12 in a Master execute the
     same instruction set the product's `65c02` table decodes, so one corpus
-    covers all three. The bytes are BeebAsm's own `all65C02.6502` — the
-    assembler's exhaustive opcode source — assembled by the pinned BeebAsm,
+    covers all three. The bytes are BeebAsm's own `all65C02.6502`, the
+    assembler's exhaustive opcode source, assembled by the pinned BeebAsm,
     with the mnemonic each opcode is named by read out of that same source, so
     neither the corpus nor the answer comes from the thing being tested. All
     178 opcodes decode, the walk lands exactly on the end of the image (which
@@ -3973,7 +4622,7 @@ Current implemented increment:
   - [ ] Z80, 80186/80286, 32016 and the ARM Tube keep this open, and they
     follow their machines rather than leading them. Each needs a disassembler
     and a corpus of its own, and writing one for a processor this build cannot
-    run would be code no test could hold to account — EMU-425 gates those
+    run would be code no test could hold to account, EMU-425 gates those
     machines for the same reason.
 - [x] ANL-311 Add indirect-flow hints, extra entry points, code/data/text marking,
   comments, analysis undo/history and exact project persistence (ANL-008,
@@ -3983,8 +4632,8 @@ Current implemented increment:
     marked code, data or text, the destinations of a jump the bytes do not
     resolve, comments and labels. It is bound to the SHA-256 of the bytes it
     describes, so annotations cannot silently follow a different file, and it is
-    validated on every path in from outside the session — the project file, the
-    analysis worker, an imported document — with a message naming exactly what
+    validated on every path in from outside the session (the project file, the
+    analysis worker, an imported document), with a message naming exactly what
     is wrong rather than being repaired into something plausible.
   - [x] Every edit is a pure function returning a whole document, so undo
     restores the document that existed rather than a reconstruction of it. The
@@ -4096,16 +4745,16 @@ Current implemented increment:
     input transfer uses a bounded copy so the retained immutable payload is not
     detached. The hex view is fixed-window.
   - [x] **The readers now report where they are, in bytes they have settled.**
-    Both disassemblers call back through three named stages — following
-    reachable code, building the listing, naming targets — with a count of what
+    Both disassemblers call back through three named stages (following
+    reachable code, building the listing, naming targets), with a count of what
     each stage has actually decided about and the number it was given. The
     6502 reader counts occupied bytes rather than the queue, which grows and
     shrinks for reasons that have nothing to do with progress through the file;
     the ARM reader counts four bytes per decoded word.
   - [x] Nothing is estimated. The failure this avoids is not a bar that is
     slightly wrong but one that moves when nothing is happening and stops when
-    something is, which makes the only question a person watching it has — is
-    this going to finish — unanswerable. The percentage shown is derived from
+    something is, which makes the only question a person watching it has, is
+    this going to finish, unanswerable. The percentage shown is derived from
     the two counts rather than being a figure of its own, and the stage is named
     beside it because a file can spend all its time in one stage and none in the
     next.
@@ -4122,14 +4771,14 @@ Current implemented increment:
     reporting immediately, the stages appearing in order and each finishing at
     the whole file, counts that never exceed the total or go backwards, ARM
     reporting the same way, and a read with no reporter producing the identical
-    listing — the reporter is optional and every existing caller omits it, so
+    listing. The reporter is optional and every existing caller omits it, so
     its absence has to cost nothing and change nothing.
   - [x] The adversarial performance corpus exists, and it found two real
     defects on its first run. The property tests already proved these readers
     either parse random bytes or refuse them, which says nothing about what
     they cost: a reader that is correct on every input and quadratic on one of
     them still exhausts the worker's twenty-second ceiling, which turns a hang
-    into a refusal — the right behaviour and the wrong outcome, because the
+    into a refusal. The right behaviour and the wrong outcome, because the
     person gets nothing. Fifteen cases now feed each reader the input built to
     be its worst: a bank of one-byte instructions, a bank of nothing but calls,
     a bank of undefined opcodes, a bank of branches that all land on one byte,
@@ -4148,12 +4797,12 @@ Current implemented increment:
     instruction; and every control-flow target searched the finished rows for
     its own address, which is proportional to the square of the listing. The
     queue is now walked by index and the rows are indexed once by address. The
-    same image now takes 0.73 seconds — eight times faster, and the change is
+    same image now takes 0.73 seconds. Eight times faster, and the change is
     order-preserving, so every existing disassembly contract still passes
     unchanged.
   - [x] **A worse one in the ARM reader, past the ceiling the product would
     have refused it at.** A 128 KiB image of conditional branches all naming one
-    word took twenty-two seconds — longer than the analysis worker's own
+    word took twenty-two seconds. Longer than the analysis worker's own
     twenty-second limit, so a real file of that shape would have been abandoned
     rather than read. A conditional branch does not end a run, so every one of
     those decoded and every one recorded a reference against the same address,
@@ -4194,7 +4843,7 @@ Current implemented increment:
   reports navigable diagnostics/symbols/source maps, creates independently
   validated authentic media, and exports a portable project/artifact bundle.
 
-## 6. Phase 4 — emulator and complete runtime
+## 6. Phase 4: emulator and complete runtime
 
 ### 6.1 Shared emulator framework
 
@@ -4248,7 +4897,7 @@ Current implemented increment:
   errors while remaining responsive to browser progress frames.
 - [x] The A310 debugger installs real execute breakpoints only when requested.
   A raw ARM2 build can be loaded into the paused mapped range
-  `&00008000–&000FFFFF`, read back byte-for-byte, handed to the real 26-bit PC
+  `&00008000-&000FFFFF`, read back byte-for-byte, handed to the real 26-bit PC
   pipeline, stopped at a source-resolved breakpoint and single-stepped. The UI
   identifies this as a raw debug image, not a packaged RISC OS application.
 - [x] The first RISC OS 3 application launch path uses the pinned GPL support
@@ -4618,9 +5267,9 @@ Current implemented increment:
     `has_joystick_ports = !strcmp(machine, "a3010")`, so the built-in ports
     belong to the A3010 alone, and the interface that reads them is gated on
     that flag as well as on the configured interface. The core's other three
-    interfaces are expansions rather than machine ports — Gamespad through the
+    interfaces are expansions rather than machine ports (Gamespad through the
     parallel printer port in `printer.c`, RTFM memory-mapped in `mem.c`, and a
-    serial one — and this build offers no podules or expansions to attach them
+    serial one), and this build offers no podules or expansions to attach them
     to. A native A310 joystick therefore starts with an expansion, not with a
     mapping, and saying otherwise would present a port the machine does not
     have.
@@ -4630,8 +5279,8 @@ Current implemented increment:
     Plus 1. (`setadc` in that file is the 6502 ADC instruction, not the
     converter.) A joystick mapping there would have nothing to write to.
   - [x] The same is true of a 6502 mouse expansion. jsbeeb models a mouse as a
-    source for the machine's own analogue channels — which is the path this
-    build already uses — and no AMX Mouse peripheral, so an AMX driver in a
+    source for the machine's own analogue channels, which is the path this
+    build already uses, and no AMX Mouse peripheral, so an AMX driver in a
     guest program would find nothing at its addresses.
   - [x] So every device the pinned cores actually model now has a map: the BBC
     and Master analogue joystick and its two fire buttons, the mouse driven
@@ -4729,21 +5378,21 @@ Current implemented increment:
     and DFS 0.90 rather than a contract about the adapter's shape.
   - [x] **Every element the requirement lists, and where it is proved.** The
     conformance suite runs nine cases on the real machine through the headless
-    path and all nine pass. *CPU* — ADC overflow and SBC borrow, the two flag
-    behaviours most often got wrong. *Timing* — the page-crossing penalty,
-    reported as exactly the 11 cycles the documentation predicts. *Video* — a
+    path and all nine pass. *CPU* (ADC overflow and SBC borrow, the two flag
+    behaviours most often got wrong. *Timing*) the page-crossing penalty,
+    reported as exactly the 11 cycles the documentation predicts. *Video*, a
     MODE change through the MOS, and separately a generated screen document
     copied into the mode 5 framebuffer and compared as region digests that
-    change when the artwork does and not otherwise. *Sound* — a byte latched
+    change when the artwork does and not otherwise. *Sound* (a byte latched
     into the sound chip only while write-enable is held low, and separately a
-    generated song's 18 sound-chip writes. *Keyboard* — `OSBYTE &81` with a
-    zero timeout, which is how a program reads a key. *DFS and media* — a disc
+    generated song's 18 sound-chip writes. *Keyboard*) `OSBYTE &81` with a
+    zero timeout, which is how a program reads a key. *DFS and media*, a disc
     mastered by the product's own DFS writer, mounted through the workbench's
-    own import, and its catalogue read back through `OSFILE &05`. *Banking* —
-    the ROM select register paging two different sideways ROMs into `&8000`.
-    *Debug hooks* — the address-event hook a breakpoint is built on, counting
+    own import, and its catalogue read back through `OSFILE &05`. *Banking*.
+    The ROM select register paging two different sideways ROMs into `&8000`.
+    *Debug hooks* (the address-event hook a breakpoint is built on, counting
     entries to two labels the number of times the program's arithmetic
-    requires. *Reset* — every plan begins with a hard reset and the runner
+    requires. *Reset*) every plan begins with a hard reset and the runner
     refuses to run a program before the operating system has initialised.
   - [x] *State* is the one element proved elsewhere rather than by a case:
     versioned schema-1 machine state files carry the session manifest and ROM
@@ -4783,7 +5432,7 @@ Current implemented increment:
     supplied Atom kernel and BASIC ROMs executed 6502 code and finished with the
     expected accumulator, index registers and memory.
   - [x] Fixed a real overstatement found while proving that slice: the runner's
-    `OUTPUT` and `EVENT[…]` assertions capture BBC MOS entry addresses, and on
+    `OUTPUT` and `EVENT[...]` assertions capture BBC MOS entry addresses, and on
     the Atom they were silently counting whatever occupied those addresses in a
     different operating system. Both are now refused on that machine with an
     explanation, verified by a headless run whose plan is rejected rather than
@@ -4814,14 +5463,14 @@ Current implemented increment:
     for the A310.
   - [x] **That note was written when it was the whole story and is no longer.**
     `demrepofdave/elkulator` has been porting Elkulator to Allegro 5 since
-    September 2024 — twelve merged pull requests to May 2025 covering the event
+    September 2024. Twelve merged pull requests to May 2025 covering the event
     loop, menus, keyboard redefinition, window resize, movie support, serial and
     parallel, and joystick. Its `configure.ac` now defaults to Allegro 5 and
     keeps Allegro 4 behind `--enable-allegro4` with a `HAL_ALLEGRO_4` define, so
     the platform layer sits behind an abstraction rather than being scattered.
-    That matters because Allegro 5 carries an SDL backend in the official tree —
+    That matters because Allegro 5 carries an SDL backend in the official tree,
     `src/sdl/` for display, keyboard, mouse, joystick, system, threads, time and
-    touch, and `addons/audio/sdl_audio.c` for sound — and SDL2 is a first-class
+    touch, and `addons/audio/sdl_audio.c` for sound, and SDL2 is a first-class
     Emscripten target.
   - [x] **The unproven link in that chain has now been tested, and it holds.**
     Allegro 5.2.9.1 with the SDL backend builds for WebAssembly **with no source
@@ -4834,7 +5483,7 @@ Current implemented increment:
   - [x] Three traps cost the spike its time and are recorded so they cost
     nobody else any. **emcc offers SDL *1* headers unless it is told
     `-sUSE_SDL=2`**, so Allegro's `<SDL.h>` resolved to SDL1 and every SDL2
-    symbol — `SDL_GetBasePath`, `SDL_GetPrefPath`, `SDL_GetDisplayDPI` — looked
+    symbol (`SDL_GetBasePath`, `SDL_GetPrefPath`, `SDL_GetDisplayDPI`) looked
     unimplemented; a shim was written for all three and then deleted once the
     flag was right. Allegro's cmake adds `-msse` on x86 unless `WANT_ALLOW_SSE`
     is off, which Emscripten rejects without `-msimd128`. And its audio addon
@@ -4920,15 +5569,15 @@ Current implemented increment:
     has no Emscripten port and Elkulator calls two of its functions, both thin
     wrappers over ALC, so they are implemented directly and the dependency
     disappears. Allegro builds no native-dialog library for SDL at all, so the
-    linker cannot find one — but a native file chooser and a menu bar are the
+    linker cannot find one, but a native file chooser and a menu bar are the
     host operating system's furniture and a page has neither, and the IDE
     supplies its own exactly as it does for the Archimedes core. Twelve entry
     points answer the way their callers already handle a refused dialog.
   - [x] **The firmware for the real combinations is registered ahead of the
     core.** `electron-expanded` declares the Plus 1 support ROM, Acorn ADFS,
     Electron DFS, three MMFS builds, Advanced File Manager, the Retro Hardware
-    Plus 1 support ROM, the ElkWiFi 1MHz bus firmware and the 6502 Tube client
-    — the set the 1MHzPi project exercises on real hardware — with the sizes
+    Plus 1 support ROM, the ElkWiFi 1MHz bus firmware and the 6502 Tube client.
+    The set the 1MHzPi project exercises on real hardware, with the sizes
     each one actually is, so a wrong file is refused before it can produce a
     machine that half works. No firmware enters this repository: these are
     manifests, and the bytes are supplied through the vault by whoever owns
@@ -4938,12 +5587,12 @@ Current implemented increment:
     advertised. The support matrix lists only sets this build can run, so
     nobody is offered a machine configuration that cannot be selected, and a
     contract asserts both halves of that rule and counts the sets waiting on an
-    engine — one today — so a second appearing without its engine becoming
+    engine, one today, so a second appearing without its engine becoming
     runnable is a deliberate act rather than a drift.
   - [x] **The blocking loop is solved and the machine now runs.** A headless
     Chromium run staged fifteen expansion ROMs and `elk.cfg`, called `main`,
     and observed the Allegro display take a WebGL context, the firmware load,
-    and execution reach `exec6502` — the Electron running its own operating
+    and execution reach `exec6502`. The Electron running its own operating
     system. The browser kept its thread throughout, which was the whole point:
     a frame counter advanced from 696 to 937 while the emulator ran.
     `al_wait_for_event` is now a poll that yields under Emscripten, so
@@ -4953,15 +5602,15 @@ Current implemented increment:
     a real run finds. Elkulator `fopen`s `elk.cfg` and `fclose`s it
     unconditionally, so an absent config is not a default config but
     `fclose(NULL)` and a dead tab. And `put_pixel_line` guarded only the upper
-    end of its range — `x + width` past 640, `y` past 256 — and not the lower,
+    end of its range (`x + width` past 640, `y` past 256), and not the lower,
     so a negative coordinate indexed `electron_screen` below its start; on a
     native heap that writes into whatever sits in front of it and is never
     noticed, and WebAssembly traps it.
   - [x] Two more faults found and fixed by running it, both invisible to a
     native build. Both blit routines called `al_lock_bitmap` and dereferenced
     the result without checking it; Allegro is entitled to refuse a lock and
-    under the SDL backend it does, so the next line read through a null pointer
-    — a segfault nobody reaches natively, and an out-of-bounds trap on the
+    under the SDL backend it does, so the next line read through a null pointer.
+    A segfault nobody reaches natively, and an out-of-bounds trap on the
     first frame in WebAssembly. The lock was refused because the surface was
     asked for as a video bitmap, whose lock is a texture read-back the backend
     declines; it is a memory bitmap now, which is what a surface written a
@@ -4972,7 +5621,7 @@ Current implemented increment:
     is given its thread, and execution continues where it left off. The loop is
     alive.
   - [x] Allegro's timer is the reason nothing draws. The HAL creates a 50 Hz
-    timer and drives everything from its events — `runelk` is called when one
+    timer and drives everything from its events, `runelk` is called when one
     arrives, and stepping the processor and drawing a frame both follow from
     that. Allegro's SDL backend registers the timer's event source and never
     posts to it, because there is no thread to tick it from. A tick is now
@@ -4983,8 +5632,8 @@ Current implemented increment:
   - [x] **The tick is delivered correctly, and the cause of the freeze is now
     certain rather than suspected.** Instrumenting both sides shows
     `event_await` called two hundred times and returning two hundred times with
-    `elkEvent=0x8004` — `ELK_EVENT_HANDLED | ELK_EVENT_TIMER_TRIGGERED`, from a
-    synthesised `ALLEGRO_EVENT_TIMER` — and the statement immediately after
+    `elkEvent=0x8004` (`ELK_EVENT_HANDLED | ELK_EVENT_TIMER_TRIGGERED`, from a
+    synthesised `ALLEGRO_EVENT_TIMER`), and the statement immediately after
     `elkEvent = event_await()` in `main` never executing. The tick arrives; the
     caller never resumes.
   - [x] **The machine boots, and the screen it draws is its own.** A headless
@@ -4999,15 +5648,15 @@ Current implemented increment:
   - [x] **ASYNCIFY could not carry the loop, and the fix was to stop asking it
     to.** On rewind, execution resumes inside the frame that unwound and
     returns, but `main`'s frame was never saved, so control went back to the
-    runtime instead of into the loop body — which is why `event_await` was
+    runtime instead of into the loop body, which is why `event_await` was
     re-entered from the top for ever. `-sASYNCIFY_ADD=["main"]` does not help.
     The loop is turned inside out instead: `event_await` returns whether or not
     anything happened, `main` hands its body to `emscripten_set_main_loop`, and
     no C stack is ever unwound. That took ASYNCIFY out of the build along with
-    520 KB — 1,822,049 bytes became 1,302,443 — and it is what the IDE
+    520 KB (1,822,049 bytes became 1,302,443), and it is what the IDE
     integration wants anyway, since the IDE decides when the machine steps.
   - [x] **Every draw call was failing, and nothing said so.** With the loop
-    running and the machine executing, the canvas stayed black — not even the
+    running and the machine executing, the canvas stayed black, not even the
     border colour appeared. Instrumenting the WebGL context showed 638
     `drawArrays` calls and 638 `GL_INVALID_OPERATION`s: Allegro's primitives
     addon hands `glVertexAttribPointer` a pointer into client memory, which
@@ -5019,7 +5668,7 @@ Current implemented increment:
   - [x] Two faults were reached only because the ones above were fixed first.
     `loadconfig` closes `elk.cfg` unconditionally, and a page has no home
     directory to have put one in, so the ordinary case was `fclose(NULL)` and a
-    dead instance before anything drew — every accessor between the open and
+    dead instance before anything drew. Every accessor between the open and
     the close already defaults correctly when the handle is NULL, so the file
     being absent was a case the code otherwise handled. And a missing expansion
     ROM called `exit(1)`: `loadroms` demands the Master RAM Board OS, ADFS, DFS,
@@ -5029,8 +5678,8 @@ Current implemented increment:
     stderr, which is what this build already means by an Electron.
   - [x] The memory-bitmap change from the previous session is withdrawn, having
     been measured rather than reasoned about. The lock is refused exactly once,
-    on the first frame before the bitmap's texture exists — one refusal against
-    a hundred successes — and the null check already skips that frame
+    on the first frame before the bitmap's texture exists, one refusal against
+    a hundred successes, and the null check already skips that frame
     harmlessly. Making the surface a memory bitmap costs two and a half times
     the frame rate, because a memory source drawn to a video target sends
     Allegro down a path that reads the whole backbuffer back every frame.
@@ -5042,7 +5691,7 @@ Current implemented increment:
     when `configure`, `make` or the artefacts are missing.
   - [x] **The bridge is written and it does the two things ElkJS cannot.**
     `docker/elkulator/webide_bridge.c` is the whole of what the IDE may ask this
-    core — run, pause, step, reset, breakpoints, registers, memory and keys —
+    core. Run, pause, step, reset, breakpoints, registers, memory and keys,
     so what the workbench can do to this machine is in one file and what it
     cannot do is absent rather than half-answered. Elkulator calls its own
     debugger before every instruction, so the hook sits there and returns a
@@ -5052,8 +5701,8 @@ Current implemented increment:
     or a count needs it, because the machine executes a few hundred thousand
     instructions a second and a debugger nobody opened should cost nothing.
   - [x] Reading memory has two meanings and both are offered by name.
-    `elk_webide_read_memory` is what the processor sees — paged ROM, the ULA and
-    the keyboard matrix answer, and a read can have a side effect — and
+    `elk_webide_read_memory` is what the processor sees (paged ROM, the ULA and
+    the keyboard matrix answer, and a read can have a side effect), and
     `elk_webide_read_ram` reads the 32 KB array directly, which is what an
     inspector wants, and refuses above `&7FFF` rather than handing back the ROM
     byte the processor would have seen.
@@ -5065,7 +5714,7 @@ Current implemented increment:
     Registers written while it stood still read back. A ten-byte program was
     placed at `&1900` with a breakpoint on its halt loop, and on resume the
     machine stopped at `&1907` with one recorded hit, `A` and `X` holding `&42`
-    and `7`, and `&2000` holding `&42` — the program's own result read out of
+    and `7`, and `&2000` holding `&42`. The program's own result read out of
     RAM. A register index of 99, a breakpoint slot of 99, an address past
     `&FFFF`, key zero and a step of zero instructions were each refused. No
     page error.
@@ -5075,7 +5724,7 @@ Current implemented increment:
     caller now asks for counting and `elk_webide_counting` says whether the
     number means anything, so nobody reports zero as though nothing had
     executed. And a step resumed the machine and never stopped it, for the same
-    reason — it arms the hook it depends on now.
+    reason. It arms the hook it depends on now.
   - [x] **The runtime page and the adapter are written, and the second core
     ships.** `public/elkulator.html` drives the WebAssembly core over the same
     envelope the workbench already speaks, and `src/emulator/elkulatorAdapter.ts`
@@ -5083,7 +5732,7 @@ Current implemented increment:
     capabilities offered and twenty refused. Where the ElkJS adapter has to
     refuse stepping, breakpoints, register writing, key injection and
     stop-address tests, this one offers them, and a contract test asserts the
-    two adapters answer for exactly the same command vocabulary — two adapters
+    two adapters answer for exactly the same command vocabulary, two adapters
     for one machine that disagreed about which commands exist would read as the
     same machine behaving differently by accident.
   - [x] The refusals are of two kinds and both are said plainly, because "this
@@ -5100,7 +5749,7 @@ Current implemented increment:
     took a ten-byte program at `&1900`, stopped on a breakpoint at `&1907` with
     the slot recording the hit, `A` and `X` at `&42` and `7` and `&2000` reading
     `&42`. Three single steps walked the program counter `&1900`, `&1902`,
-    `&1905`, `&1907` — the three instruction lengths — leaving the machine
+    `&1905`, `&1907`, the three instruction lengths, leaving the machine
     paused between each. A register write took. A stop-address test reached its
     address in 20 ms, and one that could not reach its address timed out at
     614 ms rather than waiting. A watchpoint, an unknown command and an unknown
@@ -5115,15 +5764,15 @@ Current implemented increment:
     frame and buys a capture that is the machine's picture instead of a black
     rectangle, which was the alternative.
   - [x] **Two licence findings, both in the core this now ships.** Elkulator's
-    repository carries real Acorn firmware — the operating system, BASIC, ADFS,
-    DFS, the Master RAM Board OS, the Plus 1 support ROM and the sound ROM —
+    repository carries real Acorn firmware, the operating system, BASIC, ADFS,
+    DFS, the Master RAM Board OS, the Plus 1 support ROM and the sound ROM,
     under a note saying it is explicitly not covered by the GPL. The
     corresponding source this image ships excludes it and then proves it absent,
     the same guard jsbeeb already has. And upstream has no licence file at all:
     the README points at `COPYING`, which was an autotools symlink deleted in
-    commit `54b1bae`. The version is settled from the source rather than assumed
-    — `socket.c` and `serial.c` say version 3 or later, the imported `fdi2raw.c`
-    says version 2 or later — so the work is conveyed as GPL-3.0-or-later with
+    commit `54b1bae`. The version is settled from the source rather than assumed,
+    `socket.c` and `serial.c` say version 3 or later, the imported `fdi2raw.c`
+    says version 2 or later, so the work is conveyed as GPL-3.0-or-later with
     the licence text supplied by this build. The gate's licence check now counts
     four copyleft components shipping licence and source rather than three.
   - [x] **The workbench offers the core, and the ROM set is what chooses it.**
@@ -5136,7 +5785,7 @@ Current implemented increment:
     engines rather than one, because a single engine field would have to name
     one and be wrong about the other.
   - [x] **Running a test plan is withdrawn rather than offered.** The stop is
-    real — a breakpoint on a per-instruction hook, proved — but a plan also
+    real (a breakpoint on a per-instruction hook, proved), but a plan also
     needs its assertions evaluated, its captures taken and its teardown run, and
     none of that is written here. A result with nothing checked would show in a
     panel built for assertion outcomes as a pass, which is worse than a
@@ -5163,10 +5812,10 @@ Current implemented increment:
     ROM set registered here is asserted to have a route.
   - [x] The two have now been joined up in one run, and joining them up found a
     defect that neither end could see alone. Driving the shipped workbench in a
-    real browser — selecting the Electron, selecting the expanded ROM set, and
+    real browser. Selecting the Electron, selecting the expanded ROM set, and
     handing the operating system, BASIC, the Plus 1 ROM, Acorn ADFS and the
-    Electron DFS to the workbench's own file inputs — put all five in the vault
-    under `electron-expanded/roms/…` and satisfied the ROM-set readiness check.
+    Electron DFS to the workbench's own file inputs. Put all five in the vault
+    under `electron-expanded/roms/...` and satisfied the ROM-set readiness check.
     The core then asked for them and was answered 404 every time. The service
     worker strips a `roms/` segment from every request, because jsbeeb asks its
     base URL for `roms/<path>` while jsbeeb profiles store `<set>/<path>`
@@ -5188,12 +5837,12 @@ Current implemented increment:
     "initialised with 3 ROM images" and no longer names `plus1.rom` among the
     expansions it could not find. That is the first expansion to go through this
     core. It is marked preview rather than supported, because what was shown is
-    that the board is fitted — its cartridge, printer and analogue ports have
+    that the board is fitted. Its cartridge, printer and analogue ports have
     not been exercised.
   - [x] Fitting it needed a modelling fault fixed first. Every cartridge and
     sideways ROM offered for the Plus 1 was tagged as *required by* the Plus 1,
     so switching the Plus 1 on demanded four more ROMs and left the machine
-    unready — the expansion the set exists for could not be fitted at all. A
+    unready. The expansion the set exists for could not be fitted at all. A
     Plus 1 with no support ROM is not a Plus 1, so that one is required; a Plus 1
     with no MMFS is a Plus 1 with an empty cartridge slot, so that one is
     offered. `fittedRomRequirements` gives the machine everything fitted while
@@ -5202,14 +5851,30 @@ Current implemented increment:
     fitted.
   - [x] A Plus 3 with a filing system in it had no way to mount a disc. The
     workbench decided whether a machine could take one by looking for
-    capabilities named `dfs` or `adfs` — true of the BBC family, false of the
+    capabilities named `dfs` or `adfs`. True of the BBC family, false of the
     Electron, whose disc interface is the Plus 3. So the machine had a working
     drive and the control that mounts a disc never appeared. Each capability
     declares it for itself now, and with a Plus 3 fitted the Electron's Media
     workspace offers the control and accepts a 160 KiB ADFS S image.
-  - [ ] Whether the core then takes that image is not shown. The control accepts
-    it and the bridge has a mount path, but no run has yet seen Elkulator
-    acknowledge a disc, so mounting stays unproven and the Plus 3 stays preview.
+  - [x] **A disc mounts in the Electron, and the machine acknowledges it.** The
+    earlier note here said the disc was lost between the workbench and the
+    runtime page. That was wrong, and watching the traffic rather than the two
+    ends showed why: the command goes out as `load-disc`, the bridge answers
+    with `media` and `command-accepted`, and the mount had been working all
+    along. What was lost was the acknowledgement. jsbeeb and the A310 announce a
+    mount as `media-loaded`; the Elkulator bridge announces it as `media` with an
+    action, and only the first was listened for, so a disc the machine really
+    held was recorded nowhere and the workbench went on saying "No media is
+    mounted in this session". Both vocabularies are spoken now, and
+    `electronMediaMessages.test.ts` reads both files so neither can rename a
+    message without the other being held to it. Measured: choosing a 160 KiB
+    ADFS S image and pressing Mount disk gives "plus3.adf mounted in Electron
+    drive 0 · live Elkulator 1770 state", and the machine lists it as accepted
+    by the live FDC adapter.
+  - [ ] What is still not shown is a filing system reading that disc. The image
+    is a formatted-size file of zeroes, so it can demonstrate a mount and never
+    a catalogue. That, and exercising the Plus 1's cartridge, printer and
+    analogue ports, is what stands between these two expansions and supported.
   - [x] **The Plus 3 is fitted too, with one filing system.** It had the same
     shape of problem one level on: ADFS and the Electron DFS were both marked
     required by it, so fitting a Plus 3 asked for both when the interface takes
@@ -5218,11 +5883,11 @@ Current implemented increment:
     both if that is what they have. Measured: with ADFS alone supplied through
     the workbench and the capability switched on, the core reports three ROM
     images and no longer names `adfs.rom` as absent. Preview rather than
-    supported — the interface has its filing system; no disc has been mounted or
+    supported. The interface has its filing system; no disc has been mounted or
     read through it.
   - [x] Giving the runtime everything fitted introduced a way to kill the
     machine, found by supplying one. The core refuses a ROM name it has no
-    socket for — rightly, since one written and never read would be a lie — and
+    socket for (rightly, since one written and never read would be a lie), and
     it refuses the whole machine with it: MMFS supplied with a Plus 1 fitted
     answered "emmfs is not a ROM socket this Electron has" and nothing started.
     A requirement now says where it has to be mounted when that is somewhere
@@ -5240,13 +5905,13 @@ Current implemented increment:
     capability, every one of those capabilities is `planned`, so
     `requiredRomRequirements` leaves the ROM out of the resolved records, so it
     never reaches `electronRomUrls`, so the core never sees it. That is the
-    design working as written — a planned capability is one that is not fitted.
+    design working as written. A planned capability is one that is not fitted.
     What has changed is the reason each capability gives for being planned: they
     name firmware "in the firmware vault", and it is now there and reachable. So
     the next step is to fit one and prove it, then promote that capability on
     the strength of the proof rather than the presence of a file.
   - [x] Fitting them found a second defect. The core opens its firmware by
-    filename — `os`, `basic.rom`, `plus1.rom`, `adfs.rom`, `dfs.rom` — and a
+    filename (`os`, `basic.rom`, `plus1.rom`, `adfs.rom`, `dfs.rom`), and a
     name it cannot find is an expansion that is not fitted rather than a machine
     that will not start. That is right, and it is also silent: the profile
     supplied `acorn-adfs.rom`, so the machine booted perfectly with no disc
@@ -5294,7 +5959,7 @@ Current implemented increment:
     left is what the parasite has: registers, memory and cycles.
   - [x] Three facts about how the parasite runs are established from the core
     rather than assumed, and each of them would otherwise be a silent failure.
-    It has **no debug hook** — jsbeeb gives one to the host CPU only — so its
+    It has **no debug hook**, jsbeeb gives one to the host CPU only, so its
     program counter is watched at host instruction boundaries; that means a
     stop address has to be one the program *halts* at rather than passes
     through, and a run that never sees it says exactly that instead of
@@ -5307,14 +5972,14 @@ Current implemented increment:
     byte in memory and the registers rewritten: the parasite took the Tube
     interrupt and the client carried the program counter out of the halt loop.
     That is now the first instruction of the case and the reason is recorded
-    with it, because the symptom — a timeout with correct memory — points
+    with it, because the symptom, a timeout with correct memory, points
     nowhere near the cause.
   - [x] **The case is written so that it could not pass on the host.** Every
     other assertion in it would be equally true of the same program loaded into
     the host and run there: the same arithmetic gives the same registers and
     the same byte in the same place. So the program also writes to &8000 and
-    reads it back, which is ordinary RAM on the parasite — holding the language
-    the host transferred — and a sideways ROM slot on the host, where a write
+    reads it back, which is ordinary RAM on the parasite, holding the language
+    the host transferred, and a sideways ROM slot on the host, where a write
     is ignored and a read gives a ROM byte.
   - [x] Evidence: the whole conformance suite on a genuine Master 128 with MOS
     3.20 and the 65C102 Turbo Tube ROM through the headless path, 10 tests, 10
@@ -5327,15 +5992,15 @@ Current implemented increment:
     refusal, and each host-only assertion being refused by name.
   - [x] **The Tube conformance case found where the Tube works and where it does
     not, and the answer was the machine rather than the feature.** On a BBC B
-    with the Acorn 6502 Tube client ROM 1.10, the ULA is present and answering
-    — `&C1` at `&FEE0`, `&7F` at `&FEE2`, not the `&FF` of an unread bus — but
+    with the Acorn 6502 Tube client ROM 1.10, the ULA is present and answering,
+    `&C1` at `&FEE0`, `&7F` at `&FEE2`, not the `&FF` of an unread bus, but
     the operating system never records a second processor: `&027A` is zero and
     `OSBYTE &EA` returns zero, across four runs and all three reset policies.
   - [x] It is not how this build constructs the core. Run against the pinned
     emulator directly in Node, with nothing of this product involved, the same
     thing happens: the parasite loads its ROM and executes, and the host never
     hands the language over. The corroboration that settles it is independent
-    of any assumption about which address holds the flag — **the parasite's RAM
+    of any assumption about which address holds the flag, **the parasite's RAM
     is entirely untouched**, so no Tube boot took place at all. Cycle-accurate
     execution makes no difference.
   - [x] **On a Master it works.** The same probe with a Master 128 and the
@@ -5345,7 +6010,7 @@ Current implemented increment:
     9 tests, 9 passed, the Tube case among them.
   - [x] So the claim was corrected rather than the case bent. Tube is
     `supported` on the Master, and `planned` on the BBC B and B+ with the
-    reason recorded against the capability itself — it was `preview` on all
+    reason recorded against the capability itself, it was `preview` on all
     three, which read as "nearly working" for two machines where the boot never
     starts. The conformance generator now enables only capabilities the machine
     actually offers, so a case can no longer conjure one the profile calls
@@ -5380,7 +6045,7 @@ Current implemented increment:
   profiles with correct media/input/audio/video lifecycle; save/headless behavior
   and declared limitations pass security, accuracy, and performance tests.
 
-## 7. Phase 5 — debugger, instruction spy, and automated tests
+## 7. Phase 5: debugger, instruction spy, and automated tests
 
 ### 7.1 Debug protocol and session UI
 
@@ -5396,7 +6061,7 @@ Current implemented increment:
   instruction stepping, real PC instruction bytes/decoding, breakpoint
   inventory/removal, run-to, JSR step-over, hardware-stack return step-out, raw
   stack bytes and side-effect-free memory inspection. Paused edits are limited
-  to 1–256 validated main-RAM bytes below &8000, emulator-acknowledged and read
+  to 1-256 validated main-RAM bytes below &8000, emulator-acknowledged and read
   back immediately. A ROM-backed browser contract proves each path and caught
   two real hook-resume ordering defects before release.
 - [x] The first structured breakpoint increment adds bounded hit targets, typed
@@ -5415,20 +6080,20 @@ Current implemented increment:
   contract proves permanent stop at &038021C8, temporary stop at &038021CC,
   fallback step to &038021D0 and zero browser errors. Conditions, counts and
   grouping and rebuild-aware persistence remain open in this earlier increment.
-- [x] ARM2 permanent breakpoints now support a bounded 1–1,000,000 execute-hit
-  threshold and unsigned live R0–R14/execute-PC comparisons (`=`, `≠`, `<`,
+- [x] ARM2 permanent breakpoints now support a bounded 1-1,000,000 execute-hit
+  threshold and unsigned live R0-R14/execute-PC comparisons (`=`, `≠`, `<`,
   `≤`, `>`, `≥`). Counts and comparisons execute inside the patched C
   instruction hook; snapshots only inspect the authoritative per-slot state.
   A ROM-backed Chromium contract proves the RISC OS memory-clear loop continues
   through its first two &038021B0 executions and stops on hit three when live PC
   equals &038021B0, then preserves removal/run-to/step behavior with no browser
   errors. ARM logpoints are now also implemented: log-only continues execution,
-  pause-and-log stops in the hook, and both capture immutable R0–R14, execute-PC
+  pause-and-log stops in the hook, and both capture immutable R0-R14, execute-PC
   and hit count into a 64-event C-core ring with explicit overwrite accounting.
   Templates accept only documented captured-value placeholders. A raw-loop
   browser contract proves the non-stopping ring caps at 64 while running and a
   pause-and-log condition stops and records exactly on hit three. ARM permanent
-  breakpoints now also accept up to four validated R0–R14/PC comparisons with
+  breakpoints now also accept up to four validated R0-R14/PC comparisons with
   explicit AND semantics. The C hook evaluates every predicate before acting;
   Chromium proves R0 matches on every visit while R1 permits the stop only on
   the third execution. Symbol-valued conditions and persistence were completed
@@ -5483,7 +6148,7 @@ Current implemented increment:
   containing only accepted initialise ID 1 and pause ID 2, with both forged
   resets absent and zero browser errors.
 - [x] DBG-501 Implement immutable debug session binding and state machine
-  (DBG-001–DBG-003). Every Build and debug action now creates a frozen,
+  (DBG-001-DBG-003). Every Build and debug action now creates a frozen,
   versioned session record only after a successful current machine-code build.
   It binds the target identity, build fingerprint, full output SHA-256 and size,
   toolchain identity/version, copied resolved machine manifest, adapter identity
@@ -5544,9 +6209,9 @@ Current implemented increment:
   breakpoints, typed register conditions, bounded hit counts, optional logs,
   non-stopping logpoints, live counters and removal are implemented. ARM2 has
   symbol/offset permanent breakpoints, live inventory/removal, one-shot run-to,
-  bounded hit targets, unsigned R0–R14/PC comparisons, log-only and pause-and-
+  bounded hit targets, unsigned R0-R14/PC comparisons, log-only and pause-and-
   log actions, a bounded authoritative event ring and safe captured-register
-  templates. Up to four R0–R14/PC predicates can be combined with explicit AND
+  templates. Up to four R0-R14/PC predicates can be combined with explicit AND
   semantics in an accessible condition editor and are evaluated authoritatively
   in the C instruction hook. Project schema 8 introduced bounded breakpoint
   intent per build target: address/symbol expression, enabled state, threshold,
@@ -5623,11 +6288,11 @@ Current implemented increment:
 - [x] The first authoritative ARM2 state-panel increment separates the packed
   26-bit R15 address from N/Z/C/V/I/F and User/FIQ/IRQ/Supervisor mode, exposes
   Arculator's actual execute/decode instruction latches, labels a separately
-  side-effect-free next-fetch preview, and reads R8–R14 from all four real core
+  side-effect-free next-fetch preview, and reads R8-R14 from all four real core
   register banks with the selected bank marked. The pinned core patch compiles
   from its immutable revision; a ROM-backed Chromium contract proves decoded
   pipeline state and bank selection.
-- [x] Paused ARM2 register editing now writes full-width R0–R14 values through a
+- [x] Paused ARM2 register editing now writes full-width R0-R14 values through a
   bounded core ABI and accepts R15 only as an aligned 26-bit execute address.
   R15 edits preserve flags, interrupt masks and mode, convert the visible
   execute address to stored PC+8 and refill the real pipeline. The editor retains
@@ -5649,17 +6314,17 @@ Current implemented increment:
   and instruction stepping with zero browser errors.
 
 - [x] DBG-520 Implement 6502/65C02 register, flag, interrupt, opcode, effective-
-  address, and cycle panels (DBG-020–DBG-021). The live adapter now identifies
+  address, and cycle panels (DBG-020-DBG-021). The live adapter now identifies
   jsbeeb's selected NMOS 6502 / CMOS 65C02 / CMOS 65C12 core, reports raw IRQ
   source mask/line/acceptance plus NMI line/edge, decodes the core-specific
   opcode table, resolves all represented 6502-family addressing modes with
   pointer/branch/page-cross detail, and records exact step-in cycle/register/
   flag/interrupt deltas. ROM-backed contracts prove Model B indexed-address
   execution and Master-only BRA behavior; fuller trace/bus capture stays under
-  DBG-540–DBG-542.
+  DBG-540-DBG-542.
 - [x] DBG-521 Implement ARM register/mode/banked-state/pipeline/coprocessor panel
   for actual selected cores (DBG-022). The qualified A310 ARM2 adapter exposes
-  R0–R15, decoded 26-bit PSR/mode, all four real R8–R14 banks and separately
+  R0-R15, decoded 26-bit PSR/mode, all four real R8-R14 banks and separately
   sourced execute, decode and next-fetch pipeline stages. Its pinned machine
   profile configures `fpa = 0`; snapshots now publish that authoritative absence,
   `fpu_type`, register-view availability and the exact configuration source. The
@@ -5698,7 +6363,7 @@ Current implemented increment:
    contracts.
 - [x] DBG-524 Complete bank/address-space selection, paging, symbols, formats,
   search, snapshot diff and copy/export. The live current-mapping inspector now
-  provides non-wrapping 1–4,096-byte reads and paging, build-symbol plus bounded
+  provides non-wrapping 1-4,096-byte reads and paging, build-symbol plus bounded
   offset navigation, 8/16/32-column hex/decimal views, ASCII/Acorn text,
   byte/wildcard/text search, selected-address pointer following, cycle-stamped
   snapshots with changed-byte highlighting, clipboard/text/binary export, and
@@ -5714,7 +6379,7 @@ Current implemented increment:
   containing little-endian 32-bit word and can follow its masked 26-bit address.
   A ROM-backed Chromium contract proves exact live instruction bytes, paging,
   search, binary export and wrap rejection with no browser errors. Paused ARM
-  logical writes now accept 1–256 parsed bytes only when every resolved pointer
+  logical writes now accept 1-256 parsed bytes only when every resolved pointer
   lies inside installed physical main RAM, verify the complete range through
   the side-effect-free core reader, roll back a failed verification and retain
   32 before/after transactions. ROM-backed Chromium proves &8000 changes
@@ -5725,7 +6390,7 @@ Current implemented increment:
   snapshot diff, clipboard/text/binary export and explicit ULA I/O exclusion.
   A ROM-backed browser contract byte-compares the physical &F800 boot window
   with the selected 2 KiB firmware, proves search/snapshot/binary export and
-  rejects &FEF8–&FEFF logical reads.
+  rejects &FEF8-&FEFF logical reads.
 - [x] DBG-525 Implement visual memory map for BBC-family banking, Tube spaces,
   and ARM mapping as capability permits. Live BBC, Master and Atom maps now
   render proportional RAM/ROM/I/O/banked regions from the selected jsbeeb core.
@@ -5741,7 +6406,7 @@ Current implemented increment:
   proves the explicit &8000 RAM mapping and main-ROM classifications. Qualified
   Tube sessions now show host and parasite 16-bit maps side by side with exact
   ranges, mapping kind, ROM-overlay state and a live PC marker for each core.
-  The parasite map isolates &FEF8–&FEFF as ULA I/O and switches &F000–&FFFF
+  The parasite map isolates &FEF8-&FEFF as ULA I/O and switches &F000-&FFFF
   between physical RAM and the live boot-ROM overlay state. The deployed Tube
   browser contract proves both labelled maps and their live PC positions.
 - [x] DBG-526 Implement navigable disassembly and mixed source view for the live
@@ -5762,7 +6427,7 @@ Current implemented increment:
 
 - [x] The first opt-in ROM-aware hardware recorder installs genuine jsbeeb
   instruction/read/write hooks only while active and removes them on stop. Its
-  64–4,096-entry circular records contain sequence/time/cycle, actual selected
+  64-4,096-entry circular records contain sequence/time/cycle, actual selected
   CPU, PC and mapped address-space context, opcode bytes/core decode/effective
   address, register/flag deltas, IRQ/NMI transitions, up to 24 actual data/I/O
   bus accesses, and exact current-build source/symbol mapping. Address/opcode
@@ -5804,7 +6469,7 @@ Current implemented increment:
    export.
 - [x] DBG-542 Complete dropped-event/overhead reporting, sampling/summary mode,
   UI virtualization, and accessible table/paging alternative. The recorder now
-  supports validated 1:1–1:1,024 instruction sampling, reports candidate and
+  supports validated 1:1-1:1,024 instruction sampling, reports candidate and
   deliberately skipped counts, and can omit both raw bus hooks for a lower-
   overhead instruction summary. Triggered capture rejects sampling because an
   unsampled trigger cannot be guaranteed. Running snapshots remain latest-256,
@@ -5816,8 +6481,8 @@ Current implemented increment:
    overhead accounting.
 - [x] DBG-543 Implement deterministic checkpoints/replay and reverse debugging
   only for adapters passing replay tests; show irreversible boundaries. The
-  jsbeeb 8-bit adapter now retains a validated 2–64-entry ring of full machine
-  states (including writable sideways banks) at configurable 1–4,096-
+  jsbeeb 8-bit adapter now retains a validated 2-64-entry ring of full machine
+  states (including writable sideways banks) at configurable 1-4,096-
   instruction intervals, constrained to 65,536 retained boundaries and showing
   measured state bytes. Reverse step/previous-checkpoint restore the nearest
   state and replay exact instruction counts, committing only when registers,
@@ -5971,9 +6636,9 @@ Current implemented increment:
     inverted range is refused.
   - [x] Evidence on real machines. On a BBC Model B with locally supplied ROMs,
     a program calling OSWRCH twice and a local subroutine once passed
-    `EVENT[OSWRCH] = 2`, `EVENT[&FFEE] = 2` and `EVENT[local_helper] = 1` — the
+    `EVENT[OSWRCH] = 2`, `EVENT[&FFEE] = 2` and `EVENT[local_helper] = 1` (the
     address form agreeing with the named form, and the symbol resolving to
-    &1913 — with `CYCLES IN 1..200000` reporting 733. On a real Acorn Atom, a
+    &1913), with `CYCLES IN 1..200000` reporting 733. On a real Acorn Atom, a
     program driving PPIA port C bit 2 four times passed `AUDIO[SPEAKER] = 3`
     with `CYCLES IN 1..2000` reporting 30. Three is the machine's own answer and
     was reproduced across independent runs: the emulated PPIA does not clear its
@@ -5991,7 +6656,7 @@ Current implemented increment:
     explicit failure if the machine never becomes ready, and keeps boot cycles
     out of both the test cycle budget and the audio capture. Evidence: three
     headless probes on a real BBC Model B with locally supplied OS 1.20, BASIC
-    II and DFS 0.90 ROMs — OSWRCH, OSBYTE 19 and a MODE 5 change — timed out
+    II and DFS 0.90 ROMs (OSWRCH, OSBYTE 19 and a MODE 5 change) timed out
     before the fix and pass after it. The Atom has no verified readiness entry
     point in this build, so none is claimed and its behaviour is unchanged.
   - [x] **Every kind the requirement names now exists, and each has been run on
@@ -6004,7 +6669,7 @@ Current implemented increment:
     timeout with the reason; and timing as an exact cycle count or a range.
   - [x] The two that were least trustworthy were made so. An audio assertion
     could not tell a capture that heard silence from one that never ran, since
-    both report the FNV offset basis — it now refuses rather than compares when
+    both report the FNV offset basis. It now refuses rather than compares when
     nothing listened. And a screen assertion covering more than 65,536 pixels
     made a plan invalid in a way the headless runner reported as an export
     timeout; it now names the plan, the reason and the remedy.
@@ -6015,18 +6680,18 @@ Current implemented increment:
     difference between a feature and a form: nobody writes a joystick gesture
     by filling in axis values. A gamepad and the pointer are now captured live,
     each with its own control, because what is being recorded decides what a
-    stray movement means — a pointer crossing the panel while keys are being
+    stray movement means. A pointer crossing the panel while keys are being
     recorded is not input.
   - [x] Recording is not sampling, and the reductions are the whole design. A
-    gamepad has no events at all — the browser reports its state only when
-    asked — so it is polled and only a change is written down; recording every
+    gamepad has no events at all, the browser reports its state only when
+    asked, so it is polled and only a change is written down; recording every
     frame would fill the 256-action budget in four seconds with entries saying
     nothing happened. A pointer has the opposite problem, hundreds of events a
     second, so it is sampled ten times a second: fast enough for a deliberate
     movement, slow enough that crossing the panel does not exhaust the script.
   - [x] Releases are emitted before presses. A machine reads one joystick state
     at a time, and replaying a press before the release it replaced would hold
-    two opposed directions at once — a state the hardware cannot be in and one
+    two opposed directions at once. A state the hardware cannot be in and one
     a program may well act on.
   - [x] The gamepad reader and its dead zone are the ones the live joystick
     path already uses, so a recording and a live session agree about when a
@@ -6130,7 +6795,7 @@ Current implemented increment:
   cover totals, grouping, failure/skipped mapping, XML escaping and provenance.
 - [x] TST-505 Implement golden provenance/update approval and tight image/audio
   comparison reports.
-  - [x] A golden now carries what it was approved against — machine, firmware
+  - [x] A golden now carries what it was approved against, machine, firmware
     set, a digest over the actual ROM bytes, the build fingerprint, when, by
     whom, and why. Without that a golden is only a picture somebody once
     accepted: when it later fails, nobody can tell whether the program changed,
@@ -6141,19 +6806,19 @@ Current implemented increment:
   - [x] A golden approved on another machine or against other firmware is shown
     but cannot settle anything, and says so. Letting it pass or fail silently
     would be asserting something it has no basis for. A rebuild does not
-    disqualify it — that is the case it exists for.
+    disqualify it. That is the case it exists for.
   - [x] Replacement takes an explicit approval carrying a reason, and the reason
     is required rather than optional. Replacing automatically is how a test
     stops testing: it would then agree with whatever the program does next, for
     ever. Never replacing is how a test becomes noise people scroll past. So a
-    mismatch produces a proposal — both pictures, the difference, the drift —
+    mismatch produces a proposal. Both pictures, the difference, the drift,
     and nothing changes until somebody says why. Six months later the reason is
     the only thing that distinguishes an approval from nobody having looked.
     What was replaced is kept by digest, so a golden approved repeatedly can be
     seen to have been.
   - [x] The comparison reports locate rather than only count. Two failures with
-    identical pixel counts — a caption moved by one pixel, a sprite gone
-    entirely — read the same otherwise, and the person has to squint at two
+    identical pixel counts (a caption moved by one pixel, a sprite gone
+    entirely) read the same otherwise, and the person has to squint at two
     images to tell them apart. The report gives the smallest box holding every
     differing pixel, where the single worst pixel is, and whether the
     differences are gathered or scattered, which is usually what says whether
@@ -6161,14 +6826,41 @@ Current implemented increment:
   - [x] The audio half answers the same question. A digest mismatch says only
     that the sound is not what it was; the report names the first differing
     write, which points at the instruction that wrote it, shows a few writes
-    either side, and distinguishes a stream of a different length — the program
-    driving the sound chip a different number of times — from one that is the
+    either side, and distinguishes a stream of a different length, the program
+    driving the sound chip a different number of times, from one that is the
     same length and says something else.
   - [x] Evidence: 25 module contracts and 7 on the approval panel, including
     that an approval with a two-character reason is refused, that a golden from
     another machine is marked as unable to settle the question, that a
     difference is located inside a named box, and that a missing sound write is
     reported as absent rather than as a zero.
+- [x] **A fourth reproducibility fault, and the last of this shape: Testing
+  Library's own wait.** `findBy` defaults to one second, which is a measurement
+  of the machine rather than of the code. A completion list that renders in
+  40 ms idle took past a second under a full parallel run, and the suite failed
+  on a query that was right about what it wanted and wrong about how long the
+  machine would take. It is five seconds now, set once in the setup file, for
+  the same reason the per-test and hook bounds are thirty. It stays well inside
+  the test timeout so something that genuinely never appears still fails as the
+  missing element it is, naming what was looked for, rather than as a bare
+  timeout around it.
+
+- [x] **Three suites could fail on a timeout under a full parallel run and pass
+  on their own, and that is now fixed rather than tolerated.** A test that only
+  passes when nothing else is running is not reproducible, which is the one
+  thing every test here has to be. The cause was contention, not code: the BASIC
+  rename case takes 3.2 seconds by itself and more than ten with eight workers
+  sharing eight cores, and the screen codec's round trip takes fifteen seconds
+  idle. The per-test bound had been left at ten seconds when the hook bound was
+  raised to thirty for exactly this reason, "a loaded machine fails them for
+  reasons that have nothing to do with the code under test", so it now matches,
+  the four per-test overrides that sat below it were raised to it, and the codec
+  property suite, which is genuinely heavy, was given ninety seconds. A timeout
+  is there to catch a test that never finishes, not to measure how busy the
+  machine was; the performance suite, which really does measure speed, keeps
+  calibrating its budget against the machine and fails with a number rather than
+  on a timeout.
+
 - [ ] TST-506 Build platform conformance suites for CPU/flags, timing, banking,
   media, Tube, breakpoint maps, trace, input, frames, sound, and state replay.
   - [x] The suite exists and is written against the same test-plan machinery the
@@ -6184,14 +6876,14 @@ Current implemented increment:
     change, because every screen golden depends on one.
   - [x] The accounting is the substance rather than the cases. Every area the
     product claims is enumerated whether or not it has a case, and the list is
-    fixed rather than derived from the cases — a list derived from the cases can
+    fixed rather than derived from the cases. A list derived from the cases can
     only ever report that everything present is covered, which is true and
     useless. **Nine of the eleven areas have cases; two have none**: trace and
     state replay. Having a case is not the same as passing, and the Tube case
-    fails — the report shows the result beside the case rather than counting
+    fails. The report shows the result beside the case rather than counting
     coverage as though it were health. Those are named in the interface first, before
     anything that passes, and described as neither known to be wrong nor known
-    to be right, because an area with no cases is not a passing area — it is
+    to be right, because an area with no cases is not a passing area, it is
     where a fault would go unnoticed.
   - [x] A case that cannot apply to the machine in front of somebody is reported
     as not applicable with the reason, and a case that has not been executed is
@@ -6218,7 +6910,7 @@ Current implemented increment:
     holds.
   - [x] **Two failures on the first real run, and only one was the emulator's
     question.** Every case ended with a BeebAsm `SAVE`, which the browser
-    assembler does not have, so none could build — and a contract asserting the
+    assembler does not have, so none could build, and a contract asserting the
     sources *contained* `SAVE` had encoded that wrong assumption and agreed with
     it. The suite now assembles every case with the real toolchain and resolves
     each stop label through the runner's own resolver, so a case that cannot
@@ -6228,12 +6920,12 @@ Current implemented increment:
   - [x] **The sound case was withdrawn, and has now been restored against a
     digest this build actually observed.** The withdrawn version asserted an
     `AUDIO[WRITES]` digest copied from this backlog, where it had been recorded
-    for a different program driving the System VIA a different way — an
+    for a different program driving the System VIA a different way, an
     expectation this build never observed for the program asserting it, which is
     exactly the fabrication this product does not do. Restoring it needed two
     things. Reports now carry per-assertion detail including the actual value,
     so a digest can be read off a headless run instead of guessed. And the first
-    observation returned `811C9DC5`, which is the FNV-1a offset basis — the same
+    observation returned `811C9DC5`, which is the FNV-1a offset basis, the same
     number reported by a capture that ran and heard nothing, by a session with
     no audio device, and by the fallback used when there was none. Those three
     were indistinguishable, so an assertion of silence would have passed on a
@@ -6250,7 +6942,7 @@ Current implemented increment:
     was written against.** A sideways paging case reads the paged ROM header in
     two slots: the documented zero byte and `(C)` at the offset the ROM's own
     header gives in `&8007` says each read landed inside a real ROM, and the two
-    offsets differing — `&11` in slot 14, `&0E` in slot 15 — is what proves the
+    offsets differing (`&11` in slot 14, `&0E` in slot 15) is what proves the
     write to `&FE30` changed anything, because a build that ignored it would
     read one resident ROM twice and return the same offset for both. Those
     offsets are facts about these ROMs rather than about the machine, so
@@ -6264,7 +6956,7 @@ Current implemented increment:
     program's arithmetic requires rather than what a run reported, and a map
     that resolved either label to a neighbouring instruction would give a
     different number. This is the same address-hook path a breakpoint uses, so
-    it fails if the source map is off by an instruction — which would otherwise
+    it fails if the source map is off by an instruction, which would otherwise
     stop somewhere plausible and be believed.
   - [x] **Media is covered, and the headless runner learned to mount a disc.**
     A case may now describe a disc rather than ship an image: the generator
@@ -6280,7 +6972,7 @@ Current implemented increment:
     machine boots with the tape filing system selected, so `OSFILE` waited on a
     cassette that was not there and the case timed out saying nothing about the
     disc; it now selects DFS first. Every other plan ejected media before
-    running, which took the disc away from the case that needed it — so a
+    running, which took the disc away from the case that needed it, so a
     project carrying a disc retains media throughout and says so, rather than
     depending on disc cases being ordered first, which would work today and
     break silently the moment somebody reordered the suite. And the case
@@ -6308,8 +7000,8 @@ Current implemented increment:
   - [x] Evidence: 13 module contracts and 6 panel contracts, including that
     every case parses into assertions the runner can read, that a case with no
     assertions is refused rather than passing vacuously, that a case with no
-    stated rationale is refused, and that the full-coverage summary is reachable
-    — proved by handing the accounting a suite that does cover every area, so
+    stated rationale is refused, and that the full-coverage summary is reachable.
+    Proved by handing the accounting a suite that does cover every area, so
     the happy sentence is not one nothing can produce.
 
 ### Phase 5 exit gate
@@ -6318,7 +7010,7 @@ Current implemented increment:
   step, registers, memory, disassembly, instruction spy, relevant hardware
   inspection, deterministic automated test, and headless CI demonstrations.
 
-## 8. Phase 6 — asset studio
+## 8. Phase 6: asset studio
 
 ### 8.1 Shared foundation
 
@@ -6326,7 +7018,7 @@ Current implemented increment:
   character/sprite/tile grids, four-index painting and erasing, deterministic
   MSB-first 2bpp packing, wrap shifts, local recovery, `EQUB` presentation,
   binary download, codec unit tests, and a production browser contract. This is
-  an increment toward, not completion of, AST-600–AST-603 or ASSET-GATE.
+  an increment toward, not completion of, AST-600-AST-603 or ASSET-GATE.
 - [x] AST-INC-02 Replace the browser-only draft with a validated schema-1
   character/sprite/tile document, bounded 100-change undo/redo, legacy local
   draft migration, JSON import/export, deterministic SHA-256 generated-output
@@ -6357,8 +7049,8 @@ Current implemented increment:
   `INCLUDEASSET "name.asset.json"` directive validates and generates an asset at
   build time, records the document in source provenance/fingerprints, maps
   generated addresses back to it, participates in incremental impact analysis,
-  and rejects missing/invalid assets with source diagnostics. “Add live build
-  target” atomically adds the document, entry source, and active target; editing
+  and rejects missing/invalid assets with source diagnostics. "Add live build
+  target" atomically adds the document, entry source, and active target; editing
   the document therefore makes the prior artifact stale instead of silently
   retaining a copied byte snapshot.
   - [x] Evidence: 12 project-assembler contracts covering the INCLUDEASSET
@@ -6375,7 +7067,7 @@ Current implemented increment:
    source-workspace contracts for F12 and click navigation into a generated
    asset.
 - [x] AST-INC-06 Add bounded sprite animation authoring without regressing
-  static sprite files: 1–64 persistent named frames, per-frame 20–60,000 ms
+  static sprite files: 1-64 persistent named frames, per-frame 20-60,000 ms
   duration, independent pixels/mask/hotspot, duplicate/delete/reorder, loop or
   once timed preview, resize across every frame and shared undo/recovery. Exact
   build output concatenates ordered colour and mask planes and exposes a
@@ -6395,10 +7087,10 @@ Current implemented increment:
     third-party data and import provenance, per-type target capability
     declaration enforced at the parser, pure generation with a SHA-256 manifest
     that reports shortfalls as data, build integration through the six
-    `INCLUDE…` directives with transitive dependency tracking, and the
+    `INCLUDE...` directives with transitive dependency tracking, and the
     accessibility and performance rules the editors follow.
 - [x] AST-601 Implement shared canvas/grid/selection/palette/zoom/pan/clipboard/
-  undo infrastructure plus structured accessible alternative (AST-001–AST-004).
+  undo infrastructure plus structured accessible alternative (AST-001-AST-004).
   - [x] Every editor has bounded undo, and the pixel, map and screen editors
     have zoom with scroll panning. The shared project palette resolves once and
     is used by the pixel, map, screen and character editors alike.
@@ -6410,14 +7102,14 @@ Current implemented increment:
   - [x] Rectangular selection with cut, copy and paste is now in the map and
     screen editors as well, from one shared module rather than three copies.
     The reason it had not spread is that the original was quietly specific: it
-    refused any value above 3, which is a four-colour assumption — correct for
+    refused any value above 3, which is a four-colour assumption, correct for
     MODE 5 artwork, wrong for MODE 2, and meaningless for a map, where the
     numbers are tile indices rather than colours.
   - [x] A clipboard therefore carries two things it did not: what kind of grid
     the values came from, and the bound they were valid against. Both are checked
     on paste and both refusals matter for the same reason. Tile indices pasted
-    into pixel data would be accepted by anything that only counted values —
-    they are small numbers either way — and would produce artwork nobody drew.
+    into pixel data would be accepted by anything that only counted values.
+    They are small numbers either way, and would produce artwork nobody drew.
     Sixteen-colour artwork pasted into a four-colour asset would either be
     clamped, losing what somebody drew, or written out of range, producing a
     build that does not match what the editor showed. Neither is guessed at: a
@@ -6429,7 +7121,7 @@ Current implemented increment:
     modifier chords, which would collide with the browser's own. Every operation
     also has a visible control, and the selection, the marked corner and what is
     on the clipboard are all announced in the same live region that already
-    reports the cursor — the canvas being the thing a screen reader cannot see.
+    reports the cursor. The canvas being the thing a screen reader cannot see.
   - [x] The pixel editor's own module now delegates to the shared one, and still
     reads the clipboard shape it wrote before the machinery was shared, so
     artwork somebody copied before this build changed underneath them still
@@ -6441,7 +7133,7 @@ Current implemented increment:
     offering the same operations as the keys.
 - [x] AST-602 Implement build dependency integration, generated read-only files,
   stale state, deterministic codecs, target-rendered previews, and size reports.
-  - [x] Every asset type is a real build input through its own `INCLUDE…`
+  - [x] Every asset type is a real build input through its own `INCLUDE...`
     directive, is tracked in both the incremental dependency graph and the
     content-addressed cache, and stales the artifact when edited. A map's
     tileset artwork is tracked transitively, so editing a tile stales any build
@@ -6580,7 +7272,7 @@ Current implemented increment:
     header grew to carry the property stride.
   - [x] **A typed property schema.** Untyped, a property is a column of numbers
     whose meaning lives in whoever wrote the map, and a flag set to 2 is
-    indistinguishable from a deliberate value — the game reads it as one. A map
+    indistinguishable from a deliberate value. The game reads it as one. A map
     may now declare each slot as a flag, a byte or an enum with named values;
     the generated source carries a constant per slot and per named value, so a
     game reads `map_prop_collision` rather than 0 and the meaning survives
@@ -6634,7 +7326,7 @@ Current implemented increment:
     silent change to the artwork visible only once the game ran.
   - [x] **Image import.** An image is cut into tiles, quantised to the project
     palette, deduplicated, and written out as one pixel asset document per
-    distinct tile which the workspace adds to the project — a map pointing at
+    distinct tile which the workspace adds to the project, a map pointing at
     artwork nobody added would generate a zero pointer and a diagnostic for
     every tile. Every place the conversion loses something is counted and
     reported rather than absorbed: pixels that were not palette colours, image
@@ -6651,9 +7343,9 @@ Current implemented increment:
     which is the only way to reach the far side of a large map.
   - [x] Evidence: 41 document contracts, 7 image-import contracts and 38
     workspace contracts. The generated unpacker is proved by execution rather
-    than by reading it — assembled and run in the project's own 6502 runtime,
+    than by reading it (assembled and run in the project's own 6502 runtime,
     expanding thirty-two cells from twelve bytes and leaving the byte after the
-    destination untouched — and the same program ran on a genuine BBC Model B
+    destination untouched), and the same program ran on a genuine BBC Model B
     through the headless path with the same result. Gate: 8 stages passed, 1,956
     tests, none skipped.
 - [x] AST-626 Implement target-aware SN76489 music tracker and player/data export.
@@ -6712,10 +7404,10 @@ Current implemented increment:
   - [x] **The primary source arrived**: the Acorn VIDC Datasheet, Part No
     0460,020, Issue No 1.0, 30 September 1986, sections 5.5, 5.22 and 6.10. The
     encoder is implemented against it and nothing in it is from recollection.
-    Section 6.10 gives the transfer characteristic — "8 linear segments
+    Section 6.10 gives the transfer characteristic, "8 linear segments
     (chords). Each chord consists of 16 steps, and the step size in one chord is
     twice the step size in the preceding chord ... an approximation to the µ255
-    law" — and its figure marks the chord boundaries at 0, i, 3i, 7i, 15i, 31i,
+    law", and its figure marks the chord boundaries at 0, i, 3i, 7i, 15i, 31i,
     63i, 127i with a maximum of 247i. Working the step sizes back from that puts
     chord 0's step at one sixteenth of i, so everything is counted in sixteenths
     and every value is a whole number. The contracts assert the printed figures:
@@ -6731,7 +7423,7 @@ Current implemented increment:
   - [x] The registers came with it: the Sound Frequency Register as (N-1) in
     microseconds with N from 3 to 256 and the test bit always set, the
     per-channel rate as the byte rate divided between the channels, the stereo
-    image table, and — worth keeping — value 0 of a stereo image register, which
+    image table, and, worth keeping, value 0 of a stereo image register, which
     the datasheet calls *Undefined*. It is modelled as its own thing rather than
     mapped to centre, because a register the documentation declines to define is
     not one this build gets to define on its behalf.
@@ -6748,7 +7440,7 @@ Current implemented increment:
     a headless browser has no gesture to give.
   - [x] Two things had to be right and neither was obvious. The workbench holds
     the A310 back until `romReady`, `archimedesRuntime` and a session manifest
-    are all present, and the manifest is built from the stored ROM records — so
+    are all present, and the manifest is built from the stored ROM records, so
     a record carrying anything but a real 64-character SHA-256 makes
     `createRuntimeSessionManifest` throw, the manifest come back null, and the
     machine stay at "ROM set not ready" with nothing saying why. The firmware
@@ -6756,9 +7448,9 @@ Current implemented increment:
     opened once before the machine will see firmware that was placed in storage
     directly.
   - [x] The MEMC side of the setup is known rather than recalled: the pinned
-    core's own `src/memc.c` decodes the register from address bits 17 to 19 —
+    core's own `src/memc.c` decodes the register from address bits 17 to 19,
     4 is sound DMA start, 5 end, 6 pointer, 7 the control register whose bit 11
-    enables sound DMA — and a DMA address from bits 2 to 16. That is the
+    enables sound DMA, and a DMA address from bits 2 to 16. That is the
     addressing the experiment writes to, not the byte encoding it is testing;
     the encoding stays what the datasheet says, or the run would be checking
     the emulator against itself.
@@ -6773,7 +7465,7 @@ Current implemented increment:
     filled with a known byte alternating against `&00`, and the level the
     machine actually produced was captured through the core's own PCM tap. The
     byte's magnitude is what sets that level, and the two candidate bit orders
-    predict very different magnitudes for the same byte — `&7F` is full scale
+    predict very different magnitudes for the same byte, `&7F` is full scale
     under VIDC1 and a seventeenth of it under VIDC2. Nothing in the core's
     decode table was read; only what came out of it was measured.
   - [x] Seven bytes, each measured twice so the second reading is the byte on
@@ -6798,7 +7490,7 @@ Current implemented increment:
     into the output, and repeating that per round measured the clicks rather
     than the sound; and writing only a window ahead of the DMA position left
     the rest of the region holding the previous pattern, which the DMA swept
-    back into — one reading came back loud with nothing written at all. The
+    back into. One reading came back loud with nothing written at all. The
     method that stands writes the whole region once and measures RMS.
   - [x] **What this settles, what it does not, and the decision taken.** It
     settles what the qualified A310 core this product actually runs does. It
@@ -6823,8 +7515,8 @@ Current implemented increment:
     generated ARM source carries the companded bytes and a player that programs
     the hardware. Samples arrive by generating a tone at the document's own rate
     or by importing a RIFF WAVE file, which is read only when it is
-    uncompressed integer PCM and refused by name — floating point, extensible,
-    24-bit, truncated — when it is not.
+    uncompressed integer PCM and refused by name (floating point, extensible,
+    24-bit, truncated), when it is not.
   - [x] Three things the player depends on are read from the pinned core rather
     than recalled, because each one silently produces silence or noise if it is
     wrong. VIDC takes its register from bits 31 to 24 of the written data
@@ -6834,7 +7526,7 @@ Current implemented increment:
     reaches only the first 512 KiB of physical memory and only in sixteen-byte
     units. Sound DMA fetches sixteen bytes at a time and wraps when the pointer
     equals the end register, so the end register holds the last block and not
-    the byte after the buffer — an end one block too far would play sixteen
+    the byte after the buffer. An end one block too far would play sixteen
     bytes of whatever follows on every loop. The contracts decode the generated
     words with the core's own arithmetic rather than with a second copy of this
     build's intent.
@@ -6904,7 +7596,7 @@ Current implemented increment:
     right to: `OSWORD 7` queues a sound and the MOS writes the chip on its
     100Hz interrupt, so a program that stops at the last queued note is never
     running when the sound is made. The evidence is discriminating rather than
-    merely reproducible — a song with every cell silent gives `0A0F32F4` and 3
+    merely reproducible. A song with every cell silent gives `0A0F32F4` and 3
     writes, and changing one note's pitch by one gives `C076A1A5`, so the digest
     is a function of the song rather than of the machine's own startup. This
     only became trustworthy once `audioAssertionModel` could tell a capture
@@ -6921,7 +7613,7 @@ Current implemented increment:
     responds to the artwork rather than to the machine booting.
   - [x] **A real defect the attempt found.** A `SCREEN[0,0,320,256]` assertion
     is 81,920 pixels, past the 65,536 a screen assertion may cover, so the plan
-    was invalid, retained no result, and left the export buttons disabled — and
+    was invalid, retained no result, and left the export buttons disabled, and
     the headless runner waited two minutes and said `Native report export timed
     out`, which names neither the plan that was wrong nor what was wrong with
     it, and points at the export rather than at the fix. It now names each plan
@@ -6935,7 +7627,7 @@ Current implemented increment:
   appropriate sound assets can be edited accessibly, build deterministically,
   and run correctly in every applicable production vertical slice.
 
-## 9. Phase 7 — integrated research
+## 9. Phase 7: integrated research
 
 - [x] RSH-INC-01 Deliver a searchable offline reference vertical slice backed
   by the same typed BBC BASIC, 6502/65C12, assembler-directive and MOS-call
@@ -6943,15 +7635,15 @@ Current implemented increment:
   category filters, structured results/detail views, syntax copy, empty states,
   keyboard semantics and a production browser contract. Citations, target/
   version tagging and licensed reference-pack ingestion remain mandatory before
-  RSH-700–RSH-708 or RESEARCH-GATE can close.
+  RSH-700-RSH-708 or RESEARCH-GATE can close.
 
 - [x] RSH-700 Finalize reference-source/pack/index schemas, source tiers,
   version/target tags, citations, retention, removal, and licence enforcement.
   - [x] A pack declares what it is and what may be done with it, and nothing is
     defaulted, because a default here is a claim about somebody else's rights or
     somebody else's accuracy. Two decisions carry the weight. **Source tier**
-    travels with every entry — `publisher`, `independent`, `community`,
-    `generated` — because a page from Acorn's manual and a paragraph somebody
+    travels with every entry (`publisher`, `independent`, `community`,
+    `generated`), because a page from Acorn's manual and a paragraph somebody
     generated are both text about a BBC Micro, and presenting them alike tells
     the reader they carry the same weight. Only the first two may be read as
     authoritative. **Quotable and insertable are recorded separately from the
@@ -6968,14 +7660,14 @@ Current implemented increment:
     manual with community notes beside it is not flattened to one.
   - [x] Evidence: 14 contracts in `src/research/referencePack.test.ts` covering
     the pack and entry schemas, the source tiers, the version and target tags,
-    and the refusal of a pack that carries no citation — a document that cannot
+    and the refusal of a pack that carries no citation, a document that cannot
     say where it came from is not a reference this build will hold.
 - [x] RSH-701 Implement approved ingestion pipeline with integrity, idempotency,
   extraction bounds, change detection, deletion, and audit.
   - [x] Three cases that look alike from outside are distinguished rather than
     collapsed into "imported": the same pack again byte for byte, which changes
     nothing and says so; the same pack reissued with altered text, which is an
-    update and reports what it replaced — including when the version number did
+    update and reports what it replaced, including when the version number did
     not change, which is the case a version number alone would hide; and a
     different publisher claiming an identifier already held, which is refused,
     because letting one overwrite the other would lose a document nobody agreed
@@ -6983,8 +7675,8 @@ Current implemented increment:
   - [x] The content digest is taken over the parsed pack rather than the bytes
     that arrived, so the same pack formatted differently is the same pack and a
     pack whose text changed is changed. Storage is re-parsed and re-digested on
-    the way back in rather than trusted — it is editable by hand and a partial
-    write leaves a partial record — and anything that will not load is dropped
+    the way back in rather than trusted, it is editable by hand and a partial
+    write leaves a partial record, and anything that will not load is dropped
     with its reason rather than carried as documentation.
   - [x] Evidence: 13 contracts in `src/research/packLibrary.test.ts` covering
     ingestion, its integrity check, importing the same pack twice, the
@@ -7000,8 +7692,8 @@ Current implemented increment:
   - [x] Two kinds of match are reported rather than folded into a score. An
     anchor match means the entry says it documents this exact thing; a text
     match means the words appear. The first is an answer and the second is a
-    lead. Addresses match however they were written — `&FE30`, `FE30`, `0xFE30`,
-    `$FE30` — and an empty query returns nothing rather than everything, because
+    lead. Addresses match however they were written (`&FE30`, `FE30`, `0xFE30`,
+    `$FE30`), and an empty query returns nothing rather than everything, because
     a panel listing every page it holds before being asked has answered a
     question nobody put to it.
   - [x] What could not be looked at is reported alongside the results, so a thin
@@ -7011,8 +7703,8 @@ Current implemented increment:
   - [x] Evidence: 14 contracts in `src/research/referenceSearch.test.ts`
     covering exact and full-text matching over symbols and addresses, the
     ranking that puts an applicable page above a merely matching one, and the
-    two empty answers — an empty library and a library that does not cover this
-    machine — being explained rather than both reported as nothing found.
+    two empty answers, an empty library and a library that does not cover this
+    machine, being explained rather than both reported as nothing found.
 - [x] RSH-703 Implement dockable research panel, filters, citations, bookmarks,
   history, external links, and keyboard/screen-reader semantics.
   - [x] Results are separated under their own headings rather than merely
@@ -7056,20 +7748,20 @@ Current implemented increment:
     dialect is often exactly what somebody wants to adapt; and what the file
     will end up saying about where the text came from.
   - [x] Provenance is written into the source as a comment, in the comment
-    syntax of the language it is going into — taken from this product's own
-    emitters rather than from memory, so ARM gets `@` and 6502 gets `;` — because
+    syntax of the language it is going into (taken from this product's own
+    emitters rather than from memory, so ARM gets `@` and 6502 gets `;`), because
     a record kept anywhere else is a record that gets separated from the code.
     Community and generated text say so in the file they land in, not only on
     screen. Nothing applies anything: a preview that inserted as a side effect
     of being looked at would be a preview nobody could safely open, and the
     apply returns what was there before so it can be put back exactly.
   - [x] Evidence: 13 contracts in `src/research/referenceInsertion.test.ts`
-    covering the three separate refusals — dialect, provenance and licence — the
+    covering the three separate refusals (dialect, provenance and licence) the
     preview that applies nothing by being looked at, and the apply returning
     what was there before so it can be put back exactly.
 - [x] RSH-706 Implement reference pack import/update/remove and offline behavior.
   - [x] Import, update and remove are in Settings alongside an account of what is
-    held, what it permits and what it is made of — a library that is mostly
+    held, what it permits and what it is made of, a library that is mostly
     community notes answers differently from one that is mostly manuals, and
     somebody deciding whether to trust an answer needs to know which they have
     before they read it. Everything is local: nothing is fetched and nothing is
@@ -7096,20 +7788,20 @@ Current implemented increment:
     outranks one that merely mentions it; and a licence cannot permit inserting
     what it forbids quoting.
   - [x] A run against an empty library reports that it examined nothing, in
-    those words — "this is not a clean result; it is an empty one" — and rules
+    those words ("this is not a clean result; it is an empty one"), and rules
     that had nothing to examine are named rather than counted as passes. Without
     that distinction the whole check would be decorative.
   - [x] Evidence: 72 module contracts across the six research modules and 23
     panel contracts. The invariants are proved able to fail by building a
-    library past the parser — generated text carrying a citation, a licence
-    permitting insertion but not quoting — and watching each rule report it.
+    library past the parser (generated text carrying a citation, a licence
+    permitting insertion but not quoting), and watching each rule report it.
 - [ ] RSH-708 If AI help is approved, create a separate privacy/threat/quality
   specification and consented implementation; it is not implied by this backlog.
   - [ ] Deliberately not started. The requirement says this is not implied by
     the backlog and needs its own consented specification, so building it
     because the surrounding area was built would be exactly the thing it warns
     against. The `generated` source tier exists so that machine-produced text,
-    if it ever arrives, is labelled as such and can never be cited — that is
+    if it ever arrives, is labelled as such and can never be cited, that is
     preparation for the decision, not the decision.
 
 ### Phase 7 exit gate
@@ -7117,7 +7809,7 @@ Current implemented increment:
 - [ ] RESEARCH-GATE Users can reach cited, licensed, target-correct information
   from search, diagnostics, and debugging; offline/removal and provenance tests pass.
 
-## 10. Phase 8 — cloud projects, revision history, and sharing
+## 10. Phase 8: cloud projects, revision history, and sharing
 
 - [ ] CLD-800 Implement authentication/session lifecycle with revocation, CSRF
   protection, rate limits, safe recovery, and privacy notices (SEC-004).
@@ -7129,13 +7821,13 @@ Current implemented increment:
     or object store, so everything anybody made lived in one browser, on one
     machine, with no history and no backup but a hand export. ADR 0010 records
     the decision to build storage, revisions and synchronisation now, against a
-    Docker volume, under **one implicit local identity** — and to record whose
+    Docker volume, under **one implicit local identity**, and to record whose
     data it is from the first write even though nothing yet proves who they
     are, because a store written without an owner cannot later say, and every
     isolation test worth having would have nothing to bind to.
   - [x] **Content is addressed by SHA-256.** The same file in twenty revisions
     is stored once, and bytes that do not hash to the digest they were filed
-    under are refused rather than returned — corruption is reported as damage
+    under are refused rather than returned, corruption is reported as damage
     to the store rather than as a missing file, because reporting it as absence
     would send somebody after the wrong problem and returning it would spread
     it. Writes go to a temporary name and are renamed, so an interrupted write
@@ -7143,7 +7835,7 @@ Current implemented increment:
   - [x] **A revision is an immutable manifest** of filename against digest,
     with a parent. History is a chain over shared content, restoring is reading
     rather than reconstructing, and a revision written against something that
-    is no longer the head is refused with both identifiers and the remedy —
+    is no longer the head is refused with both identifiers and the remedy,
     which is what a client needs to merge or fork rather than retry.
   - [x] **Quotas are charged on what a write would add**, not on what it sends,
     so naming content already stored costs nothing and a large project can
@@ -7160,8 +7852,8 @@ Current implemented increment:
     every write failed with a permission error that said nothing about a
     volume; the directory now exists in the image with the right owner, which
     is what Docker seeds a volume from. An `ApiProblem` thrown from the new
-    controller escaped as Symfony's HTML error page — a 500 with no code, no
-    correlation identifier and no indication whether retrying helps — because
+    controller escaped as Symfony's HTML error page (a 500 with no code, no
+    correlation identifier and no indication whether retrying helps), because
     the error envelope lived inside the build controller; it is now one
     definition both controllers use. And the store accepts a larger body than
     the build API, so nginx would have refused first with a bare 413; the two
@@ -7174,10 +7866,10 @@ Current implemented increment:
     parent, surviving a container restart, and collection keeping the content a
     revision still names.
 - [x] CLD-803 Implement explicit local/cloud modes and migration without account
-  coercion or local data loss (CLD-001–CLD-002).
+  coercion or local data loss (CLD-001-CLD-002).
   - [x] **Local mode is the product and nothing here changes that.** The store
     panel asks the server who it thinks you are and repeats the answer in the
-    server's own words — one local identity, nothing proving it, as private as
+    server's own words. One local identity, nothing proving it, as private as
     the machine it runs on. That is deliberately not "your projects are backed
     up": the difference decides whether somebody puts something private there,
     and it comes from the server rather than from an assumption in the client.
@@ -7193,8 +7885,8 @@ Current implemented increment:
     one fail. A 404 from something that is not the store is reported as absence
     rather than as a refusal it never made.
   - [x] A copy is written against the head the store reports, so a second
-    workbench editing the same project collides — with the store's own wording,
-    which names the remedy — rather than one silently overwriting the other. A
+    workbench editing the same project collides (with the store's own wording,
+    which names the remedy), rather than one silently overwriting the other. A
     project name the store cannot take is reduced and the result shown before
     anything is written.
   - [x] Evidence: 10 client contracts covering absence, refusal, a malformed
@@ -7205,8 +7897,8 @@ Current implemented increment:
   - [x] **The state is derived, not remembered.** Untracked, in step, ahead,
     behind, diverged and offline all follow from three facts: what the store's
     head is, what this workbench last wrote or read, and whether the files have
-    changed since. A remembered flag is wrong exactly when it matters — after a
-    crash, a reload, or a second workbench — so there is no flag to be wrong.
+    changed since. A remembered flag is wrong exactly when it matters (after a
+    crash, a reload, or a second workbench), so there is no flag to be wrong.
     Reading a revision synchronises as much as writing one does, which is what
     gives a later merge its base.
   - [x] **The merge refuses rather than guesses.** Three-way and line-based, it
@@ -7222,8 +7914,8 @@ Current implemented increment:
     it runs, so those are reported as a choice between two versions with
     neither taken.
   - [x] **Fork is the honest answer where merging cannot be.** Two versions
-    with no shared revision have nothing to compare by — there is no telling an
-    addition from a deletion — so the plan says so and advises keeping both
+    with no shared revision have nothing to compare by, there is no telling an
+    addition from a deletion, so the plan says so and advises keeping both
     rather than producing something plausible.
   - [x] **The queue is bounded and says so.** Thirty-two changes may wait; a
     further one is refused rather than absorbed by dropping the oldest, because
@@ -7264,7 +7956,7 @@ Current implemented increment:
   - [x] **The warning arrives before the limit, not at it.** A quota that only
     speaks when it is exceeded tells somebody their work was refused, which is
     the worst moment to learn a limit exists. It warns at four fifths, says how
-    full in plain terms, and says what would free space — deleting a project
+    full in plain terms, and says what would free space, deleting a project
     frees what only that project held. A limit the store did not report is
     ignored rather than invented, and nothing is said while there is room,
     because a panel that always warns is one nobody reads.
@@ -7292,7 +7984,7 @@ Current implemented increment:
     from a project that was never there, and somebody who finds their work gone
     deserves to know which happened.
   - [x] **Deletion frees only what that project held.** Content another project
-    still names survives, which is checked rather than assumed — content
+    still names survives, which is checked rather than assumed, content
     addressing makes sharing between projects the normal case, so a deletion
     that collected by project rather than by reference would take somebody
     else's files with it.
@@ -7306,7 +7998,7 @@ Current implemented increment:
     up. Retention beyond deletion on request is a policy decision rather than a
     default to implement.
   - [x] Evidence: 6 further store contracts and the whole path exercised
-    against the running container — an unconfirmed delete refused with the
+    against the running container. An unconfirmed delete refused with the
     remedy, a confirmed one returning its tombstone, the tombstone listed
     afterwards, and the export carrying every revision.
 - [ ] CLD-809 Pen-test cross-tenant access, object identifiers, invitations,
@@ -7318,7 +8010,7 @@ Current implemented increment:
   sync, revise, compare, restore, share, export, and delete within tested scoped
   permissions, conflict rules, quotas, and privacy policy.
 
-## 11. Phase 9 — hardening, operations, and release
+## 11. Phase 9: hardening, operations, and release
 
 ### 11.1 Reliability and performance
 
@@ -7347,7 +8039,7 @@ Current implemented increment:
     what one of its parts costs, and the wait a person experiences ends when
     something is on screen rather than when the load event fires.
   - [x] **Firefox cost an afternoon and the reason is written down.** A
-    packaged Firefox — the snap here, and Flatpak the same way — is confined and
+    packaged Firefox (the snap here, and Flatpak the same way) is confined and
     cannot see a profile directory under the system temporary path. Given one it
     does not fail: it starts, ignores the profile, writes nothing and exits a
     few seconds later, which from outside is indistinguishable from a browser
@@ -7360,22 +8052,22 @@ Current implemented increment:
     They sit at roughly ten times the slower engine's figure, because a suite
     that failed on a loaded laptop would be switched off within a week.
   - [x] What is not measured is named. Safari is declared and cannot be run
-    here — WebKit's browser does not run on Linux, and another WebKit reported
+    here. WebKit's browser does not run on Linux, and another WebKit reported
     under Safari's name would be a different measurement wearing the same
     label. The emulator and debugger areas need a booted machine, which needs
     firmware, and no firmware may enter this repository or its image (SEC-903);
     they are measured with the conformance suite where firmware is supplied.
     Every one of those carries its reason in the report, because an unmeasured
     area with nothing beside it reads as an area that was fine.
-  - [x] The measurements need browsers, so refreshing the report is deliberate
-    — as approving a golden is — and what runs on every commit is the contract
+  - [x] The measurements need browsers, so refreshing the report is deliberate,
+    as approving a golden is, and what runs on every commit is the contract
     on the checked-in report: that it is the shape the suite writes, that every
     figure is inside its ceiling, that every declared browser is accounted for
     measured or not, and that more than one engine is covered, or it is one
     browser wearing the word matrix.
   - [x] Evidence: 11 contracts in `scripts/benchmarks.test.ts`, including each
-    of the three kinds of finding produced deliberately — a figure over its
-    ceiling, a case that produced nothing, and a case that is absent — because
+    of the three kinds of finding produced deliberately (a figure over its
+    ceiling, a case that produced nothing, and a case that is absent), because
     a check that cannot fail is not a check. The checked-in report covers Blink
     (Chrome 152) and Gecko (Firefox 154) on an eight-processor workstation,
     twelve measurements, all within budget.
@@ -7391,9 +8083,9 @@ Current implemented increment:
   - [x] The register holds no numbers of its own. Every value is imported from
     the module that enforces it, so it cannot say one thing while the code does
     another, and a contract checks each against its owner. Every entry states
-    why the limit exists — a number with no reason is a number nobody can argue
+    why the limit exists (a number with no reason is a number nobody can argue
     with later, and limits are exactly what needs arguing with when a real
-    project turns out bigger than someone assumed — and what happens on
+    project turns out bigger than someone assumed), and what happens on
     reaching it. An entry that says only that it fails is refused by the
     validator, because that leaves a person nothing to act on.
   - [x] Each limit is exercised at its boundary rather than described: the
@@ -7408,7 +8100,7 @@ Current implemented increment:
     megabyte is stopped at the bound; and asking for more concurrent builds
     than the ceiling does not raise it.
   - [x] Evidence: 12 register and boundary contracts, and 5 panel contracts
-    driving the real Settings surface — every limit shown and grouped, each row
+    driving the real Settings surface. Every limit shown and grouped, each row
     carrying its value, reason and behaviour, byte values written in the unit a
     person reads, search narrowing and reporting when nothing matches, and the
     stated promise that nothing is truncated silently.
@@ -7421,7 +8113,7 @@ Current implemented increment:
     It is that it says what happened and leaves nothing half applied, because a
     silent failure and a partial write are both worse than an error: both look
     like success.
-  - [x] A worker that dies is covered three ways — a crash carrying a message,
+  - [x] A worker that dies is covered three ways, a crash carrying a message,
     a crash carrying none, which is the common case for a module worker that
     failed to parse and where an empty error tells nobody anything, and a worker
     that answers with a failure and no diagnostic at all. In each the task
@@ -7429,24 +8121,24 @@ Current implemented increment:
     left running.
   - [x] A result arriving when it is no longer wanted is covered three ways: an
     identifier from an earlier request is ignored, which prevents the worst kind
-    of failure — an answer that is real and about the wrong question; a second,
+    of failure. An answer that is real and about the wrong question; a second,
     contradictory delivery of the same request settles nothing new; and anything
     arriving after a cancellation is dropped.
   - [x] The same question for language answers, which are asynchronous while the
     document keeps changing underneath them. A revision captured during a
     request stops being current the moment the document changes, a request is
     aborted the instant a newer one supersedes it on the same channel, and a
-    stale response is reported as stale rather than as an ordinary failure —
-    the distinction matters because a caller retries one and reports the other,
+    stale response is reported as stale rather than as an ordinary failure.
+    The distinction matters because a caller retries one and reports the other,
     and doing the wrong one makes a completion list either vanish or show an
     error nobody caused.
   - [x] A dependency outage is reported as an outage rather than as a build that
-    produced nothing, and a target whose dependency failed is never started —
-    proved by making the dependent build throw if it is ever reached.
+    produced nothing, and a target whose dependency failed is never started.
+    Proved by making the dependent build throw if it is ever reached.
   - [x] Storage failures are covered by the quota race leaving the last good
-    save in place, an unreadable project being kept aside rather than replaced —
-    the difference between "your work is unreadable" and "your work is gone",
-    only one of which is true — and storage being unavailable being said rather
+    save in place, an unreadable project being kept aside rather than replaced.
+    The difference between "your work is unreadable" and "your work is gone",
+    only one of which is true, and storage being unavailable being said rather
     than silently not saving. Backpressure is covered by the concurrency
     ceiling, which the limits contracts prove cannot be raised by asking for
     more.
@@ -7461,13 +8153,13 @@ Current implemented increment:
     two projects and two revisions each over shared content, verifies it, copies
     it, **destroys the original entirely**, restores from the copy, verifies
     again, and then reads every file of every revision back and compares it byte
-    for byte against what was written — because a restore that produced a store
+    for byte against what was written, because a restore that produced a store
     which merely opens is not a restore, and the question is whether the content
     came back.
   - [x] **Integrity verification is real product code, not test scaffolding.**
     The store addresses content by SHA-256, so damage is detectable rather than
     merely suspectable, but that was only ever checked one blob at a time when
-    something happened to read it — and the file nobody has opened since the
+    something happened to read it, and the file nobody has opened since the
     disk went bad is precisely the file a restore is for. It would have been
     copied into the backup unremarked. `App\Storage\StoreIntegrity` walks the
     whole store and names every inconsistency as a sentence rather than throwing
@@ -7518,8 +8210,8 @@ Current implemented increment:
     the SBOM are their own stages with their own contracts, and the property
     and adversarial-performance suites are the fuzzing. What was missing was
     the check that goes stale fastest.
-  - [x] A `security` stage now scans the dependencies of both halves — `npm
-    audit` and `composer audit` — on every gate run. It is unlike every other
+  - [x] A `security` stage now scans the dependencies of both halves, `npm
+    audit` and `composer audit`, on every gate run. It is unlike every other
     stage in one way that governs its design: the rest fail because this
     repository changed, and this one fails because the world did. A package
     clean this morning can carry a critical advisory this afternoon with
@@ -7534,8 +8226,8 @@ Current implemented increment:
     with reasons rather than omitted, and the count appears in the summary line
     so they cannot go quiet.
   - [x] Evidence: 10 contracts in `scripts/securityScan.test.ts` covering both
-    scanner documents and the refusal to read an unreadable one — a scanner
-    that produced nothing must not read as one that found nothing — each
+    scanner documents and the refusal to read an unreadable one, a scanner
+    that produced nothing must not read as one that found nothing, each
     failing severity raising a finding with its remedy, each reported severity
     raising none, composer advisories and abandoned packages, and every
     unscanned area carrying a reason. Current state: no high or critical
@@ -7547,7 +8239,7 @@ Current implemented increment:
     headers and fails on any policy violation, which is a narrow slice of the
     same idea and is explicitly not claimed as DAST. And the penetration test
     is required to be *independent*, which nothing this repository runs against
-    itself can satisfy however thorough — that needs commissioning.
+    itself can satisfy however thorough, that needs commissioning.
 - [x] SEC-902 Verify CSP, worker/frame origins, message validation, CSRF, XSS,
   content disposition, upload types, archive containment, WebSocket origin/auth,
   authorization, rate/quota limits, and log redaction.
@@ -7590,22 +8282,22 @@ Current implemented increment:
   images, fixtures, logs, examples, or public bundles.
   - [x] The rule the gate enforced was one line long: no tracked file may have
     a firmware or disk-image extension. That is the most important case and it
-    is not the only one — a release is also wrong if it carries a private key,
+    is not the only one. A release is also wrong if it carries a private key,
     an access token, or somebody's captured memory dump, and none of those
     announce themselves by their extension. The gate now runs a scanner over
     everything that would be published: firmware, disk and tape images;
     captured runtime state, which is a session and on a machine with real
     firmware loaded is also a copy of that firmware; private material such as a
     real `.env`, a key file or the local ROM directory; and eight credential
-    shapes, each matched by a published marker — a key header, a vendor's token
-    prefix — rather than guessed from a variable name, because a scanner that
+    shapes, each matched by a published marker (a key header, a vendor's token
+    prefix), rather than guessed from a variable name, because a scanner that
     fires on the word `password` is one people learn to ignore.
   - [x] It reports where and what, never the value. A finding that quotes the
     token it found writes that token into the build log, which is a place
     secrets are read from, so the value is replaced by its shape.
   - [x] Nothing exempts itself. A fixture that must hold a key-shaped string is
     permitted only by an allowlist entry naming the file and the specific rule,
-    and every entry must state why — an unexplained allowlist is how a real
+    and every entry must state why. An unexplained allowlist is how a real
     secret eventually gets one, so an entry without a reason is itself a
     finding. Path rules take no allowlist at all, because a firmware image has
     no legitimate reason to be in a source repository under any name.
@@ -7647,13 +8339,13 @@ Current implemented increment:
     against the content security policy the release gate serves the application
     under.
   - [x] Retention and deletion say where each kind of thing lives and how it
-    leaves — your project in this browser's storage, firmware never anywhere but
+    leaves. Your project in this browser's storage, firmware never anywhere but
     your machine, a folder written back only after permission is granted at the
     moment of saving, and source reaching the builder only inside a container
     with no network route. The one thing kept rather than removed is a project
     that could not be read, and it is kept because it is the person's work.
   - [x] Disclosure asks for a private report first, says what not to put in a
-    public issue, and says what to expect in return — a policy that asks for
+    public issue, and says what to expect in return, a policy that asks for
     reports and says nothing about the response is one people stop using. Scope
     is stated with reasons rather than as a way of avoiding the work: the
     emulated machine's own behaviour is the program author's, and a finding that
@@ -7676,9 +8368,31 @@ Current implemented increment:
 
 ### 11.3 Accessibility and compatibility assurance
 
-- [ ] A11Y-900 Complete automated and manual WCAG 2.2 AA audit of J-01–J-08 in
+- [ ] A11Y-900 Complete automated and manual WCAG 2.2 AA audit of J-01-J-08 in
   dark/light/high-contrast, 200% zoom, 320 CSS px reflow, keyboard-only, reduced
   motion, and supported screen readers (QLT-005).
+  - [x] **The automated half runs on every build.** The `smoke` stage walks
+    nineteen workspaces after a real build and checks accessible names, heading
+    order, landmark labels, duplicate ids, target size and roles in their
+    required context; it re-measures contrast in all four palettes, dark and
+    light at AA and both high-contrast palettes at AAA; it reflows at five sizes
+    down to 320 CSS px, which covers 200% and 400% page zoom; it walks the
+    workbench with trusted Tab presses and refuses a focus trap; and it emulates
+    five user conditions including reduced motion and forced colours.
+  - [x] **200% text zoom is checked as its own criterion**, which page zoom does
+    not cover: 1.4.4 is about resizing the text and not the page. The type-scale
+    control makes it checkable, and checking it is also the only way to know the
+    control is worth having. A setting that enlarges the interface and pushes
+    half of it out of reach is worse than no setting, because the person who
+    needs it cannot find the control they can no longer see. Measured: 81
+    controls stay reachable with text at 2x, at 26px, with no horizontal scroll
+    and nothing clipped. The check fails first if the scale did not take effect,
+    so it cannot pass by changing nothing.
+  - [ ] **The manual half needs people and is the honest remainder.** A scan
+    cannot decide whether a name is meaningful or whether a reading order makes
+    sense, and no automated check substitutes for a screen-reader user. That is
+    A11Y-103, which recruits the testers, and this item stays open until their
+    results are recorded rather than claiming an audit that was not done.
 - [ ] A11Y-901 Resolve all A/AA blockers and document any AAA enhancements.
 - [ ] A11Y-902 Verify structured alternatives for graphics, map, waveform,
   memory, trace, profiler, and hardware-register visualizations.
@@ -7687,7 +8401,7 @@ Current implemented increment:
     the pixels, and hiding it with `aria-hidden` is the right first step and
     not the whole answer: something has to carry the same information in text,
     near it, and be announced when it changes. A drawing surface therefore
-    passes one of two ways — it names and describes itself, or it is hidden and
+    passes one of two ways. It names and describes itself, or it is hidden and
     its container holds a live region, caption or table saying what it shows.
     Anything else is a picture with nothing behind it.
   - [x] The pixel, screen and tile-map surfaces already met it: each hides its
@@ -7700,24 +8414,24 @@ Current implemented increment:
     not a passing check.
   - [x] **The scan now runs after a real build, which was the whole of what
     kept this open.** Half the surfaces that carry the most information do not
-    exist until a build has produced something to show — the disassembly, the
-    byte inspector, the generated artifact documents, the symbol list — and
+    exist until a build has produced something to show (the disassembly, the
+    byte inspector, the generated artifact documents, the symbol list), and
     scanning before one existed reported a clean page while leaving them
     unmeasured. The gate opens the sample project, switches to Build targets,
     drives the real Build control and waits for an artifact before anything is
     measured, so the path a person takes is the path that is scanned.
   - [x] The wait is on the artifact rather than on words. The first attempt
     matched a regular expression over the page text, which matched the button
-    that started the build and so reported success the instant it was clicked —
-    a check that passed before the thing it was checking for had happened. It
+    that started the build and so reported success the instant it was clicked.
+    A check that passed before the thing it was checking for had happened. It
     now waits for the byte inspector or the generated documents, neither of
     which exists without an artifact.
   - [ ] **What is left needs firmware, which is the same boundary the
     benchmarks have.** The waveform, memory, trace, profiler and hardware
     register views exist only while a machine is executing, and a machine
     executes only with firmware, which may not enter this repository or its
-    image (SEC-903). Those surfaces are verified where firmware is supplied —
-    the conformance run — rather than in the gate, and this item stays open
+    image (SEC-903). Those surfaces are verified where firmware is supplied.
+    The conformance run, rather than in the gate, and this item stays open
     until that verification is recorded rather than claiming coverage the gate
     does not have.
 - [ ] A11Y-903 Test current/previous major Chromium, Firefox, and Safari including
@@ -7727,8 +8441,8 @@ Current implemented increment:
     part that was missing.** The release gate has always driven one browser,
     which proves the build works in Chromium and says nothing about anywhere
     else. A `browsers` stage now loads the built workbench in every engine the
-    machine can start — Chromium over the DevTools protocol, Firefox over
-    WebDriver through geckodriver — and both are measured with the same two
+    machine can start (Chromium over the DevTools protocol, Firefox over
+    WebDriver through geckodriver), and both are measured with the same two
     probes rather than two separately written checks that could disagree.
   - [x] The rules are separated from the business of starting a browser, so the
     part that decides pass or fail runs everywhere. A browser that mounts
@@ -7739,7 +8453,7 @@ Current implemented increment:
     browser lacks is a fact about the web and not a defect in this build.
   - [x] **The error collector runs under the shipped policy, which is the point
     rather than an inconvenience.** It is served as a file and loaded before the
-    application, because the policy forbids inline script — and a collector the
+    application, because the policy forbids inline script, and a collector the
     policy would have blocked could not report the policy blocking anything
     else. It is what lets a run distinguish "the workbench did not start" from
     "the workbench started and threw", which an empty document alone cannot.
@@ -7767,13 +8481,13 @@ Current implemented increment:
     nobody, and a script that threw before announcing looks exactly like one
     that had nothing to say. Worse, its status region carries the document's own
     initial text either way, so reading that would pass on a page that never
-    ran. The pages are therefore framed by a harness on the same origin — which
-    is the integration point the workbench actually depends on — and the check
+    ran. The pages are therefore framed by a harness on the same origin, which
+    is the integration point the workbench actually depends on, and the check
     is the announcement.
   - [x] The result is stronger than expected. In Firefox the jsbeeb runtime
     announces `bridge-ready`, the Arculator A310 runtime announces
     `listener-ready` and then `ready`, and both Electron runtimes announce
-    `ready` — so two WebAssembly cores initialise in Firefox, not merely load.
+    `ready`, so two WebAssembly cores initialise in Firefox, not merely load.
     What each announced is printed in the stage's own output, so the check is
     visible rather than implied. The runtime documents are served under the
     embedded policy the container serves them under, not the workbench's
@@ -7814,7 +8528,7 @@ Current implemented increment:
     status, and says plainly which one is accepted technically but still
     awaiting a licence sign-off, because that is the thing a reader must not
     miss. It also says what makes a record worth writing: state what was
-    rejected and what it would take to reverse, and always state the cost — a
+    rejected and what it would take to reverse, and always state the cost, a
     record that omits the cost is the one someone reverses without knowing it
     was there.
   - [x] Writing the index found two decision records both numbered 0006. A
@@ -7840,8 +8554,8 @@ Current implemented increment:
     would have been a second copy of the same facts, and two declarations of one
     fact are a defect: they agree on the day they are written and disagree from
     then on, with nothing to say which is right. `scripts/generateGuides.mjs`
-    renders `docs/guide/` from `src/help/helpTopics.ts` — 17 files, 77
-    procedures, about 46,500 words — and every page links back to its own topic
+    renders `docs/guide/` from `src/help/helpTopics.ts` (17 files, 79
+    procedures, about 48,100 words), and every page links back to its own topic
     inside the IDE so a reader can move between the two.
   - [x] The gate compares rather than regenerates. Generating into the working
     tree during a release would make the check pass by definition, so `npm run
@@ -7852,17 +8566,17 @@ Current implemented increment:
     them rather than a reading of the list.** The generator fails on any topic
     the IDE carries that no guide publishes, and it named 25 editor topics that
     were in the product and in no book; they are now published under writing,
-    navigation and completion. Five asset editors — fonts, screens, palettes,
-    sound and samples — and the hardware instruction trace had no topic in
+    navigation and completion. Five asset editors (fonts, screens, palettes,
+    sound and samples), and the hardware instruction trace had no topic in
     either place, and were written from the controls that actually exist, so
     all nine asset tabs and the trace are covered. A test asserts each of the
     nine tab names appears in the asset guide, which is what "every asset
     editor" has to mean to be checkable.
   - [x] **The first declaration of what was absent was itself wrong, and
     fixing it is why the check is now inverted.** It said this build had no
-    server-side project store and no revision history. Both had shipped — a
+    server-side project store and no revision history. Both had shipped, a
     `ProjectStoreController` with revisions, comparison, merge, fork, export,
-    tombstones and quotas, and a typed client and sync model in front of it —
+    tombstones and quotas, and a typed client and sync model in front of it,
     and the declaration was not stale but false. It was written from a reading
     of the requirement rather than of the product, and it guessed at symbols a
     cloud feature might one day introduce, so no marker it named could have
@@ -7877,7 +8591,7 @@ Current implemented increment:
     storage on a machine somebody already controls rather than an account; a
     sharing procedure written anyway would be read as evidence that the store
     is safe to share, which it is not. The declaration therefore names the
-    single unproven owner — one line in the controller — and the gate fails the
+    single unproven owner, one line in the controller, and the gate fails the
     day it stops being a constant, which is the day the owner starts coming
     from the request. Absence is only checkable against a fact that holds now.
 - [x] DOC-901A Ship those guides inside the IDE as searchable, deep-linkable,
@@ -7891,21 +8605,66 @@ Current implemented increment:
   major workflows and operation groups. Provide captions, useful alternative
   text, responsive rendering, text equivalents and version metadata. Add checks
   for missing files, broken topic links and stale control names.
-  - [x] Evidence: Covered by the release gate's help stage, which fails on a
-   missing screenshot file, a broken topic link or a control name that no
-   longer exists in the interface, so a stale screenshot cannot survive a
-   rename.
+  - [x] Evidence: The release gate's help stage fails on a missing screenshot
+   file, a broken topic link or a control name that no longer exists in the
+   interface, so a stale screenshot cannot survive a rename.
+  - [x] **A picture of last month's interface passed all three of those and
+   showed something the reader would not find, which is what happened: sixty
+   images were taken by hand before the appearance work and showed a smaller
+   text size and no menu bar.** Every image now has an entry in
+   `scripts/helpScreenshotStates.mjs` saying which state it is a picture of and
+   the steps that reach it, in the product's own words, and
+   `node --experimental-websocket scripts/helpScreenshots.mjs` takes them by
+   driving the real application in a real browser. Nothing is drawn, composed
+   or simulated: the emulator pictures are of a BBC Model B booted from the
+   firmware on this machine, and the program provenance picture is of a real
+   847-byte assembly of the Acorn Harvest sample. Each entry says what has to
+   be on screen before the shutter opens, so a capture of the wrong state fails
+   and leaves the committed image alone. `scripts/helpScreenshotStates.test.ts`
+   fails when a topic gains a screenshot with no state to reach it.
+  - [x] **Three images cannot be taken on this machine, and the run says so by
+   name rather than skipping them.** The A310 mouse, the A310 capture and the
+   ARM debugger all need a booted Archimedes. The
+   four byte lanes are in `local-roms/mame/aa310.zip`, but the 256-byte
+   `cmos_riscos3.bin` the four-lane importer also requires is an Arculator file
+   rather than a MAME one. A search of the whole filesystem found no
+   `cmos_riscos*` image and no Arculator installation, and the importer refuses
+   a blank one, so nothing can stand in for it here. Those three entries name
+   the files they need and are reported as not attempted rather than skipped,
+   and their images remain the honest earlier ones.
 - [x] DOC-901C Edit all in-app help into direct technical user-facing prose. Do
   not use em dashes or generic generated-assistant filler.
-  Evidence: 19 maintained in-app topics, 15 screenshot references, topic and
+  - [x] **The rule now covers every document, not only the in-app help, and the
+    gate holds it.** This item asked for help prose without em dashes; the same
+    request was later made of the whole repository. `scripts/writingStyle.mjs`
+    scans every tracked text file for the em dash, en dash, ellipsis character,
+    curly quotes, the true minus sign and the non-breaking space, in their
+    literal and their `\uXXXX` spellings, and the gate's `writing` stage fails
+    on any of them. 349 files were rewritten to remove 2,561 occurrences.
+    Rewriting was repunctuation rather than substitution, because a hyphen in
+    an em dash's place reads exactly as the dash did: a full stop where the
+    second half stands alone, a colon where it explains the first, brackets
+    around an aside that already holds commas, a comma where the phrase only
+    trails. Seven files are allowlisted with reasons, five of which decode or
+    refuse those characters and so have to contain them.
+  - [ ] **The screenshots predate the current interface.** 60 of the 61
+    references are marked `2026.08 interface` and were taken before the
+    appearance work: the shipped default text scale is now 1.3 and the workbench
+    carries a top menu bar, so a fresh capture of the same view no longer
+    matches the committed image. The gate's help stage checks that a screenshot
+    file exists and that the controls named around it still exist, which is why
+    nothing failed; it cannot check that a picture still looks like the product.
+    Recapturing needs each topic's state driven for real, which for the debugger
+    and media topics means firmware and a running machine.
+  Evidence: 79 maintained in-app topics, 61 screenshot references, topic and
   interaction tests, the pre-test help verifier, and desktop/narrow-screen
   browser acceptance against the container running on port 8090.
 - [x] DOC-902 Publish machine/toolchain/emulator/media compatibility matrix,
   support tiers, known inaccuracies, upstream/licence acknowledgements, and
   project portability guarantees.
   - [x] `docs/compatibility.md` is generated from the catalogues the product
-    actually runs on — the machine profiles, the adapter support map, the
-    toolchain registry and the emulator adapter descriptors — rather than
+    actually runs on (the machine profiles, the adapter support map, the
+    toolchain registry and the emulator adapter descriptors), rather than
     written by hand. A hand-maintained support table is a promise made once and
     then left behind by the code; a contract compares the checked-in document
     against what the generator produces, regenerates it when it differs, and
@@ -7916,7 +8675,7 @@ Current implemented increment:
     Described means the product models the machine and no core here runs it,
     with nothing substituted for it. Of eleven registered machine profiles,
     five are runnable and six are described, and a described machine says what
-    is missing — no ROM manifest registered, or no model in any core here —
+    is missing. No ROM manifest registered, or no model in any core here,
     rather than naming a core beside a machine it will not run, which would
     read as a support claim.
   - [x] Capabilities are separated the same way. Fitted, preview and planned
@@ -7946,7 +8705,7 @@ Current implemented increment:
     production stage runs the project's build script, which typechecked the
     test files, and those import Node built-ins whose types a production
     install does not guarantee. The local gate never caught it because a
-    development install has those types transitively — which is exactly the
+    development install has those types transitively, which is exactly the
     kind of accidental dependency that only shows up in a clean environment.
   - [x] Fixed at the right level rather than by installing more into the image.
     A production image must not typecheck tests, so the shipped application
@@ -7963,14 +8722,14 @@ Current implemented increment:
   - [x] The second failure was in the documentation itself. The primary command
     named the standalone `docker-compose`, which is Compose v1, end of life, and
     fails against images built by current Docker with `KeyError:
-    'ContainerConfig'` when it reuses a named volume — observed on this machine.
+    'ContainerConfig'` when it reuses a named volume, observed on this machine.
     The README now leads with the Compose plugin, says why, and tells anyone
     with only the old script to install the plugin rather than work around it.
   - [x] Evidence: a full lifecycle run against the built containers. Both
     services reached healthy from a clean start with no seed data and no
     migration step, `GET /healthz` returned 200 with `ok`, the workbench and the
     emulator frame both returned 200, and the two distinct content security
-    policies were confirmed on the wire — the document policy on the workbench
+    policies were confirmed on the wire. The document policy on the workbench
     and the embedded policy carrying `unsafe-eval` on the runtime frame. Logs
     were readable through the documented command. The image contains no
     firmware, disk or tape image of any kind, and a firmware path falls through
@@ -7988,15 +8747,15 @@ Current implemented increment:
   - [x] It reports three states rather than two, because two would be a lie in
     both directions. Traced means the requirement records its verification
     under an Evidence heading, where it can be found. Described means it names
-    contracts, tests or a browser run in its prose but not under that heading —
-    the work was done, the record is harder to follow. Untraced means neither,
+    contracts, tests or a browser run in its prose but not under that heading.
+    The work was done, the record is harder to follow. Untraced means neither,
     and that is the finding. A bare claim of having checked something is not
     accepted as either: a contract is a thing to go and look at, "thoroughly
     checked" is not.
   - [x] Across 294 tracked requirements: 118 complete, of which 27 are traced,
     56 described and 35 untraced, with 176 open. The 35 are listed by name
-    rather than quietly counted, which is what makes the report worth having —
-    a tick with nothing behind it looks like progress and is not, and the only
+    rather than quietly counted, which is what makes the report worth having.
+    A tick with nothing behind it looks like progress and is not, and the only
     way to see it is to count.
   - [x] The report is derived output and is regenerated on every run rather
     than compared against a checked-in copy, because the backlog changes with
@@ -8005,8 +8764,8 @@ Current implemented increment:
   - [x] Writing the parser exposed two real reading errors. A requirement whose
     title wraps across lines was being read as its first line only, which threw
     away the half that usually says how the work was verified, and made twenty
-    items look untraced when they were not. An identifier with three segments —
-    AST-INC-01 — was being read as two and its line skipped entirely, losing
+    items look untraced when they were not. An identifier with three segments.
+    AST-INC-01. Was being read as two and its line skipped entirely, losing
     seven requirements from the count.
   - [x] Evidence: 12 contracts covering the requirement count against the
     backlog's own text, wrapped titles, an Evidence sub-item told apart from
@@ -8015,7 +8774,7 @@ Current implemented increment:
     requirement being listed and not merely counted, the statement that the
     report does not judge evidence quality, and determinism. `npm run
     traceability` regenerates it.
-- [ ] DOC-905 Demonstrate J-01–J-08 and ACC-001–ACC-007 to stakeholders and
+- [ ] DOC-905 Demonstrate J-01-J-08 and ACC-001-ACC-007 to stakeholders and
   capture acceptance.
 - [x] DOC-906 Establish release/version/deprecation policy for APIs, schemas,
   profiles, adapters, toolchains, states, project bundles, and references.
@@ -8027,8 +8786,8 @@ Current implemented increment:
     when the checked-in document stops matching.
   - [x] The policy is short because the product's rule is short. Every version
     of a document this product has ever written stays readable, and a document
-    from a newer build is refused by name — saying which version it carries and
-    which this build reads — rather than parsed as though the fields it does
+    from a newer build is refused by name, saying which version it carries and
+    which this build reads, rather than parsed as though the fields it does
     not contain were simply absent. A newer document is not a corrupt one, and
     the difference is the difference between "update the workbench" and "your
     project is broken".
@@ -8037,8 +8796,8 @@ Current implemented increment:
     bundle whose contents are verified before any migration runs, the build
     target schema, the toolchain registry that lets an artifact be traced to
     what produced it, the emulator adapter API where a mismatched adapter is
-    not loaded at all — a partially-matching adapter being the one failure mode
-    that produces wrong answers rather than no answers — analysis annotations
+    not loaded at all, a partially-matching adapter being the one failure mode
+    that produces wrong answers rather than no answers, analysis annotations
     bound to a digest rather than a filename, disk sets, settings, and the
     template catalogue.
   - [x] Deprecation is three steps and nothing is removed silently: marked with
@@ -8083,7 +8842,7 @@ profile definition rather than reusing another target cosmetically.
 
 Accepted goal: the workbench must be able to take somebody from an empty project
 to a finished, distributable game for the Acorn Atom, the Electron, the BBC
-Model B, the B+ and the Master — smoothly, with a sensible workflow, and without
+Model B, the B+ and the Master. Smoothly, with a sensible workflow, and without
 crashes or errors.
 
 The journey has nine stages, and the honest state of each per machine is below.
@@ -8109,9 +8868,9 @@ the whole line on one machine without leaving the workbench.
   block format and the Atom's, so a game can leave the workbench on the medium
   these machines actually shipped with. `src/media/acornTape.ts` writes both
   formats and the media workspace offers a cassette writer wherever the machine
-  profile enables the cassette interface. Because no reader validates a block —
-  a bad checksum makes a tape that never finishes loading rather than one that
-  fails — the encoder is held to what machines accepted: a BBC B, a BBC Master
+  profile enables the cassette interface. Because no reader validates a block.
+  A bad checksum makes a tape that never finishes loading rather than one that
+  fails. The encoder is held to what machines accepted: a BBC B, a BBC Master
   and an Acorn Atom were booted on the pinned jsbeeb core, the tapes mounted and
   the load commands typed, and their transcripts and loaded bytes are frozen in
   `src/media/acornTapeMeasurements.ts` by `scripts/measureAcornTape.mjs`. A BBC
@@ -8131,14 +8890,14 @@ the whole line on one machine without leaving the workbench.
   run mounted a UEF written by this build, typed `*LOAD "GAME"` at the machine
   over the ordinary command envelope, and the Electron turned its own cassette
   motor on, ran the tape and left all 300 bytes at &2000. That run also found a
-  real defect — Elkulator's colon and semicolon keys are transposed, so `*`
+  real defect. Elkulator's colon and semicolon keys are transposed, so `*`
   arrived as `+` and every star command was silently a mistake. Disc mounting is
   implemented on the same path and is not proved, because an Electron reads
   discs through a Plus 3 and this vault holds no ADFS or DFS ROM to fit one
   with; the Plus 3 capability stays planned and says so.
 - [x] GAME-003 Give the song editor an Electron target. What that machine's
   sound hardware actually does was measured rather than assumed, by driving a
-  real Electron under Elkulator and reading its ULA — both sound registers are
+  real Electron under Elkulator and reading its ULA, both sound registers are
   write-only to the processor, so the bridge publishes them and
   `scripts/measureElectronSound.mjs` takes the readings. Three findings shaped
   the target and none could have been guessed from the BBC: a note sent to a
@@ -8147,17 +8906,17 @@ the whole line on one machine without leaving the workbench.
   amplitude from -1 to -15 producing the same divider; and channel 0 makes
   noise by modulating the same single generator, so noise and tone cannot sound
   together either. The target therefore offers one channel, on or off, at the
-  machine's own scale of forty-eight pitch units to the octave — measured, at
-  `src/assets/electronSoundMeasurements.ts` — and generates a player that uses
+  machine's own scale of forty-eight pitch units to the octave (measured, at
+  `src/assets/electronSoundMeasurements.ts`), and generates a player that uses
   channel 1 with no channel loop, because there is nothing to loop over.
   - [x] Evidence: 12 contracts in `src/assets/electronSoundMeasurements.test.ts`
-    holding the target to what the machine did — the measured pitch-to-divider
+    holding the target to what the machine did, the measured pitch-to-divider
     table and its octave, that every amplitude produced the same divider, that a
     note on another channel replaced the one playing, and that the generated
     player calls OSWORD 7 on channel 1 with no channel loop.
     `scripts/measureElectronSound.mjs` retakes the readings against firmware.
-- [x] GAME-004 Run a BBC B+. jsbeeb publishes no B+ — not in the pinned 1.19.1
-  and not in the current 1.22.4 — so this build adds one, in
+- [x] GAME-004 Run a BBC B+. jsbeeb publishes no B+, not in the pinned 1.19.1
+  and not in the current 1.22.4, so this build adds one, in
   `src/emulator/bbcBPlus.ts`: the engine's Model B with the two things that make
   a B+ a B+, written against the engine's own memory tables rather than by
   forking it. Twelve kilobytes of paged RAM at &8000 that ROMSEL bit 7 brings
@@ -8166,7 +8925,7 @@ the whole line on one machine without leaving the workbench.
   Both were checked by asking the machine. It introduces itself as
   `Acorn OS 64K`, which is what a B+ says and what a Model B does not. A shadow
   mode leaves HIMEM at &8000 where a Model B would drop it to &3000 for the same
-  screen — the whole reason the machine exists. And a routine that pages the RAM
+  screen. The whole reason the machine exists. And a routine that pages the RAM
   in, writes to &8000 and to &AFFF, then puts the ROM back, reads its own bytes
   at both ends and the ROM's underneath: a Master's four kilobytes would have
   failed at the top, which is why the mapping covers twelve.
@@ -8183,8 +8942,8 @@ the whole line on one machine without leaving the workbench.
 - [x] GAME-005 Register the Master MOS 3.50 ROM set, and say plainly why the
   Compact cannot follow. MOS 3.50 is the same engine model with a different
   image in its own vault directory, so it is a manifest rather than a fork; the
-  Compact is a different machine — a different keyboard, no Tube, its own MOS
-  entry points — and jsbeeb models no Compact, so running its firmware on the
+  Compact is a different machine (a different keyboard, no Tube, its own MOS
+  entry points), and jsbeeb models no Compact, so running its firmware on the
   Master 128 model would boot something that is not a Compact and would be
   wrong where nothing here would catch it.
 
@@ -8195,7 +8954,7 @@ the whole line on one machine without leaving the workbench.
   a contract requires that of every firmware a machine offers.
 
   It also found a real defect. The Electron's firmware list named
-  `electron-plus3`, and the registered Elkulator set is `electron-expanded` —
+  `electron-plus3`, and the registered Elkulator set is `electron-expanded`,
   so the entire expanded Electron, the core with the instruction hook, the
   media path and the expansions, could not be reached from the workbench at
   all, while every test that asked the registry directly still passed. Fixed,
@@ -8209,8 +8968,8 @@ the whole line on one machine without leaving the workbench.
 - [x] GAME-006 Run a hardware test plan on an Electron. The Elkulator core now
   runs one over what its bridge can honestly answer: a program placed in RAM,
   run to a stop address inside a cycle budget, then asked about its registers,
-  its memory and how long it took. Everything else a plan can assert — output,
-  audio, screen, MOS events — is refused by name at the point the plan is
+  its memory and how long it took. Everything else a plan can assert (output,
+  audio, screen, MOS events) is refused by name at the point the plan is
   submitted, because an assertion nobody evaluated must never be counted as one
   that passed. ElkJS still refuses the lot, for want of a per-instruction hook.
 
@@ -8224,8 +8983,8 @@ the whole line on one machine without leaving the workbench.
   That is why a cycle assertion on this machine should be a bound rather than
   an equality, and the adapter says so.
 
-  Proved by running five plans on the machine — one that passes, one that fails,
-  one that times out, and two that are refused —
+  Proved by running five plans on the machine. One that passes, one that fails,
+  one that times out, and two that are refused,
   `scripts/measureElectronTestPlan.mjs` reproduces them and will not exit zero
   unless each still does what a working runner would.
 - [x] GAME-007 Walk the whole journey on each machine in one headless run, and
@@ -8248,7 +9007,7 @@ the whole line on one machine without leaving the workbench.
   Three things had to be true for the walk to be honest about what it drives.
   Each machine starts from cleared storage, because the product remembers a
   project between visits and that is not where a journey starts. The browser's
-  own confirmation — the workbench asks before discarding unsaved work — is
+  own confirmation, the workbench asks before discarding unsaved work, is
   answered the way a person answers it, because that dialog blocks the page and
   an ignored one hangs rather than fails. And every request has a deadline, so a
   frozen page reports a frozen page.
@@ -8264,7 +9023,7 @@ the whole line on one machine without leaving the workbench.
   artwork and song-editor music compiled in, writes a UEF, mounts it on a BBC
   Model B and a BBC Master, and types `*RUN GAME`. Both machines searched,
   loaded two blocks, and printed the game's title and two bytes it had read out
-  of its own artwork and music — so the assets were in the binary the machine
+  of its own artwork and music, so the assets were in the binary the machine
   loaded, not merely in the project it was built from. Nothing placed a byte in
   either machine's memory.
   - [x] Evidence: 6 contracts in `src/media/gameEndToEndMeasurements.test.ts`
@@ -8278,8 +9037,8 @@ the whole line on one machine without leaving the workbench.
 ## 13. Definition of done for every backlog item
 
 An item is complete only when, as applicable. These are standing rules rather
-than deliverables, so what "done" means for one of them is that it is *enforced*
-— checked on every run of the gate rather than remembered by whoever is
+than deliverables, so what "done" means for one of them is that it is *enforced*.
+Checked on every run of the gate rather than remembered by whoever is
 reviewing. Where a rule is enforced automatically it is ticked and says how;
 where it depends on something this build does not have, it is not.
 
@@ -8339,7 +9098,7 @@ where it depends on something this build does not have, it is not.
 - [x] DOD-006 Schemas/APIs include validation, compatibility, migrations, typed
   contracts, safe errors, and documentation.
   - [x] `api/openapi.json` is the contract rather than a description of one, and
-    both sides are checked against it — generated TypeScript clients here, and
+    both sides are checked against it, generated TypeScript clients here, and
     the real routes and real answers driven through the real kernel in the
     backend. No caller may spell a path itself, and a test fails the moment one
     does.

@@ -36,7 +36,7 @@ describe('the authoring journey', () => {
   it('walks every one of them, because every one of them now runs', () => {
     /* The B+ was the exception, walked only to check it refused honestly. It
      * runs now, on a machine this build adds to the engine, so it is walked the
-     * same way as the rest — and if that ever regresses, this is what says so
+     * same way as the rest, and if that ever regresses, this is what says so
      * rather than the journey quietly expecting a refusal again. */
     expect(JOURNEYS.every((journey) => journey.runnable)).toBe(true);
     for (const journey of JOURNEYS) {
@@ -88,7 +88,7 @@ describe('the authoring journey', () => {
 
   it('answers the question the workbench asks before discarding work', () => {
     /* The product asks before it throws away unsaved edits, with the browser's
-     * own dialog — which blocks the page until something answers. A walk that
+     * own dialog, which blocks the page until something answers. A walk that
      * ignored one would not fail, it would hang. */
     const source = readFileSync(resolve(process.cwd(), 'scripts/journey.mjs'), 'utf8');
     expect(source).toContain('Page.javascriptDialogOpening');

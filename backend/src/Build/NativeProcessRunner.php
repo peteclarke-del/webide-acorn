@@ -16,7 +16,7 @@ final class NativeProcessRunner
      * parent, holding CPU and the job directory and belonging to nobody.
      *
      * The descendants are found rather than signalled by group. A process
-     * group would be tidier, but `setsid` forks — the identifier this runner
+     * group would be tidier, but `setsid` forks, the identifier this runner
      * holds is not the leader of the group the tool ends up in, so a group
      * kill would signal something already gone. Walking the parent links in
      * `/proc` asks the kernel what actually descends from this process, which
@@ -110,7 +110,7 @@ final class NativeProcessRunner
          * The deadline is enforced here rather than by the process helper.
          *
          * The helper kills the tool before it reports a timeout, and once the
-         * parent is gone the kernel reparents whatever it spawned — so by the
+         * parent is gone the kernel reparents whatever it spawned, so by the
          * time a timeout could be caught, the parent links that identify the
          * tool's descendants have already been rewritten. Owning the deadline
          * means the tree can be swept while it is still a tree.

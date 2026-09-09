@@ -8,8 +8,8 @@
  * between rows with the arrow keys, which is what a tree is supposed to do.
  *
  * It listed every source together with a one-letter badge. Where a file came
- * from governs what may be done to it — a generated file is read-only and will
- * be replaced by its generator — so sources are grouped by origin and each
+ * from governs what may be done to it, a generated file is read-only and will
+ * be replaced by its generator, so sources are grouped by origin and each
  * group says how many it holds.
  *
  * The trash sits at the bottom, because a deletion that can be undone is only

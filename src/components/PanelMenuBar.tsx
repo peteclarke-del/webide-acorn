@@ -5,7 +5,7 @@ import { Icon, type IconName } from './Icon';
  *
  * Every workspace carried its actions as a row of buttons, and the asset
  * editors carried fifteen of them above a sixteen-pixel canvas. The buttons
- * were not the problem — each one is a thing somebody does — but a row is the
+ * were not the problem, each one is a thing somebody does, but a row is the
  * most expensive way to offer them: it spends the width of the panel and the
  * height of a control on things that are used once a session, in front of the
  * work itself.

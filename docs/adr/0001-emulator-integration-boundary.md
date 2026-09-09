@@ -1,6 +1,6 @@
 # ADR 0001: emulator integration boundary and first executable slice
 
-Status: accepted; first BBC machine slice implemented  
+Status: accepted; first BBC machine slice implemented
 Date: 20 August 2026
 
 ## Context
@@ -66,7 +66,7 @@ unambiguous and valid.
 
 The pinned engine's `models.js` registry has BBC B, Master and Atom definitions
 but no BBC Model A, B+, Master Compact or Acorn Electron hardware model. Other
-uses of the word “Electron” in the dependency are its desktop-shell entry
+uses of the word "Electron" in the dependency are its desktop-shell entry
 point, not the Acorn machine. Those targets therefore do not resolve a ROM or
 runtime manifest. In particular, running a BBC B core with Electron ROMs or
 calling 32 KiB Model B memory a BBC A would violate the hardware-truth contract.

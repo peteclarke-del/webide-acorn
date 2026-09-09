@@ -6,7 +6,7 @@ cartridge interface. EMU-423 has wanted one since the Electron slice shipped.
 
 ## What is proved
 
-`Dockerfile.wasm` builds `elkulator.wasm` — 1,305,170 bytes — and its JavaScript
+`Dockerfile.wasm` builds `elkulator.wasm` (1,305,170 bytes), and its JavaScript
 glue, from `demrepofdave/elkulator` at commit
 `6785521aba2c237861f29d9dee9cfc6725989b1e` on branch
 `demrepofdave/allegro5_integration`, against Allegro 5.2.9.1 with Allegro's own
@@ -20,7 +20,7 @@ exits zero, and the build fails rather than continuing if either produces no
 
 A headless Chromium run staged the operating system and BASIC ROMs into the
 virtual file system, called `main`, and let it run for twelve seconds. The
-browser kept its thread throughout — 470 animation frames, about 39 a second —
+browser kept its thread throughout, 470 animation frames, about 39 a second,
 and the drawing buffer, read back inside the emulator's own draw call, held 882
 white pixels on black which read:
 
@@ -38,8 +38,8 @@ Each was found by running it, and none of them is visible in a native build.
 
 1. **`fclose(NULL)` on a missing `elk.cfg`.** `loadconfig` opens the file and
    closes it unconditionally. Every accessor between the two already returns its
-   default when the handle is NULL — so an absent config is a case the code
-   otherwise handles correctly — but the close aborts the WebAssembly instance
+   default when the handle is NULL, so an absent config is a case the code
+   otherwise handles correctly, but the close aborts the WebAssembly instance
    before anything is drawn. Natively it is undefined behaviour that happens to
    be survivable, so nobody has met it. A page has no home directory to have put
    a config in, so this is the ordinary path here. `saveconfig` closes the same
@@ -64,8 +64,8 @@ Each was found by running it, and none of them is visible in a native build.
    `-sASYNCIFY_ADD=["main"]` does not help. The loop is now turned inside out:
    `event_await` returns whether or not anything happened, `main` hands its body
    to `emscripten_set_main_loop`, and no C stack is ever unwound. That takes
-   ASYNCIFY out of the build along with 520 KB — 1,822,049 bytes became
-   1,302,443 — and it is what the IDE integration wants anyway, since the IDE
+   ASYNCIFY out of the build along with 520 KB (1,822,049 bytes became
+   1,302,443), and it is what the IDE integration wants anyway, since the IDE
    decides when the machine steps.
 
 4. **The 50 Hz timer never ticked.** Allegro's SDL backend registers the timer's
@@ -87,13 +87,13 @@ Each was found by running it, and none of them is visible in a native build.
 ## Two more, found while proving the above
 
 **A latent out-of-bounds the browser catches and a native build does not.**
-`put_pixel_line` guarded the upper end of its range — `x + width` past 640, `y`
-past 256 — and not the lower, so a negative coordinate indexed
+`put_pixel_line` guarded the upper end of its range (`x + width` past 640, `y`
+past 256), and not the lower, so a negative coordinate indexed
 `electron_screen` below its start. On a native heap that writes into whatever
 sits in front of it and is never noticed; WebAssembly traps it. Separately, the
 ULA brings a video address back inside memory by subtracting the mode's screen
 length once, which is only correct while the address is at most `0x8000` plus
-that length — mode 6's length is `0x2000`, so an address near `0xFFFF` is still
+that length. Mode 6's length is `0x2000`, so an address near `0xFFFF` is still
 above `0x8000` after one subtraction, and the read lands outside a 32 KB `ram`.
 On a native build `ram2` is declared immediately after `ram` and the read
 quietly returns a neighbouring array. It wraps as many times as it takes now,
@@ -101,7 +101,7 @@ which is what the hardware does.
 
 **An unchecked bitmap lock.** Both blit routines call `al_lock_bitmap` and
 dereference the result without checking it. Allegro is entitled to refuse a lock
-and under this backend it does — exactly once, on the first frame, before the
+and under this backend it does. Exactly once, on the first frame, before the
 bitmap's texture exists; counting it gave one refusal against a hundred
 successes. The lock is checked now and a refused frame is skipped. Making the
 surface a memory bitmap also stops the refusal and was tried: it costs two and a
@@ -135,7 +135,7 @@ opened should cost nothing.
 
 Reading memory has two meanings and both are offered by name, because
 conflating them would make the debugger lie. `elk_webide_read_memory` goes
-through `readmem`, which is what the processor sees — paged ROM, the ULA and
+through `readmem`, which is what the processor sees, paged ROM, the ULA and
 the keyboard matrix answer, and a read can have a side effect.
 `elk_webide_read_ram` reads the 32 KB array directly, which is what a memory
 inspector wants, and says `-1` above `0x7fff` rather than returning the ROM byte
@@ -145,19 +145,19 @@ inspector wants, and says `-1` above `0x7fff` rather than returning the ROM byte
 
 A headless Chromium run drove all twenty-three entry points against a booted
 machine. With counting armed it executed 135,069 instructions in half a second.
-Pausing stopped it and it stayed stopped — same program counter and same count
+Pausing stopped it and it stayed stopped. Same program counter and same count
 three hundred milliseconds later. A single step executed exactly one
 instruction and moved the program counter three bytes. Registers written while
 it stood still read back. A ten-byte program was placed at `&1900`, a
 breakpoint set on its halt loop, and the machine resumed: it stopped at `&1907`
 with the breakpoint recording one hit, `A` and `X` holding `&42` and `7`, and
-`&2000` holding `&42` — the program's own result, read out of RAM. Every
+`&2000` holding `&42`. The program's own result, read out of RAM. Every
 refusal refused: a register index of 99, a breakpoint slot of 99, an address
 past `&FFFF`, key zero, a step of zero instructions.
 
 Two defects of its own were found that way rather than reasoned about. The
 instruction count read zero while the machine was plainly running, because the
-counter lives in the hook and nothing had armed it — so counting is now asked
+counter lives in the hook and nothing had armed it, so counting is now asked
 for explicitly and `elk_webide_counting` says whether the number means
 anything, rather than zero being reported as though nothing had executed. And a
 step resumed the machine and never stopped it, for the same reason: it now arms
@@ -196,8 +196,8 @@ channel, under the exact content security policy the image serves it with. The
 machine initialised from two ROM images, booted, took a ten-byte program at
 `&1900`, and stopped on a breakpoint at `&1907` with the slot recording the hit,
 `A` and `X` at `&42` and `7`, and `&2000` reading `&42`. Three single steps
-walked the program counter `&1900`, `&1902`, `&1905`, `&1907` — the three
-instruction lengths — leaving the machine paused between each. A register write
+walked the program counter `&1900`, `&1902`, `&1905`, `&1907`, the three
+instruction lengths, leaving the machine paused between each. A register write
 took. A stop-address test reached its address in 20 ms, and one that could not
 reach its address timed out at 614 ms rather than waiting. A watchpoint, an
 unknown command and an unknown key were each refused with the reason recorded.
@@ -226,7 +226,7 @@ GPL-3.0-or-later.
 operating system, BASIC, ADFS, DFS, Master RAM Board OS, Plus 1 support and
 sound ROMs, under a note saying they are explicitly not covered by the GPL. None
 of it is ours to distribute, so the corresponding source shipped here excludes
-that directory and the build then proves it absent — the same guard jsbeeb
+that directory and the build then proves it absent, the same guard jsbeeb
 already has, for the same reason.
 
 The branch is a fork rather than upstream. So is `pdjstone/arculator-wasm`,
@@ -247,8 +247,8 @@ Arculator's. It was kept out of the image while it could not run; it runs.
 ## The three traps, so they cost nobody else a day
 
 1. **emcc offers SDL *1* headers unless told `-sUSE_SDL=2`.** Allegro's
-   `<SDL.h>` then resolves to SDL1 and every SDL2 symbol — `SDL_GetBasePath`,
-   `SDL_GetPrefPath`, `SDL_GetDisplayDPI` — appears unimplemented. Shims were
+   `<SDL.h>` then resolves to SDL1 and every SDL2 symbol (`SDL_GetBasePath`,
+   `SDL_GetPrefPath`, `SDL_GetDisplayDPI`) appears unimplemented. Shims were
    written for all three and deleted once the flag was right. With the flag,
    Allegro 5 needs **no source changes at all**.
 2. **Allegro's cmake adds `-msse` on x86** unless `WANT_ALLOW_SSE` is off,
@@ -259,11 +259,11 @@ Arculator's. It was kept out of the image while it could not run; it runs.
 
 ## The two shims, and why they are not gaps
 
-`webide_alut_shim.h` — Elkulator calls `alutInit` and `alutExit`; ALUT has no
+`webide_alut_shim.h`. Elkulator calls `alutInit` and `alutExit`; ALUT has no
 Emscripten port. Both are thin wrappers over ALC and are implemented directly,
 which removes the dependency rather than working around it.
 
-`allegro_native_dialog_stub.h` — Allegro builds no native-dialog library for
+`allegro_native_dialog_stub.h`. Allegro builds no native-dialog library for
 SDL at all, so the linker cannot find one. This is not a gap to fill: a native
 file chooser and a native menu bar are the host operating system's furniture,
 and a page has neither. The IDE supplies its own, exactly as it does for the
@@ -283,8 +283,8 @@ the page would be a second opinion that could disagree with the first.
 A headless Chromium run mounted a 445-byte UEF written by `src/media/acornTape.ts`
 carrying a 300-byte file at &2000, typed `*LOAD "GAME"` at the Electron's
 keyboard over the ordinary command envelope, and watched the machine: it turned
-its own cassette motor on — reported by the ULA's `is_tapeon()` rather than by
-anything this build set — ran the tape, stopped it, and left all 300 bytes at
+its own cassette motor on, reported by the ULA's `is_tapeon()` rather than by
+anything this build set, ran the tape, stopped it, and left all 300 bytes at
 &2000 exactly as written. No runtime error, no page error.
 
 Getting there found a real defect in the key table. Elkulator's own matrix
@@ -312,7 +312,7 @@ for both.
 That turned the song editor's Electron target from a guess into a measurement.
 Driving a real Electron and watching the ULA while it played established that a
 note sent to a second channel *replaces* the one playing rather than queueing
-behind it — the first is lost silently — that there is no volume at all, and
+behind it, the first is lost silently, that there is no volume at all, and
 that channel 0 makes noise by modulating the same generator rather than by
 having a noise source. `scripts/measureElectronSound.mjs` takes those readings
 and `src/assets/electronSoundMeasurements.ts` holds them.
@@ -320,7 +320,7 @@ and `src/assets/electronSoundMeasurements.ts` holds them.
 Getting there found a second key-table defect beside the transposed colon. The
 core's enumeration has no minus key: what it calls EQUALS is the Electron's
 `- =` key, and unshifted it produces a minus. So the workbench could not type a
-minus at all — which is every negative amplitude in a SOUND statement — and an
+minus at all, which is every negative amplitude in a SOUND statement, and an
 equals sign came out as one.
 
 
@@ -345,8 +345,8 @@ lands in a stretched slot depends on where the display has got to. A cycle
 assertion on this machine should therefore be written as a bound, and the
 adapter says so.
 
-One limit is worth stating rather than discovering. A stop address is exact —
-the instruction hook halts the machine on it. A budget is not: this core runs a
+One limit is worth stating rather than discovering. A stop address is exact.
+The instruction hook halts the machine on it. A budget is not: this core runs a
 whole field per animation frame and cannot be interrupted inside one, so a test
 that never reaches its stop overruns its budget by up to a field before the
 overrun is noticed. The result reports the cycles that actually elapsed rather

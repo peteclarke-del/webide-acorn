@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Nothing here is conditional on the environment. A build route answers 200
  * where the toolchains are installed and 503 where they are not, and both are
  * responses the description declares, so both are checked. A status the
- * description does not declare at all is a failure wherever it happens — which
+ * description does not declare at all is a failure wherever it happens, which
  * is the point, because an undeclared status is a shape no client was written
  * for.
  */

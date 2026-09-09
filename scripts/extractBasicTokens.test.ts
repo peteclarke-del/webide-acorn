@@ -3,8 +3,8 @@
 /* That the keyword-table reader stops where the table stops.
  *
  * The reader is the reason this repository holds no hand-transcribed tables,
- * and the thing that can go wrong with it is not misreading an entry — the
- * format is three fields — but misjudging where the table ends. A terminator
+ * and the thing that can go wrong with it is not misreading an entry, the
+ * format is three fields, but misjudging where the table ends. A terminator
  * that stops early produces a partial table, which is worse than none: it
  * decodes most of a program and corrupts the rest, and nothing notices until
  * somebody's listing comes out wrong in one place.
@@ -41,7 +41,7 @@ describe('the BASIC keyword-table reader', () => {
     /* This is the defect the terminator used to have. `INSTR(`, `LEFT$(`,
      * `MID$(` and every other keyword ending in a bracket carry &80 in BBC
      * BASIC V, and treating that as code cut its table off two thirds of the
-     * way through — at `INT`, the entry immediately before `INSTR(`. */
+     * way through, at `INT`, the entry immediately before `INSTR(`. */
     const bytes = table([...OPENING, ['INT', 0xa8, 0x00], ['INSTR(', 0xa7, 0x80], ['WIDTH', 0xfe, 0x02]], [0x20, 0x75, 0x6e]);
     expect(readTokenTable(bytes).map((entry) => entry.keyword)).toEqual(['AND', 'ABS', 'INT', 'INSTR(', 'WIDTH']);
   });
@@ -62,8 +62,8 @@ describe('the BASIC keyword-table reader', () => {
   });
 
   it('stops at a byte that could not be a token', () => {
-    /* Below &7F is not a token in any of these ROMs — BASIC V uses &7F for
-     * OTHERWISE, which is the lowest — so a smaller byte is something else. */
+    /* Below &7F is not a token in any of these ROMs (BASIC V uses &7F for
+     * OTHERWISE, which is the lowest), so a smaller byte is something else. */
     const bytes = table(OPENING, [0x5a, 0x5a, 0x40, 0x00]);
     expect(readTokenTable(bytes).map((entry) => entry.keyword)).toEqual(['AND', 'ABS']);
   });

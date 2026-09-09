@@ -5,14 +5,14 @@
  * is only a picture: when it later fails, nobody can tell whether the program
  * changed, the ROM changed, or the golden was wrong from the start. So a golden
  * carries its provenance, and a failure reports what has changed in the
- * environment since it was approved — because a mismatch after a firmware
+ * environment since it was approved, because a mismatch after a firmware
  * change means something quite different from a mismatch without one.
  *
  * The other half is approval. Silently replacing a golden that fails is how a
  * test stops testing: it will agree with whatever the program does next, for
  * ever. Refusing ever to replace one is how a test becomes noise that people
- * learn to ignore. So a mismatch produces a *proposal* — both images, the
- * difference, and the drift — and replacing the golden takes an explicit
+ * learn to ignore. So a mismatch produces a *proposal* (both images, the
+ * difference, and the drift), and replacing the golden takes an explicit
  * approval that records a reason. A reason is required rather than optional,
  * because "approved" with no reason is indistinguishable six months later from
  * nobody having looked.
@@ -117,7 +117,7 @@ export interface GoldenUpdateProposal {
  * Offer a replacement without making one.
  *
  * Nothing here changes a golden. The proposal is the whole of what this does,
- * so a report can be read — and ignored — without anything being decided.
+ * so a report can be read, and ignored, without anything being decided.
  */
 export function proposeGoldenUpdate(
   golden: ProvenancedGolden,

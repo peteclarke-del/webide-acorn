@@ -21,6 +21,8 @@ them later is a legal question and not only an engineering one.
 | [0008](0008-elkjs-electron-adapter-and-gpl-position.md) | ElkJS Electron adapter, and the GPL position it creates | Accepted; **licence position pending sign-off** |
 | [0009](0009-risc-os-c-toolchain-candidate.md) | RISC OS C toolchain candidate boundary | Accepted direction; toolchain unavailable |
 | [0010](0010-project-storage-and-revisions.md) | Project storage, revisions and the single local identity | Accepted for the local storage and revision slice |
+| [0011](0011-adapter-discovery.md) | Adapter discovery as a compiled table, not a registry | Accepted; implemented |
+| [0012](0012-reference-indexing.md) | Reference indexing in the browser, over imported packs | Accepted; implemented |
 
 ## A note on numbering
 
@@ -36,7 +38,7 @@ carries a licence or firmware position. It should say what was decided, what
 was rejected and why, and what it would take to reverse. A record that only
 describes what was built is a commit message in a longer file.
 
-State the cost. Every decision here has one — a pinned upstream that has to be
-tracked, a core that cannot be stepped, a licence that constrains distribution —
+State the cost. Every decision here has one. A pinned upstream that has to be
+tracked, a core that cannot be stepped, a licence that constrains distribution,
 and a record that omits the cost is the one that gets reversed by someone who
 did not know it was there.

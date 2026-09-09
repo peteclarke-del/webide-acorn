@@ -1,7 +1,7 @@
 /* Two machines, side by side, before the work is committed to either.
  *
  * The portability warnings already existed and were raised at the moment a
- * project was opened — which is the right moment to be told, and the wrong
+ * project was opened, which is the right moment to be told, and the wrong
  * moment to be deciding. By then the choice has been made and the person is
  * reading a warning about something they cannot easily undo.
  *
@@ -154,7 +154,7 @@ export function ProfileComparisonPanel() {
           <ul className="profile-warnings">
             {/*
               * Both sides of the comparison are listed together, and the two
-              * configurations frequently have the same thing to say — the same
+              * configurations frequently have the same thing to say, the same
               * capability needing the same variant. Keying by what was said
               * gave two children the same key, which React warns about because
               * it can drop or duplicate one of them. The side is part of the

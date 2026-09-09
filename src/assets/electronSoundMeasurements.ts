@@ -2,8 +2,8 @@
  * What an Acorn Electron actually does when it is asked to make a sound.
  *
  * The Electron is not a BBC with fewer channels. It has one tone generator in
- * its ULA and nothing else, and the two registers that drive it — the divider
- * that fixes the pitch, and the two bits that turn the tone on — are write-only
+ * its ULA and nothing else, and the two registers that drive it (the divider
+ * that fixes the pitch, and the two bits that turn the tone on) are write-only
  * to the processor. So a program cannot read back what it asked for, and
  * neither could a debugger by reading memory. They are published by the bridge
  * in `docker/elkulator/webide_bridge.c` for exactly this reason.
@@ -41,7 +41,7 @@ export interface ElectronPitchMeasurement {
  * Pitch to ULA divider, as the Electron's own operating system set it.
  *
  * The machine's scale is the BBC's: forty-eight pitch units to an octave. The
- * measurements bear that out — pitch 53 gives divider 116 and pitch 101 gives
+ * measurements bear that out. Pitch 53 gives divider 116 and pitch 101 gives
  * 57, and 1 MHz / (16 × (n + 1)) makes those 534 Hz and 1,077 Hz, which is an
  * octave to within the divider's own resolution.
  */

@@ -7,7 +7,7 @@
  * conditional inside the emulator panel where nothing could check it.
  *
  * It matters more than it looks. Sending a command on the wrong channel is
- * silent — the runtime ignores anything not addressed to it — so a workbench
+ * silent, the runtime ignores anything not addressed to it, so a workbench
  * pointed at the right page with the wrong channel would show a machine that
  * never answered, with no error anywhere to say why.
  *

@@ -125,7 +125,7 @@ export function findPossibleSecrets(files: ReadonlyArray<{ name: string; content
         const match = pattern.exec(line);
         if (!match) continue;
         /* The report names the kind and where, never the value itself. */
-        const masked = match[0].length > 24 ? `${match[0].slice(0, 16)}…` : match[0];
+        const masked = match[0].length > 24 ? `${match[0].slice(0, 16)}...` : match[0];
         found.push({ fileName: file.name, line: index + 1, kind, masked: masked.replace(/[^\s:=]{6,}$/, '(value hidden)') });
         break;
       }

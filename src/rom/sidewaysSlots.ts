@@ -4,7 +4,7 @@
  * capability and the ROM it needs was mounted somewhere. That is enough to run
  * a machine and not enough to develop for one. A sideways ROM's bank number
  * decides its service-call priority, which ROM answers a `*` command first, and
- * which one wins when two claim the same name — and none of that is visible if
+ * which one wins when two claim the same name, and none of that is visible if
  * the product chooses the bank.
  *
  * So a bank is something a person assigns, and this is the model behind that.
@@ -13,7 +13,7 @@
  * the ROM select register on the 6502 Acorn machines is four bits wide, so the
  * address space has sixteen and no more. Which banks a particular machine has
  * fitted, and what its own firmware occupies, is machine-specific and is taken
- * from the ROM set definition rather than assumed here — this build will not
+ * from the ROM set definition rather than assumed here, this build will not
  * state that BASIC lives in a particular bank on a particular model unless the
  * data it ships says so.
  */
