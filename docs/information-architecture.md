@@ -48,6 +48,20 @@ Each workspace is reachable three ways (the rail, the tab strip, and the View
 menu), because the rail is quick, the strip says where you are, and the menu is
 the one a keyboard reaches without knowing the layout.
 
+## Inside the source editor
+
+The editor has a sidebar of its own, to the right of the text, and it holds the
+five things somebody looks at while reading source rather than while running it:
+the number and address converter, the outline, the project symbol selector, the
+bookmarks, and the jump targets or line references for the open file. It is a
+share of the editor's width rather than a fixed number of pixels, because at the
+larger text sizes a fixed column could not show a name beside its location.
+
+Splitting the editor gives the second pane the whole of its width. Two outlines
+of one project side by side left about two hundred pixels of source in each,
+which is the opposite of what a split is for, so the sidebar stays on the first
+pane and is one keystroke away when the split is reset.
+
 ## Status
 
 The left of the status bar is a single `aria-live` region and carries the most

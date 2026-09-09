@@ -599,7 +599,15 @@ export const SHOTS = [
     topics: ['emulator-storage-quota'],
     steps: [
       ...SUPPLY_BBC_ROMS,
+      /* Long enough for the machine below to boot on the firmware just stored,
+       * so a panel about stored ROMs is not photographed beside a machine
+       * saying its ROM set is not ready. */
+      { workspace: 'Code' },
+      { waitForText: 'RUNNING' },
+      { wait: 3000 },
+      { workspace: 'Settings' },
       { waitFor: 'section[aria-label="Browser storage quota"]' },
+      { disclose: 'Browser-reported usage categories' },
       { scrollTo: { selector: 'section[aria-label="Browser storage quota"]', block: 'top' } },
     ],
     shows: ['quota', 'IndexedDB'],
