@@ -111,7 +111,7 @@ export async function openPage(chromium) {
 }
 
 /** Reload to a workbench that has seen nothing, so one state cannot leak into the next. */
-async function reset(page) {
+export async function reset(page) {
   await page.evaluate("(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* a browser may refuse storage */ } })()");
   await page.send('Page.navigate', { url });
   await until(() => page.evaluate("document.readyState === 'complete'"), 'the page to load');
@@ -123,7 +123,7 @@ async function reset(page) {
  * The steps a state is reached by. Each is one thing a person does, so an entry
  * below reads as the procedure its topic describes rather than as a script.
  */
-const STEPS = {
+export const STEPS = {
   /** Open one of the workspaces, by the name on its tab. */
   async workspace(page, name) {
     const opened = await until(() => page.evaluate(`(() => {
@@ -141,15 +141,22 @@ const STEPS = {
     await page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
     await delay(350);
   },
-  /** Click the first element of a kind whose visible text is exactly this. */
+  /*
+   * Click the thing with these words on it. An exact match wins; failing that a
+   * single one that starts with them, because a menu entry carries its shortcut
+   * in the same element and nobody reads "Go to line...Ctrl+G" as its name.
+   */
   async clickText(page, { selector, text }) {
     const found = await until(() => page.evaluate(`(() => {
-      const match = [...document.querySelectorAll(${JSON.stringify(selector)})].find((element) => element.textContent.trim() === ${JSON.stringify(text)});
+      const candidates = [...document.querySelectorAll(${JSON.stringify(selector)})];
+      const exact = candidates.filter((element) => element.textContent.trim() === ${JSON.stringify(text)});
+      const prefixed = candidates.filter((element) => element.textContent.trim().startsWith(${JSON.stringify(text)}));
+      const match = exact[0] ?? (prefixed.length === 1 ? prefixed[0] : undefined);
       if (!match) return false;
       match.click();
       return true;
     })()`), `${selector} reading ${JSON.stringify(text)} to appear`);
-    if (!found) throw new Error(`no ${selector} reads ${JSON.stringify(text)}`);
+    if (!found) throw new Error(`no single ${selector} reads ${JSON.stringify(text)}`);
     await delay(350);
   },
   /** Put a value into a field the way a person would, so React sees the change. */
@@ -160,6 +167,9 @@ const STEPS = {
       const prototype = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
         : element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
       const setter = Object.getOwnPropertyDescriptor(prototype, 'value').set;
+      /* Focused, because a person typing into a field is in it, and because the
+       * key step after this one has to land somewhere. */
+      element.focus();
       setter.call(element, ${JSON.stringify(value)});
       element.dispatchEvent(new Event('input', { bubbles: true }));
       element.dispatchEvent(new Event('change', { bubbles: true }));
@@ -167,6 +177,85 @@ const STEPS = {
     })()`);
     if (!ok) throw new Error(`could not set ${selector}`);
     await delay(400);
+  },
+  /*
+   * Type into a field, as text input rather than as a value assignment, so the
+   * editor sees the same event it would from a keyboard. `at` says where the
+   * caret goes first: the end of the text, or after the first occurrence of a
+   * piece of it.
+   */
+  async type(page, { selector, text, at = 'end' }) {
+    await until(() => page.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`), `${selector} to appear`);
+    const placed = await page.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      element.focus();
+      const position = ${JSON.stringify(at)} === 'end' ? element.value.length : element.value.indexOf(${JSON.stringify(at)});
+      if (position < 0) return false;
+      const offset = ${JSON.stringify(at)} === 'end' ? position : position + ${JSON.stringify(at)}.length;
+      element.setSelectionRange(offset, offset);
+      return true;
+    })()`);
+    if (!placed) throw new Error(`the field has no ${JSON.stringify(at)} to type after`);
+    await page.send('Input.insertText', { text });
+    await delay(700);
+  },
+  /*
+   * Select a piece of the text and type over it, which is how a person changes
+   * a line. An empty replacement deletes the selection.
+   */
+  async replace(page, { selector, find, text = '' }) {
+    await until(() => page.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`), `${selector} to appear`);
+    const selected = await page.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      const at = element.value.indexOf(${JSON.stringify(find)});
+      if (at < 0) return false;
+      element.focus();
+      element.setSelectionRange(at, at + ${JSON.stringify(find)}.length);
+      return true;
+    })()`);
+    if (!selected) throw new Error(`the text does not contain ${JSON.stringify(find)} to replace`);
+    await page.send('Input.insertText', { text });
+    await delay(700);
+  },
+  /** Give something keyboard focus, which is what makes the key step land on it. */
+  async focus(page, selector) {
+    await until(() => page.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`), `${selector} to appear`);
+    await page.evaluate(`document.querySelector(${JSON.stringify(selector)}).focus()`);
+    await delay(200);
+  },
+  /*
+   * Put the caret where a person would click, named by the text it goes after
+   * rather than by an offset, so an edit to the sample program does not quietly
+   * move it into the middle of a different word.
+   */
+  async caret(page, { selector, after, occurrence = 1 }) {
+    await until(() => page.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`), `${selector} to appear`);
+    const placed = await page.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      let at = -1;
+      for (let found = 0; found < ${occurrence}; found += 1) {
+        at = element.value.indexOf(${JSON.stringify(after)}, at + 1);
+        if (at < 0) return false;
+      }
+      const position = at + ${JSON.stringify(after)}.length;
+      element.focus();
+      element.setSelectionRange(position, position);
+      element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'ArrowRight' }));
+      return true;
+    })()`);
+    if (!placed) throw new Error(`the source has no ${occurrence === 1 ? '' : `${occurrence} occurrences of `}${JSON.stringify(after)} to put the caret after`);
+    await delay(400);
+  },
+  /** Open a disclosure by the words on it, the way a reader would. */
+  async disclose(page, summary) {
+    const opened = await until(() => page.evaluate(`(() => {
+      const heading = [...document.querySelectorAll('summary')].find((element) => element.textContent.trim().startsWith(${JSON.stringify(summary)}));
+      if (!heading) return false;
+      if (!heading.parentElement.open) heading.click();
+      return true;
+    })()`), `a disclosure reading ${JSON.stringify(summary)} to appear`);
+    if (!opened) throw new Error(`no disclosure reads ${JSON.stringify(summary)}`);
+    await delay(350);
   },
   /** Wait for something the state is not reached without. */
   async waitFor(page, selector) {
@@ -228,7 +317,7 @@ const STEPS = {
   },
 };
 
-async function runStep(page, step) {
+export async function runStep(page, step) {
   const [name, argument] = Object.entries(step)[0];
   const run = STEPS[name];
   if (!run) throw new Error(`there is no step called ${name}`);

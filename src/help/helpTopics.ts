@@ -351,10 +351,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-intelligence.png",
-      alt: "Source editor showing a three-location assembly rename preview and target-aware number conversion",
+      alt: "6502 source editor showing the six locations of cell_address across three files and the preview of renaming it to grid_address, with the replacement count for each file",
       caption:
         "Safe rename lists every declaration and reference change. The source sidebar converts the same target context into exact literals, values, byte order and address validity.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -413,10 +413,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-token-help.png",
-      alt: "6502 source editor showing ADC contextual documentation with syntax, flags, effects, examples, related token buttons, a per-addressing-form cycle table and cited datasheet",
+      alt: "6502 source editor with the caret on ADC in engine.asm, showing the three addressing forms, the processors that support it, the flags it sets, its result and its effects",
       caption:
-        "Keyboard focus and pointer hover share one structured documentation panel. Timing remains separated by addressing form and links retain their source provenance.",
-      captured: "2026.08 interface",
+        "Keyboard focus and pointer hover share one structured documentation panel, and the panel scrolls on to examples, related tokens, a per-addressing-form cycle table and the cited datasheet. Timing remains separated by addressing form and links retain their source provenance.",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -474,7 +474,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC BASIC editor showing CALL signature help with the repeated active parameter, two alternative forms and previous, next and dismiss controls",
       caption:
         "The compact live region identifies the active argument and exposes maintained call forms while the source editor keeps keyboard focus.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -593,7 +593,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Source editor saved comparison showing saved and working line columns with textual added and removed rows",
       caption:
         "The non-modal comparison preserves both line versions and provides exact working-line navigation without changing source.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -717,7 +717,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC BASIC editor showing persistent automatic numbering controls and a complete renumber preview with mappings and unresolved targets",
       caption:
         "Automatic entry preferences and whole-program renumber evidence remain visible before the source is changed.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -782,7 +782,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC BASIC editor showing physical range controls and a three-line renumber preview with references from the complete program",
       caption:
         "The range preview maps only physical rows two to four while proved callers across the complete program are evaluated before apply.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -841,10 +841,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-basic-line-diagnostics.png",
-      alt: "BBC BASIC editor showing duplicate line diagnostics, a missing target and separate source and target line-reference controls",
+      alt: "BBC BASIC editor showing three line issues: a GOSUB to a line that was never written, and a line number used twice, each with the physical row it is on",
       caption:
         "The live model exposes ambiguous and missing targets without selecting a declaration by accident.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -986,10 +986,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-safe-rename-quick-fix.png",
-      alt: "BBC BASIC editor showing a two-location PROC rename preview and a separate collision-free missing line-number quick-fix preview",
+      alt: "BBC BASIC editor showing the declaration and two calls of PROCdraw and the preview of renaming it to PROCrender, with three replacements in one file",
       caption:
         "The rename preview and line-number repair show exact affected source before either atomic edit is accepted.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1047,10 +1047,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-split-history.png",
-      alt: "Acorn source workspace with primary and secondary editor panes after Back restored main.asm line 73, the selected draw operand and vertical scroll in the secondary pane",
+      alt: "Acorn source workspace with player.asm in the primary editor pane at the move_check routine and main.asm in the secondary pane, each with its own tabs, navigation and scroll position",
       caption:
         "The secondary pane has returned from lib.asm to the exact draw call in main.asm. The primary pane remains at its independent source position.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1318,10 +1318,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-call-hierarchy.png",
-      alt: "6502 source editor showing one incoming JSR caller and one outgoing JSR callee for DRAW, with separate Open call site and Open callee controls and the exact source locations",
+      alt: "6502 source editor showing the two incoming JSR callers and two outgoing JSR callees of draw_player, with separate Open call site and Open callee controls and the exact source locations",
       caption:
         "The parsed hierarchy includes main calling draw and draw calling plot. The nearby BNE draw branch is deliberately absent, and each proven call edge provides source and destination navigation.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1429,7 +1429,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Source editor with the project symbol selector filtered to a label declared in an included assembly file",
       caption:
         "The selector identifies the parsed label, source file and physical line before exact cross-file navigation.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1475,7 +1475,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Go to line or project symbol dialog filtered to an assembly label in an included file",
       caption:
         "Ctrl+G searches trustworthy parsed destinations and shows their exact kind, signature, file, line and column before navigation.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1565,7 +1565,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Source editor showing the accessible plain-text paste fallback after browser clipboard permission denial",
       caption:
         "The fallback names the denial, accepts reviewable ordinary text and inserts only after an explicit action at the captured source selection.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1621,10 +1621,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/editor-context-completion.png",
-      alt: "Source editor showing a branch operand completion list restricted to connected project labels, target defines and compatible MOS calls",
+      alt: "6502 source editor after typing a branch operand, showing project symbols from the connected assembly files with the file and line each is declared at",
       caption:
         "A JSR operand excludes unrelated opcodes and identifies each reachable project, build-target or reference candidate.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1788,7 +1788,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC BASIC editor showing the functional FOR_LOOP completion snippet and its full one-line source insertion description",
       caption:
         "Snippet candidates are marked by kind and insert editable source selected for the active language and target.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {

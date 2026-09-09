@@ -207,7 +207,7 @@ Derive a bounded incoming and outgoing call graph from exact parsed project sour
 - After editing an include or call, close and invoke Call hierarchy again so the current language revision is used.
 - Use the live Debugger stack when a call is indirect, generated, conditional at runtime or supplied by ROM code.
 
-![6502 source editor showing one incoming JSR caller and one outgoing JSR callee for DRAW, with separate Open call site and Open callee controls and the exact source locations](../../public/help/editor-call-hierarchy.png)
+![6502 source editor showing the two incoming JSR callers and two outgoing JSR callees of draw_player, with separate Open call site and Open callee controls and the exact source locations](../../public/help/editor-call-hierarchy.png)
 
 *The parsed hierarchy includes main calling draw and draw calling plot. The nearby BNE draw branch is deliberately absent, and each proven call edge provides source and destination navigation.*
 

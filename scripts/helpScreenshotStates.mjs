@@ -23,6 +23,65 @@ export const SAMPLE_BASIC = [
   '110 RETURN',
 ].join('\n');
 
+/*
+ * Put the machine runtime away.
+ *
+ * The workbench opens with the emulator across the bottom half, which is right
+ * for somebody running code and wrong for a picture of the source editor: it
+ * leaves the text a few lines tall and pushes completion lists and previews out
+ * of the frame. Somebody editing source hides it, and so do these captures.
+ */
+export const HIDE_RUNTIME = { click: 'button[aria-label="Hide machine runtime"]' };
+
+/*
+ * Open the Acorn Harvest sample.
+ *
+ * The empty project the workbench starts with has one BASIC file and no
+ * structure, which is the right picture for first run and the wrong one for
+ * every topic about navigating, renaming or building across files. Harvest is a
+ * real eight-file 6502 project with build targets, bookmarks, test plans and
+ * generated sources, and it opens through the ordinary project parser, so
+ * nothing in these pictures is a fixture.
+ */
+export const OPEN_HARVEST = [
+  { clickText: { selector: '.workbench-menu button, .menu-bar button, button', text: 'Project' } },
+  { clickText: { selector: 'button', text: 'Start from a sample...' } },
+  { clickText: { selector: 'button', text: 'Open Acorn Harvest' } },
+  { waitForText: 'Acorn Harvest' },
+];
+
+/* Close whatever the last keystroke opened. Typing into the editor asks for
+ * completion, which is right in the product and wrong in a picture of something
+ * else. */
+export const DISMISS = { key: { key: 'Escape', code: 'Escape' } };
+
+/** A short BASIC program with a named procedure called from two places. */
+export const SAMPLE_BASIC_PROCEDURES = [
+  '10 REM Acorn workbench sample',
+  '20 MODE 1',
+  '30 PROCdraw(10, 10)',
+  '40 PROCdraw(20, 14)',
+  '50 END',
+  '100 DEF PROCdraw(x%, y%)',
+  '110 PRINT TAB(x%, y%); "*"',
+  '120 ENDPROC',
+].join('\n');
+
+/*
+ * A BASIC program with the line faults the diagnostics topic names: two lines
+ * numbered 50, and a GOSUB to a line that was never written.
+ */
+export const SAMPLE_BASIC_LINE_FAULTS = [
+  '10 REM Acorn workbench sample',
+  '20 MODE 1',
+  '30 GOSUB 500',
+  '40 PRINT "BACK"',
+  '50 PRINT "FIRST FIFTY"',
+  '50 PRINT "SECOND FIFTY"',
+  '60 GOTO 40',
+  '70 END',
+].join('\n');
+
 export const SHOTS = [
   {
     file: 'workbench-overview.png',
@@ -118,5 +177,208 @@ export const SHOTS = [
     topics: ['assets'],
     steps: [{ clickText: { selector: '.mode-tab', text: 'Sprites' } }],
     shows: ['Sprites editor', 'Animation frames', 'Palette index', 'Generated output'],
+  },
+  {
+    file: 'editor-completion-snippet.png',
+    topics: ['completion-snippets'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: `${SAMPLE_BASIC}\n120 FOR` } },
+      { focus: 'textarea.source-textarea' },
+      { key: { key: 'ArrowDown', code: 'ArrowDown' } },
+    ],
+    shows: ['FOR_LOOP', 'snippet', 'NEXT'],
+  },
+  {
+    file: 'editor-token-help.png',
+    topics: ['token-help'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { clickText: { selector: 'button.tree-item', text: 'engine.asm' } },
+      { caret: { selector: 'textarea.source-textarea', after: 'ADC' } },
+    ],
+    shows: ['ADC', 'FLAGS', 'CYCLES'],
+  },
+  {
+    file: 'editor-context-completion.png',
+    topics: ['context-completion'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { clickText: { selector: 'button.tree-item', text: 'engine.asm' } },
+      /* A branch wants a label, so this is the position where the editor has
+       * the most to say about what may legally follow. */
+      { type: { selector: 'textarea.source-textarea', text: '\n  BNE dr' } },
+    ],
+    shows: ['draw_map', 'draw_player', 'mos'],
+  },
+  {
+    file: 'editor-symbol-navigation.png',
+    topics: ['symbol-navigation'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { disclose: 'Project symbol selector' },
+      { setValue: { selector: 'input[aria-label="Find project symbol"]', value: 'draw' } },
+      { scrollTo: { selector: 'details.symbol-selector', block: 'top' } },
+    ],
+    shows: ['Find project symbol', 'draw_map', 'engine.asm'],
+  },
+  {
+    file: 'editor-call-hierarchy.png',
+    topics: ['call-hierarchy'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { clickText: { selector: 'button.tree-item', text: 'engine.asm' } },
+      /* draw_player is called from elsewhere and calls two routines of its
+       * own, so the peek has something to show in both directions. */
+      { caret: { selector: 'textarea.source-textarea', after: 'draw_player' } },
+      { disclose: 'Navigate' },
+      { clickText: { selector: 'button', text: 'Call hierarchy' } },
+    ],
+    shows: ['Incoming callers', 'Outgoing callees', 'draw_player', 'cell_address'],
+  },
+  {
+    file: 'editor-signature-help.png',
+    topics: ['signature-help'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: `${SAMPLE_BASIC}\n120 CALL &2000,` } },
+      { clickText: { selector: 'button', text: 'Signature help' } },
+    ],
+    shows: ['SIGNATURE', 'CALL'],
+  },
+  {
+    file: 'editor-source-comparison.png',
+    topics: ['source-comparison'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { clickText: { selector: 'button.tree-item', text: 'score.asm' } },
+      /* One line added and one line rewritten, near the top of the file, so the
+       * comparison opens on the changes rather than on identical text. */
+      { type: { selector: 'textarea.source-textarea', text: '\n; Two packed BCD bytes, low byte first.', at: '; Acorn Harvest - score keeping and display.' } },
+      { replace: { selector: 'textarea.source-textarea', find: '.add_score', text: '.add_to_score' } },
+      { clickText: { selector: 'button', text: 'Compare saved' } },
+    ],
+    shows: ['SAVED BASELINE', 'WORKING COPY', 'added', 'removed'],
+  },
+  {
+    file: 'editor-split-history.png',
+    topics: ['editor-splits'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { clickText: { selector: 'button', text: 'Split editor' } },
+      /* Two panes on one file prove nothing. The second pane goes to the file
+       * the first one calls into. */
+      { clickText: { selector: 'button.tree-item', text: 'player.asm' } },
+      { caret: { selector: 'textarea.source-textarea', after: '.move_check' } },
+    ],
+    shows: ['main.asm', 'player.asm', 'move_check'],
+  },
+  {
+    file: 'editor-basic-numbering.png',
+    topics: ['basic-numbering'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC } },
+      /* Off the last token, or its documentation covers the source the preview
+       * is about. */
+      { caret: { selector: 'textarea.source-textarea', after: '10 REM' } },
+      { key: { key: 'Escape', code: 'Escape' } },
+      { clickText: { selector: 'button', text: 'Preview renumber' } },
+    ],
+    shows: ['renumber', 'Auto number after Enter'],
+  },
+  {
+    file: 'go-to-source.png',
+    topics: ['go-to-source'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { clickText: { selector: 'button', text: 'Edit' } },
+      { clickText: { selector: 'button', text: 'Go to line' } },
+      { setValue: { selector: 'input[aria-label="File, symbol, line or address"]', value: 'cell' } },
+    ],
+    shows: ['Go to file, symbol, line or address', 'cell_address', 'engine.asm'],
+  },
+  {
+    file: 'editor-clipboard-fallback.png',
+    topics: ['clipboard-safety'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC } },
+      DISMISS,
+      { clickText: { selector: 'button', text: 'Paste plain text' } },
+    ],
+    shows: ['paste'],
+  },
+  {
+    file: 'editor-intelligence.png',
+    topics: ['editor'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { clickText: { selector: 'button.tree-item', text: 'engine.asm' } },
+      { caret: { selector: 'textarea.source-textarea', after: 'cell_address' } },
+      { disclose: 'Navigate' },
+      { clickText: { selector: 'button', text: 'References' } },
+      { setValue: { selector: 'input[aria-label="Replacement symbol name"]', value: 'grid_address' } },
+      { clickText: { selector: 'button', text: 'Preview rename' } },
+    ],
+    shows: ['cell_address', 'grid_address', 'Apply project rename'],
+  },
+  {
+    file: 'editor-safe-rename-quick-fix.png',
+    topics: ['safe-rename-quick-fixes'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC_PROCEDURES } },
+      DISMISS,
+      { caret: { selector: 'textarea.source-textarea', after: 'PROCdraw' } },
+      { disclose: 'Navigate' },
+      { clickText: { selector: 'button', text: 'References' } },
+      { setValue: { selector: 'input[aria-label="Replacement symbol name"]', value: 'PROCrender' } },
+      { clickText: { selector: 'button', text: 'Preview rename' } },
+    ],
+    shows: ['PROCdraw', 'PROCrender', 'Apply project rename'],
+  },
+  {
+    file: 'editor-basic-range-renumber.png',
+    topics: ['basic-range-renumber'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC } },
+      DISMISS,
+      { caret: { selector: 'textarea.source-textarea', after: '10 REM' } },
+      { setValue: { selector: 'select[aria-label="BASIC renumber scope"]', value: 'range' } },
+      /* Physical rows 7 to 9 hold 70, 100 and 110, and the GOSUB on row 6
+       * outside the range refers into it, so the preview has to show both the
+       * three renumbered lines and the reference it corrects. */
+      { setValue: { selector: 'input[aria-label="BASIC renumber first physical line"]', value: '7' } },
+      { setValue: { selector: 'input[aria-label="BASIC renumber last physical line"]', value: '9' } },
+      /* Starting at 10 would land the range on numbers the lines above it
+       * already use, and the preview refuses rather than colliding. */
+      { setValue: { selector: 'input[aria-label="BASIC numbering start"]', value: '200' } },
+      { clickText: { selector: 'button', text: 'Preview renumber' } },
+    ],
+    shows: ['3 lines', 'reference', 'SOURCE ROW'],
+  },
+  {
+    file: 'editor-basic-line-diagnostics.png',
+    topics: ['basic-line-diagnostics'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC_LINE_FAULTS } },
+      DISMISS,
+      /* Off the last statement: the caret's own documentation is not what this
+       * picture is of. */
+      { caret: { selector: 'textarea.source-textarea', after: '10 REM' } },
+      { scrollTo: { selector: '.basic-reference-diagnostics', block: 'top' } },
+    ],
+    shows: ['line issue', 'LINE REFERENCES'],
   },
 ];

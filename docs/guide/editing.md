@@ -56,7 +56,7 @@ Use the source editor for BASIC, 6502, ARM, C and text with language-aware compl
 - Use source navigation Back and Forward if a definition jump moved away from the original location.
 - Rebuild the project index after fixing an INCLUDE path or duplicate label.
 
-![Source editor showing a three-location assembly rename preview and target-aware number conversion](../../public/help/editor-intelligence.png)
+![6502 source editor showing the six locations of cell_address across three files and the preview of renaming it to grid_address, with the replacement count for each file](../../public/help/editor-intelligence.png)
 
 *Safe rename lists every declaration and reference change. The source sidebar converts the same target context into exact literals, values, byte order and address validity.*
 
@@ -169,7 +169,7 @@ Open two independently navigable source views and retain pane, file, caret, sele
 - If the responsive layout is too constrained, close the target profile or inspector panels, increase viewport width or close the split.
 - If a file was deleted, history ignores that unavailable destination instead of recreating source.
 
-![Acorn source workspace with primary and secondary editor panes after Back restored main.asm line 73, the selected draw operand and vertical scroll in the secondary pane](../../public/help/editor-split-history.png)
+![Acorn source workspace with player.asm in the primary editor pane at the move_check routine and main.asm in the secondary pane, each with its own tabs, navigation and scroll position](../../public/help/editor-split-history.png)
 
 *The secondary pane has returned from lib.asm to the exact draw call in main.asm. The primary pane remains at its independent source position.*
 
@@ -334,7 +334,7 @@ Preview an atomic project symbol rename or a narrowly proved BASIC line-number r
 - Use Preview renumber when no integer gap is available for an unnumbered BASIC row.
 - Export the portable project before a broad refactor when an independent recovery copy is required.
 
-![BBC BASIC editor showing a two-location PROC rename preview and a separate collision-free missing line-number quick-fix preview](../../public/help/editor-safe-rename-quick-fix.png)
+![BBC BASIC editor showing the declaration and two calls of PROCdraw and the preview of renaming it to PROCrender, with three replacements in one file](../../public/help/editor-safe-rename-quick-fix.png)
 
 *The rename preview and line-number repair show exact affected source before either atomic edit is accepted.*
 
@@ -507,7 +507,7 @@ Open exact BASIC line declarations and references, then distinguish missing, dup
 - Select the correct Atom machine profile when compact label syntax is expected.
 - Use project search for text that is intentionally inside strings, DATA or REM and therefore excluded from navigation.
 
-![BBC BASIC editor showing duplicate line diagnostics, a missing target and separate source and target line-reference controls](../../public/help/editor-basic-line-diagnostics.png)
+![BBC BASIC editor showing three line issues: a GOSUB to a line that was never written, and a line number used twice, each with the physical row it is on](../../public/help/editor-basic-line-diagnostics.png)
 
 *The live model exposes ambiguous and missing targets without selecting a declaration by accident.*
 
