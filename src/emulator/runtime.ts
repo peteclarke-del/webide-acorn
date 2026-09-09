@@ -18,7 +18,7 @@ import { traceInstructionMatches, traceTriggerMatches, validateTraceConfig, type
 import { validateLiveDisassemblyRequest } from './liveDisassemblyModel';
 import { createMemoryMapState, mappedAddressIdentity, physicalMemoryIndex, validateMemorySpaceRead, type MappedAddressIdentity, type MemorySpaceId } from './memoryMapModel';
 import { fitBeebSid, type SidHost } from './beebSidBus';
-import { compareHardwareGroups, field, flagFields, packKeyboardColumn, type HardwareGroupDraft, type HardwareInspection, type HardwareRegisterDraft } from './hardwareInspectorModel';
+import { compareHardwareGroups, field, flagFields, packKeyboardColumn, videoNulaGroup, type HardwareGroupDraft, type HardwareInspection, type HardwareRegisterDraft, type VideoNulaState } from './hardwareInspectorModel';
 import { rasterEvents, rasterPositionMatches, validateRasterConfig, type RasterConfig, type RasterEventKind, type RasterSample } from './rasterTimelineModel';
 import { DEFAULT_PROFILER_CONFIG, profileBuildFingerprint, profilerMemoryRegion, validateProfilerConfig, type ProfilerConfig } from './profilerModel';
 import { DEFAULT_REPLAY_CONFIG, appendReplayWriteDigest, replayVerificationMatches, validateReplayConfig, type ReplayConfig, type ReplayVerificationState } from './replayModel';
@@ -1739,6 +1739,14 @@ function captureHardwareInspection(): HardwareInspection {
     groups.push({ id: 'crtc', label: '6845 CRTC', source: 'jsbeeb Video.snapshotState().regs · selected-register latch is not read', registers: crtcNames.map((name, index) => hardwareRegister(`r${index}`, `R${index} · ${name}`, `&FE00/01 · R${index}`, crtc[index] ?? 0, 8, index < 12 ? 'write-only latch' : 'read/write', index === 3 ? [field('HSync width', crtc[index] ?? 0, 0x0f), field('VSync width', crtc[index] ?? 0, 0xf0, 4)] : index === 8 ? [field('interlace', crtc[index] ?? 0, 0x03), field('display skew', crtc[index] ?? 0, 0x30, 4), field('cursor skew', crtc[index] ?? 0, 0xc0, 6)] : [])) });
     const ula = hardwareNumber(videoState, 'ulactrl');
     groups.push({ id: 'video-ula', label: 'Video ULA', source: 'jsbeeb Video.snapshotState() · internal latch and resolved palette', registers: [hardwareRegister('control', 'Control latch', '&FE20', ula, 8, 'write-only latch', [...flagFields(ula, [[0, 'flash phase'], [1, 'teletext'], [4, '8 px/character']]), field('mode', ula, 0x0c, 2)]), ...hardwareValues(videoState, 'actualPal').slice(0, 16).map((colour, index) => hardwareRegister(`palette-${index}`, `Logical colour ${index}`, '&FE21 latch', colour, 8, 'write-only latch'))] });
+    /*
+     * The VideoNuLA sits in the video ULA's socket and the pinned core models
+     * it, so its state belongs beside the ULA it replaces. Every one of its
+     * registers is write-only on real hardware, which is why the inspector is
+     * the only place the values can be seen at all.
+     */
+    const nulaState = (videoState as Record<string, unknown>).ula as VideoNulaState | undefined;
+    if (nulaState) groups.push(videoNulaGroup(nulaState));
     if (cpu.sysvia) groups.push(viaInspectorGroup('system-via', 'System VIA 6522', 0xfe40, cpu.sysvia.snapshotState()));
     if (cpu.uservia) groups.push(viaInspectorGroup('user-via', 'User VIA 6522', 0xfe60, cpu.uservia.snapshotState()));
     const keyboardGroup = keyboardInspectorGroup(cpu.sysvia?.keys, cpu.sysvia?.keyboardEnabled, 'jsbeeb System VIA key matrix · direct side-effect-free internal array read; coordinates are not guessed key names');
