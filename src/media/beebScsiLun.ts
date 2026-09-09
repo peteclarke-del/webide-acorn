@@ -36,8 +36,8 @@ export interface LunGeometry {
 
 /** What a descriptor says the drive is. */
 export function lunGeometry(descriptor: Uint8Array): LunGeometry {
-  const cylinders = (descriptor[13] << 8) | descriptor[14];
-  const heads = descriptor[15];
+  const cylinders = ((descriptor[13] ?? 0) << 8) | (descriptor[14] ?? 0);
+  const heads = descriptor[15] ?? 0;
   const sectors = lunSectorsFromDescriptor(descriptor);
   return { cylinders, heads, sectorsPerTrack: SCSI_SECTORS_PER_TRACK, sectorBytes: SCSI_SECTOR_SIZE, sectors, bytes: sectors * SCSI_SECTOR_SIZE };
 }

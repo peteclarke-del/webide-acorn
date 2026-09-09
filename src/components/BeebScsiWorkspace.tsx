@@ -102,7 +102,7 @@ export function BeebScsiWorkspace({ fitted, connected, mounted, onCommand, onNot
     <div className="media-fields">
       <label><span>LUN</span>
         <select aria-label="LUN number" value={lun} onChange={(event) => setLun(Number(event.target.value))}>
-          {Array.from({ length: SCSI_LUN_COUNT }, (unused, index) => <option key={index} value={index}>LUN {index}{index > 3 ? ' · VFS only' : ''}</option>)}
+          {Array.from({ length: SCSI_LUN_COUNT }, (_entry, index) => <option key={index} value={index}>LUN {index}{index > 3 ? ' · VFS only' : ''}</option>)}
         </select>
       </label>
       <label><span>Image</span>

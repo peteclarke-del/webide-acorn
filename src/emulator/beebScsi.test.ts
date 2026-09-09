@@ -55,10 +55,10 @@ describe('BeebSCSI LUN descriptors', () => {
     const descriptor = lunDescriptorFor(lunImage(32).length);
     expect(descriptor).toHaveLength(SCSI_DESCRIPTOR_SIZE);
     expect(descriptor[3]).toBe(8); // extent descriptor list length
-    expect((descriptor[9] << 16) | (descriptor[10] << 8) | descriptor[11]).toBe(SCSI_SECTOR_SIZE);
+    expect((descriptor[9]! << 16) | (descriptor[10]! << 8) | descriptor[11]!).toBe(SCSI_SECTOR_SIZE);
     expect(descriptor[12]).toBe(1); // list format code
     expect(descriptor[15]).toBe(16); // heads
-    expect((descriptor[13] << 8) | descriptor[14]).toBe(2); // cylinders
+    expect((descriptor[13]! << 8) | descriptor[14]!).toBe(2); // cylinders
     expect(descriptor[17]).toBe(128);
     expect(descriptor[19]).toBe(128);
   });
@@ -66,7 +66,7 @@ describe('BeebSCSI LUN descriptors', () => {
   it('drops the head count until it divides the tracks rather than rounding the size', () => {
     const descriptor = lunDescriptorFor(lunImage(7).length);
     expect(descriptor[15]).toBe(7);
-    expect((descriptor[13] << 8) | descriptor[14]).toBe(1);
+    expect((descriptor[13]! << 8) | descriptor[14]!).toBe(1);
     expect(lunSectorsFromDescriptor(descriptor)).toBe(7 * SCSI_SECTORS_PER_TRACK);
   });
 });
@@ -183,7 +183,7 @@ describe('BeebSCSI group 0 commands', () => {
 
   it('writes a sector and reads the same bytes back', () => {
     const board = startedBoard();
-    const sector = Array.from({ length: SCSI_SECTOR_SIZE }, (unused, index) => (index * 7) & 0xff);
+    const sector = Array.from({ length: SCSI_SECTOR_SIZE }, (_entry, index) => (index * 7) & 0xff);
     expect(runCommand(board, [0x0a, 0x00, 0x00, 0x05, 0x01, 0x00], sector).status).toBe(0x00);
     const read = runCommand(board, [0x08, 0x00, 0x00, 0x05, 0x01, 0x00]);
     expect(read.data).toEqual(sector);
@@ -193,7 +193,7 @@ describe('BeebSCSI group 0 commands', () => {
 
   it('reads and writes runs of sectors, with a count of zero meaning 256', () => {
     const board = startedBoard(16);
-    const run = Array.from({ length: 4 * SCSI_SECTOR_SIZE }, (unused, index) => index & 0xff);
+    const run = Array.from({ length: 4 * SCSI_SECTOR_SIZE }, (_entry, index) => index & 0xff);
     expect(runCommand(board, [0x0a, 0x00, 0x00, 0x10, 0x04, 0x00], run).status).toBe(0x00);
     expect(runCommand(board, [0x08, 0x00, 0x00, 0x10, 0x04, 0x00]).data).toEqual(run);
     expect(runCommand(board, [0x08, 0x00, 0x00, 0x00, 0x00, 0x00]).data).toHaveLength(256 * SCSI_SECTOR_SIZE);
@@ -215,7 +215,7 @@ describe('BeebSCSI group 0 commands', () => {
     expect(past.status).toBe(0x02);
     const sense = runCommand(board, [0x03, 0x00, 0x00, 0x00, 0x04, 0x00]);
     expect(sense.data[0]).toBe(0xa1); // address valid, class 2, code 0x21
-    expect((sense.data[1] << 16) | (sense.data[2] << 8) | sense.data[3]).toBe(0xfe);
+    expect((sense.data[1]! << 16) | (sense.data[2]! << 8) | sense.data[3]!).toBe(0xfe);
   });
 
   it('hands back the descriptor on mode sense and takes a new one on mode select', () => {
@@ -260,9 +260,9 @@ describe('BeebSCSI group 0 commands', () => {
     const translated = runCommand(board, [0x0f, 0x00, 0x00, lba, 0x00, 0x00]);
     expect(translated.status).toBe(0x00);
     expect(translated.data).toHaveLength(8);
-    expect((translated.data[0] << 16) | (translated.data[1] << 8) | translated.data[2]).toBe(0);
+    expect((translated.data[0]! << 16) | (translated.data[1]! << 8) | translated.data[2]!).toBe(0);
     expect(translated.data[3]).toBe(2);
-    const bytesFromIndex = (translated.data[4] << 24) | (translated.data[5] << 16) | (translated.data[6] << 8) | translated.data[7];
+    const bytesFromIndex = (translated.data[4]! << 24) | (translated.data[5]! << 16) | (translated.data[6]! << 8) | translated.data[7]!;
     expect(bytesFromIndex).toBe(5 * SCSI_SECTOR_SIZE);
   });
 

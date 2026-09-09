@@ -37,6 +37,8 @@ declare module 'jsbeeb/src/models.js' {
   export function findModel(name: string): JsBeebModel | null;
   /** Every model the pinned engine publishes, with its selectable synonyms. */
   export const allModels: ReadonlyArray<JsBeebModel & { name: string; synonyms: string[] }>;
+  /** The parasite a host takes: a 65C102 for a Master, a 6502 for everything else. */
+  export function tubeModelFor(model: JsBeebModel): JsBeebModel;
 }
 
 declare module 'jsbeeb/src/video.js' {

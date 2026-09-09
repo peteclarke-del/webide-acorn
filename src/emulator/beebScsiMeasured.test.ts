@@ -87,7 +87,7 @@ describe('what ADFS was measured saying about this board', () => {
 
   it('still takes the block ADFS wrote and gives it back', () => {
     const { board, card } = patternedBoard();
-    const payload = Array.from({ length: SCSI_SECTOR_SIZE }, (unused, index) => 255 - index);
+    const payload = Array.from({ length: SCSI_SECTOR_SIZE }, (_entry, index) => 255 - index);
     expect(runCommand(board, [0x0a, 0x00, 0x00, 0x09, 0x01, 0x00], payload).status).toBe(0x00);
     const read = runCommand(board, [0x08, 0x00, 0x00, 0x09, 0x01, 0x00]);
     const printed = [read.data[0]!, read.data[1]!, read.data[255]!].map((byte) => byte.toString(16).toUpperCase()).join(' ');

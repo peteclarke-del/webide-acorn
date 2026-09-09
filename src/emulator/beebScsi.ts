@@ -108,8 +108,8 @@ export function lunDescriptorFor(byteLength: number): Uint8Array {
 
 /** The size a descriptor claims, in sectors: heads by cylinders by 33. */
 export function lunSectorsFromDescriptor(descriptor: Uint8Array): number {
-  const cylinders = (descriptor[13] << 8) | descriptor[14];
-  const heads = descriptor[15];
+  const cylinders = ((descriptor[13] ?? 0) << 8) | (descriptor[14] ?? 0);
+  const heads = descriptor[15] ?? 0;
   return cylinders * heads * SCSI_SECTORS_PER_TRACK;
 }
 
@@ -208,6 +208,16 @@ export class BeebScsi {
   private messageByte = 0;
 
   private readonly sense: SenseRecord[] = Array.from({ length: SCSI_LUN_COUNT }, emptySense);
+
+  /** One byte of the command block, which is zero where the block is shorter. */
+  private cdb(index: number): number {
+    return this.command[index] ?? 0;
+  }
+
+  /** The sense record for a LUN, which every LUN in range has. */
+  private senseFor(lun: number): SenseRecord {
+    return (this.sense[lun] ??= emptySense());
+  }
   private readonly started: boolean[] = new Array(SCSI_LUN_COUNT).fill(false);
 
   private configuration = 0;
@@ -343,7 +353,7 @@ export class BeebScsi {
       this.enterStatus();
       return 0;
     }
-    const value = payload[this.transferIndex++];
+    const value = payload[this.transferIndex++] ?? 0;
     if (this.transferIndex >= payload.length) {
       this.transfer = null;
       this.transferIndex = 0;
@@ -394,7 +404,7 @@ export class BeebScsi {
    * ------------------------------------------------------------------ */
 
   private get targetLun(): number {
-    return (this.command[1] & 0xe0) >> 5;
+    return (this.cdb(1) & 0xe0) >> 5;
   }
 
   private good(): void {
@@ -432,8 +442,8 @@ export class BeebScsi {
   }
 
   private dispatch(): void {
-    const group = (this.command[0] & 0xe0) >> 5;
-    const opcode = this.command[0] & 0x1f;
+    const group = (this.cdb(0) & 0xe0) >> 5;
+    const opcode = this.cdb(0) & 0x1f;
     if (group === 0) {
       switch (opcode) {
         case 0x00: return this.testUnitReady();
@@ -478,8 +488,8 @@ export class BeebScsi {
      * why the last command failed. The ACB-4000 manual floors the count at
      * four and there is no case that produces more. */
     const lun = this.targetLun;
-    const record = this.sense[lun];
-    const payload = new Uint8Array(Math.max(4, this.command[4]));
+    const record = this.senseFor(lun);
+    const payload = new Uint8Array(Math.max(4, this.cdb(4)));
     if (record.errorFlag) {
       payload[0] = (record.validAddress ? 0x80 : 0x00) | ((record.errorClass & 0x07) << 4) | (record.errorCode & 0x0f);
       payload[1] = (record.logicalBlockAddress >> 16) & 0x1f;
@@ -508,13 +518,13 @@ export class BeebScsi {
      * on the board: no bytes are written when the image is created. */
     this.statusByte = 0x00;
     this.messageByte = 0x00;
-    const formatOptions = this.command[1] & 0x1f;
+    const formatOptions = this.cdb(1) & 0x1f;
     if (formatOptions === 28 || formatOptions === 30) {
       /* The host follows with a defect list. It is read and discarded: a LUN
        * image has no defects to map out. The header is four bytes and says how
        * many bytes of eight byte records follow. */
       return this.receiveFromHost(4, (header) => {
-        const length = (header[2] << 8) | header[3];
+        const length = ((header[2] ?? 0) << 8) | (header[3] ?? 0);
         if (length > 0) this.receiveFromHost(length, () => undefined);
       });
     }
@@ -529,8 +539,8 @@ export class BeebScsi {
     const image = this.card.image(lun);
     if (!image) return this.fail(0x02, 0x1c);
 
-    const lba = ((this.command[1] & 0x1f) << 16) | (this.command[2] << 8) | this.command[3];
-    const blocks = this.command[4] === 0 ? 256 : this.command[4];
+    const lba = ((this.cdb(1) & 0x1f) << 16) | (this.cdb(2) << 8) | this.cdb(3);
+    const blocks = this.cdb(4) === 0 ? 256 : this.cdb(4);
     if (lba + blocks > lunSectorsFromDescriptor(image.descriptor)) {
       return this.fail(0x02, 0x21, lba, true); // illegal block address
     }
@@ -552,8 +562,8 @@ export class BeebScsi {
     const image = this.card.image(lun);
     if (!image) return this.fail(0x02, 0x1c);
 
-    const lba = ((this.command[1] & 0x1f) << 16) | (this.command[2] << 8) | this.command[3];
-    const blocks = this.command[4] === 0 ? 256 : this.command[4];
+    const lba = ((this.cdb(1) & 0x1f) << 16) | (this.cdb(2) << 8) | this.cdb(3);
+    const blocks = this.cdb(4) === 0 ? 256 : this.cdb(4);
     if (lba + blocks > lunSectorsFromDescriptor(image.descriptor)) {
       return this.fail(0x02, 0x21, lba, true);
     }
@@ -578,7 +588,7 @@ export class BeebScsi {
     const image = this.card.image(lun);
     if (!image) return this.fail(0x00, 0x04);
 
-    const lba = ((this.command[1] & 0x1f) << 16) | (this.command[2] << 8) | this.command[3];
+    const lba = ((this.cdb(1) & 0x1f) << 16) | (this.cdb(2) << 8) | this.cdb(3);
     const heads = image.descriptor[15] || 1;
     /* The drive has no physical geometry, so the translation is the one an
      * ACB-4000 formatted drive would have given, which is what Acorn's
@@ -605,7 +615,7 @@ export class BeebScsi {
 
   private modeSelect(): void {
     const lun = this.targetLun;
-    const length = this.command[4];
+    const length = this.cdb(4);
     /* Only soft-sectored drives are emulated, and their parameter list is
      * twenty-two bytes. Anything else is a bad argument. */
     if (length !== SCSI_DESCRIPTOR_SIZE) return this.fail(0x02, 0x24);
@@ -623,7 +633,7 @@ export class BeebScsi {
   private modeSense(): void {
     /* Answered without checking whether the LUN is started, because at this
      * point the card may hold only a descriptor. */
-    if (this.command[4] !== SCSI_DESCRIPTOR_SIZE) return this.fail(0x02, 0x24);
+    if (this.cdb(4) !== SCSI_DESCRIPTOR_SIZE) return this.fail(0x02, 0x24);
     const image = this.card.image(this.targetLun);
     if (!image) return this.fail(0x02, 0x24);
     this.statusByte = 0x00;
@@ -633,7 +643,7 @@ export class BeebScsi {
 
   private startStop(): void {
     const lun = this.targetLun;
-    if (this.command[4] === 0) {
+    if (this.cdb(4) === 0) {
       this.started[lun] = false;
       return this.good();
     }
@@ -653,8 +663,8 @@ export class BeebScsi {
 
     /* A group 1 command carries four bytes of block address and two of count,
      * and a count of zero means the full 65,536. */
-    const lba = (this.command[2] << 24) | (this.command[3] << 16) | (this.command[4] << 8) | this.command[5];
-    const blocks = ((this.command[7] << 8) | this.command[8]) || 65_536;
+    const lba = (this.cdb(2) << 24) | (this.cdb(3) << 16) | (this.cdb(4) << 8) | this.cdb(5);
+    const blocks = ((this.cdb(7) << 8) | this.cdb(8)) || 65_536;
     if (lba + blocks > lunSectorsFromDescriptor(image.descriptor)) return this.fail(0x02, 0x21, lba, true);
     /* There is no error correction code to check, so a block address inside
      * the LUN is the whole of what this can verify. */
@@ -684,7 +694,7 @@ export class BeebScsi {
         this.messageByte = 0x00;
         return;
       }
-      this.card.directory = Math.min(payload[0], SCSI_MAX_LUN_DIRECTORY);
+      this.card.directory = Math.min(payload[0] ?? 0, SCSI_MAX_LUN_DIRECTORY);
       this.statusByte = 0x00;
       this.messageByte = 0x00;
     });
