@@ -159,9 +159,15 @@ await stage('tests', async () => {
   /* Bounded concurrency rather than the default one-worker-per-core. A gate has
    * to be deterministic on a loaded machine, and starving the reporter's own
    * worker channel produced a run where every one of the tests passed and the
-   * process still exited non-zero. */
+   * process still exited non-zero.
+   *
+   * The ceiling is what that argument needs. There was a `--minWorkers=1` floor
+   * beside it, which asked for the default it already had, and vitest 5 removed
+   * the option from both its command line and its configuration, so a run under
+   * that version stopped at `Unknown option --minWorkers` before it reached a
+   * test. */
   const workers = Math.max(2, Math.min(4, cpus().length - 2));
-  const result = await run('npx', ['vitest', 'run', '--coverage', '--reporter=dot', `--maxWorkers=${workers}`, `--minWorkers=1`]);
+  const result = await run('npx', ['vitest', 'run', '--coverage', '--reporter=dot', `--maxWorkers=${workers}`]);
   expectSuccess(result, 'Unit and contract tests');
   /* A skipped test is not a passing test. The suite is the evidence the product
    * is correct, so a run that quietly checked less than all of it fails. */
