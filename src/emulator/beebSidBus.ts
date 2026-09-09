@@ -3,13 +3,17 @@
  *
  * `beebSid.ts` is the chip; this is the wire. jsbeeb reaches every 1 MHz bus
  * device through `readDevice` and `writeDevice`, and its own handler for
- * &FC20 to &FC3F is a bare `break`, so a subclass that answers those addresses
- * and defers everything else is the whole of what is needed. Nothing in the
- * engine is patched and nothing else changes behaviour.
+ * &FC20 to &FC3F is a bare `break`, so answering those addresses and deferring
+ * everything else is the whole of what is needed. Nothing in the engine is
+ * patched on disk and no other address changes behaviour.
  *
- * It is a mixin rather than a class because the B+ is already a subclass of
- * jsbeeb's processor. A machine can be a B+, or have a SID, or both, and a
- * second fixed subclass could not express the third case.
+ * It fits an already-built processor rather than subclassing one. jsbeeb's own
+ * factory chooses between its processor classes and this build adds a third for
+ * the B+, so a machine can be a Model B, a B+ or a Master and a subclass per
+ * combination would multiply for no gain. Wrapping the two methods on the
+ * instance is what the audio path here already does to the sound chip's `poke`
+ * and the speaker's `pushBit`, so it is the shape this codebase already uses
+ * for exactly this problem.
  */
 import { BeebSid, SID_ADDRESS_MASK, SID_BASE_ADDRESS, type SidModel } from './beebSid';
 
@@ -22,54 +26,45 @@ export function sidHandles(address: number): boolean {
 }
 
 /** What a processor has to offer for a SID to be fitted to it. */
-interface DeviceBus {
+export interface SidHost {
   readDevice(address: number): number;
   writeDevice(address: number, value: number): void;
   reset(hard: boolean): void;
+  beebSid?: BeebSid;
 }
 
-/* TypeScript requires a mixin's base to be constructible with a rest
- * parameter, which is why this is `any[]` and not the engine's own argument
- * list. The cast is at the factory call, where the arguments are known. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor<T> = new (...args: any[]) => T;
-
 /**
- * Fit a BeebSID to a processor class.
+ * Fit a BeebSID to a machine, and hand back the chip.
  *
- * The returned class carries a `beebSid` the audio path can pull samples from.
- * A machine without one keeps jsbeeb's own behaviour exactly, because the base
- * class is what answers every address this one does not claim.
+ * Fitting twice returns the chip already fitted rather than stacking a second
+ * one, because a machine has one 1 MHz bus and a second wrap would answer the
+ * same addresses twice.
  */
-export function withBeebSid<T extends Constructor<DeviceBus>>(Base: T, model: SidModel = '6581', sampleRate = 44_100) {
-  return class extends Base {
-    readonly beebSid = new BeebSid(model, sampleRate);
+export function fitBeebSid(host: SidHost, model: SidModel = '6581', sampleRate = 44_100): BeebSid {
+  if (host.beebSid) return host.beebSid;
+  const sid = new BeebSid(model, sampleRate);
+  const read = host.readDevice.bind(host);
+  const write = host.writeDevice.bind(host);
+  const reset = host.reset.bind(host);
 
-    override readDevice(address: number): number {
-      /*
-       * Only four of the chip's registers can be read, and the two paddle
-       * registers have nothing wired to them on a BeebSID. The chip answers
-       * for its whole range rather than letting the base class return whatever
-       * an undecoded 1 MHz bus read returns, because a fitted chip does drive
-       * the bus.
-       */
-      if (sidHandles(address)) return this.beebSid.read(address);
-      return super.readDevice(address);
-    }
-
-    override writeDevice(address: number, value: number): void {
-      if (sidHandles(address)) { this.beebSid.write(address, value); return; }
-      super.writeDevice(address, value);
-    }
-
-    override reset(hard: boolean): void {
-      super.reset(hard);
-      /*
-       * A hard reset silences the chip. A soft one does not: BREAK on a real
-       * machine does not reach the 1 MHz bus, and a tune playing through a
-       * BeebSID survives it.
-       */
-      if (hard) this.beebSid.reset();
-    }
+  /*
+   * Only four of the chip's registers can be read, and the two paddle
+   * registers have nothing wired to them on a BeebSID. The chip answers for its
+   * whole range rather than letting the machine return whatever an undecoded
+   * 1 MHz bus read returns, because a fitted chip does drive the bus.
+   */
+  host.readDevice = (address: number) => (sidHandles(address) ? sid.read(address) : read(address));
+  host.writeDevice = (address: number, value: number) => {
+    if (sidHandles(address)) { sid.write(address, value); return; }
+    write(address, value);
   };
+  /*
+   * A hard reset silences the chip. A soft one does not: BREAK on a real
+   * machine does not reach the 1 MHz bus, and a tune playing through a BeebSID
+   * survives it.
+   */
+  host.reset = (hard: boolean) => { reset(hard); if (hard) sid.reset(); };
+
+  host.beebSid = sid;
+  return sid;
 }

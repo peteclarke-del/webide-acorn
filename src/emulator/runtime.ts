@@ -17,6 +17,7 @@ import { decodeInstructionState, type DecodedInstructionState } from './instruct
 import { traceInstructionMatches, traceTriggerMatches, validateTraceConfig, type TraceConfig, type TraceEventKind } from './traceModel';
 import { validateLiveDisassemblyRequest } from './liveDisassemblyModel';
 import { createMemoryMapState, mappedAddressIdentity, physicalMemoryIndex, validateMemorySpaceRead, type MappedAddressIdentity, type MemorySpaceId } from './memoryMapModel';
+import { fitBeebSid, type SidHost } from './beebSidBus';
 import { compareHardwareGroups, field, flagFields, packKeyboardColumn, type HardwareGroupDraft, type HardwareInspection, type HardwareRegisterDraft } from './hardwareInspectorModel';
 import { rasterEvents, rasterPositionMatches, validateRasterConfig, type RasterConfig, type RasterEventKind, type RasterSample } from './rasterTimelineModel';
 import { DEFAULT_PROFILER_CONFIG, profileBuildFingerprint, profilerMemoryRegion, validateProfilerConfig, type ProfilerConfig } from './profilerModel';
@@ -331,6 +332,17 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   // sideways ROMs before initialise/loadOs reads the config.
   cpu.config.extraRoms = [...extraRoms];
   await Promise.all([cpu.initialise(), browserAudio.ready]);
+  /*
+   * BeebSID, when the profile says one is fitted. It is a 1 MHz bus board
+   * rather than part of any machine, so it is fitted to whatever processor was
+   * just built and mixed into the same buffer the sound chip fills. The chip is
+   * built for the rate this audio context actually runs at, because its own
+   * clock is 1 MHz and the ratio between the two is what sets the pitch.
+   */
+  browserAudio.attachMixSource(null);
+  if (!model.isAtom && runtimeSessionManifest?.machine.enabledCapabilities.includes('beebsid')) {
+    browserAudio.attachMixSource(fitBeebSid(cpu as unknown as SidHost, '6581', browserAudio.sampleRate));
+  }
   installTubeEventCapture();
   keyboard = new Keyboard({ processor: cpu, inputEnabledFunction: () => false, dbgr: { enabled: () => false, keyPress: () => false } });
   keyboard.setKeyLayout(isJsBeebKeyboardLayout(requestedKeyboardLayout) ? requestedKeyboardLayout : 'physical');

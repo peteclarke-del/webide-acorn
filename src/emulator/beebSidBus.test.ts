@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SID_ADDRESS_FIRST, SID_ADDRESS_LAST, sidHandles, withBeebSid } from './beebSidBus';
+import { SID_ADDRESS_FIRST, SID_ADDRESS_LAST, fitBeebSid, sidHandles } from './beebSidBus';
 
 /** A stand-in for jsbeeb's processor, recording what reached the base class. */
 class FakeBus {
@@ -11,7 +11,6 @@ class FakeBus {
   reset(hard: boolean): void { this.resets.push(hard); }
 }
 
-const FittedBus = withBeebSid(FakeBus);
 
 describe('BeebSID on the 1 MHz bus', () => {
   it('claims exactly the range jsbeeb decodes and answers with a bare break', () => {
@@ -24,15 +23,17 @@ describe('BeebSID on the 1 MHz bus', () => {
   });
 
   it('takes the writes meant for the chip and passes every other address to the machine', () => {
-    const cpu = new FittedBus();
+    const cpu = new FakeBus();
+    const sid = fitBeebSid(cpu);
     cpu.writeDevice(0xfc20 + 0x18, 0x0f);
     cpu.writeDevice(0xfe21, 0x07);
-    expect(cpu.beebSid.snapshotState().registers[0x18]).toBe(0x0f);
+    expect(sid.snapshotState().registers[0x18]).toBe(0x0f);
     expect(cpu.deviceWrites).toEqual([[0xfe21, 0x07]]);
   });
 
   it('answers reads in its range from the chip rather than the undecoded bus', () => {
-    const cpu = new FittedBus();
+    const cpu = new FakeBus();
+    fitBeebSid(cpu);
     expect(cpu.readDevice(0xfc20 + 0x19)).toBe(0);
     expect(cpu.deviceReads).toEqual([]);
     expect(cpu.readDevice(0xfe40)).toBe(0xaa);
@@ -40,13 +41,25 @@ describe('BeebSID on the 1 MHz bus', () => {
   });
 
   it('silences the chip on a hard reset and leaves it alone on BREAK', () => {
-    const cpu = new FittedBus();
+    const cpu = new FakeBus();
+    const sid = fitBeebSid(cpu);
     cpu.writeDevice(0xfc20 + 0x18, 0x0f);
     cpu.reset(false);
-    expect(cpu.beebSid.snapshotState().registers[0x18]).toBe(0x0f);
+    expect(sid.snapshotState().registers[0x18]).toBe(0x0f);
     cpu.reset(true);
-    expect(cpu.beebSid.snapshotState().registers[0x18]).toBe(0);
+    expect(sid.snapshotState().registers[0x18]).toBe(0);
     /* The machine's own reset still happens either way. */
     expect(cpu.resets).toEqual([false, true]);
+  });
+
+  it('fits one chip to a machine however many times it is asked', () => {
+    const cpu = new FakeBus();
+    const first = fitBeebSid(cpu);
+    const second = fitBeebSid(cpu);
+    expect(second).toBe(first);
+    /* A second wrap would answer the same addresses twice and pass the write
+     * on to the machine as well. */
+    cpu.writeDevice(0xfc20 + 0x18, 0x0f);
+    expect(cpu.deviceWrites).toEqual([]);
   });
 });

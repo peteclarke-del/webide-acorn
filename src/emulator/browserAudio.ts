@@ -15,6 +15,22 @@ export interface BrowserAudioStatus {
   volume: number;
 }
 
+/**
+ * Mix a second chip into a buffer the sound chip has already filled.
+ *
+ * One sample is taken per output sample, so a source with its own clock stays
+ * in step with the machine rather than drifting against it, and the sum is
+ * clipped rather than allowed to wrap: two chips at full output is louder than
+ * the format holds, and wrapping would turn that into a rasp that neither chip
+ * is making.
+ */
+export function mixSampleSource(buffer: Float32Array, source: { sample(): number }): Float32Array {
+  for (let index = 0; index < buffer.length; index += 1) {
+    buffer[index] = Math.max(-1, Math.min(1, buffer[index]! + source.sample()));
+  }
+  return buffer;
+}
+
 export class BrowserAudio {
   readonly soundChip: SoundChip;
   readonly context: AudioContext | null;
@@ -41,6 +57,16 @@ export class BrowserAudio {
    * nothing about what was heard. */
   private readonly hasSpeaker: boolean;
   private testSpeakerTransitions = 0;
+  /*
+   * A second chip mixed into the same buffer.
+   *
+   * BeebSID is not part of jsbeeb's sound chip and has its own clock, so it
+   * cannot be poked into the existing generator. Mixing it into the buffer the
+   * generator has just filled means one path to the worklet, and the peak
+   * meter, the underrun detection and the WAV capture all keep measuring what
+   * is actually heard rather than half of it.
+   */
+  private mixSource: { sample(): number } | null = null;
   private captureBuffers: Float32Array[] | null = null;
   private captureSamples = 0;
   private captureLimit = 0;
@@ -102,12 +128,29 @@ export class BrowserAudio {
     }
     this.lastBufferAt = now;
     this.buffers += 1;
+    if (this.mixSource) mixSampleSource(buffer, this.mixSource);
     for (let index = 0; index < buffer.length; index += 1) this.peak = Math.max(this.peak, Math.abs(buffer[index]!));
     this.node?.port.postMessage({ time: Date.now(), buffer });
     if (this.captureBuffers && this.captureSamples < this.captureLimit) {
       const retained = buffer.slice(0, Math.min(buffer.length, this.captureLimit - this.captureSamples));
       this.captureBuffers.push(retained); this.captureSamples += retained.length;
     }
+  }
+
+  /**
+   * Mix another chip into the machine's output, or stop.
+   *
+   * The source is asked for one sample per output sample, so it has to be
+   * built for the rate this context actually runs at rather than an assumed
+   * one; `sampleRate` says what that is.
+   */
+  attachMixSource(source: { sample(): number } | null): void {
+    this.mixSource = source;
+  }
+
+  /** The rate the output buffer is filled at, for a chip that has its own clock. */
+  get sampleRate(): number {
+    return this.context?.sampleRate || 44_100;
   }
 
   async setEnabled(enabled: boolean) {
