@@ -42,7 +42,10 @@ describe('ROM profile registry', () => {
   it('mounts only enabled requirements explicitly declared as sideways ROMs', () => {
     const bbc = romSetFor('bbc-b', 'os12-basic2-dfs')!;
     expect(runtimeSidewaysRomPaths(bbc)).toEqual([]);
-    expect(runtimeSidewaysRomPaths(bbc, ['tube'])).toEqual([]);
+    /* The parasite's own ROM goes in the parasite, not a bank. The Tube host
+     * code does go in a bank, and on a Model B it has to: OS 1.20 finds the
+     * Tube and stops, and Acorn shipped the rest in DNFS. */
+    expect(runtimeSidewaysRomPaths(bbc, ['tube'])).toEqual(['b/dnfs120.rom']);
     expect(runtimeSidewaysRomPaths(bbc, ['1mhzpi'])).toEqual(['development/BBCWiFi-development.rom']);
     expect(requiredRomRequirements(bbc, ['1mhzpi']).map((item) => item.id)).toContain('1mhzpi-wifi');
   });

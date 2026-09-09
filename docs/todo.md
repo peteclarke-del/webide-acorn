@@ -6017,7 +6017,7 @@ Current implemented increment:
     planned: that was what ran the Tube case against a BBC B and reported a
     failure about the machine as though it were about the product.
   processor; prove scheduling, state, media, input, and dual debugger hooks.
-- [ ] EMU-424B Make the Tube hand the language over on a BBC Model B. It works
+- [x] EMU-424B Make the Tube hand the language over on a BBC Model B. It works
   on the Master and is wanted on the Model B too.
   - [x] **Measured on 9 September 2026, and the fault is further in than the
     capability note used to say.** The IDE's wiring is right: enabling the
@@ -6038,10 +6038,29 @@ Current implemented increment:
     `local-roms/mame/bbc_acorn8271.zip` holds `dnfs120.rom`. Fitting it to a
     sideways bank changes nothing, and jsbeeb does load `config.extraRoms` into
     banks, so it was genuinely present.
-  - [ ] What is left is to trace jsbeeb's host and parasite handshake past that
-    point against real Model B behaviour, and fix it upstream or as a pinned
-    patch. This is emulator-core work rather than IDE wiring, and it should not
-    be started without a known-good trace to bisect against.
+  - [x] **It was never the core, and it now boots.** The trace that was asked
+    for was taken, and the answer is in the first two lines of it. A Model B
+    with a Tube fitted writes the ULA control register once, reads it back and
+    stops, both accesses from OS 1.20 at &DB3D and &DB40. That is the whole of
+    the Tube code in that operating system: it finds the ULA and goes no
+    further, because the language transfer is not in OS 1.20. On real hardware
+    it is in a sideways ROM, and Acorn shipped that code in DNFS.
+  - [x] With DNFS 1.20 in a bank the same machine carries on from &815D,
+    enabling the parasite interrupts and reading the parasite banner out of
+    register 1, and introduces itself as `Acorn TUBE 6502 64K`. The earlier
+    attempt reported that DNFS changed nothing; it had not reached a bank.
+  - [x] The B+ needs nothing extra, because MOS 2.00 carries the host code at
+    &AEFB. This build was withholding a Tube from the B+ on the strength of the
+    note that has now been disproved, so a B+ is given one.
+  - [x] The Model B ROM sets ask for the host ROM the moment the Tube is
+    switched on, the way a Plus 1 asks for its support ROM: an expansion whose
+    ROM is absent is an expansion that is not fitted, and without this one the
+    machine boots to its own banner with the parasite sitting in its ROM, which
+    looks like a broken Tube rather than a missing ROM.
+  - [x] Evidence: `scripts/measureBbcTube.mjs` boots all four combinations and
+    logs every access to &FEE0 to &FEE7. The banners and the traces are
+    recorded in `src/emulator/bbcTubeMeasurements.ts`, and nine tests hold both
+    the traces and the catalogues to them.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
 - [ ] EMU-426 Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,
   video/audio/input/storage/state/debug hooks and RISC OS application launch.

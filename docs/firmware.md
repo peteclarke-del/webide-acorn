@@ -42,6 +42,7 @@ the release gate whenever it stops matching the code.
 | BBC BASIC II | language | required | 16 KiB | `os12-basic2-dfs/BASIC.ROM` | - |
 | DFS filing system | filing system | required | 8 KiB or 16 KiB | `os12-basic2-dfs/b/DFS-0.9.rom` | - |
 | 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `os12-basic2-dfs/tube/6502Tube.rom` | - |
+| 6502 Tube host, in DNFS 1.20 | extension | optional · needed for tube | 16 KiB | `os12-basic2-dfs/b/dnfs120.rom` | A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM. |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `os12-basic2-dfs/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
 ### BBC MOS 1.20 + BASIC I + DFS
@@ -56,6 +57,7 @@ the release gate whenever it stops matching the code.
 | BBC BASIC I | language | required | 16 KiB | `os12-basic1/BASIC.ROM` | The first BBC BASIC, loaded through the path the engine names for the language socket. |
 | DFS filing system | filing system | required | 8 KiB or 16 KiB | `os12-basic1/b/DFS-0.9.rom` | - |
 | 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `os12-basic1/tube/6502Tube.rom` | - |
+| 6502 Tube host, in DNFS 1.20 | extension | optional · needed for tube | 16 KiB | `os12-basic1/b/dnfs120.rom` | A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM. |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `os12-basic1/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
 ### BBC MOS 1.20 + BASIC II + ADFS
@@ -71,6 +73,7 @@ the release gate whenever it stops matching the code.
 | 1770 DFS | filing system | required | 8 KiB or 16 KiB | `os12-basic2-adfs/b1770/dfs1770.rom` | - |
 | ADFS | filing system | required | 16 KiB | `os12-basic2-adfs/b1770/zADFS.ROM` | - |
 | 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `os12-basic2-adfs/tube/6502Tube.rom` | - |
+| 6502 Tube host, in DNFS 1.20 | extension | optional · needed for tube | 16 KiB | `os12-basic2-adfs/b/dnfs120.rom` | A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM. |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `os12-basic2-adfs/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
 ### B+ MOS 2.00 + BASIC II + 1770 DFS
@@ -84,6 +87,7 @@ the release gate whenever it stops matching the code.
 | B+ MOS 2.00 | operating system | required | 16 KiB | `bplus-os/bplus/os2.rom` | The upper half of the 32 KiB part at IC71 on a B+ 64K, or a 16 KiB OS 2.00 dump on its own. The machine introduces itself as Acorn OS 64K when this is right. |
 | BBC BASIC II | language | required | 16 KiB | `bplus-os/bplus/BASIC2.ROM` | The lower half of that same 32 KiB part, or BASIC II on its own; they are the same image. |
 | 1770 DFS | filing system | required | 16 KiB | `bplus-os/bplus/dfs223.rom` | - |
+| 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `bplus-os/tube/6502Tube.rom` | The parasite's own ROM. A B+ needs nothing else for a Tube: MOS 2.00 carries the host code that a Model B has to be given in a bank. |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `bplus-os/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
 ### B+ MOS 2.00 + BASIC II + ADFS
@@ -98,6 +102,7 @@ the release gate whenever it stops matching the code.
 | BBC BASIC II | language | required | 16 KiB | `bplus-adfs/bplus/BASIC2.ROM` | - |
 | ADFS 1.30 | filing system | required | 16 KiB | `bplus-adfs/bplus/adfs130.rom` | - |
 | 1770 DFS | filing system | required | 16 KiB | `bplus-adfs/bplus/dfs223.rom` | - |
+| 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `bplus-adfs/tube/6502Tube.rom` | The parasite's own ROM. A B+ needs nothing else for a Tube: MOS 2.00 carries the host code that a Model B has to be given in a bank. |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `bplus-adfs/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
 ### Master MOS 3.20

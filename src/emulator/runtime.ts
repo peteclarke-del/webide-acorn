@@ -1,5 +1,5 @@
 import { fake6502 } from 'jsbeeb/src/fake6502.js';
-import { findModel } from 'jsbeeb/src/models.js';
+import { findModel, tubeModelFor } from 'jsbeeb/src/models.js';
 import { createBPlusCpu, resolveMachineModel } from './bbcBPlus';
 import { Video } from 'jsbeeb/src/video.js';
 import { Keyboard } from 'jsbeeb/src/keyboard.js';
@@ -331,7 +331,7 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   audioEnabled = false;
   runtimeSpeed = 1;
   cpu = bplus
-    ? createBPlusCpu<typeof model, JsBeebCpu>(model, { video, soundChip: browserAudio.soundChip })
+    ? createBPlusCpu<typeof model, JsBeebCpu>(model, { video, soundChip: browserAudio.soundChip, tube: tube ? tubeModelFor(model) : null })
     : fake6502(model, { video, tube, soundChip: browserAudio.soundChip });
   analogueJoystickChannels = [0x8000, 0x8000, 0x8000, 0x8000];
   atomMmcGamepadButtons = Array<boolean>(16).fill(false);

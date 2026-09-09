@@ -241,7 +241,7 @@ export function resolveMachineModel<T extends object>(
  * and nothing else changed. It lives here rather than in the runtime so that
  * everything the B+ needs is in the file that explains what a B+ is.
  */
-export function createBPlusCpu<M extends object, C>(model: M, parts: { video: unknown; soundChip: unknown }): C {
+export function createBPlusCpu<M extends object, C>(model: M, parts: { video: unknown; soundChip: unknown; tube?: unknown }): C {
   return new BPlusCpu6502(model as never, {
     dbgr: { setCpu: () => {} },
     video: parts.video,
@@ -250,9 +250,9 @@ export function createBPlusCpu<M extends object, C>(model: M, parts: { video: un
     relayNoise: new FakeRelayNoise(),
     music5000: new FakeMusic5000(),
     cmos: new Cmos(),
-    /* No Tube: a B+ has the interface, and this build has never completed a
-     * Tube boot on a BBC-family host, so claiming one here would be a second
-     * unproven thing riding on a new machine. */
-    config: { tube: null },
+    /* A Tube when the profile fits one. This said no Tube for as long as no
+     * Tube boot had been completed on a BBC-family host; one has, so the only
+     * thing left in the way was this. */
+    config: { tube: parts.tube ?? null },
   }) as unknown as C;
 }
