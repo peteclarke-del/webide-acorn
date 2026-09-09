@@ -111,7 +111,7 @@ export const ACORN_CATCHER: SampleProject = {
       { id: 'catcher-loop', fileId: 'main.bas', line: 9, column: 1, name: 'Main loop', description: 'Input, drop, redraw and pace the frame.', scope: 'project', enabled: true, anchor: 'REPEAT' },
     ],
     buildTargets: [
-      { schemaVersion: 5, id: 'catcher-game', name: 'Acorn Catcher', entryFileId: 'main.bas', sourceFileIds: ['main.bas'], toolchainId: '8bit-net.basic.bbc2', outputName: 'acorn-catcher.bbc' },
+      { schemaVersion: 6, id: 'catcher-game', name: 'Acorn Catcher', entryFileId: 'main.bas', sourceFileIds: ['main.bas'], toolchainId: '8bit-net.basic.bbc2', outputName: 'acorn-catcher.bbc' },
     ],
     activeBuildTargetId: 'catcher-game',
     testPlans: [],

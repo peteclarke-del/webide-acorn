@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest';
+import { BUILD_TARGET_SCHEMA } from '../build/buildTarget';
 import { emptyAnalysisAnnotations } from '../analysis/analysisAnnotations';
 import { PROJECT_FORMAT, PROJECT_FORMAT_VERSION, createProjectFile, languageForFilename, newProject, parseProject, projectFormatVersion,
   reorderProjectFiles, portableProject, projectFileIsModified, revertedProjectFile, savedProjectFile, serializableProject, uniqueFilename } from './project';
@@ -125,12 +126,15 @@ describe('local project model', () => {
       format: '8bit-net-dev-project-3', name: 'Legacy build', files: [{ id: 'a', name: 'a.asm', content: '.start\n RTS' }],
       buildTargets: [{ schemaVersion: 1, id: 'legacy', name: 'Legacy', entryFileId: 'a', toolchainId: '8bit-net.asm.6502', outputName: 'a.bin' }], activeBuildTargetId: 'legacy',
     }));
-    expect(legacy.buildTargets[0]).toMatchObject({ schemaVersion: 5, buildPolicy: 'manual', entryPoint: { mode: 'source', value: '' }, machineProfile: 'project', roots: ['.'], profile: 'debug', profileOptions: { customGoal: 'balanced', debugMetadata: 'full' } });
+    expect(legacy.buildTargets[0]).toMatchObject({ schemaVersion: BUILD_TARGET_SCHEMA, buildPolicy: 'manual', entryPoint: { mode: 'source', value: '' }, machineProfile: 'project', roots: ['.'], profile: 'debug', profileOptions: { customGoal: 'balanced', debugMetadata: 'full' } });
+    /* A target stored before this build knew about the Tube runs on the host,
+     * because that was the only place a program could go. */
+    expect(legacy.buildTargets[0]!.processor).toBe('host');
     const configured = parseProject(JSON.stringify({
       ...legacy,
       buildTargets: [{ ...legacy.buildTargets[0], buildPolicy: 'live', entryPoint: { mode: 'symbol', value: 'start' } }],
     }));
-    expect(configured.buildTargets[0]).toMatchObject({ schemaVersion: 5, buildPolicy: 'live', entryPoint: { mode: 'symbol', value: 'start' } });
+    expect(configured.buildTargets[0]).toMatchObject({ schemaVersion: BUILD_TARGET_SCHEMA, buildPolicy: 'live', entryPoint: { mode: 'symbol', value: 'start' } });
   });
 
   it('persists bounded test plans only for existing build targets', () => {

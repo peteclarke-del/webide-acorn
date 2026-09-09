@@ -264,7 +264,7 @@ type CommandPayload =
   | { type: 'trace-clear' }
   | { type: 'run-test'; name: string; processor?: TestProcessor; requestId?: string; planId?: string; suite?: string; buildFingerprint?: string; bytes: number[]; origin: number; entryPoint: number; stopAddress: number; cycleBudget: number; assertions: MachineAssertion[]; setup?: { reset?: 'hard' | 'soft' | 'none'; media?: 'retain' | 'eject' }; inputs?: HardwareTestInput[]; captures?: HardwareTestCapture[]; teardown?: 'pause' | 'reset'; programManifest: ProgramLoadManifest }
   | { type: 'load-basic'; format?: 'bbc-basic-program' | 'atom-basic-text'; bytes: number[]; autorun?: boolean; programManifest: ProgramLoadManifest }
-  | { type: 'load-machine-code'; bytes: number[]; origin: number; entryPoint: number; autorun?: boolean; breakpoints?: number[]; sourceLocations?: Record<string, TraceSourceLocation>; symbols?: Record<string, number>; programManifest: ProgramLoadManifest }
+  | { type: 'load-machine-code'; bytes: number[]; origin: number; entryPoint: number; autorun?: boolean; processor?: TestProcessor; breakpoints?: number[]; sourceLocations?: Record<string, TraceSourceLocation>; symbols?: Record<string, number>; programManifest: ProgramLoadManifest }
   | { type: 'load-disc'; name: string; bytes: number[]; drive?: number }
   | { type: 'load-tape'; name: string; bytes: number[] }
   | { type: 'eject-disc'; drive: number }
@@ -1099,7 +1099,7 @@ const PARASITE_PROGRAM_FLOOR = 0x0200;
 function requireParasite(): NonNullable<NonNullable<typeof cpu>['tube']> {
   const parasite = cpu?.hasTube ? cpu.tube : undefined;
   if (!parasite) {
-    throw new Error('This test names PROCESSOR = PARASITE and the attached machine has no second processor fitted');
+    throw new Error('This program is built for the second processor and the attached machine has no Tube fitted');
   }
   return parasite;
 }
@@ -1149,6 +1149,45 @@ function loadParasiteCode(bytes: number[], origin: number, entryPoint: number, p
    * the parasite call an address from outside it, and a client-OS entry that
    * would do it is not something this build has an authoritative source for. */
   parasite.pc = entryPoint & 0xffff;
+}
+
+/**
+ * Load a program into the second processor and let it go.
+ *
+ * `loadParasiteCode` puts the bytes there and points the parasite at them,
+ * which is all a test needs because the test harness then drives the machine
+ * itself. Running one from the workbench needs the rest: the host's own program
+ * state cleared, so nothing claims a load that is no longer there, and the
+ * machine started.
+ *
+ * What it does not do is install breakpoints. This build's breakpoints hook the
+ * host processor, and a source line in a parasite program is not an address on
+ * the host, so a breakpoint honoured against the wrong processor would stop
+ * somewhere unrelated and say nothing about why. They are refused by name
+ * rather than silently ignored.
+ */
+function loadProgramIntoParasite(bytes: number[], origin: number, entryPoint: number, autorun: boolean, programManifest: ProgramLoadManifest) {
+  if (!cpu) return;
+  running = false;
+  clearWatchpoints(); watchpointEvents = []; watchpointSequence = 0;
+  stopInterruptMonitor(); clearInterruptHistory(); stopRasterMonitor(); clearRasterTimeline(); stopProfiler(); clearProfiler();
+  registerEdits = []; registerEditSequence = 0; lastStep = null; stopTrace(); clearTrace();
+  breakpointHooks.forEach((entry) => entry.hook.remove());
+  breakpointHooks.clear();
+  runToHook?.remove(); runToHook = null;
+  breakpointLogs = []; breakpointLogSequence = 0;
+  discardHardwareTest();
+  /* Source locations and symbols are the host's map. Keeping them would make
+   * the disassembly and the call view label parasite addresses with host
+   * names. */
+  loadedSourceLocations = {}; loadedSymbols = {};
+  loadParasiteCode(bytes, origin, entryPoint, programManifest);
+  trace = [];
+  if (replayEnabled) resetReplaySegment('A parasite program load is an irreversible history boundary');
+  running = autorun;
+  setStatus(`${cpu.model.name} second processor ${autorun ? 'running' : 'loaded'}`, 'ready');
+  send({ type: 'program-loaded', format: '6502 machine code', processor: 'parasite', address: origin, size: bytes.length, entryPoint, autorun, programManifest: loadedProgramManifest });
+  sendSnapshot(autorun ? 'parasite program running' : 'parasite program loaded');
 }
 
 function testRegisters(): RegisterSnapshot {
@@ -2029,7 +2068,12 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
     catch (error) { send({ type: 'error', message: error instanceof Error ? error.message : String(error) }); }
   } else if (command.type === 'trace-clear' && cpu) { clearTrace(); sendSnapshot('trace cleared'); }
   else if (command.type === 'load-basic') loadBasic(command.bytes, command.autorun, command.format, command.programManifest);
-  else if (command.type === 'load-machine-code') loadMachineCode(command.bytes, command.origin, command.entryPoint, command.autorun, command.breakpoints, command.sourceLocations, command.symbols, command.programManifest);
+  else if (command.type === 'load-machine-code') {
+    if (command.processor === 'parasite') {
+      try { loadProgramIntoParasite(command.bytes, command.origin, command.entryPoint, command.autorun !== false, command.programManifest); }
+      catch (error) { const message = error instanceof Error ? error.message : String(error); setStatus(message, 'error'); send({ type: 'error', message }); }
+    } else loadMachineCode(command.bytes, command.origin, command.entryPoint, command.autorun, command.breakpoints, command.sourceLocations, command.symbols, command.programManifest);
+  }
   else if (command.type === 'save-state') saveState();
   else if (command.type === 'load-state') loadState(command.json);
   else if (command.type === 'capture-screen') captureScreen();

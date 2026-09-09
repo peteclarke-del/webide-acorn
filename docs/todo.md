@@ -6061,8 +6061,8 @@ Current implemented increment:
     logs every access to &FEE0 to &FEE7. The banners and the traces are
     recorded in `src/emulator/bbcTubeMeasurements.ts`, and nine tests hold both
     the traces and the catalogues to them.
-- [x] **EMU-432 The second processor was chosen by host, and a PiTube Direct
-  does not work that way.** The engine fits the board Acorn sold for each
+- [x] EMU-432 The second processor was chosen by host, and a PiTube Direct
+  does not work that way. The engine fits the board Acorn sold for each
   machine: the Turbo for a Master, the 6502 board for the rest. That is the
   right default and the wrong rule, because a PiTube Direct puts a 65C102
   behind whatever it is plugged into, and the game this is being got ready for
@@ -6085,6 +6085,38 @@ Current implemented increment:
   - [x] Evidence: `scripts/measureTubeParasite.mjs` boots all four,
     `src/emulator/tubeParasiteMeasurements.ts` records what each said, and
     eleven tests hold the choice and the catalogues to them.
+- [x] EMU-433 A Tube was fittable and unusable. A second processor booted
+  and there was no way to put a program on the other side of it. The parasite
+  could be loaded only from inside a test plan, so the whole reason to fit one,
+  running the program somewhere that is not the host, could be asserted about
+  and not done.
+  - [x] A build target says which processor its output runs on, because that is
+    a property of the program rather than of the session that loads it: the two
+    have separate memory, and a build whose origin suits one is wrong for the
+    other. The schema is 6, and a target stored before this runs on the host,
+    which is where the only place a program could go used to be.
+  - [x] The run path honours it. Loading a parasite program clears the host's
+    own program state so nothing claims a load that is no longer there, drops
+    the source map and symbols because those are the host's addresses, and
+    starts the machine.
+  - [x] Debugging one is refused by name rather than half-offered. The
+    breakpoints in this build hook the host processor, so a source line in a
+    parasite program would stop the wrong one and say nothing about why. The
+    Tube panel still shows the parasite's registers and memory.
+  - [x] A target that could never run is refused with a reason: anything that
+    is not 6502 machine code, a machine with no Tube, and an origin outside
+    &0200 to &EFFF, which is the parasite's own zero page and stack below and
+    the boot ROM overlay above.
+  - [x] Evidence: `scripts/measureParasiteProgram.mjs` assembles a program in
+    this build, runs it behind all three host and parasite pairings, and reads
+    back &42 at &8000 that the program computed from &10 plus &32. On the host
+    &8000 is a sideways ROM slot where a write is ignored, so that byte is a
+    result only the second processor could have produced.
+    `src/emulator/parasiteProgramMeasurements.ts` records it and eleven tests
+    hold the target model to it.
+  - [ ] Source-level debugging on the parasite is open. It needs breakpoints
+    that hook the parasite's instruction stream and a source map that belongs
+    to it, and neither exists yet.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
   - [x] Which ones there are is written down rather than left to be asked. A
     Tube takes whatever is plugged into it, Acorn sold four processors for one,
@@ -6112,7 +6144,7 @@ Current implemented increment:
   capture and bounded 800 KiB ADFS floppy mounting are implemented. Core-native
   save/restore, durable media write-back and the remaining lifecycle gates keep
   this parent item open.
-- [x] **EMU-430 The 1 MHz bus answered every address with a bare `break`.** The
+- [x] EMU-430 The 1 MHz bus answered every address with a bare `break`. The
   pinned engine decodes &FC20 to &FC3F and &FC40 to &FC5F and does nothing with
   either, so a BeebSID was silent and a BeebSCSI was not there. Both are now
   fitted from the target profile, to the processor that was just built rather

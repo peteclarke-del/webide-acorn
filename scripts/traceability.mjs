@@ -41,12 +41,19 @@ export function parseBacklog(markdown) {
     /* An identifier can carry more than two segments, AST-INC-01, so the
      * pattern takes every hyphenated part rather than stopping at the first,
      * which would read that as AST-INC and then fail to match the line. */
-    const top = /^- \[([ x])\] ([A-Z][A-Z0-9]*(?:-[0-9A-Z]+)+)\s+(.*)$/.exec(line);
+    /* The identifier may be inside a bold run. Several entries open that way
+     * for emphasis, and this pattern used to skip every one of them: they were
+     * absent from the counts and from the untraced list, which is the one
+     * thing this report exists to produce. A requirement that the report
+     * cannot see is worse than one it reports as untraced. */
+    const top = /^- \[([ x])\] (?:\*\*)?([A-Z][A-Z0-9]*(?:-[0-9A-Z]+)+)\s+(.*)$/.exec(line);
     if (top) {
       current = {
         id: top[2],
         complete: top[1] === 'x',
-        title: top[3].trim(),
+        /* The bold run the identifier opened has to be closed, and the
+         * closing marker is part of the title unless it is taken out. */
+        title: top[3].trim().replace(/\*\*/g, ''),
         section,
         evidence: [],
         prose: [],

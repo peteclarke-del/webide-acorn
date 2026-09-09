@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildEntryUpdate, buildProfileDefines, buildProfileKeepsDebugMetadata, buildProfileManifest, createBuildProvenance, createBuildTarget, migrateBuildTarget, provenanceMatches, resolveAssemblyEntryPoint, shouldScheduleBackgroundBuild, validateBuildTarget } from './buildTarget';
+import { BUILD_TARGET_SCHEMA, buildEntryUpdate, buildProfileDefines, buildProfileKeepsDebugMetadata, buildProfileManifest, createBuildProvenance, createBuildTarget, migrateBuildTarget, provenanceMatches, resolveAssemblyEntryPoint, shouldScheduleBackgroundBuild, validateBuildTarget } from './buildTarget';
 import type { ProjectFile, ProjectTarget } from '../project/project';
 
 const file: ProjectFile = { id: 'main', name: 'main.asm', language: '6502', content: 'ORG &1900\nRTS', modified: false };
@@ -58,7 +58,11 @@ describe('build target manifest', () => {
   it('migrates legacy targets and schedules only eligible unpinned background builds', () => {
     const current = createBuildTarget(file);
     const migrated = migrateBuildTarget({ schemaVersion: 1 } as never, { id: 'old', name: 'Old build', entryFileId: file.id, toolchainId: '8bit-net.asm.6502', outputName: 'old.bin' });
-    expect(migrated).toMatchObject({ schemaVersion: 5, buildPolicy: 'manual', entryPoint: { mode: 'source', value: '' }, machineProfile: 'project', language: '6502', roots: ['.'], sourceFileIds: ['main'], profile: 'debug', profileOptions: { customGoal: 'balanced', debugMetadata: 'full' } });
+    expect(migrated).toMatchObject({ schemaVersion: BUILD_TARGET_SCHEMA, buildPolicy: 'manual', entryPoint: { mode: 'source', value: '' }, machineProfile: 'project', language: '6502', roots: ['.'], sourceFileIds: ['main'], profile: 'debug', profileOptions: { customGoal: 'balanced', debugMetadata: 'full' } });
+    /* A target written before this build knew about the Tube ran on the host,
+     * because that was the only place a program could go. */
+    expect(migrated.processor).toBe('host');
+    expect(migrateBuildTarget({ processor: 'parasite' } as never, { id: 'old', name: 'Old build', entryFileId: file.id, toolchainId: '8bit-net.asm.6502', outputName: 'old.bin' }).processor).toBe('parasite');
     expect(shouldScheduleBackgroundBuild({ ...current, buildPolicy: 'on-save' }, 'save', file.id)).toBe(true);
     expect(shouldScheduleBackgroundBuild({ ...current, buildPolicy: 'on-save' }, 'save', 'other')).toBe(false);
     expect(shouldScheduleBackgroundBuild({ ...current, buildPolicy: 'on-save' }, 'save', 'included', false, ['main', 'included'])).toBe(true);
