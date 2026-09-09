@@ -61,7 +61,7 @@ final class CSDKDocumentService
          * directories away.
          */
         $installed = '/usr/local/share/8bit-net/cc65-bbc/include';
-        $repository = dirname(__DIR__, 2) . '/resources/cc65-bbc/include';
+        $repository = dirname(__DIR__, 2).'/resources/cc65-bbc/include';
         $webIde = (string) (ToolLocator::configured('CC65_BBC_INCLUDE')
             ?? (is_dir($installed) ? $installed : $repository));
         return [
