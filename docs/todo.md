@@ -6017,6 +6017,31 @@ Current implemented increment:
     planned: that was what ran the Tube case against a BBC B and reported a
     failure about the machine as though it were about the product.
   processor; prove scheduling, state, media, input, and dual debugger hooks.
+- [ ] EMU-424B Make the Tube hand the language over on a BBC Model B. It works
+  on the Master and is wanted on the Model B too.
+  - [x] **Measured on 9 September 2026, and the fault is further in than the
+    capability note used to say.** The IDE's wiring is right: enabling the
+    capability sets the boot flag, jsbeeb resolves a Tube65C02 with its own
+    ROM, and the toolbar reports the machine with a Tube and four ROM digests.
+    The Tube ULA is decoded at &FEE0 for every model, not only the Master, and
+    jsbeeb's implementation of it is complete rather than a stub: R1 to R4
+    FIFOs, status flags, a latched NMI and the parasite reset line.
+  - [x] **The handshake starts.** With the Tube fitted, the debugger's Tube
+    panel shows the parasite out of reset and executing its own ROM at &F978,
+    and the ULA control register reading &01, which is enable-host-IRQ-from-R4
+    with the parasite-reset bit clear. Those are host writes: the MOS has seen
+    the Tube and released the parasite. What never happens is the language
+    transfer, so the screen keeps `BBC Computer 32K` where a working Tube reads
+    `Acorn TUBE 6502 64K`.
+  - [x] **The obvious explanation was tested and is wrong.** On real hardware
+    the Model B's Tube host code ships in DNFS rather than in OS 1.20, and
+    `local-roms/mame/bbc_acorn8271.zip` holds `dnfs120.rom`. Fitting it to a
+    sideways bank changes nothing, and jsbeeb does load `config.extraRoms` into
+    banks, so it was genuinely present.
+  - [ ] What is left is to trace jsbeeb's host and parasite handshake past that
+    point against real Model B behaviour, and fix it upstream or as a pinned
+    patch. This is emulator-core work rather than IDE wiring, and it should not
+    be started without a known-good trace to bisect against.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
 - [ ] EMU-426 Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,
   video/audio/input/storage/state/debug hooks and RISC OS application launch.

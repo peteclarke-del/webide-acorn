@@ -22,12 +22,12 @@ is the part a machine can settle.
 
 | Measure | Count |
 | --- | --- |
-| Requirements tracked | 302 |
+| Requirements tracked | 303 |
 | Complete | 215 |
 | Complete and traced | 131 |
 | Complete and described | 81 |
 | Complete and untraced | 3 |
-| Open | 87 |
+| Open | 88 |
 
 ## By area
 
@@ -37,8 +37,8 @@ is the part a machine can settle.
 | EDT | 23 | 17 | 7 | 10 | 0 |
 | AST | 21 | 21 | 14 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
+| EMU | 19 | 12 | 3 | 9 | 0 |
 | ANL | 18 | 16 | 14 | 2 | 0 |
-| EMU | 18 | 12 | 3 | 9 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 11 | 4 | 4 | 3 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
@@ -263,6 +263,7 @@ are listed rather than quietly counted.
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable... | not started |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
 | EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 54 of 61 parts done |
+| EMU-424B | Make the Tube hand the language over on a BBC Model B. It works on the Master and is... | 3 of 4 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,... | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
