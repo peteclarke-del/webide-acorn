@@ -6103,6 +6103,28 @@ Current implemented increment:
     than hanging the bus, so the utility fails cleanly instead of stopping.
     The VP415 F-Code commands are also absent, which is the Domesday internal
     bus rather than anything a BBC game needs.
+- [ ] **EMU-431 Sideways RAM is offered without saying how much, and there is
+  more of it than any real board.** The capability said only that there were
+  writable banks at &8000. How many there are is the number a game is written
+  against.
+  - [x] Each machine was asked. A routine runs with interrupts off and, for
+    every one of the sixteen banks, selects it, writes the complement of what
+    is at &8000, reads it back and puts the original back. A Model B answers
+    with banks 0 to 7, which is 128 KB. A Master answers with banks 4 to 7,
+    which is 64 KB and not the same four: its own firmware occupies the low
+    banks, so a program that assumes bank 0 is RAM works on one machine and not
+    the other. `scripts/measureSidewaysRam.mjs` reproduces it and
+    `src/emulator/sidewaysRamMeasurements.ts` records it.
+  - [x] Both capabilities now say how many banks, which ones, and how much.
+    The Model B's also says that a real board is usually 16, 32 or 64 KB, so a
+    program that spreads over more banks than the board it is for will run here
+    and not there.
+  - [ ] What is left is to make the amount fitted a choice rather than whatever
+    the engine hands out, so a game for a 32 KB board is developed on a machine
+    with 32 KB. The model can be derived with its own bank map, which is what
+    the B+ already does for its own; what it needs is somewhere to carry the
+    choice. The runtime session manifest is the honest place, and adding a
+    field to it changes its fingerprint, so this is its own piece of work.
 - [ ] EMU-427 Add later Archimedes/ARM profiles based on verified equivalence.
 - [x] EMU-428 Publish per-adapter limitations and accuracy/regression evidence.
   - [x] One adapter support matrix now answers, for every machine profile,

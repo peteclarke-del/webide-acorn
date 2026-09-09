@@ -123,7 +123,7 @@ export const machineProfiles: MachineProfile[] = [
     capabilities: [
       capability('dfs', 'DFS disk system', '8271/1770 disk image mastering', 'supported', true),
       capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported'),
-      capability('sideways', 'Sideways RAM', 'Writable ROM banks at &8000', 'supported', true),
+      capability('sideways', 'Sideways RAM', 'Eight writable banks at &8000, banks 0 to 7, which is 128 KB. A real board is usually 16, 32 or 64 KB, so a program that spreads over more banks than the board it is for will run here and not there', 'supported', true),
       capability('adfs', 'ADFS', 'Hierarchical filing system, in the ADFS ROM set', 'supported', false, undefined, 'Model B · 1770 DFS'),
       capability('beebscsi', 'BeebSCSI', 'Acorn SCSI host adapter at &FC40 with a SCSI-1 drive behind it. LUN images on a card, reached by ADFS, and the fast loads that come with them', 'preview'),
       capability('videonula', 'VideoNuLA', 'Replacement video ULA with a 4096-colour 12-bit palette, attribute modes, horizontal scroll and left blanking at &FE22 and &FE23. The pinned core implements it and it answers unless software disables it', 'supported'),
@@ -240,7 +240,7 @@ export const machineProfiles: MachineProfile[] = [
        * machine printed its own Searching/Loading and every byte arrived. */
       capability('cassette', 'Cassette interface', 'UEF tape workflow', 'supported'),
       capability('shadow', 'Shadow & Hazel RAM', 'Display and private workspace', 'supported', true),
-      capability('sideways', 'Sideways RAM', 'Four writable bank slots', 'supported', true),
+      capability('sideways', 'Sideways RAM', 'Four writable banks at &8000, banks 4 to 7, which is 64 KB. They are not the Model B\'s banks: the Master\'s own firmware occupies the low ones', 'supported', true),
       capability('videonula', 'VideoNuLA', 'Replacement video ULA with a 4096-colour 12-bit palette, attribute modes, horizontal scroll and left blanking at &FE22 and &FE23. The pinned core implements it and it answers unless software disables it', 'supported'),
       capability('beebsid', 'BeebSID', '6581 SID on the 1 MHz bus at &FC20. Three voices with the real oscillators and envelopes; the analogue filter is approximated to the published range rather than to one chip', 'preview'),
       capability('adfs', 'ADFS', 'Integrated hierarchical filing system', 'supported', true),
