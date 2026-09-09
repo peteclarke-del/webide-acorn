@@ -8627,9 +8627,11 @@ Current implemented increment:
    ARM debugger all need a booted Archimedes. The
    four byte lanes are in `local-roms/mame/aa310.zip`, but the 256-byte
    `cmos_riscos3.bin` the four-lane importer also requires is an Arculator file
-   that is not anywhere under `local-roms`, and a blank one is refused. Those
-   three entries name the files they need and are reported as not attempted
-   rather than skipped, and their images remain the honest earlier ones.
+   rather than a MAME one. A search of the whole filesystem found no
+   `cmos_riscos*` image and no Arculator installation, and the importer refuses
+   a blank one, so nothing can stand in for it here. Those three entries name
+   the files they need and are reported as not attempted rather than skipped,
+   and their images remain the honest earlier ones.
 - [x] DOC-901C Edit all in-app help into direct technical user-facing prose. Do
   not use em dashes or generic generated-assistant filler.
   - [x] **The rule now covers every document, not only the in-app help, and the

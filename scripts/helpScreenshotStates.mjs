@@ -190,9 +190,9 @@ export const SAMPLE_BASIC_LARGE = Array.from(
  *
  * The four byte lanes are in the MAME set at local-roms/mame/aa310.zip, and the
  * Archimedes vault accepts that ZIP directly. The 256-byte CMOS image it also
- * requires is an Arculator file rather than a MAME one, and no cmos_riscos3.bin
- * or cmos_riscos2.bin exists anywhere under local-roms on this machine; the
- * importer refuses a blank one, so nothing can stand in for it. The three
+ * requires is an Arculator file rather than a MAME one, and a search of the
+ * whole filesystem found no cmos_riscos image and no Arculator installation on
+ * this machine; the importer refuses a blank one, so nothing can stand in. The three
  * pictures that need a booted A310 therefore name what they need and are
  * reported as not attempted rather than quietly skipped or faked.
  */
