@@ -27,10 +27,7 @@
  *   0x0B000 - 0x10000   shadow, 20K, paged over &3000-&7FFF
  */
 import { Cpu6502 } from 'jsbeeb/src/6502.js';
-import { Cmos } from 'jsbeeb/src/cmos.js';
-import { FakeDdNoise } from 'jsbeeb/src/ddnoise.js';
-import { FakeRelayNoise } from 'jsbeeb/src/relaynoise.js';
-import { FakeMusic5000 } from 'jsbeeb/src/music5000.js';
+import { createBbcCpu, type BbcCpuParts } from './bbcCpuFactory';
 
 /** Where ANDY and the shadow screen live inside the machine's RAM array. */
 export const BPLUS_ANDY_BASE = 0x8000;
@@ -237,22 +234,13 @@ export function resolveMachineModel<T extends object>(
  * Build a B+ with the furniture the engine's own factory would have supplied.
  *
  * `fake6502` chooses between the engine's two processor classes and knows
- * nothing of a third, so this is that function's body with one class swapped
- * and nothing else changed. It lives here rather than in the runtime so that
- * everything the B+ needs is in the file that explains what a B+ is.
+ * nothing of a third, so the shared factory takes the class. It is named here
+ * rather than in the runtime so that everything the B+ needs is in the file
+ * that explains what a B+ is.
  */
-export function createBPlusCpu<M extends object, C>(model: M, parts: { video: unknown; soundChip: unknown; tube?: unknown }): C {
-  return new BPlusCpu6502(model as never, {
-    dbgr: { setCpu: () => {} },
-    video: parts.video,
-    soundChip: parts.soundChip,
-    ddNoise: new FakeDdNoise(),
-    relayNoise: new FakeRelayNoise(),
-    music5000: new FakeMusic5000(),
-    cmos: new Cmos(),
-    /* A Tube when the profile fits one. This said no Tube for as long as no
-     * Tube boot had been completed on a BBC-family host; one has, so the only
-     * thing left in the way was this. */
-    config: { tube: parts.tube ?? null },
-  }) as unknown as C;
+export function createBPlusCpu<M extends object, C>(model: M, parts: BbcCpuParts): C {
+  /* A Tube when the session fits one. This said no Tube for as long as no Tube
+   * boot had been completed on a BBC-family host; one has, so the only thing
+   * left in the way was this. */
+  return createBbcCpu<M, C>(BPlusCpu6502 as never, model, parts);
 }

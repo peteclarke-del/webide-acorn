@@ -1,6 +1,7 @@
 import { fake6502 } from 'jsbeeb/src/fake6502.js';
-import { findModel, tubeModelFor } from 'jsbeeb/src/models.js';
-import { createBPlusCpu, resolveMachineModel } from './bbcBPlus';
+import { findModel } from 'jsbeeb/src/models.js';
+import { BPlusCpu6502, resolveMachineModel } from './bbcBPlus';
+import { Cpu6502 } from 'jsbeeb/src/6502.js';
 import { Video } from 'jsbeeb/src/video.js';
 import { Keyboard } from 'jsbeeb/src/keyboard.js';
 import { discFor } from 'jsbeeb/src/fdc.js';
@@ -18,6 +19,8 @@ import { traceInstructionMatches, traceTriggerMatches, validateTraceConfig, type
 import { validateLiveDisassemblyRequest } from './liveDisassemblyModel';
 import { createMemoryMapState, mappedAddressIdentity, physicalMemoryIndex, validateMemorySpaceRead, type MappedAddressIdentity, type MemorySpaceId } from './memoryMapModel';
 import { fitBeebSid, type SidHost } from './beebSidBus';
+import { createBbcCpu } from './bbcCpuFactory';
+import { TUBE_CAPABILITY, parasiteFor } from './tubeParasite';
 import { BeebScsiCard, SCSI_LUN_COUNT, type BeebScsiState, type ScsiPhase } from './beebScsi';
 import { fitBeebScsi, type ScsiHost } from './beebScsiBus';
 import { compareHardwareGroups, field, flagFields, packKeyboardColumn, videoNulaGroup, type HardwareGroupDraft, type HardwareInspection, type HardwareRegisterDraft, type VideoNulaState } from './hardwareInspectorModel';
@@ -330,9 +333,15 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   browserAudio = new BrowserAudio(model.isAtom, model.cyclesPerSecond);
   audioEnabled = false;
   runtimeSpeed = 1;
-  cpu = bplus
-    ? createBPlusCpu<typeof model, JsBeebCpu>(model, { video, soundChip: browserAudio.soundChip, tube: tube ? tubeModelFor(model) : null })
-    : fake6502(model, { video, tube, soundChip: browserAudio.soundChip });
+  /*
+   * Which second processor, rather than whether one. The engine picks by host,
+   * and a PiTube Direct does not: it puts a 65C102 behind the Tube of whatever
+   * it is plugged into, so the session says which and this fits it.
+   */
+  const parasite = tube ? parasiteFor(model, runtimeSessionManifest?.machine.enabledCapabilities ?? [TUBE_CAPABILITY]) : null;
+  cpu = model.isAtom
+    ? fake6502(model, { video, tube: false, soundChip: browserAudio.soundChip })
+    : createBbcCpu<typeof model, JsBeebCpu>((bplus ? BPlusCpu6502 : Cpu6502) as never, model, { video, soundChip: browserAudio.soundChip, tube: parasite });
   analogueJoystickChannels = [0x8000, 0x8000, 0x8000, 0x8000];
   atomMmcGamepadButtons = Array<boolean>(16).fill(false);
   if (model.isAtom && cpu.atommc) cpu.atommc.attachGamepad({ gamepadButtons: atomMmcGamepadButtons });

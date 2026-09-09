@@ -6061,6 +6061,30 @@ Current implemented increment:
     logs every access to &FEE0 to &FEE7. The banners and the traces are
     recorded in `src/emulator/bbcTubeMeasurements.ts`, and nine tests hold both
     the traces and the catalogues to them.
+- [x] **EMU-432 The second processor was chosen by host, and a PiTube Direct
+  does not work that way.** The engine fits the board Acorn sold for each
+  machine: the Turbo for a Master, the 6502 board for the rest. That is the
+  right default and the wrong rule, because a PiTube Direct puts a 65C102
+  behind whatever it is plugged into, and the game this is being got ready for
+  is a Model B with one.
+  - [x] Neither parasite model is tied to a host, so both were booted behind
+    both machines. Each printed its own ROM's name, which is the one thing that
+    cannot be mistaken: `Acorn TUBE 6502 64K` and `Acorn TUBE 65C102
+    Co-Processor`. All four handed the language over, which is what PAGE at
+    &800 and HIMEM at &8000 on the far side say.
+  - [x] The parasite is a capability now rather than a consequence of the host.
+    A Model B and a B+ offer the 6502 board Acorn sold them and a 65C102
+    alongside; the Master's own Tube is already a Turbo, so it is offered one
+    and no more. The ROM set asks for the parasite ROM that goes with whichever
+    is switched on.
+  - [x] Getting there needed one thing the engine's factory does not offer: it
+    derives the parasite from the host and takes no argument for it. The
+    factory is now this build's own, which is the same body with the parasite
+    and the processor class passed in. The B+ already needed the second of
+    those, so the two are one function rather than two.
+  - [x] Evidence: `scripts/measureTubeParasite.mjs` boots all four,
+    `src/emulator/tubeParasiteMeasurements.ts` records what each said, and
+    eleven tests hold the choice and the catalogues to them.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
 - [ ] EMU-426 Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,
   video/audio/input/storage/state/debug hooks and RISC OS application launch.
