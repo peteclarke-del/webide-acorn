@@ -1,7 +1,8 @@
 # Native toolchain evaluation
 
-Status: Accepted; ca65/ld65 and BeebAsm local native slices implemented
-Date: 21 August 2026
+Status: Accepted; ca65/ld65 and BeebAsm local native slices implemented.
+Baron measured and deliberately not adapted yet, see below.
+Date: 21 August 2026, Baron section added 9 September 2026
 Scope: P0-013, P0-014, BLD-001-BLD-004, BLD-300-BLD-305, BLD-327,
 BLD-329, DEC-005 and DEC-010
 
@@ -178,6 +179,47 @@ RISC OS compiler or packager. The artifact schema records processor `arm2`, raw
 container format and `riscOsFiletype: null`; the IDE disables Run, Debug and
 Test until a qualified Acorn Archimedes runtime is integrated. The complete
 boundary and proof are recorded in `docs/adr/0005-arm2-build-boundary.md`.
+
+## Baron, and why it is not adapted yet
+
+Baron calls itself the successor to BeebAsm, from a different author, and it is
+a ground-up redesign rather than a fork. It was measured on 9 September 2026 at
+tag `v.0.3.0`, commit `d55cc91315b68711b5a4718e67e7430365fd8007`, which was also
+the head of `main`. What follows was observed by building and running it, not
+read off the repository page.
+
+- It builds from source with CMake, Ninja and the C17 compilers already
+  required here, and carries `richc` as a git submodule. It reports
+  `baron 0.3.0.0`, which is a version string a readiness check can pin against
+  exactly as BeebAsm pins `1.11`.
+- It is MIT licensed, so it carries none of BeebAsm's obligation to ship source
+  and licence alongside the binary.
+- Diagnostics are GCC-style and accumulate, so one run reports every error:
+  `bad.6502:4:8: error: Undefined symbol: 'nowhere'`, exit 1. That is a
+  materially easier parse than the BeebAsm output the current parser handles.
+- A successful assembly writes each named section as a raw file, and `--inf`
+  writes the `.inf` sidecar carrying load and execution addresses. `-o` builds
+  a DFS `.ssd` directly, and `--check` assembles without writing anything.
+
+Its language is not BeebAsm's. `ORG`, `SAVE`, `GUARD` and `CLEAR` are gone in
+favour of named sections carrying their own attributes, as in
+`SECTION Code, org=&1900, filename="CAMERA" ... ENDSECTION`, and it adds user
+functions, lists and ranges, macro overloading, local labels and zero-page
+allocation with liveness analysis. A `--beebasm-true` flag exists precisely
+because the two dialects disagree about what `TRUE` is. Source written for one
+does not assemble under the other, and both dialects use the `.6502` extension
+here, so a Baron adapter would have to take its dialect from the build target's
+toolchain rather than from the filename.
+
+**The decision is to wait.** Baron reached its first tag on 26 August 2026 and
+its sixth twelve days later, and the commit at `v.0.3.0` is titled "Changed
+sections design". Pinning a grammar that is still moving would mean teaching the
+editor a language that changes under it, and this product does not ship a
+support tier it cannot honour. The work is wanted, and it is small enough once
+the grammar settles: a manifest, a source policy, an output parser and a build
+service beside the four that exist, plus the installer clone and build at a
+pinned tag. Nothing found here argues against it, and nothing found here has to
+be researched again.
 
 ## Open work
 
