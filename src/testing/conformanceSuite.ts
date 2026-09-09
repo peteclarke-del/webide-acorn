@@ -570,13 +570,14 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = Object.freeze([
     rationale: 'A second processor that is merely detected is a fact about the host. This is the thing a Tube is for: a program placed in the parasite executes on the parasite, with its own registers and its own memory, and can be asked about afterwards. The case is written so that a pass could not be produced by the host. The same program on the host would leave the parasite untouched, and the assertions are all about the parasite.',
     requires: {
       /*
-       * The Master only. On a BBC B the operating system never hands the
-       * language over, established under EMU-424 by running the pinned core
-       * directly and finding the parasite's RAM entirely untouched, so the
-       * capability is `planned` there and this case is not applicable.
+       * Every BBC-family machine that boots a Tube, which is now all of them.
+       * This was the Master alone for as long as EMU-424 recorded that the
+       * language never crossed on a Model B. It does: the transfer is not in
+       * OS 1.20, it is in a sideways ROM, and the ROM set asks for it as soon
+       * as the capability is switched on. See EMU-424B.
        */
-      machines: ['master'], capabilities: ['tube'],
-      unavailableDetail: 'This case runs a program on the second processor and needs a Master with the Tube capability enabled; on a BBC B the Tube boot does not take place, so the capability is planned rather than supported there.',
+      machines: ['bbc-b', 'bbc-bplus', 'master'], capabilities: ['tube'],
+      unavailableDetail: 'This case runs a program on the second processor and needs a BBC-family machine with the Tube capability enabled and its parasite ROM supplied. A Model B also needs the Tube host ROM in a sideways bank, which the firmware vault asks for.',
     },
     /*
      * Interrupts are masked first, and that is not a detail. Without the SEI

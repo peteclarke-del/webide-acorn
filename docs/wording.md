@@ -19,10 +19,19 @@ refusal names the thing, the measurement and the consequence:
 
 **Never claim more than was measured.** This is the rule the rest of the product
 is built on and it shows in the wording: a directory check byte is "recorded and
-not verified" because the algorithm was never established, and a Tube processor
-is described as one whose "interface is fitted and answers, but this core never
-hands the language over on a BBC-family host". Both sentences are longer than
-"unsupported" and both save the reader a wasted afternoon.
+not verified" because the algorithm was never established, and a BeebSID's
+filter is "approximated to the published range rather than to one chip" because
+two real 6581s do not agree with each other either. Both sentences are longer
+than "unsupported" and both save the reader a wasted afternoon.
+
+The rule cuts the other way too, and the product has been caught by it. A Tube
+processor was described for months as one whose "interface is fitted and
+answers, but this core never hands the language over on a BBC-family host".
+That sentence was careful, specific and wrong: the operating system finds the
+Tube and stops because the language transfer is in a sideways ROM, which Acorn
+shipped in DNFS. Put the ROM in a bank and the machine boots as a Tube. A
+limitation is a claim like any other, and a claim nobody has measured recently
+is a claim nobody has measured.
 
 **Prefer the specific noun.** "The pinned Arculator build", not "the emulator".
 "MOS 1.20 + BASIC II + DFS", not "the ROM set".

@@ -197,6 +197,10 @@ Fit the BeebSCSI board to a BBC B, B+ or Master, put a LUN image on its card, an
 - If the descriptor is refused, check that it is the 22 bytes an Acorn LUN descriptor is.
 - Export a LUN image before clearing browser storage or replacing it with another one.
 
+![BBC Model B Media workspace showing the BeebSCSI card section with a blank LUN created and its cylinders, heads, sectors and capacity listed](../../public/help/emulator-beebscsi-card.png)
+
+*A LUN goes on the board's card rather than into a drive. A blank one arrives unformatted and holds no sectors until something writes to it.*
+
 In the IDE: Help → `#help/emulator-beebscsi-card`
 
 ## 5. Export a disk changed by the guest

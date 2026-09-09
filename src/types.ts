@@ -42,6 +42,15 @@ export interface MachineCapability {
    * of claiming a peripheral that is not there.
    */
   requiresVariant?: string;
+  /**
+   * A capability this one cannot be fitted without.
+   *
+   * A 65C102 second processor is not a thing on its own: it is which processor
+   * sits behind a Tube, so it needs a Tube. Saying that here lets resolution
+   * drop it rather than produce a session that asks for a parasite ROM and no
+   * Tube host ROM, which boots to the host's own banner and looks like a fault.
+   */
+  requiresCapability?: string;
 }
 
 export interface MachineProfile {

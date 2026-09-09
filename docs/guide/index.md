@@ -5,7 +5,7 @@
 These are the same procedures the IDE carries under Help, published so they can be read
 without starting it. They are generated from one source, so the two cannot disagree.
 
-80 procedures across 16 areas.
+82 procedures across 16 areas.
 
 ## [First run](first-run.md)
 
@@ -98,6 +98,8 @@ without starting it. They are generated from one source, so the two cannot disag
 - **Capture A310 stereo audio**: Capture the exact post-mix stereo PCM frames that the pinned Arculator core passes to SDL and download them as a bounded 48 kHz PCM16 WAV.
 - **Audit the immutable emulator session binding**: Prove which adapter, machine profile, capabilities, boot options and private ROM digests created the current emulator child, then distinguish exact support from a declared substitution or limitation.
 - **Audit and export the loaded program binding**: Verify that the exact assembled or imported bytes accepted by the emulator belong to the current ROM-backed machine session, then export one integrity-protected run record.
+- **Fit a second processor and choose which one**: Put a 6502 or a 65C102 behind the Tube of a BBC B, B+ or Master, supply the ROMs each needs, and confirm the language crossed by reading the banner the parasite printed.
+- **Fit a BeebSID and hear it**: Put a 6581 on the 1 MHz bus of a BBC B, B+ or Master, write to it at &FC20, and hear it mixed with the machine's own sound chip.
 
 ## [Debugging and tracing](debugging.md)
 

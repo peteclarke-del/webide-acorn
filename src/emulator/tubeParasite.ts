@@ -42,10 +42,14 @@ export const TUBE_PARASITES: Readonly<Record<'6502' | '65c102', TubeParasite>> =
  * the faster processor is the one somebody meant.
  */
 export function parasiteFor(model: JsBeebModel, enabledCapabilities: readonly string[]): JsBeebModel | null {
-  if (enabledCapabilities.includes(TURBO_CAPABILITY)) return TurboTubeModel;
+  /* No Tube, no parasite. The 65C102 capability is which processor sits behind
+   * a Tube rather than a second Tube, so on its own it fits nothing: a session
+   * that honoured it alone would ask for a parasite ROM and no Tube host ROM,
+   * and boot to the host's own banner. */
   if (!enabledCapabilities.includes(TUBE_CAPABILITY)) return null;
-  /* What the machine was sold with: the Turbo board for a Master, the 6502
-   * board for the rest. */
+  if (enabledCapabilities.includes(TURBO_CAPABILITY)) return TurboTubeModel;
+  /* Otherwise what the machine was sold with: the Turbo board for a Master,
+   * the 6502 board for the rest. */
   return model.isMaster ? TurboTubeModel : TubeModel;
 }
 

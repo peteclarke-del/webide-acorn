@@ -2265,6 +2265,92 @@ export const HELP_TOPICS: HelpTopic[] = [
     },
   },
   {
+    id: "emulator-tube-parasite",
+    category: "Run",
+    title: "Fit a second processor and choose which one",
+    summary:
+      "Put a 6502 or a 65C102 behind the Tube of a BBC B, B+ or Master, supply the ROMs each needs, and confirm the language crossed by reading the banner the parasite printed.",
+    prerequisites: [
+      "A BBC B, B+ or Master profile",
+      "The parasite boot ROM for the processor chosen",
+      "On a Model B, a sideways ROM carrying the 6502 Tube host code",
+    ],
+    steps: [
+      "Open the target bar and find the capabilities for the selected machine.",
+      "Choose Tube second processor, which fits the board Acorn sold with that machine: a 6502 for a BBC B or B+, a 65C102 for a Master.",
+      "Add 65C102 Turbo second processor alongside it to put a 65C102 behind the Tube of a BBC B or B+ instead. It is which processor rather than a second Tube, so it needs the Tube capability on as well and is disabled until it is.",
+      "Supply the parasite boot ROM the firmware vault now asks for. It is 2 KiB and differs between the two processors.",
+      "On a Model B, supply the Tube host ROM as well. The vault asks for it as soon as a Tube is switched on.",
+      "Start the machine and read the first line it prints.",
+      "Open the Debugger and use Focus host and Focus parasite to see the two register sets.",
+    ],
+    expected: [
+      "A 6502 parasite prints Acorn TUBE 6502 64K and a 65C102 prints Acorn TUBE 65C102 Co-Processor. The banner comes from the parasite's own ROM, so it says which one is running.",
+      "PAGE is &800 and HIMEM is &8000 on the far side, which is thirty kilobytes with no screen in it. That is what says the language crossed the Tube rather than that the interface answered.",
+      "A Model B without the host ROM boots to its own banner with the parasite sitting in its ROM. That is a missing ROM, not a broken Tube.",
+      "A B+ and a Master need nothing in a bank, because their own operating systems carry the host code.",
+      "Switching both processors on fits the 65C102, because a machine has one Tube.",
+    ],
+    limitations: [
+      "Only the two 6502-family parasites run. A Tube takes whatever is plugged into it, Acorn sold four processors for one and a PiTube Direct offers twenty-six emulations, so the Z80, ARM2, 32016 and 80286 are listed on the machine and marked planned. Each says what it would take; docs/tube-processors.md is the whole table with PiTube Direct's own selection numbers.",
+      "The Z80 and ARM2 parasite ROMs are identified in the firmware vault already. Having the ROM is not having the processor, and neither has a core here.",
+      "The pinned core cycle-couples the parasite to the host, so the parasite cannot be paused or stepped on its own.",
+      "The parasite boot ROM occupies &F800 to &FFFF of its 4 KiB physical store, so &F000 to &F7FF reads as zero.",
+    ],
+    recovery: [
+      "If the machine prints its own banner rather than a Tube one, check that the Tube host ROM is supplied and ready.",
+      "If the firmware vault asks for a ROM that is not the one you have, check which of the two parasite capabilities is switched on.",
+      "If no Tube panel appears in the debugger, confirm the capability and the parasite ROM are both selected and ready.",
+    ],
+    related: [
+      "target-selection",
+      "rom-import",
+      "emulator",
+      "debugger-6502",
+    ],
+  },
+  {
+    id: "emulator-beebsid",
+    category: "Run",
+    title: "Fit a BeebSID and hear it",
+    summary:
+      "Put a 6581 on the 1 MHz bus of a BBC B, B+ or Master, write to it at &FC20, and hear it mixed with the machine's own sound chip.",
+    prerequisites: [
+      "A BBC B, B+ or Master profile with BeebSID enabled",
+      "Sound enabled for the session, and a browser that has been given a gesture to start audio",
+    ],
+    steps: [
+      "Enable BeebSID in the target profile. It is a 1 MHz bus board, so it appears on every BBC-family machine that has that bus.",
+      "Start the machine and enable sound.",
+      "Write to the chip at &FC20 upwards. The register file is the 6581's own: seven registers per voice, then the filter and volume.",
+      "Open the fourth voice register to open a gate. The chip is silent until one opens, whatever else has been written.",
+      "Use the machine's own SOUND and ENVELOPE for effects at the same time. The two are mixed rather than exchanged.",
+    ],
+    expected: [
+      "The chip answers &FC20 to &FC3F, which is the range the engine decodes and previously answered with silence.",
+      "Three voices with the real oscillators, envelopes, ring modulation, hard sync and waveform combining.",
+      "The chip is clocked at 1 MHz whatever rate the browser's audio runs at, so a note is the same pitch on every machine.",
+      "A hard reset silences the chip. BREAK does not, because BREAK does not reach the 1 MHz bus.",
+      "Only four of the registers can be read, and the two paddle registers read as zero because a BeebSID has nothing wired to them.",
+    ],
+    limitations: [
+      "The analogue filter is approximated to the published range rather than to one particular chip. Two real 6581s do not agree with each other here either, but a tune written against one will not sound identical.",
+      "The 8580 variant is not offered; the chip is fitted as a 6581.",
+      "The chip is mixed into the same buffer the sound chip fills, so it cannot be recorded on its own.",
+    ],
+    recovery: [
+      "If nothing is heard, check that a gate is open in a voice control register and that the master volume is not zero.",
+      "If nothing is heard from voice three, check bit 7 of the volume register, which silences it unless the filter is taking it.",
+      "If the machine is silent altogether, check that sound is enabled for the session and that the browser has had a gesture.",
+    ],
+    related: [
+      "target-selection",
+      "emulator",
+      "emulator-wav-capture",
+      "asset-sound",
+    ],
+  },
+  {
     id: "emulator-beebscsi-card",
     category: "Run",
     title: "Put a hard disc on the BeebSCSI card",
@@ -2316,6 +2402,13 @@ export const HELP_TOPICS: HelpTopic[] = [
       "emulator",
       "target-selection",
     ],
+    screenshot: {
+      src: "/help/emulator-beebscsi-card.png",
+      alt: "BBC Model B Media workspace showing the BeebSCSI card section with a blank LUN created and its cylinders, heads, sectors and capacity listed",
+      caption:
+        "A LUN goes on the board's card rather than into a drive. A blank one arrives unformatted and holds no sectors until something writes to it.",
+      captured: "2026.09 interface",
+    },
   },
   {
     id: "emulator-guest-disk-export",

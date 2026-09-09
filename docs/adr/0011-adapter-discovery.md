@@ -44,11 +44,19 @@ the system status panel.
 
 Each machine carries a `limitation` string saying what does work and what does
 not, in prose, naming the thing rather than describing an absence. These are
-long, and deliberately so: "a second processor is fitted and answers, but this
-core never hands the language over on a BBC-family host" is the kind of sentence
-that saves somebody an afternoon, and no capability flag can generate it. They
-are written when the boundary is found by measurement, and they are the reason
-this is a table of prose rather than a matrix of booleans.
+long, and deliberately so: "sideways RAM here is eight banks, which is 128 KB
+and more than any board sold for the machine, so a program that spreads over
+more banks than the board it is written for will run here and not there" is the
+kind of sentence that saves somebody an afternoon, and no capability flag can
+generate it. They are written when the boundary is found by measurement, and
+they are the reason this is a table of prose rather than a matrix of booleans.
+
+They also have to be re-measured. This field carried a limitation about the
+Tube for months, saying the interface answered but the core never handed the
+language over on a BBC-family host. It was wrong, and it was wrong in a way
+prose is particularly good at hiding: it was specific enough to sound checked.
+A limitation whose measurement nobody can point at is a claim, not a boundary,
+which is why each one written since names the script that reproduces it.
 
 ### Two engines for one machine is modelled, not flattened
 

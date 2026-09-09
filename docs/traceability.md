@@ -9,14 +9,14 @@ with `npm run traceability`.
 It answers one question: which completed requirements say how they were
 verified, and which do not. A tick with nothing behind it looks like
 progress and is not, and the only way to see it is to count. Nothing here
-decides whether the evidence is good (only whether it was recorded, which
+decides whether the evidence is good, only whether it was recorded, which
 is the part a machine can settle.
 
 ## What the three states mean
 
-- **Traced**) the requirement records its verification under an Evidence heading, where it can be found.
-- **Described** (the requirement names contracts, tests or a browser run in its prose but not under that heading. The work was done; the record is harder to follow.
-- **Untraced**) neither. This is the finding.
+- **Traced**: the requirement records its verification under an Evidence heading, where it can be found.
+- **Described**: the requirement names contracts, tests or a browser run in its prose but not under that heading. The work was done; the record is harder to follow.
+- **Untraced**: neither. This is the finding.
 
 ## Where the work stands
 
@@ -264,7 +264,7 @@ are listed rather than quietly counted.
 | BUILD-GATE | First machine slice builds reproducibly through a sandbox, reports navigable... | not started |
 | EMU-422 | Add B+ and Master profiles with explicit memory/CPU/storage tests. | 2 of 3 parts done |
 | EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 54 of 61 parts done |
-| EMU-425 | Add other Tube CPUs only when each meets production profile gate. | not started |
+| EMU-425 | Add other Tube CPUs only when each meets production profile gate. | 2 of 3 parts done |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,... | not started |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
 | EMU-GATE | Two 8-bit slices and one scoped ARM slice can run exact resolved profiles with correct... | not started |

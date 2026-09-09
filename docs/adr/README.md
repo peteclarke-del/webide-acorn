@@ -23,6 +23,7 @@ them later is a legal question and not only an engineering one.
 | [0010](0010-project-storage-and-revisions.md) | Project storage, revisions and the single local identity | Accepted for the local storage and revision slice |
 | [0011](0011-adapter-discovery.md) | Adapter discovery as a compiled table, not a registry | Accepted; implemented |
 | [0012](0012-reference-indexing.md) | Reference indexing in the browser, over imported packs | Accepted; implemented |
+| [0013](0013-expansion-hardware-the-core-does-not-model.md) | Expansion hardware the emulator core does not model | Accepted; implemented |
 
 ## A note on numbering
 

@@ -6086,6 +6086,25 @@ Current implemented increment:
     `src/emulator/tubeParasiteMeasurements.ts` records what each said, and
     eleven tests hold the choice and the catalogues to them.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
+  - [x] Which ones there are is written down rather than left to be asked. A
+    Tube takes whatever is plugged into it, Acorn sold four processors for one,
+    and a PiTube Direct offers twenty-six emulations selected with
+    `*FX 151,230,n`. `docs/tube-processors.md` is generated from
+    `src/emulator/tubeProcessors.ts` and keeps PiTube Direct's own selection
+    numbers, so a program that switches processors on hardware can be written
+    against the same numbers here.
+  - [x] Two of them run: the 6502 and the 65C102, both measured behind both a
+    Model B and a Master. The Z80, ARM2, 32016 and 80286 are listed as planned
+    on every machine with a Tube, each saying what it would take. The pinned
+    engine publishes two parasite models and no others, and a Tube parasite is
+    a whole processor with its own memory, boot ROM and timing, so fitting one
+    of the others means bringing a core rather than configuring one.
+  - [ ] The Z80 and the ARM2 are the two worth doing first, and the reason is
+    the same for both: their parasite ROM is already identified in the firmware
+    vault, so only the processor is missing. The Z80 ROM reads
+    `Acorn TUBE Z80 64K 1.20` and the ARM one is the Brazil supervisor of
+    August 1986. Neither has a core here; the ARM2 inside the pinned Arculator
+    is a whole Archimedes rather than something that can sit behind a Tube.
 - [ ] EMU-426 Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,
   video/audio/input/storage/state/debug hooks and RISC OS application launch.
   A310/RISC OS 3.11 ROM flow, video, keyboard input, live debug, bounded HostFS

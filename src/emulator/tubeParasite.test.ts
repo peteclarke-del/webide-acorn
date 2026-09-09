@@ -23,17 +23,19 @@ describe('choosing the second processor', () => {
   });
 
   it('fits a 65C102 to a Model B when asked, which is what a PiTube Direct is', () => {
-    expect(parasiteFor(modelB, [TURBO_CAPABILITY])).toBe(TurboTubeModel);
+    expect(parasiteFor(modelB, [TUBE_CAPABILITY, TURBO_CAPABILITY])).toBe(TurboTubeModel);
   });
 
-  it('gives the Turbo to a machine that asks for both, because it has one Tube', () => {
-    expect(parasiteFor(modelB, [TUBE_CAPABILITY, TURBO_CAPABILITY])).toBe(TurboTubeModel);
+  it('fits nothing for a 65C102 without a Tube, because it is which processor and not a second Tube', () => {
+    /* Honouring it alone would build a machine that asks for a parasite ROM and
+     * no Tube host ROM, and boots to the host's own banner. */
+    expect(parasiteFor(modelB, [TURBO_CAPABILITY])).toBeNull();
   });
 
   it('names the parasite it resolved, and nothing when there is none', () => {
     expect(parasiteIdentity(null)).toBeNull();
     expect(parasiteIdentity(parasiteFor(modelB, [TUBE_CAPABILITY]))).toBe(TUBE_PARASITES['6502']);
-    expect(parasiteIdentity(parasiteFor(modelB, [TURBO_CAPABILITY]))).toBe(TUBE_PARASITES['65c102']);
+    expect(parasiteIdentity(parasiteFor(modelB, [TUBE_CAPABILITY, TURBO_CAPABILITY]))).toBe(TUBE_PARASITES['65c102']);
   });
 
   it('gives each parasite the ROM path and clock the engine gives it', () => {
@@ -70,6 +72,9 @@ describe('what the product offers', () => {
   it('offers a 65C102 on the machines it was measured on, and asks for its ROM', () => {
     for (const [machineId, romSetId] of [['bbc-b', 'os12-basic2-dfs'], ['bbc-bplus', 'bplus-os']] as const) {
       expect(capability(machineId, TURBO_CAPABILITY)?.state, machineId).toBe('supported');
+      /* It needs a Tube, so the Tube host ROM a Model B asks for is asked for
+       * whichever processor is chosen. */
+      expect(capability(machineId, TURBO_CAPABILITY)?.requiresCapability, machineId).toBe(TUBE_CAPABILITY);
       const requirement = romSetFor(machineId, romSetId)!.requirements.find((item) => item.id === 'tube65c102');
       expect(requirement?.requiredByCapability, machineId).toBe(TURBO_CAPABILITY);
       expect(requirement?.emulatorPath, machineId).toBe(TUBE_PARASITES['65c102'].romPath);
