@@ -6025,6 +6025,40 @@ Current implemented increment:
   capture and bounded 800 KiB ADFS floppy mounting are implemented. Core-native
   save/restore, durable media write-back and the remaining lifecycle gates keep
   this parent item open.
+- [x] **EMU-430 The 1 MHz bus answered every address with a bare `break`.** The
+  pinned engine decodes &FC20 to &FC3F and &FC40 to &FC5F and does nothing with
+  either, so a BeebSID was silent and a BeebSCSI was not there. Both are now
+  fitted from the target profile, to the processor that was just built rather
+  than by subclassing one, because a Model B, a B+ and a Master can each carry
+  either and a subclass per combination would multiply for no gain.
+  - [x] BeebSID is a 6581 with the real oscillators, envelopes and waveform
+    combining, mixed into the same buffer the sound chip fills, and built for
+    the rate the audio context actually runs at because its own clock is 1 MHz
+    and the ratio between the two is what sets the pitch. The analogue filter
+    is approximated to the published range rather than to one chip, and the
+    capability says so.
+  - [x] BeebSCSI is written from the project's own documentation, not ported.
+    The register map and the signal behaviour are read off the CPLD Verilog
+    BeebSCSI publishes as its host adapter, and the command set off its
+    Technical Guide. Two details in that Verilog are what make it work at all:
+    every access to &FC40 clocks ACK whichever way the byte is going, and the
+    adapter loops its own data-in latch back when the drive is not driving the
+    bus, which is how ADFS decides a board is fitted.
+  - [x] Evidence: a real Acorn ADFS ROM was booted against it and asked. With
+    no image on the card it printed `Disc error 2C at :0/000000`, which is the
+    sense byte the drive assembled and nothing else. With an unformatted LUN it
+    printed `Broken directory`, so the read of the root directory completed and
+    returned unwritten space. A block carrying a known pattern was read back
+    byte for byte through OSWORD &72, and a block written through the same call
+    and read back returned what was written. `scripts/measureBeebScsi.mjs`
+    reproduces all four against a firmware vault; the answers are recorded in
+    `src/emulator/beebScsiMeasurements.ts` and 64 tests hold the board to them.
+  - [ ] The vendor group 6 FAT commands (&12 to &14) are not implemented, so
+    the BeebSCSI transfer utility cannot copy a host file onto a LUN. An
+    opcode this drive does not implement returns an invalid command rather
+    than hanging the bus, so the utility fails cleanly instead of stopping.
+    The VP415 F-Code commands are also absent, which is the Domesday internal
+    bus rather than anything a BBC game needs.
 - [ ] EMU-427 Add later Archimedes/ARM profiles based on verified equivalence.
 - [x] EMU-428 Publish per-adapter limitations and accuracy/regression evidence.
   - [x] One adapter support matrix now answers, for every machine profile,
