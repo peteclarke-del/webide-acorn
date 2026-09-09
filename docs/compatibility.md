@@ -43,10 +43,10 @@ A planned capability is an absence. It appears here so that it can be read as on
 | --- | --- | --- | --- |
 | Acorn Atom | Cassette interface, Floating-point ROM | AtomDOS, AtoMMC storage | Colour board |
 | Acorn BBC Model A | Cassette interface | Model B interfaces | Econet, Tube interface |
-| Acorn BBC Model B | DFS disk system, Cassette interface, Sideways RAM, ADFS | BeebSCSI, BeebSID, 1MHzPi WiFi ROM | Tube second processor, Econet, Speech system |
-| Acorn BBC B+ | Shadow screen RAM, Paged RAM at &8000, Cassette interface, 1770 DFS, ADFS | BeebSID, BeebSCSI, 1MHzPi WiFi ROM | Tube second processor, Econet |
+| Acorn BBC Model B | DFS disk system, Cassette interface, Sideways RAM, ADFS, VideoNuLA | BeebSCSI, BeebSID, 1MHzPi WiFi ROM | Tube second processor, Econet, Speech system |
+| Acorn BBC B+ | Shadow screen RAM, Paged RAM at &8000, VideoNuLA, Cassette interface, 1770 DFS, ADFS | BeebSID, BeebSCSI, 1MHzPi WiFi ROM | Tube second processor, Econet |
 | Acorn Electron | Cassette interface | Plus 1 expansion, Plus 3 expansion | Sideways RAM, Joystick interface, 1MHzPi / ElkWiFi |
-| BBC Master Series | Cassette interface, Shadow & Hazel RAM, Sideways RAM, ADFS, DFS, Tube / Turbo | BeebSID, BeebSCSI, 1MHzPi WiFi ROM | Econet |
+| BBC Master Series | Cassette interface, Shadow & Hazel RAM, Sideways RAM, VideoNuLA, ADFS, DFS, Tube / Turbo | BeebSID, BeebSCSI, 1MHzPi WiFi ROM | Econet |
 | Acorn Archimedes A300 | ADFS floppy | Podule expansion, ST-506 hard disk | Econet, Floating-point accelerator |
 | Acorn Archimedes A400/1 | ADFS, Hard disk | ARM3 upgrade, Podule expansion | FPA10 |
 | BBC Acorn A3000 | ADFS floppy | Internal expansion, External hard disk | Econet |

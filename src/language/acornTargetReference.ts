@@ -8,6 +8,8 @@ const BEEBSCSI_CITATION = [{ title: 'BeebSCSI Technical Guide', url: 'https://gi
 const ARCHIMEDES_CITATION = [{ title: 'Acorn Archimedes 300 Series Service Manual', url: 'https://chrisacorns.computinghistory.org.uk/docs/Acorn/Manuals/Acorn_A300_SM.pdf', section: 'System memory map' }];
 const SWI_CITATION = [{ title: "RISC OS 3 Programmer's Reference Manual", url: 'https://www.riscos.com/support/developers/prm/swis.html', section: 'An introduction to SWIs' }, { title: 'RISC OS numeric SWI index', url: 'https://www.riscos.com/support/developers/prm_index/numswilist.html', section: 'OS SWIs' }];
 
+const NULA_CITATION = [{ title: 'VideoNuLA User Guide', url: 'https://www.retroclinic.com/acorn/videonula/videonula.htm', section: 'Technical details' }];
+
 interface HardwareRecord { token: string; address: number; detail: string; machines: string[]; citations: LanguageItem['documentation'] extends infer Documentation ? Documentation extends { citations?: infer Citations } ? Citations : never : never; }
 
 const HARDWARE: HardwareRecord[] = [
@@ -18,6 +20,12 @@ const HARDWARE: HardwareRecord[] = [
   { token: 'SERIAL_ULA', address: 0xfe10, detail: 'Serial ULA control latch for cassette and RS423 routing and clock selection.', machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], citations: BBC_CITATION },
   { token: 'VIDEO_ULA_CONTROL', address: 0xfe20, detail: 'Video ULA control latch. Writes change the display mode, clock and teletext selection.', machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], citations: BBC_CITATION },
   { token: 'VIDEO_ULA_PALETTE', address: 0xfe21, detail: 'Video ULA palette write latch. The written byte maps a logical colour to a physical colour.', machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], citations: BBC_CITATION },
+  /* The VideoNuLA sits in the video ULA's socket, so its two registers are the
+   * two the original decodes with bit 1 set. They answer on the machines the
+   * board is made for, and only while the extended features are enabled: the
+   * disable control code makes &FE22 and &FE23 read as &FE20 and &FE21 again. */
+  { token: 'VIDEO_NULA_CONTROL', address: 0xfe22, detail: 'VideoNuLA auxiliary control register. The top four bits are a control code and the bottom four its parameter: 1 sets the palette mode, 2 the horizontal scroll offset, 3 the left blanking size, 4 resets the extended features, 5 disables them, 6 and 7 the attribute modes, 8 and 9 the flash flags for logical colours 8 to 15.', machines: ['bbc-b', 'bbc-bplus', 'master'], citations: NULA_CITATION },
+  { token: 'VIDEO_NULA_PALETTE', address: 0xfe23, detail: 'VideoNuLA auxiliary palette register, written as two bytes. The first carries the colour index and the four-bit red component, the second the four-bit green and blue. The change takes effect only when the second write completes, giving a 4096-colour palette over the sixteen physical colours.', machines: ['bbc-b', 'bbc-bplus', 'master'], citations: NULA_CITATION },
   { token: 'ROMSEL', address: 0xfe30, detail: 'Paged ROM selection latch. Exact writable bits depend on the selected BBC family machine.', machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], citations: MASTER_CITATION },
   { token: 'ACCCON', address: 0xfe34, detail: 'BBC Master ACCCON latch controlling shadow, private, Hazel and display memory selection.', machines: ['master'], citations: MASTER_CITATION },
   { token: 'SYSVIA_ORB', address: 0xfe40, detail: 'System 6522 VIA output register B and input register B.', machines: ['bbc-a', 'bbc-b', 'bbc-bplus', 'master'], citations: BBC_CITATION },
