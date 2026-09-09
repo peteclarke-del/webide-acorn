@@ -1,3 +1,6 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 /*
  * The state each help screenshot is a picture of, and how to reach it.
  *
@@ -91,13 +94,19 @@ export const SAMPLE_BASIC_LINE_FAULTS = [
  * The vault is cleared before every shot, so a picture that is meant to show an
  * unsupplied machine still shows one.
  */
-const ROMS = '/home/pclarke/ownCloud/Projects/Personal Projects/8bit-net/services/bit-dev/WebIDE-Acorn/local-roms/normalized';
+const ROMS = resolve(dirname(fileURLToPath(import.meta.url)), '../local-roms/normalized');
 export const SUPPLY_BBC_ROMS = [
   { workspace: 'Settings' },
   { waitFor: '.rom-workspace' },
+  /* One at a time. The vault checks each image before it accepts the next, and
+   * disables every Choose ROM control while it does, so handing all three over
+   * at once loses two of them. */
   { files: { selector: '.rom-requirements section:nth-of-type(1) input[type="file"]', paths: [`${ROMS}/os.rom`] } },
+  { waitFor: '.rom-requirements section:nth-of-type(1).supplied' },
   { files: { selector: '.rom-requirements section:nth-of-type(2) input[type="file"]', paths: [`${ROMS}/BASIC.ROM`] } },
+  { waitFor: '.rom-requirements section:nth-of-type(2).supplied' },
   { files: { selector: '.rom-requirements section:nth-of-type(3) input[type="file"]', paths: [`${ROMS}/b/DFS-0.9.rom`] } },
+  { waitFor: '.rom-requirements section:nth-of-type(3).supplied' },
   { waitForText: 'ROM SET READY' },
 ];
 
@@ -108,6 +117,95 @@ export const RUN_BBC = [
   { workspace: 'Code' },
   { waitForText: 'RUNNING' },
   { wait: 4000 },
+];
+
+/*
+ * A two-file C project, written the way the topics describe one: a header the
+ * other file includes, a typedef, a structure and a function declaration.
+ */
+export const SAMPLE_C_HEADER = [
+  '#ifndef ACORN_API_H',
+  '#define ACORN_API_H',
+  '',
+  'typedef unsigned char byte;',
+  '',
+  'struct Sprite {',
+  '  byte x;',
+  '  byte y;',
+  '  byte frame;',
+  '};',
+  '',
+  'void draw_sprite(struct Sprite *sprite, byte colour);',
+  '',
+  '#endif',
+].join('\n');
+
+export const SAMPLE_C_SOURCE = [
+  '#include <acorn.h>',
+  '#include "api.h"',
+  '',
+  'static struct Sprite player;',
+  '',
+  'void move_player(byte step) {',
+  '  int drift = 0;',
+  '  struct Sprite *target = &player;',
+  '  target->x = target->x + step;',
+  '  draw_sprite(target, 1);',
+  '  acorn_oswrch(step);',
+  '}',
+].join('\n');
+
+/* Create the header and the source, through the ordinary New file command. */
+export const OPEN_C_PROJECT = [
+  { prompt: 'api.h' },
+  { clickText: { selector: 'button', text: 'File' } },
+  { clickText: { selector: 'button', text: 'New file' } },
+  { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_C_HEADER } },
+  { prompt: 'main.c' },
+  { clickText: { selector: 'button', text: 'File' } },
+  { clickText: { selector: 'button', text: 'New file' } },
+  { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_C_SOURCE } },
+];
+
+/* Build every target of the open project, from the control that says so. */
+export const BUILD_ALL = [
+  { workspace: 'Build targets' },
+  { clickText: { selector: 'button', text: 'Build all' } },
+  { waitForText: 'Build all finished' },
+  { wait: 1200 },
+];
+
+/*
+ * A source file over the 256 KiB the editor calls large, built from the same
+ * shapes as the short sample so it reads like a real listing rather than
+ * padding. Around 6,500 lines gets there.
+ */
+export const SAMPLE_BASIC_LARGE = Array.from(
+  { length: 6500 },
+  (_, index) => `${(index + 1) * 10} PRINT "ACORN WORKBENCH LINE ";${index + 1};" OF A LARGE LISTING"`,
+).join('\n');
+
+/*
+ * The Archimedes firmware, which this machine holds only half of.
+ *
+ * The four byte lanes are in the MAME set at local-roms/mame/aa310.zip, and the
+ * Archimedes vault accepts that ZIP directly. The 256-byte CMOS image it also
+ * requires is an Arculator file rather than a MAME one, and no cmos_riscos3.bin
+ * or cmos_riscos2.bin exists anywhere under local-roms on this machine; the
+ * importer refuses a blank one, so nothing can stand in for it. The three
+ * pictures that need a booted A310 therefore name what they need and are
+ * reported as not attempted rather than quietly skipped or faked.
+ */
+const ARCHIMEDES_LANES = resolve(dirname(fileURLToPath(import.meta.url)), '../local-roms/mame/aa310.zip');
+const ARCHIMEDES_CMOS = resolve(dirname(fileURLToPath(import.meta.url)), '../local-roms/arculator/cmos_riscos3.bin');
+
+export const SUPPLY_A310_FIRMWARE = [
+  { setValue: { selector: 'select[aria-label="Platform class"]', value: '32-bit' } },
+  { wait: 900 },
+  { workspace: 'Settings' },
+  { waitFor: '.archimedes-rom-lanes' },
+  { files: { selector: 'input[aria-label^="Import"]', paths: [ARCHIMEDES_LANES, ARCHIMEDES_CMOS] } },
+  { waitForText: 'FIRMWARE READY' },
 ];
 
 export const SHOTS = [
@@ -544,5 +642,337 @@ export const SHOTS = [
       { wait: 800 },
     ],
     shows: ['PROGRAM', 'acorn-harvest'],
+  },
+  {
+    file: 'editor-c-member-completion.png',
+    topics: ['c-scope-completion'],
+    steps: [
+      HIDE_RUNTIME,
+      ...OPEN_C_PROJECT,
+      /* Inside the function, where the pointer is in scope. An arrow leaves no
+       * prefix behind it, so completion is asked for rather than automatic. */
+      { type: { selector: 'textarea.source-textarea', text: '\n  target->', at: 'struct Sprite *target = &player;' } },
+      { clickText: { selector: 'button', text: 'Suggest completions' } },
+    ],
+    shows: ['frame', 'Sprite'],
+  },
+  {
+    file: 'editor-c-type-hints.png',
+    topics: ['source-type-hints'],
+    steps: [
+      HIDE_RUNTIME,
+      ...OPEN_C_PROJECT,
+      DISMISS,
+      /* Authoritative C type sizes come from the active toolchain, so the
+       * project needs a cc65 target with main.c as its entry before the hints
+       * can say anything an author should rely on. */
+      { workspace: 'Build targets' },
+      { clickText: { selector: 'button', text: 'New target' } },
+      { wait: 700 },
+      { workspace: 'Code' },
+      { disclose: 'Preferences' },
+      { click: 'input[aria-label="Decorate type hints beside the source"]' },
+      { conceal: 'Preferences' },
+      { caret: { selector: 'textarea.source-textarea', after: 'int drift' } },
+      { click: '.type-hints-toggle input' },
+      { wait: 600 },
+      { scrollTo: { selector: '.source-type-hints', block: 'top' } },
+    ],
+    shows: ['TYPE HINTS', 'drift', '2 bytes'],
+  },
+  {
+    file: 'editor-c-relationships.png',
+    topics: ['c-source-relationships'],
+    steps: [
+      HIDE_RUNTIME,
+      ...OPEN_C_PROJECT,
+      DISMISS,
+      { caret: { selector: 'textarea.source-textarea', after: 'void move_player(byte' } },
+      { disclose: 'Navigate' },
+      { clickText: { selector: 'button', text: 'Type definition' } },
+      { wait: 700 },
+    ],
+    shows: ['api.h', 'byte'],
+  },
+  {
+    file: 'editor-completion-validity.png',
+    topics: ['language-request-safety'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: `${SAMPLE_BASIC}\n120 PR` } },
+    ],
+    shows: ['PRINT', 'command'],
+  },
+  {
+    file: 'editor-completion-unavailable.png',
+    topics: ['completion-interaction'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'select[aria-label="Acorn system"]', value: 'atom' } },
+      { wait: 900 },
+      { setValue: { selector: 'textarea.source-textarea', value: '10 REM Acorn workbench sample\n20 SOU' } },
+      { clickText: { selector: 'button', text: 'Suggest completions' } },
+      { wait: 900 },
+    ],
+    shows: ['SOUND', 'UNAVAILABLE'],
+  },
+  {
+    file: 'editor-source-navigation.png',
+    topics: ['source-navigation-workflow'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC } },
+      DISMISS,
+      { caret: { selector: 'textarea.source-textarea', after: '40   PRINT' } },
+    ],
+    shows: ['SCOPE', 'FOR'],
+  },
+  {
+    file: 'editor-target-navigation.png',
+    topics: ['target-navigation'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC } },
+      DISMISS,
+      { caret: { selector: 'textarea.source-textarea', after: '60 GOSUB 10', click: true } },
+      { wait: 700 },
+    ],
+    shows: ['Numbered line declared at main.bas:8', 'GOSUB 100'],
+  },
+  {
+    file: 'editor-bookmark-privacy.png',
+    topics: ['bookmarks'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      { clickText: { selector: 'button', text: 'Project' } },
+      { clickText: { selector: 'button', text: 'Export...' } },
+      { wait: 900 },
+    ],
+    shows: ['bookmark'],
+  },
+  {
+    file: 'editor-generated-read-only.png',
+    topics: ['source-provenance'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      ...BUILD_ALL,
+      { clickText: { selector: 'button.tree-item', text: 'acorn-harvest.bin.listing.txt' } },
+      { wait: 800 },
+    ],
+    shows: ['GENERATED', 'READ ONLY'],
+  },
+  {
+    file: 'editor-generated-symbol-navigation.png',
+    topics: ['generated-symbol-navigation'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      ...BUILD_ALL,
+      { clickText: { selector: 'button.tree-item', text: 'acorn-harvest.bin.source-map.txt' } },
+      { wait: 800 },
+    ],
+    shows: ['READ ONLY', 'source-map'],
+  },
+  {
+    file: 'analysis-disassembly.png',
+    topics: ['analysis'],
+    steps: [
+      ...OPEN_HARVEST,
+      HIDE_RUNTIME,
+      ...BUILD_ALL,
+      { clickText: { selector: 'button', text: 'Analyse artifact' } },
+      { wait: 1500 },
+      { clickText: { selector: 'button', text: 'Re-analyse' } },
+      { wait: 4000 },
+    ],
+    shows: ['acorn-harvest.bin', 'JSR'],
+  },
+  {
+    file: 'debugger-6502.png',
+    topics: ['debugger-6502'],
+    steps: [
+      ...OPEN_HARVEST,
+      ...SUPPLY_BBC_ROMS,
+      { workspace: 'Code' },
+      { waitForText: 'RUNNING' },
+      { clickText: { selector: 'button', text: 'Debug' } },
+      { clickText: { selector: 'button', text: 'Build and debug' } },
+      { wait: 4000 },
+      { workspace: 'Debugger' },
+      { wait: 1500 },
+    ],
+    shows: ['session', 'ROM'],
+  },
+  {
+    file: 'emulator-media-eject.png',
+    topics: ['emulator-media-eject'],
+    steps: [
+      ...RUN_BBC,
+      { workspace: 'Media' },
+      { waitFor: 'section[aria-label="Edit DFS SSD image"]' },
+      { clickText: { selector: 'button', text: 'New blank image' } },
+      { wait: 1200 },
+      { clickText: { selector: 'button', text: 'Rebuild / validate' } },
+      { wait: 1500 },
+      { clickText: { selector: 'button', text: 'Mount disk' } },
+      { waitForText: 'Accepted' },
+      { wait: 1200 },
+      { scrollTo: { selector: '.mounted-media-list', block: 'top' } },
+    ],
+    shows: ['Eject', 'Accepted'],
+  },
+  {
+    file: 'editor-source-format-large.png',
+    topics: ['source-text-format'],
+    steps: [
+      HIDE_RUNTIME,
+      { setValue: { selector: 'textarea.source-textarea', value: SAMPLE_BASIC_LARGE } },
+      DISMISS,
+      { setValue: { selector: 'select[aria-label="Source encoding for main.bas"]', value: 'windows-1252' } },
+      { setValue: { selector: 'select[aria-label="Line endings for main.bas"]', value: 'crlf' } },
+      { wait: 1200 },
+    ],
+    shows: ['Windows-1252', 'CRLF'],
+  },
+  {
+    file: 'editor-sdk-navigation.png',
+    topics: ['sdk-document-navigation'],
+    steps: [
+      HIDE_RUNTIME,
+      ...OPEN_C_PROJECT,
+      DISMISS,
+      /* The cc65 target is what makes the SDK the one this build would compile
+       * against rather than a guess. */
+      { workspace: 'Build targets' },
+      { clickText: { selector: 'button', text: 'New target' } },
+      { wait: 700 },
+      { workspace: 'Code' },
+      { caret: { selector: 'textarea.source-textarea', after: '  acorn_oswrch' } },
+      { disclose: 'Navigate' },
+      { clickText: { selector: 'button', text: 'Definition / Research' } },
+      { wait: 2500 },
+    ],
+    shows: ['acorn.h', 'READ ONLY'],
+  },
+  {
+    file: 'editor-target-reference-completion.png',
+    topics: ['target-reference-completion'],
+    steps: [
+      HIDE_RUNTIME,
+      /* RISC OS SWIs belong to a 32-bit Acorn, and the completion is filtered by
+       * the selected machine, so the target profile comes first. */
+      { setValue: { selector: 'select[aria-label="Platform class"]', value: '32-bit' } },
+      { wait: 900 },
+      { prompt: 'main.arm' },
+      { clickText: { selector: 'button', text: 'File' } },
+      { clickText: { selector: 'button', text: 'New file' } },
+      { setValue: { selector: 'textarea.source-textarea', value: '  .text\n  .global _start\n_start:\n  SWI OS_Wri' } },
+      { clickText: { selector: 'button', text: 'Suggest completions' } },
+      { wait: 1200 },
+    ],
+    shows: ['SWI', 'OS_Write'],
+  },
+  {
+    file: 'emulator-guest-disk-export.png',
+    topics: ['emulator-guest-disk-export'],
+    steps: [
+      ...RUN_BBC,
+      { workspace: 'Media' },
+      { waitFor: 'section[aria-label="Edit DFS SSD image"]' },
+      { clickText: { selector: 'button', text: 'New blank image' } },
+      { wait: 1200 },
+      { clickText: { selector: 'button', text: 'Rebuild / validate' } },
+      { wait: 1500 },
+      { clickText: { selector: 'button', text: 'Mount disk' } },
+      { waitForText: 'Accepted' },
+      { wait: 1500 },
+      /* The guest writes to the disc itself: a short program saved from BASIC
+       * through the live FDC, which is the only thing that can mark the image
+       * as modified by the machine rather than by this workbench. */
+      { clickText: { selector: 'button.emulator-input-button', text: 'KEYS' } },
+      { wait: 900 },
+      { setValue: { selector: '#machine-input-controls textarea', value: '10 PRINT "GUEST"\nSAVE "TEST"\n' } },
+      { clickText: { selector: 'button', text: 'Queue text to live machine' } },
+      { wait: 6000 },
+      { click: 'button[aria-label="Close machine input controls"]' },
+      { wait: 1500 },
+      { scrollTo: { selector: '.mounted-media-list', block: 'top' } },
+    ],
+    shows: ['GUEST MODIFIED', 'Export current'],
+  },
+  {
+    file: 'emulator-bbc-mouse-joystick.png',
+    topics: ['emulator-bbc-mouse-joystick'],
+    steps: [
+      ...RUN_BBC,
+      { clickText: { selector: 'button.emulator-input-button', text: 'KEYS' } },
+      { wait: 900 },
+      { scrollTo: { selector: '.machine-bbc-mouse-joystick', block: 'top' } },
+    ],
+    shows: ['analogue'],
+  },
+  {
+    file: 'emulator-atom-atommc.png',
+    topics: ['emulator-atom-atommc'],
+    steps: [
+      { setValue: { selector: 'select[aria-label="Acorn system"]', value: 'atom' } },
+      { wait: 900 },
+      { workspace: 'Settings' },
+      { waitFor: '.rom-workspace' },
+      { files: { selector: '.rom-requirements section:nth-of-type(1) input[type="file"]', paths: [`${ROMS}/atom/Atom_Kernel.rom`] } },
+      { waitFor: '.rom-requirements section:nth-of-type(1).supplied' },
+      { files: { selector: '.rom-requirements section:nth-of-type(2) input[type="file"]', paths: [`${ROMS}/atom/Atom_Basic.rom`] } },
+      { waitFor: '.rom-requirements section:nth-of-type(2).supplied' },
+      { waitForText: 'ROM SET READY' },
+      { workspace: 'Code' },
+      { wait: 5000 },
+      { clickText: { selector: 'button.emulator-input-button', text: 'KEYS' } },
+      { wait: 900 },
+    ],
+    shows: ['Machine input', 'Atom'],
+  },
+  {
+    file: 'emulator-a310-mouse.png',
+    topics: ['emulator-a310-mouse'],
+    needs: [ARCHIMEDES_LANES, ARCHIMEDES_CMOS],
+    steps: [
+      ...SUPPLY_A310_FIRMWARE,
+      { workspace: 'Code' },
+      { waitForText: 'RUNNING' },
+      { wait: 8000 },
+      { clickText: { selector: 'button.emulator-input-button', text: 'KEYS' } },
+      { wait: 900 },
+      { scrollTo: { selector: '.machine-a310-mouse', block: 'top' } },
+    ],
+    shows: ['mouse'],
+  },
+  {
+    file: 'emulator-a310-wav-capture.png',
+    topics: ['emulator-a310-wav-capture'],
+    needs: [ARCHIMEDES_LANES, ARCHIMEDES_CMOS],
+    steps: [
+      ...SUPPLY_A310_FIRMWARE,
+      { workspace: 'Code' },
+      { waitForText: 'RUNNING' },
+      { wait: 8000 },
+      { click: 'button[aria-label="Enable machine audio"]' },
+      { wait: 1200 },
+      { click: 'button[aria-label="Start machine audio capture"]' },
+      { wait: 1800 },
+    ],
+    shows: ['REC'],
+  },
+  {
+    file: 'debugger-arm.png',
+    topics: ['debugger-arm'],
+    needs: [ARCHIMEDES_LANES, ARCHIMEDES_CMOS],
+    steps: [
+      ...SUPPLY_A310_FIRMWARE,
+      { workspace: 'Debugger' },
+      { wait: 2500 },
+    ],
+    shows: ['ARM'],
   },
 ];

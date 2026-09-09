@@ -4074,8 +4074,14 @@ function BuildWorkspace({ artifact, metadata, failure, artifactDocumentId, onArt
     downloadBlob(new Blob([artifact.bytes], { type: 'application/octet-stream' }), artifact.provenance?.target.outputName ?? activeTarget.outputName);
   };
   const downloadFailure = () => failure && downloadBlob(new Blob([JSON.stringify(failure, null, 2), '\n'], { type: 'application/json' }), `${activeTarget.outputName}.failed-result.json`);
+  /*
+   * Opening a generated document gives it the workspace, exactly as opening the
+   * byte inspector does. Left among the target editor, the profile, the
+   * dependency graph and the build log there was no room for it: its heading
+   * sat at the bottom edge and none of its content could be reached.
+   */
   return (
-    <div className={`build-workspace${inspectorSelected ? ' artifact-inspector-mode' : ''}`}>
+    <div className={`build-workspace${inspectorSelected || selectedDocument ? ' artifact-inspector-mode' : ''}`}>
       <div className="runtime-heading"><div><span className="eyebrow">VERSIONED BUILD TARGET · {machineCpu}</span><h2>{activeTarget.name}</h2></div><div className="runtime-actions"><button type="button" onClick={onAdd}>New target</button><button type="button" disabled={targets.length === 1} onClick={onDelete}>Remove</button><button type="button" disabled={errors.length > 0} onClick={onBuild}><Icon name="build" size={14} /> Build</button><button type="button" disabled={errors.length > 0} title="Ignore the browser-session build cache once" onClick={onBuildBypass}>Rebuild</button><button type="button" disabled={buildAllRecords.some((record) => record.status === 'running' || record.status === 'queued')} onClick={onBuildAll}>Build all</button><button type="button" disabled={!buildAllRecords.some((record) => record.status === 'running' || record.status === 'queued')} onClick={onCancelAll}>Cancel all</button><button type="button" disabled={!['queued', 'building'].includes(activity.status)} onClick={onCancel}>Cancel</button><button type="button" disabled={!artifact} aria-pressed={pinned} onClick={onTogglePinned}>{pinned ? 'Retained' : 'Retain artifact'}</button><button type="button" disabled={!artifact || stale || artifact.diagnostics.some((item) => item.severity === 'error')} onClick={() => artifact && onAnalyse(artifact)}>Analyse artifact</button><button type="button" disabled={!artifact || stale || artifact.diagnostics.some((item) => item.severity === 'error')} onClick={downloadArtifact}><Icon name="download" size={14} /> {artifact?.kind === 'atom-basic-text' ? 'Source artifact' : 'Binary'}</button></div></div>
       <section className="build-target-editor" aria-label="Build target editor">
         <label><span>Target</span><select aria-label="Build target" value={activeTarget.id} onChange={(event) => onSelect(event.target.value)}>{targets.map((target) => <option value={target.id} key={target.id}>{target.name}</option>)}</select></label>

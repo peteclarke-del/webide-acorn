@@ -529,10 +529,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["editor", "editor-splits", "projects", "analysis", "media"],
     screenshot: {
       src: "/help/editor-source-format-large.png",
-      alt: "Large source editor showing the Windows-1252 and CRLF controls, status bar format, bounded large-source banner and summarized gutter",
+      alt: "A 407,285-byte BASIC listing showing the bounded large-source banner naming what is paused and what remains available, the summarized 1 to 6500 gutter, and the status bar reporting Windows-1252 with CRLF line endings",
       caption:
         "The format controls remain available in large source mode while eager semantic scans and thousands of gutter controls are paused.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -655,7 +655,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Generated source editor showing GENERATED and READ ONLY labels, generator provenance banner and protected source text",
       caption:
         "Generated source remains navigable, comparable, copyable and downloadable while editor and project mutation paths are blocked.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -918,7 +918,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC BASIC editor showing project and routine breadcrumbs, a matched FOR NEXT scope, navigation controls, live diagnostics and changed source lines",
       caption:
         "The source navigation surface keeps structural scope, diagnostic traversal, saved-change traversal and recent file access beside the active editor.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1122,7 +1122,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC BASIC source editor after a direct click on GOSUB 100 selected the exact line 100 declaration, with the parsed line reference and target visible in the sidebar",
       caption:
         "The direct operand action resolves through the parsed BASIC model. The destination line number is selected, the line-reference list retains the source and target, and the status bar reports the exact destination.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1185,7 +1185,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Build targets workspace after F12 on generated_buffer selected the current artifact symbol at address &3200 and showed its immutable source reference",
       caption:
         "The current build supplies GENERATED_BUFFER at &3200. The selected symbol, mapped instruction, build identity and status notice remain visible together, while the IDE states that no editable declaration exists.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1251,7 +1251,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Read-only acorn.h SDK document opened from acorn_oswrch in a C project, with the exact declaration highlighted and toolchain version, installed source, byte size, SHA-256 and read-only state visible",
       caption:
         "F12 on acorn_oswrch opens the exact project-maintained header consumed by cc65. The highlighted declaration and immutable provenance remain visible together, and Back to source restores the editor state.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1387,7 +1387,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "C project editor after Type definition selected the byte typedef in api.h, with Declaration, Implementation and Type definition controls visible and the exact api.h line reported in the status bar",
       caption:
         "The explicit Type definition action selects byte in the connected project header. Declaration and Implementation remain separate Navigate menu actions for the draw prototype and function body.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1520,7 +1520,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Source editor showing a language completion list with candidate kind, signature and reference provenance",
       caption:
         "Completion candidates expose their origin. The list is valid only for the source, project, target and build revision that requested it.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1679,7 +1679,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Atom BASIC editor showing SOUND as an explicitly requested unavailable BBC BASIC candidate with a target-specific warning",
       caption:
         "Explicit completion explains incompatible syntax but cannot insert it into the Atom source.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1733,7 +1733,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "ARM source editor showing a RISC OS SWI completion list with numeric operands, register contracts and reference provenance",
       caption:
         "The SWI operand list is machine and ROM aware, documents the register contract and inserts syntax accepted by GNU as.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1842,7 +1842,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "C source editor showing only Sprite members from a connected project header after a pointer arrow",
       caption:
         "Receiver-aware completion lists member type and exact header provenance without mixing unrelated structures or commands.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1898,7 +1898,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "C source editor with the authoritative type hints panel showing a function signature, unsigned byte parameter, signed local integer and cc65 storage sizes",
       caption:
         "The optional panel separates declared type, storage, signedness, address space and function calling contract, then links each entry to its source declaration.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -1951,10 +1951,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["editor", "projects", "debugger-6502", "debugger-arm"],
     screenshot: {
       src: "/help/editor-bookmark-privacy.png",
-      alt: "Portable project export review showing one project bookmark, one private bookmark and the private inclusion control clear by default",
+      alt: "Portable project export review showing two project bookmarks, no private ones, what the bundle needs, what it leaves out, and the private inclusion control clear by default",
       caption:
         "The export review counts both scopes and excludes the complete private bookmark record until the user explicitly includes it.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2039,7 +2039,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "File analysis workspace showing verified 6502 disassembly, labels, bytes and OS call annotation",
       caption:
         "The analyser separates supplied metadata from inferred structure and verifies generated source against the original bytes.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2261,7 +2261,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B Media workspace showing an independently rebuilt blank DFS SSD acknowledged in live drive 0 with an Eject control",
       caption:
         "Machine acknowledgements appear only after the jsbeeb FDC accepts the exact disk bytes. Eject acts on that acknowledged drive record.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2324,10 +2324,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/emulator-guest-disk-export.png",
-      alt: "BBC Model B Media workspace after a real DFS save, showing a drive zero acknowledgement marked GUEST MODIFIED, write revision one, Export current and Eject controls",
+      alt: "BBC Model B Media workspace after the running machine saved a BASIC program to the disc, showing the drive zero acknowledgement marked GUEST MODIFIED at write revision three with Export current and Eject controls",
       caption:
         "The live FDC callback replaced the retained image after the guest write. Export current downloads those changed bytes, not the stale image originally mounted.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -3288,10 +3288,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["emulator-gamepad", "tests", "emulator-keyboard-input", "media"],
     screenshot: {
       src: "/help/emulator-atom-atommc.png",
-      alt: "Acorn Atom Tests and Machine input panels showing an AtoMMC joystick state, active controller and live port value E9",
+      alt: "Acorn Atom booted from its own kernel and BASIC ROMs with the Machine input panel open over the machine frame, showing the accessible keyboard and the control that captures keyboard focus",
       caption:
         "The standard controller drives the real AtomMMC2 source while the deterministic plan can assert the exact byte read by guest code at &B400.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -3336,7 +3336,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Reload and inspect the live status if the stored preference does not match the intended controller.",
     ],
     related: ["emulator-gamepad", "emulator-keyboard-input", "tests", "emulator-a310-mouse"],
-    screenshot: { src: "/help/emulator-bbc-mouse-joystick.png", alt: "BBC Model B KEYS panel showing the mouse analogue joystick control, exact hardware mapping and mutually exclusive gamepad policy", caption: "Pointer position feeds the standard BBC ADC while left and right buttons feed the two active-low System VIA fire inputs.", captured: "2026.08 interface" },
+    screenshot: { src: "/help/emulator-bbc-mouse-joystick.png", alt: "BBC Model B Machine input panel showing the mouse analogue joystick control, the exact hardware mapping it uses and the policy that makes it mutually exclusive with a gamepad, with no controller attached", caption: "Pointer position feeds the standard BBC ADC while left and right buttons feed the two active-low System VIA fire inputs.", captured: "2026.09 interface" },
   },
   {
     id: "emulator-a310-mouse",
@@ -3545,10 +3545,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["bookmarks", "debugger-arm", "tests"],
     screenshot: {
       src: "/help/debugger-6502.png",
-      alt: "BBC family debugger showing a terminated immutable session, live core state, breakpoints and protocol disclosure",
+      alt: "BBC family debugger paused at &1900 in a live jsbeeb session, showing the build fingerprint, output digest, adapter version, three bound ROMs, the decoded call stack and the execution controls",
       caption:
         "The session strip retains exact build, machine, adapter and ROM identity after Stop. The runtime below reports the paused core independently.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {

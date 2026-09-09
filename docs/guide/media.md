@@ -203,7 +203,7 @@ Track writes made through the live jsbeeb FDC, distinguish mounted source bytes 
 - If A310 or ADF export is disabled, use a supported host-side media workflow or a qualified emulator-specific export path when one is added.
 - If the browser blocks the download, permit downloads for this local origin and select Export current again before changing the machine session.
 
-![BBC Model B Media workspace after a real DFS save, showing a drive zero acknowledgement marked GUEST MODIFIED, write revision one, Export current and Eject controls](../../public/help/emulator-guest-disk-export.png)
+![BBC Model B Media workspace after the running machine saved a BASIC program to the disc, showing the drive zero acknowledgement marked GUEST MODIFIED at write revision three with Export current and Eject controls](../../public/help/emulator-guest-disk-export.png)
 
 *The live FDC callback replaced the retained image after the guest write. Export current downloads those changed bytes, not the stale image originally mounted.*
 

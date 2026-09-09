@@ -114,7 +114,7 @@ Detect legacy source bytes, edit normalized text, choose exact download encoding
 - Use Revert in the editor's File menu to restore both text and saved byte-format choices.
 - Keep a portable project export before changing many file formats so the source and metadata can be inspected independently.
 
-![Large source editor showing the Windows-1252 and CRLF controls, status bar format, bounded large-source banner and summarized gutter](../../public/help/editor-source-format-large.png)
+![A 407,285-byte BASIC listing showing the bounded large-source banner naming what is paused and what remains available, the summarized 1 to 6500 gutter, and the status bar reporting Windows-1252 with CRLF line endings](../../public/help/editor-source-format-large.png)
 
 *The format controls remain available in large source mode while eager semantic scans and thousands of gutter controls are paused.*
 
@@ -225,7 +225,7 @@ Mark source locations for project navigation, attach bounded technical notes and
 - If an imported record is missing, confirm whether it was private and therefore excluded by the exporter.
 - Rebuild after changing code layout so source breakpoints resolve to current addresses.
 
-![Portable project export review showing one project bookmark, one private bookmark and the private inclusion control clear by default](../../public/help/editor-bookmark-privacy.png)
+![Portable project export review showing two project bookmarks, no private ones, what the bundle needs, what it leaves out, and the private inclusion control clear by default](../../public/help/editor-bookmark-privacy.png)
 
 *The export review counts both scopes and excludes the complete private bookmark record until the user explicitly includes it.*
 

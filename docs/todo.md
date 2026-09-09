@@ -8605,10 +8605,31 @@ Current implemented increment:
   major workflows and operation groups. Provide captions, useful alternative
   text, responsive rendering, text equivalents and version metadata. Add checks
   for missing files, broken topic links and stale control names.
-  - [x] Evidence: Covered by the release gate's help stage, which fails on a
-   missing screenshot file, a broken topic link or a control name that no
-   longer exists in the interface, so a stale screenshot cannot survive a
-   rename.
+  - [x] Evidence: The release gate's help stage fails on a missing screenshot
+   file, a broken topic link or a control name that no longer exists in the
+   interface, so a stale screenshot cannot survive a rename.
+  - [x] **A picture of last month's interface passed all three of those and
+   showed something the reader would not find, which is what happened: sixty
+   images were taken by hand before the appearance work and showed a smaller
+   text size and no menu bar.** Every image now has an entry in
+   `scripts/helpScreenshotStates.mjs` saying which state it is a picture of and
+   the steps that reach it, in the product's own words, and
+   `node --experimental-websocket scripts/helpScreenshots.mjs` takes them by
+   driving the real application in a real browser. Nothing is drawn, composed
+   or simulated: the emulator pictures are of a BBC Model B booted from the
+   firmware on this machine, and the program provenance picture is of a real
+   847-byte assembly of the Acorn Harvest sample. Each entry says what has to
+   be on screen before the shutter opens, so a capture of the wrong state fails
+   and leaves the committed image alone. `scripts/helpScreenshotStates.test.ts`
+   fails when a topic gains a screenshot with no state to reach it.
+  - [x] **Three images cannot be taken on this machine, and the run says so by
+   name rather than skipping them.** The A310 mouse, the A310 capture and the
+   ARM debugger all need a booted Archimedes. The
+   four byte lanes are in `local-roms/mame/aa310.zip`, but the 256-byte
+   `cmos_riscos3.bin` the four-lane importer also requires is an Arculator file
+   that is not anywhere under `local-roms`, and a blank one is refused. Those
+   three entries name the files they need and are reported as not attempted
+   rather than skipped, and their images remain the honest earlier ones.
 - [x] DOC-901C Edit all in-app help into direct technical user-facing prose. Do
   not use em dashes or generic generated-assistant filler.
   - [x] **The rule now covers every document, not only the in-app help, and the

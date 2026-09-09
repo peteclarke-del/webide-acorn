@@ -22,6 +22,13 @@
  * It needs the application being served, by `npm run dev` or a preview of the
  * build, and takes the address in HELP_SCREENSHOT_URL (default
  * http://127.0.0.1:5399/).
+ *
+ * It also needs the PHP build service on http://127.0.0.1:8000, which the
+ * development server proxies under /api. Without it the workbench correctly
+ * reports the native toolchains as unavailable, and pictures of the build and
+ * SDK surfaces would document a machine with no build service rather than the
+ * ordinary one. `php -S 127.0.0.1:8000 -t backend/public backend/public/index.php`
+ * starts it; `node scripts/toolchains.mjs` puts the compilers where it looks.
  */
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -78,8 +85,21 @@ export async function openPage(chromium) {
 
   let sequence = 0;
   const pending = new Map();
+  /*
+   * Several commands still ask for a name through window.prompt, which stops
+   * the page dead in a headless browser. The answer for the next one is put
+   * here by the prompt step, and anything unanswered is accepted with whatever
+   * the page suggested, so a stray confirm cannot hang a capture.
+   */
+  const dialog = { answer: undefined };
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
+    if (message.method === 'Page.javascriptDialogOpening') {
+      const promptText = dialog.answer ?? message.params.defaultPrompt ?? '';
+      dialog.answer = undefined;
+      socket.send(JSON.stringify({ id: ++sequence, method: 'Page.handleJavaScriptDialog', params: { accept: true, promptText } }));
+      return;
+    }
     const waiter = pending.get(message.id);
     if (!waiter) return;
     pending.delete(message.id);
@@ -107,27 +127,23 @@ export async function openPage(chromium) {
     browser.kill('SIGKILL');
     await rm(userDataDir, { recursive: true, force: true }).catch(() => undefined);
   };
-  return { send, evaluate, close };
+  return { send, evaluate, dialog, close };
 }
 
 /** Reload to a workbench that has seen nothing, so one state cannot leak into the next. */
 export async function reset(page) {
   /*
-   * The firmware vault is IndexedDB, and the page is reused from one shot to
-   * the next. Without this a picture taken after an emulator shot would show a
-   * machine with ROMs, whatever its own steps did, and the order of this list
-   * would decide what the pictures say.
+   * Cleared through the browser rather than from inside the page. The firmware
+   * vault is IndexedDB and the page is reused from one shot to the next, so
+   * without this a picture taken after an emulator shot would show a machine
+   * with ROMs whatever its own steps did. Deleting the databases from script
+   * while the application still holds them open blocks instead, and left the
+   * vault in a state the next import could not write to, which showed up as one
+   * shot in three failing to supply firmware at all.
    */
-  await page.evaluate(`(async () => {
-    try { localStorage.clear(); sessionStorage.clear(); } catch { /* a browser may refuse storage */ }
-    try {
-      const databases = await indexedDB.databases();
-      await Promise.all(databases.map(({ name }) => name && new Promise((done) => {
-        const request = indexedDB.deleteDatabase(name);
-        request.onsuccess = done; request.onerror = done; request.onblocked = done;
-      })));
-    } catch { /* a browser may not list databases */ }
-  })()`);
+  await page.send('Page.navigate', { url: 'about:blank' });
+  await delay(250);
+  await page.send('Storage.clearDataForOrigin', { origin: new URL(url).origin, storageTypes: 'all' });
   await page.send('Page.navigate', { url });
   await until(() => page.evaluate("document.readyState === 'complete'"), 'the page to load');
   await until(() => page.evaluate("!!document.querySelector('button[aria-label=\"Settings\"]')"), 'the workbench to mount');
@@ -232,6 +248,10 @@ export const STEPS = {
     await page.send('Input.insertText', { text });
     await delay(700);
   },
+  /** The answer the next window.prompt will be given. */
+  async prompt(page, answer) {
+    page.dialog.answer = answer;
+  },
   /** Give something keyboard focus, which is what makes the key step land on it. */
   async focus(page, selector) {
     await until(() => page.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`), `${selector} to appear`);
@@ -243,7 +263,7 @@ export const STEPS = {
    * rather than by an offset, so an edit to the sample program does not quietly
    * move it into the middle of a different word.
    */
-  async caret(page, { selector, after, occurrence = 1 }) {
+  async caret(page, { selector, after, occurrence = 1, click = false }) {
     await until(() => page.evaluate(`!!document.querySelector(${JSON.stringify(selector)})`), `${selector} to appear`);
     const placed = await page.evaluate(`(() => {
       const element = document.querySelector(${JSON.stringify(selector)});
@@ -256,6 +276,10 @@ export const STEPS = {
       element.focus();
       element.setSelectionRange(position, position);
       element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'ArrowRight' }));
+      /* A click as well where the topic is about clicking: putting the caret on
+       * a reference is not the same act as clicking one, and only the second
+       * follows the reference. */
+      if (${JSON.stringify(click)}) element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       return true;
     })()`);
     if (!placed) throw new Error(`the source has no ${occurrence === 1 ? '' : `${occurrence} occurrences of `}${JSON.stringify(after)} to put the caret after`);
@@ -270,6 +294,15 @@ export const STEPS = {
       return true;
     })()`), `a disclosure reading ${JSON.stringify(summary)} to appear`);
     if (!opened) throw new Error(`no disclosure reads ${JSON.stringify(summary)}`);
+    await delay(350);
+  },
+  /** Close a disclosure again, once whatever it holds has been used. */
+  async conceal(page, summary) {
+    await page.evaluate(`(() => {
+      const heading = [...document.querySelectorAll('summary')].find((element) => element.textContent.trim().startsWith(${JSON.stringify(summary)}));
+      if (heading && heading.parentElement.open) heading.click();
+      return true;
+    })()`);
     await delay(350);
   },
   /** Wait for something the state is not reached without. */
@@ -366,8 +399,22 @@ export async function main(shots) {
   const page = await openPage(chromium);
   const taken = [];
   const failed = [];
+  const unattempted = [];
   try {
     for (const shot of wanted) {
+      /*
+       * A shot may name files without which its state cannot exist at all, such
+       * as firmware this machine does not hold. That is not the same as a shot
+       * that tried and failed, so it is reported apart and by name: the run
+       * says which file was looked for and where, and does not pretend the
+       * picture was refreshed.
+       */
+      const absent = (shot.needs ?? []).filter((path) => !existsSync(path));
+      if (absent.length) {
+        unattempted.push({ file: shot.file, reason: `not on this machine: ${absent.join(', ')}` });
+        console.log(`NOT ATTEMPTED ${shot.file}: ${absent.join(', ')} is not on this machine`);
+        continue;
+      }
       try {
         await capture(page, shot);
         taken.push(shot.file);
@@ -380,9 +427,10 @@ export async function main(shots) {
   } finally {
     await page.close();
   }
-  console.log(`\n${taken.length} captured, ${failed.length} left as they were`);
+  console.log(`\n${taken.length} captured, ${failed.length} left as they were, ${unattempted.length} not attempted`);
   for (const entry of failed) console.log(`  ${entry.file}: ${entry.reason}`);
-  return { taken, failed };
+  for (const entry of unattempted) console.log(`  ${entry.file}: ${entry.reason}`);
+  return { taken, failed, unattempted };
 }
 
 /* Run the whole set when this file is the program, and stay importable when a

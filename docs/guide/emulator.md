@@ -377,7 +377,7 @@ Use pointer position and two mouse buttons as a bounded BBC or Master analogue j
 - Move completely outside the emulator frame or choose Release input to clear a stuck fire state.
 - Reload and inspect the live status if the stored preference does not match the intended controller.
 
-![BBC Model B KEYS panel showing the mouse analogue joystick control, exact hardware mapping and mutually exclusive gamepad policy](../../public/help/emulator-bbc-mouse-joystick.png)
+![BBC Model B Machine input panel showing the mouse analogue joystick control, the exact hardware mapping it uses and the policy that makes it mutually exclusive with a gamepad, with no controller attached](../../public/help/emulator-bbc-mouse-joystick.png)
 
 *Pointer position feeds the standard BBC ADC while left and right buttons feed the two active-low System VIA fire inputs.*
 
@@ -492,7 +492,7 @@ Drive and test the five active-low joystick controls implemented by the pinned A
 - If guest code reads another value, verify it sends &A2 to the command register before reading the same &B400 port.
 - Use deterministic Tests to separate guest protocol errors from browser controller delivery.
 
-![Acorn Atom Tests and Machine input panels showing an AtoMMC joystick state, active controller and live port value E9](../../public/help/emulator-atom-atommc.png)
+![Acorn Atom booted from its own kernel and BASIC ROMs with the Machine input panel open over the machine frame, showing the accessible keyboard and the control that captures keyboard focus](../../public/help/emulator-atom-atommc.png)
 
 *The standard controller drives the real AtomMMC2 source while the deterministic plan can assert the exact byte read by guest code at &B400.*
 
