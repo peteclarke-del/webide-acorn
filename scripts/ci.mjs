@@ -178,8 +178,23 @@ await stage('tests', async () => {
   /* Coverage is a floor against regression, not a target to chase. A high
    * figure says a line ran, never that anything was checked about it, so the
    * floors are set just under what the suite achieves today: they catch code
-   * added without tests, and they are not something to write tests at. */
-  const FLOORS = { statements: 65, branches: 80, functions: 80, lines: 65 };
+   * added without tests, and they are not something to write tests at.
+   *
+   * They were 65, 80, 80 and 65 until vitest 5, and nothing about the suite
+   * changed when they moved. Vitest 5 made AST-aware remapping the only path
+   * its v8 provider takes, where vitest 3 kept it behind
+   * `experimentalAstAwareRemapping` and this project never set it. The same
+   * 260 files and the same 2,808 tests are now measured against the syntax
+   * tree rather than against raw v8 ranges, so the denominators are larger and
+   * more honest: functions went from 2,073 to 6,278 and branches from 14,728
+   * to 24,171, because every arrow function, ternary and default parameter is
+   * now something that can be counted and missed. The old run could not tell
+   * statements from lines and reported 41,200 of each.
+   *
+   * So these are the same suite measured a better way, not a worse suite.
+   * Comparing them against the old numbers would mean demanding a figure this
+   * metric never reports. */
+  const FLOORS = { statements: 55, branches: 48, functions: 52, lines: 62 };
   let coverage;
   try {
     coverage = JSON.parse(await readFile(join(root, 'coverage', 'coverage-summary.json'), 'utf8')).total;
