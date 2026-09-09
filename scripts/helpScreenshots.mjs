@@ -112,7 +112,22 @@ export async function openPage(chromium) {
 
 /** Reload to a workbench that has seen nothing, so one state cannot leak into the next. */
 export async function reset(page) {
-  await page.evaluate("(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* a browser may refuse storage */ } })()");
+  /*
+   * The firmware vault is IndexedDB, and the page is reused from one shot to
+   * the next. Without this a picture taken after an emulator shot would show a
+   * machine with ROMs, whatever its own steps did, and the order of this list
+   * would decide what the pictures say.
+   */
+  await page.evaluate(`(async () => {
+    try { localStorage.clear(); sessionStorage.clear(); } catch { /* a browser may refuse storage */ }
+    try {
+      const databases = await indexedDB.databases();
+      await Promise.all(databases.map(({ name }) => name && new Promise((done) => {
+        const request = indexedDB.deleteDatabase(name);
+        request.onsuccess = done; request.onerror = done; request.onblocked = done;
+      })));
+    } catch { /* a browser may not list databases */ }
+  })()`);
   await page.send('Page.navigate', { url });
   await until(() => page.evaluate("document.readyState === 'complete'"), 'the page to load');
   await until(() => page.evaluate("!!document.querySelector('button[aria-label=\"Settings\"]')"), 'the workbench to mount');

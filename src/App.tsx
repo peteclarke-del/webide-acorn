@@ -7851,420 +7851,6 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           </div>
         </details>
       )}
-      {!collapsed && inputControlsOpen && poweredMachine && (
-        <section
-          id="machine-input-controls"
-          className="machine-input-controls"
-          aria-label="Machine keyboard and input controls"
-        >
-          <header>
-            <div>
-              <strong>Machine input</strong>
-              <span>
-                {inputCaptured
-                  ? "Keyboard focus is captured by the emulator"
-                  : "IDE shortcuts remain active until input is captured"}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                sendMachine({
-                  type: inputCaptured ? "release-input" : "focus-input",
-                })
-              }
-            >
-              {inputCaptured ? "Release input" : "Capture input"}
-            </button>
-            <button
-              type="button"
-              aria-label="Close machine input controls"
-              onClick={() => setInputControlsOpen(false)}
-            >
-              <Icon name="close" size={14} />
-            </button>
-          </header>
-          <div className="machine-input-grid">
-            <section aria-label="On-screen Acorn keyboard">
-              <h3>Acorn keyboard</h3>
-              <p>
-                {fullArchimedesMachine
-                  ? "The A310 canvas accepts the host keyboard and reviewed text. On-screen key taps await a verified SDL mapping."
-                  : "Keys below use jsbeeb host-key identities and operate the live keyboard matrix."}
-              </p>
-              <div
-                className="acorn-keyboard"
-                aria-label="Accessible on-screen Acorn keyboard"
-              >
-                {ACORN_KEY_ROWS.map((row, rowIndex) => (
-                  <div key={rowIndex}>
-                    {row.map((key) => (
-                      <button
-                        type="button"
-                        key={`${key.label}-${key.code}`}
-                        disabled={fullArchimedesMachine}
-                        aria-label={`Press Acorn ${key.label} key`}
-                        onClick={() =>
-                          sendMachine({ type: "tap-key", code: key.code })
-                        }
-                      >
-                        {key.label}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section
-              className="machine-input-policy"
-              aria-label="Keyboard mapping and pasted text policy"
-            >
-              <h3>Mapping and text queue</h3>
-              {full6502Machine && (
-                <label>
-                  <span>jsbeeb mapping profile</span>
-                  <select
-                    value={keyboardLayout}
-                    onChange={(event) => {
-                      const layout = event.target.value as JsBeebKeyboardLayout;
-                      setKeyboardLayout(layout);
-                      writeSetting("machine.keyboardLayout", layout);
-                      sendMachine({ type: "set-keyboard-layout", layout });
-                    }}
-                  >
-                    {JSBEEB_KEYBOARD_LAYOUTS.map((layout) => (
-                      <option value={layout.id} key={layout.id}>
-                        {layout.label}
-                      </option>
-                    ))}
-                  </select>
-                  <small>
-                    {
-                      JSBEEB_KEYBOARD_LAYOUTS.find(
-                        (layout) => layout.id === keyboardLayout,
-                      )?.detail
-                    }
-                  </small>
-                </label>
-              )}
-              <label>
-                <span>Reviewed machine text</span>
-                <textarea
-                  maxLength={MACHINE_TEXT_LIMIT}
-                  value={machineText}
-                  onChange={(event) => setMachineText(event.target.value)}
-                  placeholder="Type or paste plain ASCII text to queue"
-                />
-                <small>
-                  {machineText.length.toLocaleString()} /{" "}
-                  {MACHINE_TEXT_LIMIT.toLocaleString()} characters. CR is
-                  normalized to RETURN. Unsupported Unicode is refused.
-                </small>
-              </label>
-              <button
-                type="button"
-                disabled={!machineText.length}
-                onClick={() =>
-                  sendMachine({ type: "inject-text", text: machineText })
-                }
-              >
-                Queue text to live machine
-              </button>
-              <aside>
-                <strong>Browser conflicts</strong>
-                <span>
-                  F12 is captured as BREAK only after emulator focus. Ctrl, Alt
-                  and browser-reserved shortcuts can remain browser-owned. Use
-                  the on-screen keys or gaming profile on BBC-family targets
-                  when a host shortcut wins.
-                </span>
-              </aside>
-            </section>
-            {full6502Machine && (
-              <section
-                className="machine-key-remaps"
-                aria-label="Custom host key mappings"
-              >
-                <h3>Custom key mappings</h3>
-                <p>
-                  Map a maintained host key identity to an Acorn key after the
-                  selected jsbeeb profile. Browser-reserved shortcuts can still
-                  remain unavailable.
-                </p>
-                <div>
-                  <label>
-                    <span>Host key</span>
-                    <select
-                      aria-label="Custom mapping host key"
-                      value={remapHostCode}
-                      onChange={(event) =>
-                        setRemapHostCode(Number(event.target.value))
-                      }
-                    >
-                      {HOST_REMAP_KEYS.map((key) => (
-                        <option value={key.code} key={key.code}>
-                          {key.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Acorn key</span>
-                    <select
-                      aria-label="Custom mapping Acorn key"
-                      value={remapTargetCode}
-                      onChange={(event) =>
-                        setRemapTargetCode(Number(event.target.value))
-                      }
-                    >
-                      {ACORN_KEY_ROWS.flat().map((key) => (
-                        <option
-                          value={key.code}
-                          key={`${key.label}-${key.code}`}
-                        >
-                          {key.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    disabled={keyRemaps.length >= 32}
-                    onClick={() =>
-                      applyKeyRemaps([
-                        ...keyRemaps.filter(
-                          (remap) => remap.hostCode !== remapHostCode,
-                        ),
-                        {
-                          hostCode: remapHostCode,
-                          targetCode: remapTargetCode,
-                        },
-                      ])
-                    }
-                  >
-                    Add or replace mapping
-                  </button>
-                </div>
-                {keyRemaps.length ? (
-                  <ul>
-                    {keyRemaps.map((remap) => (
-                      <li key={remap.hostCode}>
-                        <span>
-                          {
-                            HOST_REMAP_KEYS.find(
-                              (key) => key.code === remap.hostCode,
-                            )?.label
-                          }{" "}
-                          →{" "}
-                          {
-                            ACORN_KEY_ROWS.flat().find(
-                              (key) => key.code === remap.targetCode,
-                            )?.label
-                          }
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`Remove custom mapping for ${HOST_REMAP_KEYS.find((key) => key.code === remap.hostCode)?.label}`}
-                          onClick={() =>
-                            applyKeyRemaps(
-                              keyRemaps.filter(
-                                (item) => item.hostCode !== remap.hostCode,
-                              ),
-                            )
-                          }
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <small>
-                    No custom mappings. The selected jsbeeb profile applies
-                    unchanged.
-                  </small>
-                )}
-                <button
-                  type="button"
-                  disabled={!keyRemaps.length}
-                  onClick={() => applyKeyRemaps([])}
-                >
-                  Clear custom mappings
-                </button>
-              </section>
-            )}
-            {full6502Machine && (
-              <section className="machine-gamepad" aria-label="Gamepad input">
-                <h3>Gamepad</h3>
-                <label className="gamepad-enabled">
-                  <input
-                    type="checkbox"
-                    checked={gamepadConfig.enabled}
-                    onChange={(event) => {
-                      if (event.target.checked && bbcMouseJoystick) applyBbcMouseJoystick(false);
-                      applyGamepadConfig({ ...gamepadConfig, enabled: event.target.checked });
-                    }}
-                  />{" "}
-                  Enable standard gamepad polling
-                </label>
-                <p>{gamepadStatus}</p>
-                <div className="gamepad-config">
-                  <label>
-                    <span>Controller</span>
-                    <select
-                      aria-label="Gamepad controller index"
-                      value={gamepadConfig.gamepadIndex}
-                      onChange={(event) =>
-                        applyGamepadConfig({
-                          ...gamepadConfig,
-                          gamepadIndex: Number(event.target.value),
-                        })
-                      }
-                    >
-                      {[0, 1, 2, 3].map((index) => (
-                        <option value={index} key={index}>
-                          Gamepad {index + 1}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Interface</span>
-                    <select
-                      aria-label="Gamepad machine interface"
-                      value={gamepadConfig.interfaceMode}
-                      onChange={(event) =>
-                        applyGamepadConfig({
-                          ...gamepadConfig,
-                          interfaceMode: event.target
-                            .value as GamepadInputConfig["interfaceMode"],
-                        })
-                      }
-                    >
-                      <option value="keys">Acorn key mapping</option>
-                      <option
-                        value="bbc-analogue"
-                        disabled={
-                          !["bbc-a", "bbc-b", "bbc-bplus", "master"].includes(
-                            machineProfile.machineId,
-                          )
-                        }
-                      >
-                        BBC analogue port
-                      </option>
-                      <option value="atom-atommc" disabled={!atomMmcJoystickSupported}>
-                        Atom AtoMMC port
-                      </option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Axis dead zone</span>
-                    <input
-                      aria-label="Gamepad axis dead zone"
-                      type="number"
-                      min="0.1"
-                      max="0.9"
-                      step="0.05"
-                      value={gamepadConfig.deadZone}
-                      onChange={(event) =>
-                        applyGamepadConfig({
-                          ...gamepadConfig,
-                          deadZone: Number(event.target.value),
-                        })
-                      }
-                    />
-                  </label>
-                  {gamepadConfig.interfaceMode === "keys" &&
-                    GAMEPAD_ACTIONS.map((action) => (
-                      <label key={action.id}>
-                        <span>{action.label}</span>
-                        <select
-                          aria-label={`Gamepad ${action.label} Acorn key`}
-                          value={gamepadConfig.mapping[action.id]}
-                          onChange={(event) =>
-                            applyGamepadConfig({
-                              ...gamepadConfig,
-                              mapping: {
-                                ...gamepadConfig.mapping,
-                                [action.id]: Number(event.target.value),
-                              },
-                            })
-                          }
-                        >
-                          {ACORN_KEY_ROWS.flat().map((key) => (
-                            <option
-                              value={key.code}
-                              key={`${action.id}-${key.label}-${key.code}`}
-                            >
-                              {key.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ))}
-                </div>
-                <output aria-live="polite">
-                  {gamepadConfig.interfaceMode === "bbc-analogue"
-                    ? "Axes 0 to 3 feed ADC channels 0 to 3. Buttons 0 and 1 feed active-low System VIA PB4 and PB5."
-                    : gamepadConfig.interfaceMode === "atom-atommc"
-                      ? "Axes 0/1 and the d-pad feed the active-low AtoMMC direction bits. Either fire button feeds its single fire bit."
-                    : gamepadActive.length
-                      ? `Held: ${gamepadActive.map((id) => GAMEPAD_ACTIONS.find((action) => action.id === id)?.label).join(", ")}`
-                      : "No mapped controls held"}
-                </output>
-                <small>
-                  {gamepadConfig.interfaceMode === "bbc-analogue"
-                    ? "BBC joystick axes are inverted by hardware convention: left and up are 65,535, right and down are 0. Disconnect centres all channels and releases both fire inputs."
-                    : gamepadConfig.interfaceMode === "atom-atommc"
-                      ? "Guest software reads the five active-low controls with AtoMMC CMD_READ_PORT at &B400. Disconnect returns the port to &FF."
-                    : "Standard axes 0/1, d-pad buttons 12 to 15 and buttons 0/1 generate real held key edges. Disconnect releases every active key."}
-                </small>
-              </section>
-            )}
-            {bbcAnalogueSupported && (
-              <section className="machine-bbc-mouse-joystick" aria-label="BBC mouse analogue joystick">
-                <h3>Mouse analogue joystick</h3>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={bbcMouseJoystick}
-                    onChange={(event) => applyBbcMouseJoystick(event.target.checked)}
-                  />{" "}
-                  Drive the BBC analogue port from the live display
-                </label>
-                <output aria-live="polite">{bbcMouseJoystickStatus}</output>
-                <small>
-                  Pointer position feeds ADC channels 0 and 1 using the BBC
-                  inverted convention. Left and right buttons feed active-low
-                  System VIA PB4 and PB5. Leaving the display or losing focus
-                  centres both axes and releases fire. Enabling this mode
-                  disables standard gamepad polling so two host devices cannot
-                  fight over the same hardware input.
-                </small>
-              </section>
-            )}
-            {fullArchimedesMachine && (
-              <section
-                className="machine-archimedes-mouse"
-                aria-label="A310 mouse input"
-              >
-                <h3>A310 mouse</h3>
-                <p>
-                  Move over the live display for absolute RISC OS pointer input.
-                  Left, right and middle buttons use Arculator's real host mouse
-                  path.
-                </p>
-                <output aria-live="polite">{archimedesMouseStatus}</output>
-                <small>
-                  Canvas coordinates are scaled to the live framebuffer. Leaving
-                  the display, releasing input, losing focus, resetting or
-                  powering off releases every mouse button.
-                </small>
-              </section>
-            )}
-          </div>
-        </section>
-      )}
       {!collapsed &&
         (poweredMachine ? (
           <div
@@ -8369,6 +7955,420 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
                 </>
               )}
             </div>
+            {inputControlsOpen && (
+              <section
+                id="machine-input-controls"
+                className="machine-input-controls"
+                aria-label="Machine keyboard and input controls"
+              >
+                <header>
+                  <div>
+                    <strong>Machine input</strong>
+                    <span>
+                      {inputCaptured
+                        ? "Keyboard focus is captured by the emulator"
+                        : "IDE shortcuts remain active until input is captured"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      sendMachine({
+                        type: inputCaptured ? "release-input" : "focus-input",
+                      })
+                    }
+                  >
+                    {inputCaptured ? "Release input" : "Capture input"}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Close machine input controls"
+                    onClick={() => setInputControlsOpen(false)}
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                </header>
+                <div className="machine-input-grid">
+                  <section aria-label="On-screen Acorn keyboard">
+                    <h3>Acorn keyboard</h3>
+                    <p>
+                      {fullArchimedesMachine
+                        ? "The A310 canvas accepts the host keyboard and reviewed text. On-screen key taps await a verified SDL mapping."
+                        : "Keys below use jsbeeb host-key identities and operate the live keyboard matrix."}
+                    </p>
+                    <div
+                      className="acorn-keyboard"
+                      aria-label="Accessible on-screen Acorn keyboard"
+                    >
+                      {ACORN_KEY_ROWS.map((row, rowIndex) => (
+                        <div key={rowIndex}>
+                          {row.map((key) => (
+                            <button
+                              type="button"
+                              key={`${key.label}-${key.code}`}
+                              disabled={fullArchimedesMachine}
+                              aria-label={`Press Acorn ${key.label} key`}
+                              onClick={() =>
+                                sendMachine({ type: "tap-key", code: key.code })
+                              }
+                            >
+                              {key.label}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  <section
+                    className="machine-input-policy"
+                    aria-label="Keyboard mapping and pasted text policy"
+                  >
+                    <h3>Mapping and text queue</h3>
+                    {full6502Machine && (
+                      <label>
+                        <span>jsbeeb mapping profile</span>
+                        <select
+                          value={keyboardLayout}
+                          onChange={(event) => {
+                            const layout = event.target.value as JsBeebKeyboardLayout;
+                            setKeyboardLayout(layout);
+                            writeSetting("machine.keyboardLayout", layout);
+                            sendMachine({ type: "set-keyboard-layout", layout });
+                          }}
+                        >
+                          {JSBEEB_KEYBOARD_LAYOUTS.map((layout) => (
+                            <option value={layout.id} key={layout.id}>
+                              {layout.label}
+                            </option>
+                          ))}
+                        </select>
+                        <small>
+                          {
+                            JSBEEB_KEYBOARD_LAYOUTS.find(
+                              (layout) => layout.id === keyboardLayout,
+                            )?.detail
+                          }
+                        </small>
+                      </label>
+                    )}
+                    <label>
+                      <span>Reviewed machine text</span>
+                      <textarea
+                        maxLength={MACHINE_TEXT_LIMIT}
+                        value={machineText}
+                        onChange={(event) => setMachineText(event.target.value)}
+                        placeholder="Type or paste plain ASCII text to queue"
+                      />
+                      <small>
+                        {machineText.length.toLocaleString()} /{" "}
+                        {MACHINE_TEXT_LIMIT.toLocaleString()} characters. CR is
+                        normalized to RETURN. Unsupported Unicode is refused.
+                      </small>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!machineText.length}
+                      onClick={() =>
+                        sendMachine({ type: "inject-text", text: machineText })
+                      }
+                    >
+                      Queue text to live machine
+                    </button>
+                    <aside>
+                      <strong>Browser conflicts</strong>
+                      <span>
+                        F12 is captured as BREAK only after emulator focus. Ctrl, Alt
+                        and browser-reserved shortcuts can remain browser-owned. Use
+                        the on-screen keys or gaming profile on BBC-family targets
+                        when a host shortcut wins.
+                      </span>
+                    </aside>
+                  </section>
+                  {full6502Machine && (
+                    <section
+                      className="machine-key-remaps"
+                      aria-label="Custom host key mappings"
+                    >
+                      <h3>Custom key mappings</h3>
+                      <p>
+                        Map a maintained host key identity to an Acorn key after the
+                        selected jsbeeb profile. Browser-reserved shortcuts can still
+                        remain unavailable.
+                      </p>
+                      <div>
+                        <label>
+                          <span>Host key</span>
+                          <select
+                            aria-label="Custom mapping host key"
+                            value={remapHostCode}
+                            onChange={(event) =>
+                              setRemapHostCode(Number(event.target.value))
+                            }
+                          >
+                            {HOST_REMAP_KEYS.map((key) => (
+                              <option value={key.code} key={key.code}>
+                                {key.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Acorn key</span>
+                          <select
+                            aria-label="Custom mapping Acorn key"
+                            value={remapTargetCode}
+                            onChange={(event) =>
+                              setRemapTargetCode(Number(event.target.value))
+                            }
+                          >
+                            {ACORN_KEY_ROWS.flat().map((key) => (
+                              <option
+                                value={key.code}
+                                key={`${key.label}-${key.code}`}
+                              >
+                                {key.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          disabled={keyRemaps.length >= 32}
+                          onClick={() =>
+                            applyKeyRemaps([
+                              ...keyRemaps.filter(
+                                (remap) => remap.hostCode !== remapHostCode,
+                              ),
+                              {
+                                hostCode: remapHostCode,
+                                targetCode: remapTargetCode,
+                              },
+                            ])
+                          }
+                        >
+                          Add or replace mapping
+                        </button>
+                      </div>
+                      {keyRemaps.length ? (
+                        <ul>
+                          {keyRemaps.map((remap) => (
+                            <li key={remap.hostCode}>
+                              <span>
+                                {
+                                  HOST_REMAP_KEYS.find(
+                                    (key) => key.code === remap.hostCode,
+                                  )?.label
+                                }{" "}
+                                →{" "}
+                                {
+                                  ACORN_KEY_ROWS.flat().find(
+                                    (key) => key.code === remap.targetCode,
+                                  )?.label
+                                }
+                              </span>
+                              <button
+                                type="button"
+                                aria-label={`Remove custom mapping for ${HOST_REMAP_KEYS.find((key) => key.code === remap.hostCode)?.label}`}
+                                onClick={() =>
+                                  applyKeyRemaps(
+                                    keyRemaps.filter(
+                                      (item) => item.hostCode !== remap.hostCode,
+                                    ),
+                                  )
+                                }
+                              >
+                                Remove
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <small>
+                          No custom mappings. The selected jsbeeb profile applies
+                          unchanged.
+                        </small>
+                      )}
+                      <button
+                        type="button"
+                        disabled={!keyRemaps.length}
+                        onClick={() => applyKeyRemaps([])}
+                      >
+                        Clear custom mappings
+                      </button>
+                    </section>
+                  )}
+                  {full6502Machine && (
+                    <section className="machine-gamepad" aria-label="Gamepad input">
+                      <h3>Gamepad</h3>
+                      <label className="gamepad-enabled">
+                        <input
+                          type="checkbox"
+                          checked={gamepadConfig.enabled}
+                          onChange={(event) => {
+                            if (event.target.checked && bbcMouseJoystick) applyBbcMouseJoystick(false);
+                            applyGamepadConfig({ ...gamepadConfig, enabled: event.target.checked });
+                          }}
+                        />{" "}
+                        Enable standard gamepad polling
+                      </label>
+                      <p>{gamepadStatus}</p>
+                      <div className="gamepad-config">
+                        <label>
+                          <span>Controller</span>
+                          <select
+                            aria-label="Gamepad controller index"
+                            value={gamepadConfig.gamepadIndex}
+                            onChange={(event) =>
+                              applyGamepadConfig({
+                                ...gamepadConfig,
+                                gamepadIndex: Number(event.target.value),
+                              })
+                            }
+                          >
+                            {[0, 1, 2, 3].map((index) => (
+                              <option value={index} key={index}>
+                                Gamepad {index + 1}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Interface</span>
+                          <select
+                            aria-label="Gamepad machine interface"
+                            value={gamepadConfig.interfaceMode}
+                            onChange={(event) =>
+                              applyGamepadConfig({
+                                ...gamepadConfig,
+                                interfaceMode: event.target
+                                  .value as GamepadInputConfig["interfaceMode"],
+                              })
+                            }
+                          >
+                            <option value="keys">Acorn key mapping</option>
+                            <option
+                              value="bbc-analogue"
+                              disabled={
+                                !["bbc-a", "bbc-b", "bbc-bplus", "master"].includes(
+                                  machineProfile.machineId,
+                                )
+                              }
+                            >
+                              BBC analogue port
+                            </option>
+                            <option value="atom-atommc" disabled={!atomMmcJoystickSupported}>
+                              Atom AtoMMC port
+                            </option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Axis dead zone</span>
+                          <input
+                            aria-label="Gamepad axis dead zone"
+                            type="number"
+                            min="0.1"
+                            max="0.9"
+                            step="0.05"
+                            value={gamepadConfig.deadZone}
+                            onChange={(event) =>
+                              applyGamepadConfig({
+                                ...gamepadConfig,
+                                deadZone: Number(event.target.value),
+                              })
+                            }
+                          />
+                        </label>
+                        {gamepadConfig.interfaceMode === "keys" &&
+                          GAMEPAD_ACTIONS.map((action) => (
+                            <label key={action.id}>
+                              <span>{action.label}</span>
+                              <select
+                                aria-label={`Gamepad ${action.label} Acorn key`}
+                                value={gamepadConfig.mapping[action.id]}
+                                onChange={(event) =>
+                                  applyGamepadConfig({
+                                    ...gamepadConfig,
+                                    mapping: {
+                                      ...gamepadConfig.mapping,
+                                      [action.id]: Number(event.target.value),
+                                    },
+                                  })
+                                }
+                              >
+                                {ACORN_KEY_ROWS.flat().map((key) => (
+                                  <option
+                                    value={key.code}
+                                    key={`${action.id}-${key.label}-${key.code}`}
+                                  >
+                                    {key.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          ))}
+                      </div>
+                      <output aria-live="polite">
+                        {gamepadConfig.interfaceMode === "bbc-analogue"
+                          ? "Axes 0 to 3 feed ADC channels 0 to 3. Buttons 0 and 1 feed active-low System VIA PB4 and PB5."
+                          : gamepadConfig.interfaceMode === "atom-atommc"
+                            ? "Axes 0/1 and the d-pad feed the active-low AtoMMC direction bits. Either fire button feeds its single fire bit."
+                          : gamepadActive.length
+                            ? `Held: ${gamepadActive.map((id) => GAMEPAD_ACTIONS.find((action) => action.id === id)?.label).join(", ")}`
+                            : "No mapped controls held"}
+                      </output>
+                      <small>
+                        {gamepadConfig.interfaceMode === "bbc-analogue"
+                          ? "BBC joystick axes are inverted by hardware convention: left and up are 65,535, right and down are 0. Disconnect centres all channels and releases both fire inputs."
+                          : gamepadConfig.interfaceMode === "atom-atommc"
+                            ? "Guest software reads the five active-low controls with AtoMMC CMD_READ_PORT at &B400. Disconnect returns the port to &FF."
+                          : "Standard axes 0/1, d-pad buttons 12 to 15 and buttons 0/1 generate real held key edges. Disconnect releases every active key."}
+                      </small>
+                    </section>
+                  )}
+                  {bbcAnalogueSupported && (
+                    <section className="machine-bbc-mouse-joystick" aria-label="BBC mouse analogue joystick">
+                      <h3>Mouse analogue joystick</h3>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={bbcMouseJoystick}
+                          onChange={(event) => applyBbcMouseJoystick(event.target.checked)}
+                        />{" "}
+                        Drive the BBC analogue port from the live display
+                      </label>
+                      <output aria-live="polite">{bbcMouseJoystickStatus}</output>
+                      <small>
+                        Pointer position feeds ADC channels 0 and 1 using the BBC
+                        inverted convention. Left and right buttons feed active-low
+                        System VIA PB4 and PB5. Leaving the display or losing focus
+                        centres both axes and releases fire. Enabling this mode
+                        disables standard gamepad polling so two host devices cannot
+                        fight over the same hardware input.
+                      </small>
+                    </section>
+                  )}
+                  {fullArchimedesMachine && (
+                    <section
+                      className="machine-archimedes-mouse"
+                      aria-label="A310 mouse input"
+                    >
+                      <h3>A310 mouse</h3>
+                      <p>
+                        Move over the live display for absolute RISC OS pointer input.
+                        Left, right and middle buttons use Arculator's real host mouse
+                        path.
+                      </p>
+                      <output aria-live="polite">{archimedesMouseStatus}</output>
+                      <small>
+                        Canvas coordinates are scaled to the live framebuffer. Leaving
+                        the display, releasing input, losing focus, resetting or
+                        powering off releases every mouse button.
+                      </small>
+                    </section>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         ) : fullMachine && !machinePowered ? (
           <div className="emulator-empty emulator-powered-off">

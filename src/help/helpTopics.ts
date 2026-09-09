@@ -2398,7 +2398,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B running at an acknowledged two-times jsbeeb runtime speed with the power, speed, display scaling and execution controls visible in the integrated emulator toolbar",
       caption:
         "The runtime status reports the multiplier accepted by the live child. Power releases the complete child session, while Run, Pause and Reset keep the session attached.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2470,7 +2470,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Expanded BBC Model B emulator session disclosure showing the pinned jsbeeb revision, exact resolved profile, capabilities, boot configuration, three complete ROM SHA-256 digests and a declared limitation",
       caption:
         "The parent fingerprints the complete session declaration. The emulator child must return the same fingerprint before its live snapshot is accepted.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2540,7 +2540,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B emulator after a real 6502 build and run with expanded PROGRAM details showing target, pinned assembler version, origin, entry point, complete output SHA-256, complete runtime-session fingerprint and Export run record",
       caption:
         "The child accepts the eight-byte program only after its declared build digest and current ROM-backed session binding validate. The export joins both immutable manifests.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2610,7 +2610,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B emulator toolbar showing authentic one-times runtime speed, SMOOTH framebuffer filtering, muted audio and the live master-volume slider",
       caption:
         "Filtering changes only live canvas sampling. The adjacent slider controls the jsbeeb GainNode and reports its accepted percentage through the child session.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2676,7 +2676,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B emulator with SOFT CRT selected, showing token-driven scanlines, a subtle colour grille and vignette above the unchanged live framebuffer",
       caption:
         "The effect is a pointer-transparent parent overlay. Two paused framebuffer downloads before and after selection had the same SHA-256.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2751,7 +2751,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B emulator after downloading a versioned machine state, with Save and Load state controls and a status message reporting schema version one, byte size and three bound ROM digests",
       caption:
         "A state download binds volatile jsbeeb data to the current adapter, machine configuration and complete ROM digest manifest before it can be restored.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2824,7 +2824,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "Settings workspace showing live browser origin usage and quota, best-effort retention, the persistent-storage request, and IndexedDB plus service worker usage categories above the private ROM manager",
       caption:
         "Quota and retention come from the current browser profile. Portable project exports and downloaded state files remain the recovery path.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -2899,7 +2899,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B emulator with live audio enabled and the red STOP REC control showing that bounded raw mono PCM capture is active",
       caption:
         "The child records its real sound-chip PCM callback. STOP REC encodes the retained samples as a standard mono 16-bit WAV and downloads it.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -3087,10 +3087,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/emulator-keyboard-input.png",
-      alt: "BBC Model B workbench with the real emulator running and the Machine input panel showing the accessible Acorn keyboard, mapping profile, reviewed text queue and browser conflict notice",
+      alt: "BBC Model B workbench with the real emulator running and the Machine input panel open over the machine frame, showing the accessible Acorn keyboard and the control that captures keyboard focus",
       caption:
         "Machine input exposes the live focus state, maintained jsbeeb mapping profiles, accessible Acorn keys and bounded text policy beside the genuine BBC framebuffer.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -3156,7 +3156,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B Machine input panel showing a validated custom mapping from host A to Acorn SPACE beside the accessible keyboard and text queue",
       caption:
         "The live test delivered both press and release as Acorn SPACE under the same jsbeeb session, then restored the mapping after reload.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -3237,10 +3237,10 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     screenshot: {
       src: "/help/emulator-gamepad.png",
-      alt: "BBC Model B Machine input panel using the native BBC analogue port with four live ADC channel values and two System VIA fire inputs",
+      alt: "BBC Model B Machine input panel showing the gamepad section with polling off because no controller is attached, and the controller, interface, dead zone and direction mapping controls it offers",
       caption:
         "The same standard controller can use maintained key edges or the real BBC ADC and active-low fire path. Disconnect centres and releases the selected interface.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {
@@ -3470,7 +3470,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       alt: "BBC Model B emulator using a one-times 1024 by 625 framebuffer viewport with visible scrollbars and the scaling selector in the runtime toolbar",
       caption:
         "One-times scaling preserves the live framebuffer pixel dimensions and exposes scrollbars when the integrated emulator region is smaller.",
-      captured: "2026.08 interface",
+      captured: "2026.09 interface",
     },
   },
   {

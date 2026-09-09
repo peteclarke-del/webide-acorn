@@ -82,6 +82,34 @@ export const SAMPLE_BASIC_LINE_FAULTS = [
   '70 END',
 ].join('\n');
 
+/*
+ * Supply the BBC Model B firmware the default profile asks for.
+ *
+ * These are real ROM images from the machine this runs on, handed to the same
+ * file inputs a person uses. Nothing is stubbed: after this the emulator boots
+ * for real, which is the only way a picture of a running machine can be honest.
+ * The vault is cleared before every shot, so a picture that is meant to show an
+ * unsupplied machine still shows one.
+ */
+const ROMS = '/home/pclarke/ownCloud/Projects/Personal Projects/8bit-net/services/bit-dev/WebIDE-Acorn/local-roms/normalized';
+export const SUPPLY_BBC_ROMS = [
+  { workspace: 'Settings' },
+  { waitFor: '.rom-workspace' },
+  { files: { selector: '.rom-requirements section:nth-of-type(1) input[type="file"]', paths: [`${ROMS}/os.rom`] } },
+  { files: { selector: '.rom-requirements section:nth-of-type(2) input[type="file"]', paths: [`${ROMS}/BASIC.ROM`] } },
+  { files: { selector: '.rom-requirements section:nth-of-type(3) input[type="file"]', paths: [`${ROMS}/b/DFS-0.9.rom`] } },
+  { waitForText: 'ROM SET READY' },
+];
+
+/* Everything a picture of a running Model B needs: firmware supplied, the
+ * machine booted, and the workbench back on the source it was opened with. */
+export const RUN_BBC = [
+  ...SUPPLY_BBC_ROMS,
+  { workspace: 'Code' },
+  { waitForText: 'RUNNING' },
+  { wait: 4000 },
+];
+
 export const SHOTS = [
   {
     file: 'workbench-overview.png',
@@ -380,5 +408,141 @@ export const SHOTS = [
       { scrollTo: { selector: '.basic-reference-diagnostics', block: 'top' } },
     ],
     shows: ['line issue', 'LINE REFERENCES'],
+  },
+  {
+    file: 'emulator-power-speed.png',
+    topics: ['emulator-power-speed'],
+    steps: [
+      ...SUPPLY_BBC_ROMS,
+      { workspace: 'Code' },
+      /* Long enough for the machine to boot and print its banner, which is what
+       * proves the picture is of a running machine and not of a black canvas. */
+      { waitForText: 'RUNNING' },
+      { wait: 4000 },
+      { setValue: { selector: 'select[aria-label="Runtime speed"]', value: '2' } },
+      { wait: 2000 },
+    ],
+    shows: ['RUNNING', 'Runtime speed', 'Framebuffer scaling'],
+  },
+  {
+    file: 'emulator-audio-filter.png',
+    topics: ['emulator-audio-filter'],
+    steps: [
+      ...RUN_BBC,
+      { setValue: { selector: 'select[aria-label="Framebuffer filter"]', value: 'linear' } },
+      { wait: 1200 },
+    ],
+    shows: ['audio muted', 'SMOOTH', 'Machine volume'],
+  },
+  {
+    file: 'emulator-display-effects.png',
+    topics: ['emulator-display-effects'],
+    steps: [
+      ...RUN_BBC,
+      { setValue: { selector: 'select[aria-label="Display presentation effect"]', value: 'soft-crt' } },
+      { wait: 1500 },
+    ],
+    shows: ['SOFT CRT', 'RUNNING'],
+  },
+  {
+    file: 'emulator-display-scaling.png',
+    topics: ['emulator-display-scaling'],
+    steps: [
+      ...RUN_BBC,
+      { setValue: { selector: 'select[aria-label="Framebuffer scaling"]', value: '1x' } },
+      { wait: 1500 },
+    ],
+    shows: ['RUNNING', 'Framebuffer scaling'],
+  },
+  {
+    file: 'emulator-session-provenance.png',
+    topics: ['emulator-session-provenance'],
+    steps: [
+      ...RUN_BBC,
+      { disclose: 'SESSION' },
+      { wait: 800 },
+    ],
+    shows: ['ROM digests', 'exact resolved profile'],
+  },
+  {
+    file: 'emulator-keyboard-input.png',
+    topics: ['emulator-keyboard-input'],
+    steps: [
+      ...RUN_BBC,
+      { clickText: { selector: 'button.emulator-input-button', text: 'KEYS' } },
+      { wait: 900 },
+    ],
+    shows: ['Machine input', 'keyboard'],
+  },
+  {
+    file: 'emulator-wav-capture.png',
+    topics: ['emulator-wav-capture'],
+    steps: [
+      ...RUN_BBC,
+      { click: 'button[aria-label="Enable machine audio"]' },
+      { wait: 1200 },
+      { click: 'button[aria-label="Start machine audio capture"]' },
+      { wait: 1800 },
+    ],
+    shows: ['RUNNING'],
+  },
+  {
+    file: 'emulator-machine-state.png',
+    topics: ['emulator-machine-state'],
+    steps: [
+      ...RUN_BBC,
+      { click: 'button[aria-label="Save machine state"]' },
+      { wait: 2500 },
+    ],
+    shows: ['Machine state v1 saved', 'ROM digests'],
+  },
+  {
+    file: 'emulator-storage-quota.png',
+    topics: ['emulator-storage-quota'],
+    steps: [
+      ...SUPPLY_BBC_ROMS,
+      { waitFor: 'section[aria-label="Browser storage quota"]' },
+      { scrollTo: { selector: 'section[aria-label="Browser storage quota"]', block: 'top' } },
+    ],
+    shows: ['quota', 'IndexedDB'],
+  },
+  {
+    file: 'emulator-key-remap.png',
+    topics: ['emulator-key-remap'],
+    steps: [
+      ...RUN_BBC,
+      { clickText: { selector: 'button.emulator-input-button', text: 'KEYS' } },
+      { wait: 900 },
+      { scrollTo: { selector: '.machine-key-remaps', block: 'top' } },
+    ],
+    shows: ['Custom key mappings', 'HOST KEY'],
+  },
+  {
+    file: 'emulator-gamepad.png',
+    topics: ['emulator-gamepad'],
+    steps: [
+      ...RUN_BBC,
+      { clickText: { selector: 'button.emulator-input-button', text: 'KEYS' } },
+      { wait: 900 },
+      { scrollTo: { selector: '.machine-gamepad', block: 'top' } },
+    ],
+    shows: ['gamepad'],
+  },
+  {
+    file: 'emulator-program-provenance.png',
+    topics: ['emulator-program-provenance'],
+    steps: [
+      ...OPEN_HARVEST,
+      ...SUPPLY_BBC_ROMS,
+      { workspace: 'Code' },
+      { waitForText: 'RUNNING' },
+      { clickText: { selector: 'button', text: 'Build' } },
+      { clickText: { selector: 'button', text: 'Build and run' } },
+      { waitForText: 'PROGRAM' },
+      { wait: 3000 },
+      { disclose: 'PROGRAM' },
+      { wait: 800 },
+    ],
+    shows: ['PROGRAM', 'acorn-harvest'],
   },
 ];
