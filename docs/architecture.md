@@ -248,6 +248,12 @@ reported a specific readiness check as failed. The readiness detail comes
 straight from the manifest, so a missing binary names the path it was looked
 for at.
 
+The C SDK documents the editor opens read-only are served by the same service.
+It looks for the BBC runtime headers where an install puts them,
+`/usr/local/share/8bit-net/cc65-bbc/include`, then falls back to the copy in
+`backend/resources/cc65-bbc/include`, so a checkout run with `php -S` serves
+them without any configuration. `CC65_BBC_INCLUDE` overrides both.
+
 The store needs somewhere to write. In the container that is the mounted
 volume; outside it, `PROJECT_STORE_ROOT` has to name a directory the backend may
 create, or every write is refused with `PROJECT_UNWRITABLE` naming the path it

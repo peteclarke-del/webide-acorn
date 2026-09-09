@@ -113,6 +113,26 @@ npm test
 npm run build
 ```
 
+## Refreshing the help screenshots
+
+Every image in the in-app help is taken by driving the real application in a
+real browser rather than by hand, because taking them by hand is what made them
+go stale. `scripts/helpScreenshotStates.mjs` says, for each image, which state
+it is a picture of and the steps that reach it in the product's own words, and
+what has to be on screen before the shutter opens. A capture that reaches the
+wrong state fails and leaves the committed image alone.
+
+```bash
+npm run dev                                    # the workbench on :5399
+php -S 127.0.0.1:8000 -t backend/public backend/public/index.php   # the build service
+node --experimental-websocket scripts/helpScreenshots.mjs [--only name.png]
+```
+
+The emulator pictures need the machine's own firmware in `local-roms`, which is
+never committed. A picture whose firmware is absent is reported by the name of
+the file that was looked for, and is not taken; it is not counted as a success
+and the earlier image is kept.
+
 ## Current scope
 
 - React, TypeScript, and Vite application shell.
@@ -121,7 +141,10 @@ npm run build
   context links from every workspace, maintained interface screenshots,
   captions, text alternatives, keyboard navigation, target-specific limits and
   recovery procedures. `npm test` verifies screenshot files, related links,
-  selected control names and the help prose rules.
+  selected control names, the help prose rules, and that every image a topic
+  shows has a state it can be taken from again. The pictures themselves come
+  from driving the real application: see Refreshing the help screenshots
+  below.
 - Linked platform, machine, variant, ROM/OS, and capability controls.
 - Browser-local projects with new/open/save/recovery/export, source import,
   editable multi-file tabs, rename/delete/download, modified-state tracking,
