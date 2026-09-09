@@ -10,10 +10,10 @@ success criterion is listed with how it is verified.
 
 ## What the answers mean
 
-- **Automated** (a rule in the release gate decides it, and the rule is named. It runs on every build.
-- **Partly automated**) a rule decides part of it and the rest is manual. Both halves are stated rather than glossed.
-- **Manual** (only a person can decide it, and what they have to do is stated.
-- **Not applicable**) the product has no content the criterion applies to, with the reason. Each would stop being not applicable the day the product gained that kind of content.
+- **Automated**: a rule in the release gate decides it, and the rule is named. It runs on every build.
+- **Partly automated**: a rule decides part of it and the rest is manual. Both halves are stated rather than glossed.
+- **Manual**: only a person can decide it, and what they have to do is stated.
+- **Not applicable**: the product has no content the criterion applies to, with the reason. Each would stop being not applicable the day the product gained that kind of content.
 
 Of 55 Level A and AA success criteria: 13 are decided automatically, 9 partly, 22 by a person, and 11 do not apply.
 

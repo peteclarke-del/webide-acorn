@@ -1,6 +1,7 @@
 import { fake6502 } from 'jsbeeb/src/fake6502.js';
 import { findModel } from 'jsbeeb/src/models.js';
-import { createBPlusCpu, resolveMachineModel } from './bbcBPlus';
+import { BPlusCpu6502, resolveMachineModel } from './bbcBPlus';
+import { Cpu6502 } from 'jsbeeb/src/6502.js';
 import { Video } from 'jsbeeb/src/video.js';
 import { Keyboard } from 'jsbeeb/src/keyboard.js';
 import { discFor } from 'jsbeeb/src/fdc.js';
@@ -17,6 +18,11 @@ import { decodeInstructionState, type DecodedInstructionState } from './instruct
 import { traceInstructionMatches, traceTriggerMatches, validateTraceConfig, type TraceConfig, type TraceEventKind } from './traceModel';
 import { validateLiveDisassemblyRequest } from './liveDisassemblyModel';
 import { createMemoryMapState, mappedAddressIdentity, physicalMemoryIndex, validateMemorySpaceRead, type MappedAddressIdentity, type MemorySpaceId } from './memoryMapModel';
+import { fitBeebSid, type SidHost } from './beebSidBus';
+import { createBbcCpu } from './bbcCpuFactory';
+import { TUBE_CAPABILITY, parasiteFor } from './tubeParasite';
+import { BeebScsiCard, SCSI_LUN_COUNT, type BeebScsiState, type ScsiPhase } from './beebScsi';
+import { fitBeebScsi, type ScsiHost } from './beebScsiBus';
 import { compareHardwareGroups, field, flagFields, packKeyboardColumn, videoNulaGroup, type HardwareGroupDraft, type HardwareInspection, type HardwareRegisterDraft, type VideoNulaState } from './hardwareInspectorModel';
 import { rasterEvents, rasterPositionMatches, validateRasterConfig, type RasterConfig, type RasterEventKind, type RasterSample } from './rasterTimelineModel';
 import { DEFAULT_PROFILER_CONFIG, profileBuildFingerprint, profilerMemoryRegion, validateProfilerConfig, type ProfilerConfig } from './profilerModel';
@@ -216,6 +222,16 @@ interface TapeStreamInternals { pos?: number; end?: number }
 interface TapeInternals { stream?: TapeStreamInternals; curChunk?: { id?: number; stream?: TapeStreamInternals } | null; state?: number; count?: number; curByte?: number; baseFrequency?: number; atomWavebitsLeft?: number }
 let mountedTape: { name: string; format: string; size: number; tape: TapeInternals } | null = null;
 const mountedDiscs = new Map<number, { name: string; bytes: Uint8Array; dirty: boolean; revision: number }>();
+/*
+ * The BeebSCSI card, and what is on it.
+ *
+ * It outlives any one machine build, the way a micro SD card outlives a BREAK:
+ * the board reads the card, and rebuilding the emulated machine does not empty
+ * it. What ADFS writes goes back into these bytes, so an export hands back the
+ * LUN image as it now stands.
+ */
+const scsiCard = new BeebScsiCard();
+const mountedLuns = new Map<number, { name: string; revision: number }>();
 interface TubeTransferEvent { sequence: number; timeMs: number; hostCycle: number; parasiteCycle: number; side: 'host' | 'parasite'; access: 'read' | 'write'; address: number; register: number; value: number; hostPc: number; parasitePc: number }
 let tubeTransferEvents: TubeTransferEvent[] = [];
 let tubeTransferSequence = 0;
@@ -253,6 +269,9 @@ type CommandPayload =
   | { type: 'load-tape'; name: string; bytes: number[] }
   | { type: 'eject-disc'; drive: number }
   | { type: 'export-disc'; drive: number }
+  | { type: 'load-scsi-lun'; name: string; bytes: number[]; lun?: number; descriptor?: number[] }
+  | { type: 'eject-scsi-lun'; lun: number }
+  | { type: 'export-scsi-lun'; lun: number }
   | { type: 'eject-tape' }
   | { type: 'save-state' }
   | { type: 'load-state'; json: string }
@@ -314,9 +333,15 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   browserAudio = new BrowserAudio(model.isAtom, model.cyclesPerSecond);
   audioEnabled = false;
   runtimeSpeed = 1;
-  cpu = bplus
-    ? createBPlusCpu<typeof model, JsBeebCpu>(model, { video, soundChip: browserAudio.soundChip })
-    : fake6502(model, { video, tube, soundChip: browserAudio.soundChip });
+  /*
+   * Which second processor, rather than whether one. The engine picks by host,
+   * and a PiTube Direct does not: it puts a 65C102 behind the Tube of whatever
+   * it is plugged into, so the session says which and this fits it.
+   */
+  const parasite = tube ? parasiteFor(model, runtimeSessionManifest?.machine.enabledCapabilities ?? [TUBE_CAPABILITY]) : null;
+  cpu = model.isAtom
+    ? fake6502(model, { video, tube: false, soundChip: browserAudio.soundChip })
+    : createBbcCpu<typeof model, JsBeebCpu>((bplus ? BPlusCpu6502 : Cpu6502) as never, model, { video, soundChip: browserAudio.soundChip, tube: parasite });
   analogueJoystickChannels = [0x8000, 0x8000, 0x8000, 0x8000];
   atomMmcGamepadButtons = Array<boolean>(16).fill(false);
   if (model.isAtom && cpu.atommc) cpu.atommc.attachGamepad({ gamepadButtons: atomMmcGamepadButtons });
@@ -331,6 +356,25 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   // sideways ROMs before initialise/loadOs reads the config.
   cpu.config.extraRoms = [...extraRoms];
   await Promise.all([cpu.initialise(), browserAudio.ready]);
+  /*
+   * BeebSID, when the profile says one is fitted. It is a 1 MHz bus board
+   * rather than part of any machine, so it is fitted to whatever processor was
+   * just built and mixed into the same buffer the sound chip fills. The chip is
+   * built for the rate this audio context actually runs at, because its own
+   * clock is 1 MHz and the ratio between the two is what sets the pitch.
+   */
+  browserAudio.attachMixSource(null);
+  if (!model.isAtom && runtimeSessionManifest?.machine.enabledCapabilities.includes('beebsid')) {
+    browserAudio.attachMixSource(fitBeebSid(cpu as unknown as SidHost, '6581', browserAudio.sampleRate));
+  }
+  /*
+   * BeebSCSI, on the same terms. The board carries its own card, so the LUN
+   * images already mounted in this session are put back on it: the card is not
+   * part of the machine and does not come out when the machine is rebuilt.
+   */
+  if (!model.isAtom && runtimeSessionManifest?.machine.enabledCapabilities.includes('beebscsi')) {
+    fitBeebScsi(cpu as unknown as ScsiHost, scsiCard);
+  }
   installTubeEventCapture();
   keyboard = new Keyboard({ processor: cpu, inputEnabledFunction: () => false, dbgr: { enabled: () => false, keyPress: () => false } });
   keyboard.setKeyLayout(isJsBeebKeyboardLayout(requestedKeyboardLayout) ? requestedKeyboardLayout : 'physical');
@@ -1674,6 +1718,38 @@ function keyboardInspectorGroup(keys: ArrayLike<ArrayLike<number>> | undefined, 
   ] };
 }
 
+/**
+ * What the BeebSCSI board is doing, as the host adapter would show it.
+ *
+ * The status byte is the one &FC41 returns, so its bits are named the way the
+ * CPLD assembles them. Reading it here does not move the bus: the board's
+ * snapshot is taken from state, not by doing the read.
+ */
+function beebScsiInspectorGroup(state: BeebScsiState): HardwareGroupDraft {
+  const lunMask = state.startedLuns.reduce((mask, lun) => mask | (1 << lun), 0);
+  const presentMask = state.presentLuns.reduce((mask, lun) => mask | (1 << lun), 0);
+  return {
+    id: 'beebscsi',
+    label: 'BeebSCSI host adapter',
+    source: 'BeebScsi.snapshotState() · status is assembled from state, not by reading &FC41',
+    registers: [
+      hardwareRegister('status', 'Status', '&FC41', state.statusByte, 8, 'read-only', flagFields(state.statusByte, [[7, 'C/D'], [6, 'I/O'], [5, 'REQ'], [4, 'IRQ'], [1, 'BSY'], [0, 'MSG']])),
+      hardwareRegister('phase', 'Bus phase', 'SCSI state', SCSI_PHASE_ORDER.indexOf(state.phase), 8, 'internal state', [{ label: state.phase, value: state.phase, active: state.phase !== 'busfree' }]),
+      hardwareRegister('irq-enable', 'Host interrupt enable', '&FC43', state.irqEnabled ? 1 : 0, 8, 'write-only latch', flagFields(state.irqEnabled ? 1 : 0, [[0, 'enabled']])),
+      hardwareRegister('luns-started', 'LUNs started', 'drive state', lunMask, 8, 'internal state', flagFields(lunMask, [[0, 'LUN 0'], [1, 'LUN 1'], [2, 'LUN 2'], [3, 'LUN 3'], [4, 'LUN 4'], [5, 'LUN 5'], [6, 'LUN 6'], [7, 'LUN 7']])),
+      hardwareRegister('luns-present', 'LUN images on the card', 'card contents', presentMask, 8, 'internal state', flagFields(presentMask, [[0, 'LUN 0'], [1, 'LUN 1'], [2, 'LUN 2'], [3, 'LUN 3'], [4, 'LUN 4'], [5, 'LUN 5'], [6, 'LUN 6'], [7, 'LUN 7']])),
+      hardwareRegister('lun-directory', 'LUN directory', 'jukebox selection', state.lunDirectory, 8, 'internal state'),
+      hardwareRegister('last-command', 'Last command opcode', 'command block byte 0', state.lastCommand[0] ?? 0, 8, 'internal state', [field('group', state.lastCommand[0] ?? 0, 0xe0, 5), field('opcode', state.lastCommand[0] ?? 0, 0x1f)]),
+      hardwareRegister('last-status', 'Last completion status', 'status phase byte', state.lastStatus, 8, 'internal state', [field('LUN', state.lastStatus, 0xe0, 5), field('error', state.lastStatus, 0x02, 1)]),
+      hardwareRegister('transfer-remaining', 'Bytes left in this transfer', 'data phase', state.transferRemaining, 32, 'internal state'),
+      hardwareRegister('configuration', 'Configuration byte', '&FC44', state.configuration, 8, 'write-only latch'),
+    ],
+  };
+}
+
+/** The phases, in the order the bus walks them, so the inspector can show one number. */
+const SCSI_PHASE_ORDER: ScsiPhase[] = ['busfree', 'command', 'dataout', 'datain', 'status', 'message'];
+
 function cassetteInspectorGroup(): HardwareGroupDraft | null {
   if (!mountedTape) return null;
   const tape = mountedTape.tape;
@@ -1784,6 +1860,8 @@ function captureHardwareInspection(): HardwareInspection {
       ] });
     }
   }
+  const scsiBoard = (cpu as unknown as { beebScsi?: { snapshotState(): BeebScsiState } }).beebScsi;
+  if (scsiBoard) groups.push(beebScsiInspectorGroup(scsiBoard.snapshotState()));
   const cassetteGroup = cassetteInspectorGroup();
   if (cassetteGroup) groups.push(cassetteGroup);
   const inspection: HardwareInspection = { sequence: ++hardwareInspectionSequence, cycles: absoluteCpuCycles(), profile: cpu.model.isAtom ? 'atom' : cpu.model.isMaster ? 'master' : 'bbc', groups: compareHardwareGroups(groups, hardwareInspection) };
@@ -2081,6 +2159,34 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
     if (!disc) { send({ type: 'error', message: `Drive ${command.drive} has no mounted disk to export` }); return; }
     const blob = new Blob([disc.bytes.slice()], { type: 'application/octet-stream' });
     send({ type: 'media-exported', kind: 'disc', name: disc.name, drive: command.drive, dirty: disc.dirty, revision: disc.revision, size: disc.bytes.length, blob });
+  }
+  else if (command.type === 'load-scsi-lun') {
+    /*
+     * A LUN image is a card file, not a drive: the board reads it whether or
+     * not a machine is running, and nothing has to be ejected first because
+     * putting a file on the card replaces the one that was there.
+     */
+    const lun = Number.isInteger(command.lun) ? Number(command.lun) : 0;
+    if (lun < 0 || lun >= SCSI_LUN_COUNT) { send({ type: 'error', message: `A BeebSCSI LUN is 0 to ${SCSI_LUN_COUNT - 1}` }); return; }
+    scsiCard.mount(lun, Uint8Array.from(command.bytes), command.descriptor ? Uint8Array.from(command.descriptor) : undefined);
+    mountedLuns.set(lun, { name: command.name, revision: 0 });
+    if (replayEnabled) resetReplaySegment('A LUN image mount is an irreversible history boundary');
+    send({ type: 'media-loaded', kind: 'scsi-lun', name: command.name, size: command.bytes.length, drive: lun });
+    sendSnapshot(`LUN ${lun} mounted`);
+  }
+  else if (command.type === 'eject-scsi-lun') {
+    if (!mountedLuns.has(command.lun)) { send({ type: 'error', message: `LUN ${command.lun} holds no image to eject` }); return; }
+    scsiCard.eject(command.lun); mountedLuns.delete(command.lun);
+    if (replayEnabled) resetReplaySegment('A LUN image eject is an irreversible history boundary');
+    send({ type: 'media-ejected', kind: 'scsi-lun', drive: command.lun }); sendSnapshot(`LUN ${command.lun} ejected`);
+  }
+  else if (command.type === 'export-scsi-lun') {
+    const mounted = mountedLuns.get(command.lun);
+    const image = mounted ? scsiCard.image(command.lun) : null;
+    if (!mounted || !image) { send({ type: 'error', message: `LUN ${command.lun} holds no image to export` }); return; }
+    /* The image comes back as it now stands, with whatever ADFS wrote into it. */
+    const blob = new Blob([image.data.slice()], { type: 'application/octet-stream' });
+    send({ type: 'media-exported', kind: 'scsi-lun', name: mounted.name, drive: command.lun, dirty: image.revision > 0, revision: image.revision, size: image.data.length, blob });
   }
   else if (command.type === 'eject-tape' && cpu) {
     if (cpu.model.isAtom) cpu.atomppia?.setTape(null); else cpu.acia?.setTape(null);

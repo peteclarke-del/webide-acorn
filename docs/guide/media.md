@@ -148,7 +148,62 @@ Attach a validated disk or cassette to the active Atom, Electron, BBC or Master 
 
 In the IDE: Help → `#help/emulator-media-eject`
 
-## 4. Export a disk changed by the guest
+## 4. Put a hard disc on the BeebSCSI card
+
+Fit the BeebSCSI board to a BBC B, B+ or Master, put a LUN image on its card, and reach it from ADFS. A LUN is a file on the board's card rather than a disc in a drive, so nothing is inserted and nothing is ejected.
+
+**Before you start**
+
+- A BBC B, B+ or Master profile with BeebSCSI enabled
+- An ADFS ROM set for that machine, because ADFS is what drives the host adapter
+- A LUN image, or a blank one created here
+
+**Procedure**
+
+1. Enable BeebSCSI in the target profile. It is a 1 MHz bus board, so it appears on every BBC-family machine that has that bus.
+2. Choose the ADFS ROM set for the machine, then start it.
+3. Open Media and find BeebSCSI card.
+4. Choose the LUN. ADFS reaches LUNs 0 to 3; VFS reaches all eight, and the drive answers for eight.
+5. For an image you already have, choose it under Image. A file named scsi0.dat or similar selects its own LUN.
+6. Supply the matching .dsc under Descriptor when you have one. Without it the board builds the descriptor from the size of the image, which is what the real board does.
+7. Read the cylinders, heads, sectors and capacity, and any warnings, before putting it on the card.
+8. Choose Put on card. The image appears under the card listing once the runtime has it.
+9. For a new disc, choose a size and Create blank LUN. It arrives unformatted and holds no sectors until something writes to it.
+10. At the machine, use ADFS as normal. *MOUNT starts a LUN and *BYE stops it, and a read of a stopped LUN that has an image starts it.
+11. Choose Export current to download the image as it now stands, with whatever the machine wrote into it.
+12. Choose Take off card to remove it. Nothing is ejected: the file leaves the card.
+
+**What should happen**
+
+- The board answers &FC40 to &FC44 and nothing else in that page, which is what the Acorn host adapter decodes.
+- ADFS finds the adapter by writing a byte to &FC40 and reading it back, which the board answers from its own latch while the drive is not driving the bus.
+- A LUN with no image on the card reports as not ready, and ADFS prints the sense byte the drive returned.
+- An unformatted LUN reads back as unwritten space, which ADFS reports as a broken directory rather than a disc fault.
+- A LUN image grows as the machine writes to it, so a blank 511.9 MB disc costs nothing until it is used.
+- The card outlives a reset. BREAK reaches the board, but which LUNs are started does not change, because that state lives in the drive.
+
+**Limits**
+
+- The vendor FAT commands are not implemented, so the BeebSCSI file transfer utility cannot copy a host file onto a LUN. An unimplemented opcode is refused rather than left hanging.
+- The VP415 F-Code commands are not implemented. Those are the Domesday internal bus rather than anything a BBC hard disc needs.
+- Nothing here formats a LUN. A blank one needs Acorn's own Superform, or an image prepared elsewhere.
+- LUN images are held in browser memory for the active machine session and are not added to the project automatically.
+- The Electron has no 1 MHz bus, so no BeebSCSI board is offered on it.
+
+**If it goes wrong**
+
+- If ADFS reports a disc error at startup, check that the LUN the machine is looking for has an image on the card.
+- If ADFS reports a broken directory, the LUN is readable but has never been formatted.
+- If the descriptor is refused, check that it is the 22 bytes an Acorn LUN descriptor is.
+- Export a LUN image before clearing browser storage or replacing it with another one.
+
+![BBC Model B Media workspace showing the BeebSCSI card section with a blank LUN created and its cylinders, heads, sectors and capacity listed](../../public/help/emulator-beebscsi-card.png)
+
+*A LUN goes on the board's card rather than into a drive. A blank one arrives unformatted and holds no sectors until something writes to it.*
+
+In the IDE: Help → `#help/emulator-beebscsi-card`
+
+## 5. Export a disk changed by the guest
 
 Track writes made through the live jsbeeb FDC, distinguish mounted source bytes from current guest bytes and download the current SSD or DSD image before ejecting or powering off.
 

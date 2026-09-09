@@ -5,7 +5,7 @@
 These are the same procedures the IDE carries under Help, published so they can be read
 without starting it. They are generated from one source, so the two cannot disagree.
 
-79 procedures across 16 areas.
+82 procedures across 16 areas.
 
 ## [First run](first-run.md)
 
@@ -76,6 +76,7 @@ without starting it. They are generated from one source, so the two cannot disag
 - **Create, inspect and mount media**: Work with DFS, DSD, ADFS, cassette, Atom ATM and RISC OS application payloads while preserving Acorn metadata.
 - **Assemble a release on disc**: Record which build artifacts and files go on which disc and side, in what order, how the machine boots from them, and write every image in one step.
 - **Mount and eject live jsbeeb media**: Attach a validated disk or cassette to the active Atom, Electron, BBC or Master adapter, distinguish request state from machine acknowledgement, then eject it from the real FDC or cassette input.
+- **Put a hard disc on the BeebSCSI card**: Fit the BeebSCSI board to a BBC B, B+ or Master, put a LUN image on its card, and reach it from ADFS. A LUN is a file on the board's card rather than a disc in a drive, so nothing is inserted and nothing is ejected.
 - **Export a disk changed by the guest**: Track writes made through the live jsbeeb FDC, distinguish mounted source bytes from current guest bytes and download the current SSD or DSD image before ejecting or powering off.
 
 ## [Running a machine, and controlling it](emulator.md)
@@ -97,6 +98,8 @@ without starting it. They are generated from one source, so the two cannot disag
 - **Capture A310 stereo audio**: Capture the exact post-mix stereo PCM frames that the pinned Arculator core passes to SDL and download them as a bounded 48 kHz PCM16 WAV.
 - **Audit the immutable emulator session binding**: Prove which adapter, machine profile, capabilities, boot options and private ROM digests created the current emulator child, then distinguish exact support from a declared substitution or limitation.
 - **Audit and export the loaded program binding**: Verify that the exact assembled or imported bytes accepted by the emulator belong to the current ROM-backed machine session, then export one integrity-protected run record.
+- **Fit a second processor and choose which one**: Put a 6502 or a 65C102 behind the Tube of a BBC B, B+ or Master, supply the ROMs each needs, and confirm the language crossed by reading the banner the parasite printed.
+- **Fit a BeebSID and hear it**: Put a 6581 on the 1 MHz bus of a BBC B, B+ or Master, write to it at &FC20, and hear it mixed with the machine's own sound chip.
 
 ## [Debugging and tracing](debugging.md)
 

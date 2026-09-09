@@ -6017,7 +6017,7 @@ Current implemented increment:
     planned: that was what ran the Tube case against a BBC B and reported a
     failure about the machine as though it were about the product.
   processor; prove scheduling, state, media, input, and dual debugger hooks.
-- [ ] EMU-424B Make the Tube hand the language over on a BBC Model B. It works
+- [x] EMU-424B Make the Tube hand the language over on a BBC Model B. It works
   on the Master and is wanted on the Model B too.
   - [x] **Measured on 9 September 2026, and the fault is further in than the
     capability note used to say.** The IDE's wiring is right: enabling the
@@ -6038,11 +6038,73 @@ Current implemented increment:
     `local-roms/mame/bbc_acorn8271.zip` holds `dnfs120.rom`. Fitting it to a
     sideways bank changes nothing, and jsbeeb does load `config.extraRoms` into
     banks, so it was genuinely present.
-  - [ ] What is left is to trace jsbeeb's host and parasite handshake past that
-    point against real Model B behaviour, and fix it upstream or as a pinned
-    patch. This is emulator-core work rather than IDE wiring, and it should not
-    be started without a known-good trace to bisect against.
+  - [x] **It was never the core, and it now boots.** The trace that was asked
+    for was taken, and the answer is in the first two lines of it. A Model B
+    with a Tube fitted writes the ULA control register once, reads it back and
+    stops, both accesses from OS 1.20 at &DB3D and &DB40. That is the whole of
+    the Tube code in that operating system: it finds the ULA and goes no
+    further, because the language transfer is not in OS 1.20. On real hardware
+    it is in a sideways ROM, and Acorn shipped that code in DNFS.
+  - [x] With DNFS 1.20 in a bank the same machine carries on from &815D,
+    enabling the parasite interrupts and reading the parasite banner out of
+    register 1, and introduces itself as `Acorn TUBE 6502 64K`. The earlier
+    attempt reported that DNFS changed nothing; it had not reached a bank.
+  - [x] The B+ needs nothing extra, because MOS 2.00 carries the host code at
+    &AEFB. This build was withholding a Tube from the B+ on the strength of the
+    note that has now been disproved, so a B+ is given one.
+  - [x] The Model B ROM sets ask for the host ROM the moment the Tube is
+    switched on, the way a Plus 1 asks for its support ROM: an expansion whose
+    ROM is absent is an expansion that is not fitted, and without this one the
+    machine boots to its own banner with the parasite sitting in its ROM, which
+    looks like a broken Tube rather than a missing ROM.
+  - [x] Evidence: `scripts/measureBbcTube.mjs` boots all four combinations and
+    logs every access to &FEE0 to &FEE7. The banners and the traces are
+    recorded in `src/emulator/bbcTubeMeasurements.ts`, and nine tests hold both
+    the traces and the catalogues to them.
+- [x] **EMU-432 The second processor was chosen by host, and a PiTube Direct
+  does not work that way.** The engine fits the board Acorn sold for each
+  machine: the Turbo for a Master, the 6502 board for the rest. That is the
+  right default and the wrong rule, because a PiTube Direct puts a 65C102
+  behind whatever it is plugged into, and the game this is being got ready for
+  is a Model B with one.
+  - [x] Neither parasite model is tied to a host, so both were booted behind
+    both machines. Each printed its own ROM's name, which is the one thing that
+    cannot be mistaken: `Acorn TUBE 6502 64K` and `Acorn TUBE 65C102
+    Co-Processor`. All four handed the language over, which is what PAGE at
+    &800 and HIMEM at &8000 on the far side say.
+  - [x] The parasite is a capability now rather than a consequence of the host.
+    A Model B and a B+ offer the 6502 board Acorn sold them and a 65C102
+    alongside; the Master's own Tube is already a Turbo, so it is offered one
+    and no more. The ROM set asks for the parasite ROM that goes with whichever
+    is switched on.
+  - [x] Getting there needed one thing the engine's factory does not offer: it
+    derives the parasite from the host and takes no argument for it. The
+    factory is now this build's own, which is the same body with the parasite
+    and the processor class passed in. The B+ already needed the second of
+    those, so the two are one function rather than two.
+  - [x] Evidence: `scripts/measureTubeParasite.mjs` boots all four,
+    `src/emulator/tubeParasiteMeasurements.ts` records what each said, and
+    eleven tests hold the choice and the catalogues to them.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
+  - [x] Which ones there are is written down rather than left to be asked. A
+    Tube takes whatever is plugged into it, Acorn sold four processors for one,
+    and a PiTube Direct offers twenty-six emulations selected with
+    `*FX 151,230,n`. `docs/tube-processors.md` is generated from
+    `src/emulator/tubeProcessors.ts` and keeps PiTube Direct's own selection
+    numbers, so a program that switches processors on hardware can be written
+    against the same numbers here.
+  - [x] Two of them run: the 6502 and the 65C102, both measured behind both a
+    Model B and a Master. The Z80, ARM2, 32016 and 80286 are listed as planned
+    on every machine with a Tube, each saying what it would take. The pinned
+    engine publishes two parasite models and no others, and a Tube parasite is
+    a whole processor with its own memory, boot ROM and timing, so fitting one
+    of the others means bringing a core rather than configuring one.
+  - [ ] The Z80 and the ARM2 are the two worth doing first, and the reason is
+    the same for both: their parasite ROM is already identified in the firmware
+    vault, so only the processor is missing. The Z80 ROM reads
+    `Acorn TUBE Z80 64K 1.20` and the ARM one is the Brazil supervisor of
+    August 1986. Neither has a core here; the ARM2 inside the pinned Arculator
+    is a whole Archimedes rather than something that can sit behind a Tube.
 - [ ] EMU-426 Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,
   video/audio/input/storage/state/debug hooks and RISC OS application launch.
   A310/RISC OS 3.11 ROM flow, video, keyboard input, live debug, bounded HostFS
@@ -6050,6 +6112,62 @@ Current implemented increment:
   capture and bounded 800 KiB ADFS floppy mounting are implemented. Core-native
   save/restore, durable media write-back and the remaining lifecycle gates keep
   this parent item open.
+- [x] **EMU-430 The 1 MHz bus answered every address with a bare `break`.** The
+  pinned engine decodes &FC20 to &FC3F and &FC40 to &FC5F and does nothing with
+  either, so a BeebSID was silent and a BeebSCSI was not there. Both are now
+  fitted from the target profile, to the processor that was just built rather
+  than by subclassing one, because a Model B, a B+ and a Master can each carry
+  either and a subclass per combination would multiply for no gain.
+  - [x] BeebSID is a 6581 with the real oscillators, envelopes and waveform
+    combining, mixed into the same buffer the sound chip fills, and built for
+    the rate the audio context actually runs at because its own clock is 1 MHz
+    and the ratio between the two is what sets the pitch. The analogue filter
+    is approximated to the published range rather than to one chip, and the
+    capability says so.
+  - [x] BeebSCSI is written from the project's own documentation, not ported.
+    The register map and the signal behaviour are read off the CPLD Verilog
+    BeebSCSI publishes as its host adapter, and the command set off its
+    Technical Guide. Two details in that Verilog are what make it work at all:
+    every access to &FC40 clocks ACK whichever way the byte is going, and the
+    adapter loops its own data-in latch back when the drive is not driving the
+    bus, which is how ADFS decides a board is fitted.
+  - [x] Evidence: a real Acorn ADFS ROM was booted against it and asked. With
+    no image on the card it printed `Disc error 2C at :0/000000`, which is the
+    sense byte the drive assembled and nothing else. With an unformatted LUN it
+    printed `Broken directory`, so the read of the root directory completed and
+    returned unwritten space. A block carrying a known pattern was read back
+    byte for byte through OSWORD &72, and a block written through the same call
+    and read back returned what was written. `scripts/measureBeebScsi.mjs`
+    reproduces all four against a firmware vault; the answers are recorded in
+    `src/emulator/beebScsiMeasurements.ts` and 64 tests hold the board to them.
+  - [ ] The vendor group 6 FAT commands (&12 to &14) are not implemented, so
+    the BeebSCSI transfer utility cannot copy a host file onto a LUN. An
+    opcode this drive does not implement returns an invalid command rather
+    than hanging the bus, so the utility fails cleanly instead of stopping.
+    The VP415 F-Code commands are also absent, which is the Domesday internal
+    bus rather than anything a BBC game needs.
+- [ ] **EMU-431 Sideways RAM is offered without saying how much, and there is
+  more of it than any real board.** The capability said only that there were
+  writable banks at &8000. How many there are is the number a game is written
+  against.
+  - [x] Each machine was asked. A routine runs with interrupts off and, for
+    every one of the sixteen banks, selects it, writes the complement of what
+    is at &8000, reads it back and puts the original back. A Model B answers
+    with banks 0 to 7, which is 128 KB. A Master answers with banks 4 to 7,
+    which is 64 KB and not the same four: its own firmware occupies the low
+    banks, so a program that assumes bank 0 is RAM works on one machine and not
+    the other. `scripts/measureSidewaysRam.mjs` reproduces it and
+    `src/emulator/sidewaysRamMeasurements.ts` records it.
+  - [x] Both capabilities now say how many banks, which ones, and how much.
+    The Model B's also says that a real board is usually 16, 32 or 64 KB, so a
+    program that spreads over more banks than the board it is for will run here
+    and not there.
+  - [ ] What is left is to make the amount fitted a choice rather than whatever
+    the engine hands out, so a game for a 32 KB board is developed on a machine
+    with 32 KB. The model can be derived with its own bank map, which is what
+    the B+ already does for its own; what it needs is somewhere to carry the
+    choice. The runtime session manifest is the honest place, and adding a
+    field to it changes its fingerprint, so this is its own piece of work.
 - [ ] EMU-427 Add later Archimedes/ARM profiles based on verified equivalence.
 - [x] EMU-428 Publish per-adapter limitations and accuracy/regression evidence.
   - [x] One adapter support matrix now answers, for every machine profile,

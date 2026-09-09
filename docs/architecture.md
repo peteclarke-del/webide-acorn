@@ -30,6 +30,14 @@ The store this service holds is the only thing in it nobody else has a copy of,
 so backing it up, verifying it and restoring it are written down as a procedure
 to be performed rather than as intentions: `docs/operations.md`.
 
+Facts about a machine that somebody writes a program against are generated the
+same way, from a catalogue of what the machine itself answered rather than from
+a table typed out once: `docs/bbc-screen-modes.md` is every BBC screen mode with
+its resolution, colours, memory and what is left for a program, and
+`docs/tube-processors.md` is every second processor a Tube can carry with which
+of them run here. A contract test fails the moment either stops matching the
+catalogue it came from.
+
 ## System context
 
 Who and what this product talks to. Everything inside the box runs on one host;
@@ -170,6 +178,38 @@ See `docs/adr/0001-emulator-integration-boundary.md` for the boundary, and
 `0006-archimedes-wasm-runtime.md` and `0008-elkjs-electron-adapter-and-gpl-position.md`
 for the two cores with licence positions worth reading before changing them.
 
+### Hardware a core does not model
+
+A core models a machine. Expansions people actually fit are not part of any
+machine, and the pinned jsbeeb decodes several of their addresses and answers
+with a bare `break`, which is an expansion that is present and does nothing.
+
+Two of those are fitted here instead: BeebSID at &FC20 and BeebSCSI at &FC40.
+Both are written against the same shape. The device is its own module with no
+dependency on the engine, and a second module wires it to a processor by
+wrapping `readDevice`, `writeDevice` and `reset` on the instance that was just
+built. Wrapping an instance rather than subclassing one is deliberate: a Model
+B, a B+ and a Master can each carry either board, and a subclass per
+combination would multiply for no gain. Fitting the same board twice returns
+the one already fitted, because a machine has one 1 MHz bus.
+
+Nothing in the engine is patched on disk, and no address outside the board's
+own range changes behaviour. Where the board raises an interrupt it claims a
+bit in the engine's own interrupt word and leaves the rest of it alone.
+
+The second processor is chosen the same way. The engine derives a parasite from
+the host, because that is what Acorn sold for each machine; a PiTube Direct does
+not work that way, so `createBbcCpu` takes the parasite and the processor class
+as arguments. That factory is the engine's own body with those two passed in,
+and the B+ this build adds uses it too.
+
+Anything fitted like this is measured against real firmware before it is
+offered, and what the machine said is checked in beside the code as a
+`*Measurements.ts` module with a `scripts/measure*.mjs` that reproduces it.
+
+See `docs/adr/0013-expansion-hardware-the-core-does-not-model.md` for the
+decision, what it rules out and what it costs.
+
 ## Language adapters
 
 A language adapter is the single declaration of what a language offers:
@@ -194,9 +234,9 @@ The full policy, with every versioned surface and what it promises, is in
 
 Three layers, and each exists because the other two cannot answer its question.
 
-- **Contracts** (pure functions and models, run under Vitest. These state what
+- **Contracts**: pure functions and models, run under Vitest. These state what
   the code must do in the words of the problem, not the implementation.
-- **Component contracts**) the real surfaces under jsdom, driven the way a
+- **Component contracts**: the real surfaces under jsdom, driven the way a
   person drives them.
 - **The release gate**, `npm run ci`. Types, help integrity, the whole test
   suite with its coverage floors, the backend suite, PHPStan and the PHP

@@ -27,7 +27,8 @@ export type ProfileDiagnosticKind =
   | 'unknown-rom'
   | 'unknown-capability'
   | 'planned-capability'
-  | 'capability-needs-variant';
+  | 'capability-needs-variant'
+  | 'capability-needs-capability';
 
 export interface ProfileDiagnostic {
   kind: ProfileDiagnosticKind;
@@ -118,6 +119,14 @@ export function validateMachineCatalogue(
       if (capability.requiresVariant && !machine.variants.includes(capability.requiresVariant)) {
         problems.push({ where: at, problem: `is fitted to the ${capability.requiresVariant} variant, which this machine does not list` });
       }
+      /* A capability that needs another has to name one this machine has, or
+       * it could never be enabled. */
+      if (capability.requiresCapability && !machine.capabilities.some((other) => other.id === capability.requiresCapability)) {
+        problems.push({ where: at, problem: `needs the ${capability.requiresCapability} capability, which this machine does not have` });
+      }
+      if (capability.requiresCapability === capability.id) {
+        problems.push({ where: at, problem: 'needs itself' });
+      }
     }
   }
   return problems;
@@ -195,6 +204,15 @@ export function resolveConfiguration(
      * variant. Enabling it elsewhere would claim hardware that is not fitted. */
     if (capability.requiresVariant && capability.requiresVariant !== variant) {
       diagnostics.push(diagnostic('capability-needs-variant', capability.label, null, `${capability.label} is fitted to the ${capability.requiresVariant} variant, and ${variant} is selected.`));
+      continue;
+    }
+    /* A capability that is which of something rather than another something.
+     * A 65C102 is which processor sits behind a Tube, so without a Tube it is
+     * nothing, and a session that enabled it alone would ask for a parasite
+     * ROM and no Tube host ROM. */
+    if (capability.requiresCapability && !request.enabledCapabilities.includes(capability.requiresCapability)) {
+      const needed = machine.capabilities.find((other) => other.id === capability.requiresCapability);
+      diagnostics.push(diagnostic('capability-needs-capability', capability.label, null, `${capability.label} needs ${needed?.label ?? capability.requiresCapability}, which is not enabled.`));
       continue;
     }
     enabledCapabilities.push(id);

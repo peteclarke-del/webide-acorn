@@ -701,7 +701,10 @@ and the earlier image is kept.
   ACIA latches, ADC result/status, ROMSEL/ACCCON, the active 8271/1770 floppy
   controller/drive mechanics, cassette/serial selection and clocks, and SN76489
   tone/noise/attenuation latches. Tube-enabled profiles additionally expose Tube
-  ULA host/parasite status and FIFO counts. Atom profiles expose MC6847 timing and the
+  ULA host/parasite status and FIFO counts, a fitted VideoNuLA its auxiliary
+  control and twelve-bit palette state, and a fitted BeebSCSI its host adapter
+  status byte, bus phase, started and present LUNs, last command block and last
+  completion status. Atom profiles expose MC6847 timing and the
   8255 PPIA keyboard/video/tape/speaker latches and pins. Every row identifies
   its address, access semantics, current/previous value, decoded known fields,
   change state and exact source of truth; unavailable devices are omitted.
@@ -888,8 +891,36 @@ and the earlier image is kept.
   locations or unwind records, so locals, parameters, storage classes and
   deeper frames are clearly unavailable instead of being inferred.
 - Browser-qualified ROM boots now cover BBC Model B, BBC Master 128 and Acorn
-  Atom. Tube selection conditionally requires the matching parasite boot ROM;
-  the initial BBC B + 6502 Tube host configuration also boots successfully.
+  Atom. A second processor is chosen rather than inherited from the host: a
+  Model B and a B+ offer the 6502 board Acorn sold them and a 65C102 alongside,
+  which is what a PiTube Direct fits, and the ROM set asks for whichever
+  parasite ROM goes with the one switched on. A Model B also needs the Tube host
+  code in a sideways bank, because OS 1.20 finds the Tube and stops there;
+  Acorn shipped that code in DNFS, and the ROM set asks for it. All four
+  combinations of parasite and host were booted and each printed its own ROM's
+  banner with the language transferred; see
+  `src/emulator/tubeParasiteMeasurements.ts` and
+  `src/emulator/bbcTubeMeasurements.ts`. Those two are the only processors that
+  run: a Tube takes whatever is plugged into it, Acorn sold four for one and a
+  PiTube Direct offers twenty-six emulations, so the Z80, ARM2, 32016 and 80286
+  are listed on every machine with a Tube and marked planned, each saying what
+  it would take. `docs/tube-processors.md` is the whole table, generated, with
+  PiTube Direct's own selection numbers kept.
+- Two boards on the BBC's 1 MHz bus are fitted from the target profile rather
+  than built into any machine, so a Model B, a B+ and a Master can each carry
+  either. BeebSID is a 6581 with the real oscillators, envelopes and waveform
+  combining, mixed into the same buffer the sound chip fills and built for the
+  rate the audio context runs at; its analogue filter is approximated to the
+  published range rather than to one chip, and the capability says so. BeebSCSI
+  is the Acorn SCSI host adapter and the SCSI-1 drive behind it, written from
+  the register map in BeebSCSI's own published CPLD and the command set in its
+  Technical Guide rather than ported from another emulator. LUN images go on a
+  card that outlives a machine rebuild, and they grow as the machine writes to
+  them, so a blank 511.9 MB disc costs nothing until it is used. A real Acorn
+  ADFS ROM was booted against the board and printed back the sense byte the
+  drive returned; see `src/emulator/beebScsiMeasurements.ts`. The vendor FAT
+  commands and the VP415 F-Codes are not implemented, and nothing here formats
+  a LUN.
 - Qualified BBC B and Master profiles can also enable the locally supplied
   1MHzPi BBC WiFi development ROM. The firmware vault labels the moving snapshot
   as development firmware and jsbeeb mounts it through its real sideways-ROM

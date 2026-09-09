@@ -7,6 +7,9 @@ coverage/
 /local-roms/
 /ci/project.json
 /ci/conformance-project.json
+.agents
+.claude
+.codex
 # Disc images the conformance generator masters from the case descriptions.
 /ci/*.ssd
 /ci/roms.json

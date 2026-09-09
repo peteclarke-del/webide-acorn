@@ -117,6 +117,13 @@ export const ROM_SETS: RomSetDefinition[] = [
       rom('basic', 'BBC BASIC II', 'BASIC.ROM', [16384], 'language'),
       rom('dfs', 'DFS filing system', 'b/DFS-0.9.rom', [8192, 16384], 'filing-system'),
       rom('tube6502', '6502 Tube boot ROM', 'tube/6502Tube.rom', [2048], 'extension', false, 'tube'),
+      rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube-turbo', {
+        provenanceNote: 'The parasite ROM for a 65C102 behind the Tube. Acorn sold this board for the Master; a PiTube Direct puts one behind any machine with a Tube interface.',
+      }),
+      rom('tube-host', '6502 Tube host, in DNFS 1.20', 'b/dnfs120.rom', [16384], 'extension', false, 'tube', {
+        runtimeMount: 'sideways',
+        provenanceNote: 'A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM.',
+      }),
       bbcWifi(),
     ],
   },
@@ -139,6 +146,13 @@ export const ROM_SETS: RomSetDefinition[] = [
       }),
       rom('dfs', 'DFS filing system', 'b/DFS-0.9.rom', [8192, 16384], 'filing-system'),
       rom('tube6502', '6502 Tube boot ROM', 'tube/6502Tube.rom', [2048], 'extension', false, 'tube'),
+      rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube-turbo', {
+        provenanceNote: 'The parasite ROM for a 65C102 behind the Tube. Acorn sold this board for the Master; a PiTube Direct puts one behind any machine with a Tube interface.',
+      }),
+      rom('tube-host', '6502 Tube host, in DNFS 1.20', 'b/dnfs120.rom', [16384], 'extension', false, 'tube', {
+        runtimeMount: 'sideways',
+        provenanceNote: 'A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM.',
+      }),
       bbcWifi(),
     ],
   },
@@ -150,6 +164,13 @@ export const ROM_SETS: RomSetDefinition[] = [
       rom('dfs1770', '1770 DFS', 'b1770/dfs1770.rom', [8192, 16384], 'filing-system'),
       rom('adfs', 'ADFS', 'b1770/zADFS.ROM', [16384], 'filing-system'),
       rom('tube6502', '6502 Tube boot ROM', 'tube/6502Tube.rom', [2048], 'extension', false, 'tube'),
+      rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube-turbo', {
+        provenanceNote: 'The parasite ROM for a 65C102 behind the Tube. Acorn sold this board for the Master; a PiTube Direct puts one behind any machine with a Tube interface.',
+      }),
+      rom('tube-host', '6502 Tube host, in DNFS 1.20', 'b/dnfs120.rom', [16384], 'extension', false, 'tube', {
+        runtimeMount: 'sideways',
+        provenanceNote: 'A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM.',
+      }),
       bbcWifi(),
     ],
   },
@@ -175,6 +196,12 @@ export const ROM_SETS: RomSetDefinition[] = [
         provenanceNote: 'The lower half of that same 32 KiB part, or BASIC II on its own; they are the same image.',
       }),
       rom('dfs', '1770 DFS', 'bplus/dfs223.rom', [16384], 'filing-system'),
+      rom('tube6502', '6502 Tube boot ROM', 'tube/6502Tube.rom', [2048], 'extension', false, 'tube', {
+        provenanceNote: 'The parasite\'s own ROM. A B+ needs nothing else for a Tube: MOS 2.00 carries the host code that a Model B has to be given in a bank.',
+      }),
+      rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube-turbo', {
+        provenanceNote: 'The parasite ROM for a 65C102 behind the Tube. Acorn sold this board for the Master; a PiTube Direct puts one behind any machine with a Tube interface.',
+      }),
       bbcWifi(),
     ],
   },
@@ -187,6 +214,12 @@ export const ROM_SETS: RomSetDefinition[] = [
        * ordering the engine already uses for the Model B's ADFS set. */
       rom('adfs', 'ADFS 1.30', 'bplus/adfs130.rom', [16384], 'filing-system'),
       rom('dfs', '1770 DFS', 'bplus/dfs223.rom', [16384], 'filing-system'),
+      rom('tube6502', '6502 Tube boot ROM', 'tube/6502Tube.rom', [2048], 'extension', false, 'tube', {
+        provenanceNote: 'The parasite\'s own ROM. A B+ needs nothing else for a Tube: MOS 2.00 carries the host code that a Model B has to be given in a bank.',
+      }),
+      rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube-turbo', {
+        provenanceNote: 'The parasite ROM for a 65C102 behind the Tube. Acorn sold this board for the Master; a PiTube Direct puts one behind any machine with a Tube interface.',
+      }),
       bbcWifi(),
     ],
   },

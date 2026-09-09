@@ -848,6 +848,35 @@ export const SHOTS = [
     shows: ['Eject', 'Accepted'],
   },
   {
+    /*
+     * The BeebSCSI card, with a blank LUN on it.
+     *
+     * The capability is switched on before the firmware is supplied, because
+     * fitting a board is part of choosing the machine rather than something
+     * done to a running one. A blank LUN is created rather than a file opened,
+     * so the picture needs no image nobody else has.
+     */
+    file: 'emulator-beebscsi-card.png',
+    topics: ['emulator-beebscsi-card'],
+    steps: [
+      { clickText: { selector: '.capability-item', text: 'BeebSCSI' } },
+      ...RUN_BBC,
+      { workspace: 'Media' },
+      { waitFor: 'section[aria-label="BeebSCSI card"]' },
+      { scrollTo: { selector: 'section[aria-label="BeebSCSI card"]', block: 'top' } },
+      { clickText: { selector: 'section[aria-label="BeebSCSI card"] button', text: 'Create blank LUN' } },
+      { waitForText: 'cylinders' },
+      /* The card listing appears only once the runtime has acknowledged the
+       * image, so wait for the acknowledgement rather than for a moment. */
+      { waitForText: 'bytes held' },
+      { wait: 800 },
+      /* Past the heading and on to the part the caption is about: the controls,
+       * the geometry the board derived, and what is now on the card. */
+      { scrollTo: { selector: 'section[aria-label="BeebSCSI card"] .media-fields', block: 'top' } },
+    ],
+    shows: ['Create blank LUN', 'Capacity', 'On the card'],
+  },
+  {
     file: 'editor-source-format-large.png',
     topics: ['source-text-format'],
     steps: [
