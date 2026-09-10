@@ -4292,7 +4292,8 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Choose Display mode first. The mode fixes the pixel dimensions and the number of logical colours, so changing it later reinterprets what is already drawn.",
       "Name the screen in Screen name.",
       "Draw with the pointer, choosing the pen from Logical colour. Screen zoom changes the size the pixels are drawn at and not the size of the screen.",
-      "Use Import an image to bring in a picture. It is reduced to the logical colours the mode has.",
+      "Choose Fit and Dither, then use Import an image to bring in a picture. Scale to the screen is the default: a four by three picture fills the screen, another shape is fitted inside it, and each screen pixel is the average of the source pixels it covers. Crop takes the top-left corner pixel for pixel, for a picture already drawn at the mode's own size.",
+      "Dither decides how colours the palette lacks are shown: nearest colour posterises, the ordered pattern gives a regular texture, and error diffusion keeps the average colour best and suits a photograph or a painting.",
       "Drag Rectangular selection to mark an area, then Copy area, Cut area or Paste at cursor. Clear selection drops the marks without changing pixels.",
       "Fill screen sets every pixel to the current logical colour. Undo steps back one change.",
       "Use Add generated source for a one-off, or Add live screen build target so the screen is regenerated on every build.",
@@ -4300,7 +4301,8 @@ export const HELP_TOPICS: HelpTopic[] = [
     expected: [
       "Logical colours are indices, not fixed colours: what each one looks like comes from the palette, so changing the palette changes the screen without redrawing it.",
       "Generated output is the packed bytes for the chosen mode, in the order the display hardware reads them.",
-      "An imported image is reduced to the mode's colour count rather than refused.",
+      "An imported image is reduced to the mode's colour count rather than refused, and the notice says what it was scaled from, how it was fitted and how many pixels were approximated, so the conversion is never presented as faithful.",
+      "A 160 by 256 screen is a four by three display with wide pixels, not a tall thin picture; scaling respects that, so a picture keeps its shape.",
     ],
     limitations: [
       "Importing reduces colours and cannot invent detail the mode cannot hold; a photograph in a two-colour mode will look like a two-colour picture.",
@@ -4310,6 +4312,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     recovery: [
       "Undo reverses drawing, filling, pasting and importing alike.",
       "If an import looks wrong, check that Display mode was chosen before the import rather than after it.",
+      "If an import arrives as a corner of the picture, Fit was set to Crop; choose Scale to the screen and import again.",
     ],
     related: [
       "asset-palettes",

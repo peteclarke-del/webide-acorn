@@ -17,8 +17,7 @@ import type { ProjectFile } from '../project/project';
 import {
   createScreenDocument, generateScreenOutputFromBytes, importImageIntoScreen, parseScreenDocument,
   readScreenPixel, screenBytes, screenDocumentFromBytes, screenGeometry, serializeScreenDocument,
-  setScreenMode, writeScreenPixel, type ScreenDocument,
-} from '../assets/screenDocument';
+  setScreenMode, writeScreenPixel, type ImageDither, type ImageFit, type ScreenDocument } from '../assets/screenDocument';
 import { PALETTE_MODES, paletteModeProfile, physicalColour, type PaletteModeId, type ProjectPalette } from '../assets/paletteDocument';
 
 interface ScreenWorkspaceProps {
@@ -55,6 +54,11 @@ export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource
   const [selectionAnchor, setSelectionAnchor] = useState<{ x: number; y: number }>();
   const [selection, setSelection] = useState<GridSelection>();
   const [clipboard, setClipboard] = useState<GridClipboard>();
+  /* How the next imported image is brought to the screen. Scaling with no
+   * dithering is the default because it is the least surprising: the whole
+   * picture arrives, at the mode's shape, in flat nearest colours. */
+  const [importFit, setImportFit] = useState<ImageFit>('scale');
+  const [importDither, setImportDither] = useState<ImageDither>('none');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   /* Reached from the Document menu, since a menu item cannot be a file input. */
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -239,9 +243,12 @@ export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource
       if (!context) { onNotice('This browser did not provide a 2D context, so the image could not be read.'); return; }
       context.drawImage(bitmap, 0, 0);
       const data = context.getImageData(0, 0, bitmap.width, bitmap.height);
-      const result = importImageIntoScreen(document, data.data, bitmap.width, bitmap.height, modeColours);
+      const result = importImageIntoScreen(document, data.data, bitmap.width, bitmap.height, modeColours, { fit: importFit, dither: importDither });
       commitDocument(result.document);
-      onNotice(`Imported ${file.name}: ${result.sourceColours.toLocaleString()} source colours, ${result.approximatedPixels.toLocaleString()} pixels approximated to the nearest palette colour${result.croppedPixels ? `, ${result.croppedPixels.toLocaleString()} pixels cropped` : ''}.`);
+      const placed = result.scaled
+        ? `scaled from ${result.scaled.fromWidth} by ${result.scaled.fromHeight} to ${result.scaled.toWidth} by ${result.scaled.toHeight}${result.scaled.toWidth !== geometry.width || result.scaled.toHeight !== geometry.height ? ', fitted inside the screen' : ''}`
+        : result.croppedPixels ? `${result.croppedPixels.toLocaleString()} pixels cropped` : 'placed pixel for pixel';
+      onNotice(`Imported ${file.name}: ${result.sourceColours.toLocaleString()} source colours, ${placed}, ${result.approximatedPixels.toLocaleString()} pixels approximated to the palette${importDither === 'none' ? '' : ` with ${importDither} dithering`}.`);
     } catch (error) { onNotice(`That image could not be imported: ${error instanceof Error ? error.message : String(error)}`); }
   };
 
@@ -295,6 +302,21 @@ export function ScreenWorkspace({ projectPalette, projectFiles = [], onAddSource
             { id: 'clear-selection', label: 'Deselect', description: 'Forget the marked rectangle', disabled: !selection && !selectionAnchor, onSelect: () => { setSelection(undefined); setSelectionAnchor(undefined); } },
           ] },
         ]} />
+        <div className="map-selection-tools" role="group" aria-label="Image import">
+          <label><span>Fit</span>
+            <select aria-label="Image import fit" value={importFit} onChange={(event) => setImportFit(event.target.value as ImageFit)}>
+              <option value="scale">Scale to the screen</option>
+              <option value="crop">Crop, pixel for pixel</option>
+            </select>
+          </label>
+          <label><span>Dither</span>
+            <select aria-label="Image import dithering" value={importDither} onChange={(event) => setImportDither(event.target.value as ImageDither)}>
+              <option value="none">None, nearest colour</option>
+              <option value="ordered">Ordered pattern</option>
+              <option value="diffusion">Error diffusion</option>
+            </select>
+          </label>
+        </div>
         <div className="map-selection-tools" role="group" aria-label="Rectangular selection">
           <button type="button" aria-pressed={!!selectionAnchor} onClick={() => markSelectionCorner(cursor.x, cursor.y)}>
             {selectionAnchor ? 'Mark opposite corner' : 'Mark corner'}

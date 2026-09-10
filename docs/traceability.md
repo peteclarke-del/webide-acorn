@@ -42,7 +42,7 @@ is the part a machine can settle.
 | P0 | 36 | 16 | 16 | 0 | 0 |
 | EMU | 25 | 18 | 7 | 11 | 0 |
 | EDT | 23 | 17 | 7 | 10 | 0 |
-| AST | 21 | 21 | 14 | 7 | 0 |
+| AST | 22 | 22 | 15 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 19 | 17 | 14 | 2 | 1 |
 | EMU | 20 | 14 | 5 | 9 | 0 |
@@ -169,6 +169,7 @@ are listed rather than quietly counted.
 | EMU-430 | The 1 MHz bus answered every address with a bare `break`. The pinned... | a real Acorn ADFS ROM was booted against it and asked. With no image on the card it printed `Disc error 2C at :0/000000`, which is the sense byte the drive assembled and nothing else. With an unformatted LUN it printed... |
 | EMU-434 | Measure what the machine can put on screen in one frame, so a game is... | `scripts/measureFrameBudget.mjs` reproduces all five, `src/emulator/frameBudgetMeasurements.ts` records them, `docs/frame-budget.md` is generated from that catalogue, and ten tests hold both to it. |
 | PRJ-040 | A project written to a folder is the whole project, not only its... | fourteen contracts in `src/project/projectManifest.test.ts`, including a round trip through a serialised manifest into the project parser, and the import dialog saying where the machine came from. |
+| AST-060 | An imported image is scaled to the screen rather than cropped, and... | nine contracts in `src/assets/screenDocument.test.ts`, including that a mid grey against black and white comes out as neither flat colour but a near-even mix under either dithering, and that a checkerboard finer than a... |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-... | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round... |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).... | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
 | DBG-523 | Complete decoded call stack, globals, locals, parameters, watches and... | 3 debug-expression contracts and 3 ARM debug-expression contracts cover the decoded call stack, watches and expression evaluation, with the caller-candidate rule proved by the 6502 instruction-state contracts. |
