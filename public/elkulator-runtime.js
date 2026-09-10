@@ -67,7 +67,7 @@
     breakpoint: 'execute-breakpoint', 'set-breakpoints': 'execute-breakpoint',
     watchpoint: 'watchpoint',
     'read-memory': 'memory-read', 'write-memory': 'memory-write',
-    'read-tube-memory': 'tube', 'read-disassembly': 'disassembly',
+    'read-tube-memory': 'tube', 'step-parasite': 'tube', 'read-disassembly': 'disassembly',
     'write-registers': 'register-write', 'inspect-hardware': 'hardware-inspection',
     'interrupt-monitor': 'interrupt-monitor', 'interrupt-history-clear': 'interrupt-monitor',
     'raster-monitor': 'raster-monitor', 'raster-timeline-clear': 'raster-monitor',
