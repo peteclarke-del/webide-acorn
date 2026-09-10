@@ -22,9 +22,9 @@ is the part a machine can settle.
 
 | Measure | Count |
 | --- | --- |
-| Requirements tracked | 303 |
-| Complete | 216 |
-| Complete and traced | 132 |
+| Requirements tracked | 304 |
+| Complete | 217 |
+| Complete and traced | 133 |
 | Complete and described | 81 |
 | Complete and untraced | 3 |
 | Open | 87 |
@@ -35,7 +35,7 @@ is the part a machine can settle.
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 16 | 16 | 0 | 0 |
 | EDT | 23 | 17 | 7 | 10 | 0 |
-| AST | 21 | 21 | 14 | 7 | 0 |
+| AST | 22 | 22 | 15 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | EMU | 19 | 13 | 4 | 9 | 0 |
 | ANL | 18 | 16 | 14 | 2 | 0 |
@@ -155,6 +155,7 @@ are listed rather than quietly counted.
 | EMU-421 | Add second materially different 8-bit slice selected at P0 (Atom or... | 10 Electron adapter contracts parse the vendored ElkJS runtime and prove the two capability declarations cannot drift, that all 24 unavailable capabilities carry a stated reason, and that no workbench command is left... |
 | EMU-424 | Add Tube host/parasite runtime starting with one selected second | the whole conformance suite on a genuine Master 128 with MOS 3.20 and the 65C102 Turbo Tube ROM through the headless path, 10 tests, 10 passed, the new `tube-parasite-execution` case among them with A, X, its own result... |
 | EMU-424B | Make the Tube hand the language over on a BBC Model B. It works on... | `scripts/measureBbcTube.mjs` boots all four combinations and logs every access to &FEE0 to &FEE7. The banners and the traces are recorded in `src/emulator/bbcTubeMeasurements.ts`, and nine tests hold both the traces and... |
+| AST-060 | An imported image is scaled to the screen rather than cropped, and... | nine contracts in `src/assets/screenDocument.test.ts`, including that a mid grey against black and white comes out as neither flat colour but a near-even mix under either dithering, and that a checkerboard finer than a... |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-... | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round... |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).... | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
 | DBG-523 | Complete decoded call stack, globals, locals, parameters, watches and... | 3 debug-expression contracts and 3 ARM debug-expression contracts cover the decoded call stack, watches and expression evaluation, with the caller-candidate rule proved by the 6502 instruction-state contracts. |

@@ -6085,6 +6085,25 @@ Current implemented increment:
   - [x] Evidence: `scripts/measureTubeParasite.mjs` boots all four,
     `src/emulator/tubeParasiteMeasurements.ts` records what each said, and
     eleven tests hold the choice and the catalogues to them.
+- [x] AST-060 An imported image is scaled to the screen rather than cropped,
+  and can be dithered. The Screens workspace imported an image pixel for
+  pixel from its top-left corner, so anything larger than the mode arrived as
+  a corner of itself, and anything not drawn at the mode's own pixel count
+  came out the wrong shape: a 160 by 256 screen is a four by three display
+  with wide pixels, not a tall thin picture.
+  - [x] Scaling is the default and respects the display's shape. A four by
+    three source fills the screen edge to edge; another shape is fitted inside
+    and centred with the rest left as colour zero. Each screen pixel is the
+    average of the source pixels it covers, not one of them. Cropping stays
+    available for a source already drawn at the mode's pixel count.
+  - [x] Dithering is offered in two forms, an ordered four-by-four pattern and
+    error diffusion, and the import notice says what was scaled from what and
+    which dithering was used, so the conversion is never presented as faithful.
+  - [x] Evidence: nine contracts in `src/assets/screenDocument.test.ts`,
+    including that a mid grey against black and white comes out as neither
+    flat colour but a near-even mix under either dithering, and that a
+    checkerboard finer than a screen pixel averages to the same grey for every
+    pixel rather than sampling whichever column fell under it.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
   - [x] Which ones there are is written down rather than left to be asked. A
     Tube takes whatever is plugged into it, Acorn sold four processors for one,

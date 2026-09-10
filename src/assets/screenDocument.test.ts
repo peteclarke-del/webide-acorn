@@ -125,21 +125,93 @@ describe('image import', () => {
   }
 
   it('maps exact palette colours without reporting approximation', () => {
-    const result = importImageIntoScreen(createScreenDocument('s'), image(4, 4, [255, 0, 0]), 4, 4, palette);
+    const result = importImageIntoScreen(createScreenDocument('s'), image(4, 4, [255, 0, 0]), 4, 4, palette, { fit: 'crop' });
     expect(result.approximatedPixels).toBe(0);
     expect(result.sourceColours).toBe(1);
     expect(readScreenPixel(screenBytes(result.document), screenGeometry('bbc-mode-5'), 0, 0)).toBe(1);
   });
 
   it('counts every pixel it had to approximate', () => {
-    const result = importImageIntoScreen(createScreenDocument('s'), image(4, 4, [200, 10, 10]), 4, 4, palette);
+    /* Cropped, so the sixteen source pixels are the sixteen screen pixels that
+     * are not exactly a palette colour; the rest of the screen is colour zero,
+     * which the palette has. */
+    const result = importImageIntoScreen(createScreenDocument('s'), image(4, 4, [200, 10, 10]), 4, 4, palette, { fit: 'crop' });
     expect(result.approximatedPixels).toBe(16);
     expect(readScreenPixel(screenBytes(result.document), screenGeometry('bbc-mode-5'), 0, 0)).toBe(1);
   });
 
-  it('reports the part of an oversized image that did not fit', () => {
-    const result = importImageIntoScreen(createScreenDocument('s'), image(200, 300, [0, 0, 0]), 200, 300, palette);
+  it('reports the part of an oversized image that did not fit, when asked to crop', () => {
+    const result = importImageIntoScreen(createScreenDocument('s'), image(200, 300, [0, 0, 0]), 200, 300, palette, { fit: 'crop' });
     expect(result.croppedPixels).toBe(200 * 300 - 160 * 256);
+    expect(result.scaled).toBeUndefined();
+  });
+
+  it('scales an image to the screen by default, so nothing is cropped', () => {
+    /* A four by three source fills a 160 by 256 screen edge to edge: the
+     * screen is a four by three display with wide pixels, not a tall picture. */
+    const result = importImageIntoScreen(createScreenDocument('s'), image(1448, 1086, [255, 0, 0]), 1448, 1086, palette);
+    expect(result.croppedPixels).toBe(0);
+    expect(result.scaled).toEqual({ fromWidth: 1448, fromHeight: 1086, toWidth: 160, toHeight: 256, offsetX: 0, offsetY: 0 });
+    const bytes = screenBytes(result.document);
+    const geometry = screenGeometry('bbc-mode-5');
+    expect(readScreenPixel(bytes, geometry, 0, 0)).toBe(1);
+    expect(readScreenPixel(bytes, geometry, 159, 255)).toBe(1);
+  });
+
+  it('fits a source of another shape inside the screen and leaves the rest as colour zero', () => {
+    /* Twice as wide as it is tall: it spans the width and sits in the middle. */
+    const result = importImageIntoScreen(createScreenDocument('s'), image(400, 200, [255, 255, 255]), 400, 200, palette);
+    expect(result.scaled?.toWidth).toBe(160);
+    expect(result.scaled?.toHeight).toBeLessThan(256);
+    expect(result.scaled?.offsetY).toBeGreaterThan(0);
+    const bytes = screenBytes(result.document);
+    const geometry = screenGeometry('bbc-mode-5');
+    expect(readScreenPixel(bytes, geometry, 80, 128)).toBe(3);
+    expect(readScreenPixel(bytes, geometry, 80, 0)).toBe(0);
+    expect(readScreenPixel(bytes, geometry, 80, 255)).toBe(0);
+  });
+
+  it('averages the source pixels a screen pixel covers rather than sampling one of them', () => {
+    /* Alternating black and white columns average to grey, and grey is nearer
+     * to neither black nor white than they are to each other; what matters is
+     * that the answer is the same for every screen pixel, which sampling one
+     * source pixel would not give. */
+    /* Four by three, so it fills the screen and every sampled pixel is
+     * inside the picture rather than in a fitted border. */
+    const width = 320; const height = 240;
+    const rgba = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) { const v = x % 2 ? 255 : 0; const o = (y * width + x) * 4; rgba[o] = v; rgba[o + 1] = v; rgba[o + 2] = v; rgba[o + 3] = 255; }
+    const result = importImageIntoScreen(createScreenDocument('s'), rgba, width, height, ['#000000', '#808080', '#ffffff', '#ff0000']);
+    const bytes = screenBytes(result.document);
+    const geometry = screenGeometry('bbc-mode-5');
+    const seen = new Set<number>();
+    for (let x = 0; x < 160; x += 7) seen.add(readScreenPixel(bytes, geometry, x, 100));
+    expect([...seen]).toEqual([1]);
+  });
+
+  it('dithers a colour the palette lacks into a mix of its neighbours', () => {
+    /* Mid grey against a black and white palette: with no dithering it is one
+     * flat colour; with either dithering it is both, in roughly equal measure. */
+    /* Exactly the screen's size, placed pixel for pixel, so the whole screen
+     * is grey and the share is a measure of the dithering alone. */
+    const grey = image(160, 256, [128, 128, 128]);
+    const flat = importImageIntoScreen(createScreenDocument('s'), grey, 160, 256, ['#000000', '#ffffff'], { fit: 'crop', dither: 'none' });
+    const ordered = importImageIntoScreen(createScreenDocument('s'), grey, 160, 256, ['#000000', '#ffffff'], { fit: 'crop', dither: 'ordered' });
+    const diffused = importImageIntoScreen(createScreenDocument('s'), grey, 160, 256, ['#000000', '#ffffff'], { fit: 'crop', dither: 'diffusion' });
+    const geometry = screenGeometry('bbc-mode-5');
+    const share = (result: typeof flat) => {
+      const bytes = screenBytes(result.document);
+      let lit = 0;
+      for (let y = 0; y < 256; y += 1) for (let x = 0; x < 160; x += 1) lit += readScreenPixel(bytes, geometry, x, y) ? 1 : 0;
+      return lit / (160 * 256);
+    };
+    expect([0, 1]).toContain(share(flat));
+    expect(share(ordered)).toBeGreaterThan(0.35);
+    expect(share(ordered)).toBeLessThan(0.65);
+    expect(share(diffused)).toBeGreaterThan(0.4);
+    expect(share(diffused)).toBeLessThan(0.6);
+    /* And every one of them still says the grey was approximated. */
+    for (const result of [flat, ordered, diffused]) expect(result.approximatedPixels).toBe(160 * 256);
   });
 
   it('refuses malformed image input', () => {
