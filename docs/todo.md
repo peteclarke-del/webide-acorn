@@ -6114,9 +6114,7 @@ Current implemented increment:
     result only the second processor could have produced.
     `src/emulator/parasiteProgramMeasurements.ts` records it and eleven tests
     hold the target model to it.
-  - [ ] Source-level debugging on the parasite is open. It needs breakpoints
-    that hook the parasite's instruction stream and a source map that belongs
-    to it, and neither exists yet.
+  - [x] Source-level debugging on the parasite: EMU-435.
 - [x] EMU-434 Measure what the machine can put on screen in one frame, so a
   game is designed against a number rather than an argument.
   - [x] Five routines were run on a Model B under the pinned core and the
@@ -6176,7 +6174,6 @@ Current implemented increment:
     flat colour but a near-even mix under either dithering, and that a
     checkerboard finer than a screen pixel averages to the same grey for every
     pixel rather than sampling whichever column fell under it.
-  - [x] Source-level debugging on the parasite: EMU-435.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
   - [x] Which ones there are is written down rather than left to be asked. A
     Tube takes whatever is plugged into it, Acorn sold four processors for one,
