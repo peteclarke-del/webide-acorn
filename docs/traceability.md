@@ -28,6 +28,12 @@ is the part a machine can settle.
 | Complete and described | 83 |
 | Complete and untraced | 4 |
 | Open | 88 |
+| Requirements tracked | 304 |
+| Complete | 217 |
+| Complete and traced | 133 |
+| Complete and described | 81 |
+| Complete and untraced | 3 |
+| Open | 87 |
 
 ## By area
 
@@ -39,6 +45,8 @@ is the part a machine can settle.
 | AST | 21 | 21 | 14 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
 | ANL | 19 | 17 | 14 | 2 | 1 |
+| EMU | 20 | 14 | 5 | 9 | 0 |
+| ANL | 18 | 16 | 14 | 2 | 0 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 11 | 4 | 4 | 3 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
@@ -159,6 +167,7 @@ are listed rather than quietly counted.
 | EMU-432 | The second processor was chosen by host, and a PiTube Direct does not... | `scripts/measureTubeParasite.mjs` boots all four, `src/emulator/tubeParasiteMeasurements.ts` records what each said, and eleven tests hold the choice and the catalogues to them. |
 | EMU-433 | A Tube was fittable and unusable. A second processor booted and there... | `scripts/measureParasiteProgram.mjs` assembles a program in this build, runs it behind all three host and parasite pairings, and reads back &42 at &8000 that the program computed from &10 plus &32. On the host &8000 is... |
 | EMU-430 | The 1 MHz bus answered every address with a bare `break`. The pinned... | a real Acorn ADFS ROM was booted against it and asked. With no image on the card it printed `Disc error 2C at :0/000000`, which is the sense byte the drive assembled and nothing else. With an unformatted LUN it printed... |
+| EMU-434 | Measure what the machine can put on screen in one frame, so a game is... | `scripts/measureFrameBudget.mjs` reproduces all five, `src/emulator/frameBudgetMeasurements.ts` records them, `docs/frame-budget.md` is generated from that catalogue, and ten tests hold both to it. |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-... | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round... |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).... | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
 | DBG-523 | Complete decoded call stack, globals, locals, parameters, watches and... | 3 debug-expression contracts and 3 ARM debug-expression contracts cover the decoded call stack, watches and expression evaluation, with the caller-candidate rule proved by the 6502 instruction-state contracts. |
