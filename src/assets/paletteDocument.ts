@@ -9,7 +9,16 @@
  *
  * A flashing physical colour genuinely alternates on the machine. A still
  * preview cannot show that, so the model exposes both phases and labels the
- * entry as flashing rather than pretending the first phase is the whole truth. */
+ * entry as flashing rather than pretending the first phase is the whole truth.
+ *
+ * A VideoNuLA lets a program redefine any of the sixteen physical colours as
+ * one of 4,096, four bits a channel, through two writes to &FE23: the first
+ * carries the physical colour's number in its high nibble and red in its low
+ * one, the second green and blue. A palette document may carry those
+ * definitions beside its VDU 19 mapping. They change what a physical colour
+ * looks like, not which physical colour a logical one maps to, so a machine
+ * without a NuLA shows the same mapping in the standard colours. A programmed
+ * colour in the flashing eight stops flashing, which is what the hardware does. */
 import { sha256Hex } from '../build/digest';
 
 export const PALETTE_SCHEMA = '8bit-net.palette' as const;
@@ -68,6 +77,13 @@ export function physicalColour(index: number): PhysicalColour {
   return { index: bounded, name: `flashing ${first.name}/${second.name}`, flashing: true, rgb: first.rgb, alternateRgb: second.rgb };
 }
 
+/** One of the 4,096 colours a VideoNuLA can give a physical colour: four bits a channel. */
+export interface NulaColour {
+  red: number;
+  green: number;
+  blue: number;
+}
+
 export interface PaletteDocument {
   schema: typeof PALETTE_SCHEMA;
   version: 1;
@@ -75,7 +91,45 @@ export interface PaletteDocument {
   mode: PaletteModeId;
   /** One physical colour, 0 to 15, per logical colour of the mode. */
   entries: number[];
+  /**
+   * What a VideoNuLA redefines each physical colour as, by physical colour 0
+   * to 15, or null where the physical colour is left as the machine's own.
+   * Always sixteen long once parsed; serialised only when any is set.
+   */
+  nula: Array<NulaColour | null>;
   extensions: Record<string, unknown>;
+}
+
+/** The CSS colour of a NuLA definition: each nibble doubled, which is what the hardware does. */
+export function nulaRgb(colour: NulaColour): string {
+  const channel = (value: number) => ((value & 0xf) * 17).toString(16).padStart(2, '0');
+  return `#${channel(colour.red)}${channel(colour.green)}${channel(colour.blue)}`;
+}
+
+/** The two bytes that program one physical colour, in the order they are written to &FE23. */
+export function nulaBytesFor(physical: number, colour: NulaColour): [number, number] {
+  return [((physical & 0xf) << 4) | (colour.red & 0xf), ((colour.green & 0xf) << 4) | (colour.blue & 0xf)];
+}
+
+function parseNulaColour(value: unknown, physical: number): NulaColour | null {
+  if (value === null || value === undefined) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`The NuLA colour for physical colour ${physical} must be an object with red, green and blue`);
+  const candidate = value as Record<string, unknown>;
+  const channel = (name: 'red' | 'green' | 'blue'): number => {
+    const level = candidate[name];
+    if (!Number.isInteger(level) || (level as number) < 0 || (level as number) > 15) throw new Error(`The NuLA ${name} level for physical colour ${physical} must be 0 to 15`);
+    return level as number;
+  };
+  return { red: channel('red'), green: channel('green'), blue: channel('blue') };
+}
+
+/** What a physical colour looks like in this palette: as the NuLA defines it, or as the machine has it. */
+export function physicalColourIn(document: Pick<PaletteDocument, 'nula'>, physical: number): PhysicalColour {
+  const standard = physicalColour(physical);
+  const defined = document.nula[standard.index];
+  if (!defined) return standard;
+  const rgb = nulaRgb(defined);
+  return { index: standard.index, name: `NuLA ${rgb}`, flashing: false, rgb, alternateRgb: rgb };
 }
 
 export function paletteModeProfile(mode: PaletteModeId): PaletteModeProfile {
@@ -92,8 +146,10 @@ export function defaultPaletteEntries(mode: PaletteModeId): number[] {
   return Array.from({ length: logicalColours }, (_, index) => index);
 }
 
+const NO_NULA = (): Array<NulaColour | null> => Array.from({ length: 16 }, () => null);
+
 export function createPaletteDocument(name = 'untitled-palette', mode: PaletteModeId = 'bbc-mode-5'): PaletteDocument {
-  return { schema: PALETTE_SCHEMA, version: 1, name, mode, entries: defaultPaletteEntries(mode), extensions: {} };
+  return { schema: PALETTE_SCHEMA, version: 1, name, mode, entries: defaultPaletteEntries(mode), nula: NO_NULA(), extensions: {} };
 }
 
 export function parsePaletteDocument(value: string | unknown): PaletteDocument {
@@ -110,12 +166,32 @@ export function parsePaletteDocument(value: string | unknown): PaletteDocument {
     if (!Number.isInteger(entry) || (entry as number) < 0 || (entry as number) > 15) throw new Error('Each palette entry must be a physical colour from 0 to 15');
     return entry as number;
   });
+  const nula = NO_NULA();
+  if (parsed.nula !== undefined && parsed.nula !== null) {
+    if (!Array.isArray(parsed.nula) || parsed.nula.length > 16) throw new Error('NuLA colours must be a list of at most sixteen entries, one per physical colour');
+    parsed.nula.forEach((value, physical) => { nula[physical] = parseNulaColour(value, physical); });
+  }
   const extensions = parsed.extensions && typeof parsed.extensions === 'object' && !Array.isArray(parsed.extensions) ? parsed.extensions as Record<string, unknown> : {};
-  return { schema: PALETTE_SCHEMA, version: 1, name: parsed.name.trim(), mode: profile.id, entries, extensions };
+  return { schema: PALETTE_SCHEMA, version: 1, name: parsed.name.trim(), mode: profile.id, entries, nula, extensions };
 }
 
+/**
+ * Serialised with the NuLA list only when a colour is defined, so a palette
+ * that uses none reads as before, and cut after the last defined colour, so a
+ * palette that defines four does not carry twelve nulls. The parser pads it.
+ */
 export function serializePaletteDocument(document: PaletteDocument): string {
-  return `${JSON.stringify(parsePaletteDocument(document), null, 2)}\n`;
+  const { schema, version, name, mode, entries, nula, extensions } = parsePaletteDocument(document);
+  const last = nula.reduce((found, colour, index) => colour ? index : found, -1);
+  const withNula = last >= 0 ? { schema, version, name, mode, entries, nula: nula.slice(0, last + 1), extensions } : { schema, version, name, mode, entries, extensions };
+  return `${JSON.stringify(withNula, null, 2)}\n`;
+}
+
+/** Define, or with null undefine, what the NuLA makes of one physical colour. */
+export function setNulaColour(document: PaletteDocument, physical: number, colour: NulaColour | null): PaletteDocument {
+  const validated = parsePaletteDocument(document);
+  if (!Number.isInteger(physical) || physical < 0 || physical > 15) throw new Error('A NuLA colour is defined for a physical colour from 0 to 15');
+  return parsePaletteDocument({ ...validated, nula: validated.nula.map((entry, index) => index === physical ? colour : entry) });
 }
 
 export function setPaletteEntry(document: PaletteDocument, logical: number, physical: number): PaletteDocument {
@@ -139,6 +215,8 @@ export function resetPalette(document: PaletteDocument): PaletteDocument {
 export interface PaletteOutput {
   /** The exact VDU byte stream: for each logical colour, 19, l, p, 0, 0, 0. */
   bytes: Uint8Array;
+  /** The NuLA writes, two bytes a defined physical colour, in the order they go to &FE23. Empty without a NuLA colour. */
+  nulaBytes: Uint8Array;
   assembly: string;
   basic: string;
   manifest: {
@@ -154,6 +232,9 @@ export interface PaletteOutput {
     sha256: string;
     /** Logical colours whose physical colour flashes on the real machine. */
     flashingLogicalColours: number[];
+    /** Physical colours the NuLA redefines, in the order they are written. */
+    nulaPhysicalColours: number[];
+    nulaByteLength: number;
   };
 }
 
@@ -165,25 +246,44 @@ export function generatePaletteOutput(document: PaletteDocument): PaletteOutput 
   const validated = parsePaletteDocument(document);
   const profile = paletteModeProfile(validated.mode);
   const bytes = Uint8Array.from(validated.entries.flatMap((physical, logical) => [19, logical, physical, 0, 0, 0]));
+  const nulaDefined = validated.nula.flatMap((colour, physical) => colour ? [{ physical, colour }] : []);
+  const nulaBytes = Uint8Array.from(nulaDefined.flatMap(({ physical, colour }) => nulaBytesFor(physical, colour)));
+  const digest = sha256Hex(nulaBytes.length ? Uint8Array.from([...nulaBytes, ...bytes]) : bytes);
   const label = paletteLabel(validated.name);
   const rows = Array.from({ length: validated.entries.length }, (_, logical) => {
     const physical = validated.entries[logical]!;
-    const colour = physicalColour(physical);
+    const colour = physicalColourIn(validated, physical);
     return `EQUB 19, ${logical}, ${physical}, 0, 0, 0 ; logical ${logical} becomes ${colour.name}`;
+  });
+  const hex = (value: number) => `&${value.toString(16).toUpperCase().padStart(2, '0')}`;
+  const nulaRows = nulaDefined.map(({ physical, colour }) => {
+    const [first, second] = nulaBytesFor(physical, colour);
+    return `EQUB ${hex(first)}, ${hex(second)} ; physical ${physical} becomes ${nulaRgb(colour)}`;
   });
   const assembly = [
     `; Generated palette ${validated.name} for ${profile.label} · ${profile.detail}`,
-    `; ${bytes.length} VDU bytes · SHA-256 ${sha256Hex(bytes)}`,
+    `; ${bytes.length} VDU bytes${nulaBytes.length ? ` and ${nulaBytes.length} NuLA bytes` : ''} · SHA-256 ${digest}`,
+    ...(nulaBytes.length ? [
+      `; Write each NuLA pair to &FE23 in order, first byte then second, before the VDU bytes.`,
+      `.${label}_nula`,
+      ...nulaRows,
+      `.${label}_nula_end`,
+    ] : []),
     `; Send these bytes through OSWRCH to apply the palette.`,
     `.${label}`,
     ...rows,
     `.${label}_end`,
   ].join('\n');
-  const basic = validated.entries
-    .map((physical, logical) => `VDU 19,${logical},${physical},0,0,0`)
-    .join('\n');
+  const basic = [
+    ...nulaDefined.map(({ physical, colour }) => {
+      const [first, second] = nulaBytesFor(physical, colour);
+      return `?&FE23=${hex(first)}:?&FE23=${hex(second)}`;
+    }),
+    ...validated.entries.map((physical, logical) => `VDU 19,${logical},${physical},0,0,0`),
+  ].join('\n');
   return {
     bytes,
+    nulaBytes,
     assembly,
     basic,
     manifest: {
@@ -196,8 +296,10 @@ export function generatePaletteOutput(document: PaletteDocument): PaletteOutput 
       displayMode: profile.mode,
       logicalColours: profile.logicalColours,
       byteLength: bytes.length,
-      sha256: sha256Hex(bytes),
-      flashingLogicalColours: validated.entries.flatMap((physical, logical) => physicalColour(physical).flashing ? [logical] : []),
+      sha256: digest,
+      flashingLogicalColours: validated.entries.flatMap((physical, logical) => physicalColourIn(validated, physical).flashing ? [logical] : []),
+      nulaPhysicalColours: nulaDefined.map(({ physical }) => physical),
+      nulaByteLength: nulaBytes.length,
     },
   };
 }
@@ -238,8 +340,9 @@ export function resolveProjectPalette(
   const exact = parsed.find((entry) => paletteModeProfile(entry.document.mode).logicalColours === logicalColours);
   const chosen = exact ?? parsed[0];
   const entries = chosen ? chosen.document.entries : defaultPaletteEntries(logicalColours === 2 ? 'bbc-mode-4' : logicalColours === 16 ? 'bbc-mode-2' : 'bbc-mode-5');
-  const colours = Array.from({ length: logicalColours }, (_, index) => physicalColour(entries[index] ?? index).rgb);
-  const flashing = Array.from({ length: logicalColours }, (_, index) => index).filter((index) => physicalColour(entries[index] ?? index).flashing);
+  const look = (index: number): PhysicalColour => chosen ? physicalColourIn(chosen.document, entries[index] ?? index) : physicalColour(entries[index] ?? index);
+  const colours = Array.from({ length: logicalColours }, (_, index) => look(index).rgb);
+  const flashing = Array.from({ length: logicalColours }, (_, index) => index).filter((index) => look(index).flashing);
   return {
     document: chosen?.document ?? null,
     fileName: chosen?.file.name ?? null,

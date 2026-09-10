@@ -181,12 +181,15 @@ Choose which physical colour each logical colour shows, for a chosen display mod
 2. Choose Display mode. The mode decides how many logical colours there are to assign.
 3. Name the palette in Palette name.
 4. For each entry under Logical colours, choose the physical colour it shows.
-5. Reset to power-up restores the assignment the machine makes for that mode at switch-on.
-6. Check Colours the editors currently preview with. Setting this palette as the Project palette makes the pixel, font, screen and tile-map editors preview with it.
-7. Use Add generated source, or Add live palette build target to regenerate on every build.
+5. With a VideoNuLA fitted in the machine setup, each row also offers Redefine and red, green and blue levels from 0 to 15, which redefine that physical colour as one of 4,096. The definition belongs to the physical colour, so two logical colours on the same physical colour share it.
+6. Reset to power-up restores the assignment the machine makes for that mode at switch-on.
+7. Check Colours the editors currently preview with. Setting this palette as the Project palette makes the pixel, font, screen and tile-map editors preview with it.
+8. Use Add generated source, or Add live palette build target to regenerate on every build.
 
 **What should happen**
 
+- NuLA colours are generated as two bytes a colour for &FE23, ahead of the VDU 19 bytes, in the assembler source and as pokes in the BASIC form, and the manifest counts them separately.
+- A palette that defines NuLA colours still maps the same logical colours to the same physical ones on a machine without a NuLA, and the workspace says so when that machine is selected.
 - Every other asset editor's preview changes when the project palette changes; no artwork is redrawn.
 - Generated output writes the assignment as assembler source or BASIC statements the program can send to the hardware.
 - The physical colours offered are the steady ones the hardware can produce.
