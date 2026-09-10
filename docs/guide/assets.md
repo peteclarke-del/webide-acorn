@@ -143,7 +143,8 @@ Draw or import a full screen for a chosen display mode, edit it with a rectangul
 6. Dither decides how colours the palette lacks are shown: nearest colour posterises, the ordered pattern gives a regular texture, and error diffusion keeps the average colour best and suits a photograph or a painting.
 7. Drag Rectangular selection to mark an area, then Copy area, Cut area or Paste at cursor. Clear selection drops the marks without changing pixels.
 8. Fill screen sets every pixel to the current logical colour. Undo steps back one change.
-9. Use Add generated source for a one-off, or Add live screen build target so the screen is regenerated on every build.
+9. Choose Document, then Add to project to write the screen itself into the project as a .screen.json document, named after the screen. That is what a project folder keeps, and the Document menu opens it again.
+10. Use Add generated source for a one-off, or Add live screen build target so the screen is regenerated on every build.
 
 **What should happen**
 
