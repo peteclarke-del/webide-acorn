@@ -32,6 +32,35 @@ describe('6502 assembler adapter', () => {
     expect(Array.from(result.bytes)).toEqual([0x00, 0xa9, 0x34, 0xa2, 0x12, 0x85, 0x70, 0x86, 0x71, 0x36, 0x12, 0x60]);
   });
 
+  it('reads expressions with parentheses, arithmetic, shifts and bitwise operators at BeebAsm precedence', () => {
+    /* The first program that needed the 6845 start address of its screen
+     * wrote #<(SCREEN / 8) and was told the expression was unknown. */
+    const result = assemble6502([
+      'ORG &1900',
+      'SCREEN = &5800',
+      'LDA #<(SCREEN / 8)',
+      'LDX #>(SCREEN / 8)',
+      'EQUB 2 + 3 * 4, (2 + 3) * 4, 100 DIV 7, 100 MOD 7',
+      'EQUB 1 << 4, &F0 >> 4, &FF AND &0F, &F0 OR &0F, &FF EOR &0F',
+      'EQUB LO(SCREEN + &100), HI(SCREEN + &100), -1 AND &FF',
+      'EQUW SCREEN + 5 * 320 + 7',
+    ].join('\n'));
+    expect(result.diagnostics).toEqual([]);
+    expect(Array.from(result.bytes)).toEqual([
+      0xa9, 0x00, 0xa2, 0x0b,
+      14, 20, 14, 2,
+      16, 15, 0x0f, 0xff, 0xf0,
+      0x00, 0x59, 0xff,
+      0x47, 0x5e,
+    ]);
+  });
+
+  it('says an expression it cannot read is unknown rather than guessing a value for it', () => {
+    for (const operand of ['(1 + 2', '1 + 2)', '1 / 0', '5 MOD 0', '1 +', '&5800 8']) {
+      expect(assemble6502(`ORG &1900\nEQUB ${operand}`).diagnostics[0]?.message, operand).toMatch(/Unknown or invalid expression/);
+    }
+  });
+
   it('rejects a byte selector that has no resolvable operand', () => {
     expect(assemble6502('ORG &1900\nLDA #<missing').diagnostics[0]?.message).toMatch(/Unknown or invalid expression/);
   });

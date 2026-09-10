@@ -477,7 +477,9 @@ and the earlier image is kept.
   filters and detailed syntax views. Versioned cited reference packs remain
   tracked work.
 - A working registered, browser-local two-pass NMOS 6502/Acorn 65C12 assembler
-  with labels, MOS symbols, Acorn `<`/`>` low and high byte selection, `SKIP`
+  with labels, MOS symbols, Acorn `<`/`>` low and high byte selection, BeebAsm
+  expressions (parentheses, `* / DIV MOD + - << >> AND OR EOR NOT LO() HI()`,
+  at BeebAsm's precedence), `SKIP`
   reservation that advances the address without emitting or padding bytes,
   common Acorn syntax/directives, diagnostics, source maps, listings, symbol
   table, binary artifact export, and deterministic tests. Assembly entry files
