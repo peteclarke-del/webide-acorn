@@ -22,9 +22,9 @@ is the part a machine can settle.
 
 | Measure | Count |
 | --- | --- |
-| Requirements tracked | 310 |
-| Complete | 222 |
-| Complete and traced | 135 |
+| Requirements tracked | 311 |
+| Complete | 223 |
+| Complete and traced | 136 |
 | Complete and described | 83 |
 | Complete and untraced | 4 |
 | Open | 88 |
@@ -48,6 +48,7 @@ is the part a machine can settle.
 | P0 | 36 | 16 | 16 | 0 | 0 |
 | EMU | 25 | 18 | 7 | 11 | 0 |
 | AST | 23 | 23 | 16 | 7 | 0 |
+| EMU | 26 | 19 | 8 | 11 | 0 |
 | EDT | 23 | 17 | 7 | 10 | 0 |
 | AST | 22 | 22 | 15 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
@@ -182,6 +183,7 @@ are listed rather than quietly counted.
 | BLD-331 | The browser assembler's evaluator took a symbol, or a symbol plus or... | two contracts in `src/build/assembler6502.test.ts`, one holding fourteen expression forms to their exact bytes, one holding six unreadable expressions to a report rather than a value. |
 | AST-632 | A palette document held one of the machine's sixteen physical colours... | six contracts in `src/assets/paletteDocument.test.ts` and three in `src/components/PaletteWorkspace.test.tsx`, including the exact `&3F, &40` for physical colour 3 as #ff4400. A game's four band palettes were written... |
 | AST-633 | The song editor targeted the SN76489, the Atom speaker and the... | the player was run on a Model B with BeebSID fitted by `scripts/measureSidSong.mjs`, its reset and then each row called as a program would, and the chip's register file read back after each through the same SID engine... |
+| EMU-435 | A source line in a second-processor program could not be stopped at.... | five contracts on the fitted loop against a counting fake in `src/emulator/parasiteHooks.test.ts`, and two against the pinned core's own Tube6502 without firmware in `src/emulator/parasiteHooks.core.test.ts`: it still... |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-... | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round... |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).... | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
 | DBG-523 | Complete decoded call stack, globals, locals, parameters, watches and... | 3 debug-expression contracts and 3 ARM debug-expression contracts cover the decoded call stack, watches and expression evaluation, with the caller-candidate rule proved by the 6502 instruction-state contracts. |

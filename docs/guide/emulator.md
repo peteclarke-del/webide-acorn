@@ -1092,6 +1092,7 @@ Put a 6502 or a 65C102 behind the Tube of a BBC B, B+ or Master, supply the ROMs
 5. On a Model B, supply the Tube host ROM as well. The vault asks for it as soon as a Tube is switched on.
 6. Start the machine and read the first line it prints.
 7. Open the Debugger and use Focus host and Focus parasite to see the two register sets.
+8. To stop the second processor at a line of its own program, make the second-processor target the active one, put a breakpoint on the line, and use Build and debug. The Tube panel shows where the parasite stopped, with its source line, and Step parasite runs the host until the parasite has executed one more instruction.
 
 **What should happen**
 

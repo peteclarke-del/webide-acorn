@@ -91,6 +91,7 @@ export const ELKULATOR_COMMAND_CAPABILITY: Readonly<Record<string, string>> = Ob
   'read-memory': 'memory-read',
   'write-memory': 'memory-write',
   'read-tube-memory': 'tube',
+  'step-parasite': 'tube',
   'read-disassembly': 'disassembly',
   'write-registers': 'register-write',
   'inspect-hardware': 'hardware-inspection',
