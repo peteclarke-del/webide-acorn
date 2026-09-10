@@ -268,17 +268,101 @@ export interface ImageImportResult {
   document: ScreenDocument;
   /** Distinct source colours the image contained. */
   sourceColours: number;
-  /** Pixels whose nearest palette colour was not an exact match. */
+  /**
+   * Screen pixels whose colour was not exactly a palette colour before any
+   * dithering. Counted on the screen rather than the source, because once a
+   * picture is scaled the source pixels are not what was placed.
+   */
   approximatedPixels: number;
-  /** Source pixels dropped because the image was larger than the screen. */
+  /** Source pixels dropped because the image was larger than the screen. Zero when it was scaled instead. */
   croppedPixels: number;
+  /** Present when the image was resampled to the screen: what size it was, and the screen area it was placed in. */
+  scaled?: { fromWidth: number; fromHeight: number; toWidth: number; toHeight: number; offsetX: number; offsetY: number };
 }
 
-function channelDistance(r1: number, g1: number, b1: number, rgb: string): number {
-  const r2 = Number.parseInt(rgb.slice(1, 3), 16);
-  const g2 = Number.parseInt(rgb.slice(3, 5), 16);
-  const b2 = Number.parseInt(rgb.slice(5, 7), 16);
-  return (r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2;
+/**
+ * How an image that is not the screen's size is brought to it.
+ *
+ * `scale` resamples it to the screen. The screen is displayed at four by
+ * three whatever its pixel count, so a source of that shape fills it edge to
+ * edge and one of another shape is fitted inside, centred, with the rest left
+ * as colour zero. This respects the mode's pixel shape: MODE 5's 160 by 256
+ * is not a tall thin picture, it is a 4:3 one with wide pixels, and a source
+ * mapped pixel for pixel onto it would come out squashed.
+ *
+ * `crop` takes the top-left corner pixel for pixel, which is what the import
+ * always did and is still right for a source already drawn at the mode's own
+ * pixel count.
+ */
+export type ImageFit = 'scale' | 'crop';
+
+/**
+ * How a colour the palette does not have is shown.
+ *
+ * `none` takes the nearest palette colour for each pixel, which posterises a
+ * photograph into flat regions. `ordered` adds a fixed four-by-four threshold
+ * pattern before choosing, which trades flat regions for a regular texture and
+ * is what the machines of the period mostly used. `diffusion` carries each
+ * pixel's error into its neighbours, which keeps average colour best and is
+ * the choice for a photograph or a painting.
+ */
+export type ImageDither = 'none' | 'ordered' | 'diffusion';
+
+export interface ImageImportOptions {
+  fit?: ImageFit;
+  dither?: ImageDither;
+}
+
+/** The display's shape, which every mode shares whatever its pixel count. */
+const DISPLAY_ASPECT = 4 / 3;
+
+/* Bayer's four-by-four threshold matrix, in the usual order. */
+const ORDERED_THRESHOLDS = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+];
+
+/**
+ * Resample a source picture onto a screen-sized canvas of floating-point RGB,
+ * by averaging the source pixels each screen pixel covers. Returns the canvas
+ * and where the picture landed in it; pixels outside that rectangle are black.
+ */
+function resampleToScreen(rgba: Uint8Array | Uint8ClampedArray, imageWidth: number, imageHeight: number, width: number, height: number) {
+  const canvas = new Float32Array(width * height * 3);
+  const sourceAspect = imageWidth / imageHeight;
+  /* Fit the source into the four-by-three display, in display units, then map
+   * display units to screen pixels on each axis separately. That is what makes
+   * a 4:3 source fill a 160 by 256 screen edge to edge. */
+  let unitWidth = DISPLAY_ASPECT;
+  let unitHeight = 1;
+  if (Math.abs(sourceAspect - DISPLAY_ASPECT) > DISPLAY_ASPECT * 0.02) {
+    if (sourceAspect > DISPLAY_ASPECT) unitHeight = DISPLAY_ASPECT / sourceAspect;
+    else unitWidth = sourceAspect;
+  }
+  const toWidth = Math.max(1, Math.round((unitWidth / DISPLAY_ASPECT) * width));
+  const toHeight = Math.max(1, Math.round(unitHeight * height));
+  const offsetX = Math.floor((width - toWidth) / 2);
+  const offsetY = Math.floor((height - toHeight) / 2);
+  for (let y = 0; y < toHeight; y += 1) {
+    const sy0 = Math.floor((y * imageHeight) / toHeight);
+    const sy1 = Math.max(sy0 + 1, Math.floor(((y + 1) * imageHeight) / toHeight));
+    for (let x = 0; x < toWidth; x += 1) {
+      const sx0 = Math.floor((x * imageWidth) / toWidth);
+      const sx1 = Math.max(sx0 + 1, Math.floor(((x + 1) * imageWidth) / toWidth));
+      let r = 0; let g = 0; let b = 0; let count = 0;
+      for (let sy = sy0; sy < sy1; sy += 1) {
+        for (let sx = sx0; sx < sx1; sx += 1) {
+          const offset = (sy * imageWidth + sx) * 4;
+          r += rgba[offset]!; g += rgba[offset + 1]!; b += rgba[offset + 2]!; count += 1;
+        }
+      }
+      const target = ((offsetY + y) * width + offsetX + x) * 3;
+      canvas[target] = r / count; canvas[target + 1] = g / count; canvas[target + 2] = b / count;
+    }
+  }
+  return { canvas, placed: { fromWidth: imageWidth, fromHeight: imageHeight, toWidth, toHeight, offsetX, offsetY } };
 }
 
 /**
@@ -295,35 +379,102 @@ export function importImageIntoScreen(
   imageWidth: number,
   imageHeight: number,
   paletteColours: readonly string[],
+  options: ImageImportOptions = {},
 ): ImageImportResult {
   const { document: validated, geometry } = decodedScreen(document);
   if (!Number.isInteger(imageWidth) || imageWidth < 1 || !Number.isInteger(imageHeight) || imageHeight < 1) throw new Error('The image must have a positive width and height');
   if (rgba.length < imageWidth * imageHeight * 4) throw new Error('The image data is shorter than its declared size');
   const usable = paletteColours.slice(0, geometry.logicalColours);
   if (!usable.length) throw new Error('No palette colours were supplied for the conversion');
-  const bytes = new Uint8Array(geometry.byteLength);
+  const fit: ImageFit = options.fit ?? 'scale';
+  const dither: ImageDither = options.dither ?? 'none';
+  const palette = usable.map((rgb) => [Number.parseInt(rgb.slice(1, 3), 16), Number.parseInt(rgb.slice(3, 5), 16), Number.parseInt(rgb.slice(5, 7), 16)] as const);
+
+  /* The colours the source actually holds, counted before anything is done to
+   * it, so the report is about the picture that arrived. */
   const distinct = new Set<number>();
+  for (let index = 0; index < imageWidth * imageHeight; index += 1) {
+    const offset = index * 4;
+    distinct.add((rgba[offset]! << 16) | (rgba[offset + 1]! << 8) | rgba[offset + 2]!);
+  }
+
+  /* Whichever way it fits, what follows works on a screen-sized canvas of
+   * floating-point RGB, because diffusion needs to carry fractions of an error
+   * and ordered dithering needs to push a value past a threshold. */
+  let canvas: Float32Array;
+  let scaled: ImageImportResult['scaled'];
+  let croppedPixels = 0;
+  if (fit === 'scale') {
+    const resampled = resampleToScreen(rgba, imageWidth, imageHeight, geometry.width, geometry.height);
+    canvas = resampled.canvas;
+    scaled = resampled.placed;
+  } else {
+    canvas = new Float32Array(geometry.width * geometry.height * 3);
+    const usedWidth = Math.min(imageWidth, geometry.width);
+    const usedHeight = Math.min(imageHeight, geometry.height);
+    for (let y = 0; y < usedHeight; y += 1) {
+      for (let x = 0; x < usedWidth; x += 1) {
+        const from = (y * imageWidth + x) * 4;
+        const to = (y * geometry.width + x) * 3;
+        canvas[to] = rgba[from]!; canvas[to + 1] = rgba[from + 1]!; canvas[to + 2] = rgba[from + 2]!;
+      }
+    }
+    croppedPixels = imageWidth * imageHeight - usedWidth * usedHeight;
+  }
+
+  const nearest = (r: number, g: number, b: number) => {
+    let best = 0; let bestDistance = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < palette.length; index += 1) {
+      const [pr, pg, pb] = palette[index]!;
+      const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+      if (distance < bestDistance) { bestDistance = distance; best = index; }
+    }
+    return { best, exact: bestDistance === 0 };
+  };
+
+  const bytes = new Uint8Array(geometry.byteLength);
   let approximatedPixels = 0;
-  for (let y = 0; y < Math.min(imageHeight, geometry.height); y += 1) {
-    for (let x = 0; x < Math.min(imageWidth, geometry.width); x += 1) {
-      const offset = (y * imageWidth + x) * 4;
-      const r = rgba[offset]!; const g = rgba[offset + 1]!; const b = rgba[offset + 2]!;
-      distinct.add((r << 16) | (g << 8) | b);
-      let best = 0; let bestDistance = Number.POSITIVE_INFINITY;
-      usable.forEach((rgb, index) => {
-        const distance = channelDistance(r, g, b, rgb);
-        if (distance < bestDistance) { bestDistance = distance; best = index; }
-      });
-      if (bestDistance > 0) approximatedPixels += 1;
-      writeScreenPixel(bytes, geometry, x, y, best);
+  /* Ordered dithering pushes each channel up or down by up to half the gap a
+   * palette this size leaves between its colours. */
+  const orderedSpread = 255 / Math.max(2, palette.length);
+  const clamp = (value: number) => (value < 0 ? 0 : value > 255 ? 255 : value);
+
+  for (let y = 0; y < geometry.height; y += 1) {
+    /* Serpentine rows for diffusion, so the error does not all drift one way. */
+    const leftToRight = dither !== 'diffusion' || y % 2 === 0;
+    for (let step = 0; step < geometry.width; step += 1) {
+      const x = leftToRight ? step : geometry.width - 1 - step;
+      const at = (y * geometry.width + x) * 3;
+      let r = canvas[at]!; let g = canvas[at + 1]!; let b = canvas[at + 2]!;
+      const sampled = nearest(Math.round(r), Math.round(g), Math.round(b));
+      if (dither === 'ordered') {
+        const push = ((ORDERED_THRESHOLDS[y % 4]![x % 4]! + 0.5) / 16 - 0.5) * orderedSpread;
+        r = clamp(r + push); g = clamp(g + push); b = clamp(b + push);
+      }
+      const chosen = dither === 'none' ? sampled : nearest(clamp(r), clamp(g), clamp(b));
+      if (!sampled.exact) approximatedPixels += 1;
+      writeScreenPixel(bytes, geometry, x, y, chosen.best);
+      if (dither === 'diffusion') {
+        const [pr, pg, pb] = palette[chosen.best]!;
+        const er = canvas[at]! - pr; const eg = canvas[at + 1]! - pg; const eb = canvas[at + 2]! - pb;
+        const spread = (dx: number, dy: number, weight: number) => {
+          const nx = x + (leftToRight ? dx : -dx); const ny = y + dy;
+          if (nx < 0 || nx >= geometry.width || ny >= geometry.height) return;
+          const target = (ny * geometry.width + nx) * 3;
+          canvas[target] = clamp(canvas[target]! + er * weight);
+          canvas[target + 1] = clamp(canvas[target + 1]! + eg * weight);
+          canvas[target + 2] = clamp(canvas[target + 2]! + eb * weight);
+        };
+        spread(1, 0, 7 / 16); spread(-1, 1, 3 / 16); spread(0, 1, 5 / 16); spread(1, 1, 1 / 16);
+      }
     }
   }
-  const croppedPixels = imageWidth * imageHeight - Math.min(imageWidth, geometry.width) * Math.min(imageHeight, geometry.height);
   return {
     document: { ...validated, framebufferBase64: encodeBase64(bytes) },
     sourceColours: distinct.size,
     approximatedPixels,
     croppedPixels,
+    ...(scaled ? { scaled } : {}),
   };
 }
 

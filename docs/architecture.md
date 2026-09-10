@@ -33,10 +33,11 @@ to be performed rather than as intentions: `docs/operations.md`.
 Facts about a machine that somebody writes a program against are generated the
 same way, from a catalogue of what the machine itself answered rather than from
 a table typed out once: `docs/bbc-screen-modes.md` is every BBC screen mode with
-its resolution, colours, memory and what is left for a program, and
+its resolution, colours, memory and what is left for a program,
 `docs/tube-processors.md` is every second processor a Tube can carry with which
-of them run here. A contract test fails the moment either stops matching the
-catalogue it came from.
+of them run here, and `docs/frame-budget.md` is what the machine can put on
+screen in one frame, which is the number a game design starts from. A contract
+test fails the moment any of them stops matching the catalogue it came from.
 
 ## System context
 
@@ -98,6 +99,17 @@ service**, because reference packs are imported into the browser and searched
 there; and there is **no shared administration**, because there is one local
 identity and nothing that proves it. Drawing them as empty boxes would suggest
 they are wired and idle rather than absent.
+
+## A project that lives in a folder
+
+A project is browser-local by default and leaves as a bundle or a download.
+It can also be connected to a folder on disk through the File System Access
+API, and written back to it. Written back, it is its source and asset files
+plus `acorn-project.json`: the project's own description, which names the
+machine, the fitted capabilities, the build targets and the settings, and
+refers to files by name because names are what a folder has. Opening a folder
+that carries one honours it over anything guessed from the source; opening one
+that does not still guesses, as before. See `src/project/projectManifest.ts`.
 
 ## Modules
 

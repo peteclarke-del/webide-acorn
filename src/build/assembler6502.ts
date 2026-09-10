@@ -176,7 +176,15 @@ function encode(operation: string, operand: string, address: number, processor: 
   const opcode = opcodeFor(operation, mode, processor);
   if (opcode === undefined) return undefined;
   if (mode === 'imp' || mode === 'acc') return [opcode];
-  const expression = operand.replace(/^#/, '').replace(/^\(/, '').replace(/\)(?:,Y)?$/i, '').replace(/,[XY]$/i, '').trim();
+  /* What is stripped follows the mode. Stripping every bracket regardless
+   * took the closing one off `#<(SCREEN / 8)` and left an expression that
+   * could not be read. */
+  const expression = (
+    mode === 'imm' ? operand.slice(1)
+    : mode === 'indx' || mode === 'indy' ? operand.slice(1, -3)
+    : mode === 'zpi' || mode === 'ind' ? operand.slice(1, -1)
+    : operand.replace(/,[XY]$/i, '')
+  ).trim();
   const value = requiredValue(expression, symbols, diagnostics, line);
   if (mode === 'rel') {
     const displacement = value - address - 2;
@@ -216,34 +224,119 @@ function modeSize(mode: AddressMode): number {
   return ['imp', 'acc'].includes(mode) ? 1 : ['abs', 'absx', 'absy', 'ind', 'iax'].includes(mode) ? 3 : 2;
 }
 
-function evaluate(expression: string, symbols: Record<string, number>): number | undefined {
-  const trimmed = expression.trim();
-  /* Acorn-style low/high byte selection. Any real program needs these to load a
-   * 16-bit label into an 8-bit register or zero-page pointer. */
-  const selector = /^([<>])\s*(.+)$/s.exec(trimmed);
-  if (selector) {
-    const value = evaluate(selector[2]!, symbols);
-    if (value === undefined || value < 0 || value > 0xffff) return undefined;
-    return selector[1] === '<' ? value & 0xff : (value >>> 8) & 0xff;
+/*
+ * Expressions, as BeebAsm reads them.
+ *
+ * The first evaluator took a symbol, or a symbol plus or minus one other term,
+ * and nothing else. That was enough for a loader and not for a game: the
+ * first program that needed the 6845 start address of its screen wrote
+ * `#<(SCREEN / 8)` and was told the expression was unknown. Parentheses,
+ * multiplication, division, shifts and the bitwise operators are what
+ * source written for BeebAsm uses, so they are what this reads, with
+ * BeebAsm's precedence:
+ *
+ *   unary  - < > LO() HI() NOT
+ *   * / DIV MOD
+ *   + -
+ *   << >>
+ *   AND
+ *   OR EOR
+ *
+ * `<` and `>` before a term select its low and high byte, which is the Acorn
+ * convention; `<<` and `>>` are shifts. Division truncates, because the
+ * result is a byte or an address. An expression that cannot be read gives
+ * undefined, and the caller says so at the line it was on.
+ */
+type Token = { kind: 'number'; value: number } | { kind: 'name'; value: string } | { kind: 'op'; value: string };
+
+function tokenize(expression: string): Token[] | undefined {
+  const tokens: Token[] = [];
+  let rest = expression.trim();
+  while (rest) {
+    let match: RegExpMatchArray | null;
+    if ((match = rest.match(/^\s+/))) { rest = rest.slice(match[0].length); continue; }
+    if ((match = rest.match(/^(?:&[0-9a-f]+|\$[0-9a-f]+|%[01]+|\d+|'.')/is))) {
+      const value = atom(match[0]);
+      if (value === undefined) return undefined;
+      tokens.push({ kind: 'number', value });
+    } else if ((match = rest.match(/^(?:<<|>>|[-+*/()<>])/))) {
+      tokens.push({ kind: 'op', value: match[0] });
+    } else if ((match = rest.match(/^[A-Za-z_][A-Za-z0-9_%]*/))) {
+      const word = match[0].toUpperCase();
+      if (['DIV', 'MOD', 'AND', 'OR', 'EOR', 'NOT', 'LO', 'HI'].includes(word)) tokens.push({ kind: 'op', value: word });
+      else tokens.push({ kind: 'name', value: word });
+    } else {
+      return undefined;
+    }
+    rest = rest.slice(match[0].length);
   }
-  const match = trimmed.match(/^(.+?)(?:\s*([+-])\s*(.+))?$/);
-  if (!match) return undefined;
-  const base = atom(match[1]!, symbols);
-  if (base === undefined) return undefined;
-  if (!match[2]) return base;
-  const offset = atom(match[3]!, symbols);
-  if (offset === undefined) return undefined;
-  return match[2] === '+' ? base + offset : base - offset;
+  return tokens;
 }
 
-function atom(value: string, symbols: Record<string, number>): number | undefined {
+function evaluate(expression: string, symbols: Record<string, number>): number | undefined {
+  const tokens = tokenize(expression);
+  if (!tokens || !tokens.length) return undefined;
+  let index = 0;
+  const peek = (): Token | undefined => tokens[index];
+  const takeOp = (...values: string[]): string | undefined => {
+    const token = peek();
+    if (token?.kind === 'op' && values.includes(token.value)) { index += 1; return token.value; }
+    return undefined;
+  };
+  const binary = (next: () => number | undefined, ops: string[], apply: (op: string, left: number, right: number) => number | undefined) => (): number | undefined => {
+    let left = next();
+    if (left === undefined) return undefined;
+    for (let op = takeOp(...ops); op; op = takeOp(...ops)) {
+      const right = next();
+      if (right === undefined) return undefined;
+      left = apply(op, left, right);
+      if (left === undefined) return undefined;
+    }
+    return left;
+  };
+  const unary = (): number | undefined => {
+    const op = takeOp('-', '<', '>', 'LO', 'HI', 'NOT');
+    if (op) {
+      const value = unary();
+      if (value === undefined) return undefined;
+      if (op === '-') return -value;
+      if (op === 'NOT') return ~value;
+      if (value < 0 || value > 0xffff) return undefined;
+      return op === '<' || op === 'LO' ? value & 0xff : (value >>> 8) & 0xff;
+    }
+    const token = peek();
+    if (!token) return undefined;
+    if (token.kind === 'op' && token.value === '(') {
+      index += 1;
+      const inner = lowest();
+      if (inner === undefined || !takeOp(')')) return undefined;
+      return inner;
+    }
+    if (token.kind === 'number') { index += 1; return token.value; }
+    if (token.kind === 'name') { index += 1; return symbols[token.value]; }
+    return undefined;
+  };
+  const product = binary(unary, ['*', '/', 'DIV', 'MOD'], (op, left, right) => {
+    if (op === '*') return left * right;
+    if (right === 0) return undefined;
+    return op === 'MOD' ? left % right : Math.trunc(left / right);
+  });
+  const sum = binary(product, ['+', '-'], (op, left, right) => op === '+' ? left + right : left - right);
+  const shift = binary(sum, ['<<', '>>'], (op, left, right) => op === '<<' ? left << right : left >> right);
+  const and = binary(shift, ['AND'], (_, left, right) => left & right);
+  const lowest = binary(and, ['OR', 'EOR'], (op, left, right) => op === 'OR' ? left | right : left ^ right);
+  const value = lowest();
+  return index === tokens.length ? value : undefined;
+}
+
+function atom(value: string): number | undefined {
   const token = value.trim();
   if (/^&[0-9a-f]+$/i.test(token)) return Number.parseInt(token.slice(1), 16);
   if (/^\$[0-9a-f]+$/i.test(token)) return Number.parseInt(token.slice(1), 16);
   if (/^%[01]+$/i.test(token)) return Number.parseInt(token.slice(1), 2);
   if (/^\d+$/.test(token)) return Number.parseInt(token, 10);
   if (/^'.'$/s.test(token)) return token.charCodeAt(1);
-  return symbols[token.toUpperCase()];
+  return undefined;
 }
 
 function requiredValue(expression: string, symbols: Record<string, number>, diagnostics: BuildDiagnostic[], line: number): number {

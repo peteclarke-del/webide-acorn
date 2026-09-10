@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import { loadSampleProjects, sampleLocalProject, type SampleProject } from '../samples/sampleProjects';
-import { fittingGaps, overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput, type CodebaseImportOptions, type CodebaseImportPlan } from '../project/codebaseImport';
+import { fittingGaps, overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, skippedRecoveries, type CodebaseFileInput, type CodebaseImportOptions, type CodebaseImportPlan } from '../project/codebaseImport';
 import { directorySupport, pickDirectory, readDirectory, type FileSystemDirectoryHandleLike } from '../project/directoryAccess';
 import { archiveRefusalSummary, readZipArchive } from '../project/archiveImport';
 import { projectFromTemplate, templatesForMachine } from '../project/templateCatalogue';
@@ -221,9 +221,12 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
         return Number.isInteger(width) && Number.isInteger(height) ? [{ id, width: width!, height: height! }] : [];
       });
       const derivedScreens = Object.entries(selectedScreens).map(([id, mode]) => ({ id, mode }));
-      const project = projectFromCodebaseImport(plan, contents, { derivedAssetIds: selectedAssets, derivedMaps, derivedScreens, projectName });
+      const selection = { derivedAssetIds: selectedAssets, derivedMaps, derivedScreens, projectName };
+      const project = projectFromCodebaseImport(plan, contents, selection);
+      const skipped = skippedRecoveries(plan, contents, selection);
       const from = connectedFolder ? `, connected to ${connectedFolder.name}` : '';
-      onOpenProject(project, `Created ${project.name} from ${plan.files.length} imported file${plan.files.length === 1 ? '' : 's'}${from}`, connectedFolder);
+      const left = skipped.length ? ` ${skipped.length} recover${skipped.length === 1 ? 'y was' : 'ies were'} left out: ${skipped.join('; ')}` : '';
+      onOpenProject(project, `Created ${project.name} from ${plan.files.length} imported file${plan.files.length === 1 ? '' : 's'}${from}.${left}`, connectedFolder);
     } catch (error) {
       onNotice(`The imported project could not be created: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -556,8 +559,10 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 {/* What the codebase says it is for. Shown before the assets,
                   * because it decides how everything below will build. */}
                 <details open>
-                  <summary>Machine · {plan.platform.guessed ? 'not named by this codebase' : plan.platform.machineId}</summary>
-                  <p className="binding-note">{plan.platform.summary}</p>
+                  <summary>Machine · {plan.manifest ? `${plan.manifest.target.machineId}, from the folder's own acorn-project.json` : plan.platform.guessed ? 'not named by this codebase' : plan.platform.machineId}</summary>
+                  <p className="binding-note">{plan.manifest
+                    ? `The folder carries its own description, so the machine, its ${plan.manifest.target.enabledCapabilities.length} fitted capabilit${plan.manifest.target.enabledCapabilities.length === 1 ? 'y' : 'ies'}, ${plan.manifest.buildTargets.length} build target${plan.manifest.buildTargets.length === 1 ? '' : 's'} and its settings come from that rather than from what the source suggests.`
+                    : plan.platform.summary}</p>
                   {!!plan.platform.machineEvidence.length && (
                     <ul className="import-evidence">
                       {plan.platform.machineEvidence.map((signal) => (

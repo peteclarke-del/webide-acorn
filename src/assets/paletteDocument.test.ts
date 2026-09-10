@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createPaletteDocument, defaultPaletteEntries, generatePaletteOutput, PALETTE_MODES, paletteLabel,
   paletteModeProfile, parsePaletteDocument, physicalColour, resetPalette, resolveProjectPalette,
-  serializePaletteDocument, setPaletteEntry, setPaletteMode,
+  serializePaletteDocument, setPaletteEntry, setPaletteMode, setNulaColour, nulaRgb, nulaBytesFor, physicalColourIn,
 } from './paletteDocument';
 
 describe('physical colours', () => {
@@ -94,6 +94,64 @@ describe('generated palette output', () => {
   it('reports which logical colours actually flash on the machine', () => {
     expect(output.manifest.flashingLogicalColours).toEqual([3]);
     expect(generatePaletteOutput(createPaletteDocument('steady')).manifest.flashingLogicalColours).toEqual([]);
+  });
+});
+
+describe('a palette with VideoNuLA colours', () => {
+  /* The NuLA takes two writes to &FE23 for one physical colour: the colour's
+   * number and red, then green and blue, four bits each. That is how the
+   * pinned core decodes it (video.js, _writeNulaPalette), and it is what a
+   * palette document carries beside its VDU 19 mapping. */
+  const orange = { red: 15, green: 4, blue: 0 };
+  const document = setNulaColour(setPaletteEntry(createPaletteDocument('ground'), 2, 3), 3, orange);
+
+  it('defines a physical colour as one of 4,096 and previews it with each nibble doubled', () => {
+    expect(document.nula[3]).toEqual(orange);
+    expect(nulaRgb(orange)).toBe('#ff4400');
+    expect(physicalColourIn(document, 3)).toMatchObject({ index: 3, rgb: '#ff4400', flashing: false, name: 'NuLA #ff4400' });
+    expect(physicalColourIn(document, 1)).toMatchObject({ index: 1, rgb: '#ff0000', name: 'red' });
+  });
+
+  it('round-trips, and a palette that defines no colour serialises without the list', () => {
+    expect(parsePaletteDocument(serializePaletteDocument(document))).toEqual(document);
+    expect(serializePaletteDocument(document)).toContain('"nula"');
+    expect(serializePaletteDocument(createPaletteDocument('plain'))).not.toContain('nula');
+    expect(parsePaletteDocument(serializePaletteDocument(createPaletteDocument('plain'))).nula).toHaveLength(16);
+  });
+
+  it('refuses a channel outside four bits, a colour outside the sixteen, and a list longer than sixteen', () => {
+    expect(() => setNulaColour(document, 3, { red: 16, green: 0, blue: 0 })).toThrow(/red level for physical colour 3 must be 0 to 15/);
+    expect(() => setNulaColour(document, 16, orange)).toThrow(/physical colour from 0 to 15/);
+    expect(() => parsePaletteDocument({ ...document, nula: Array.from({ length: 17 }, () => null) })).toThrow(/at most sixteen/);
+  });
+
+  it('a programmed colour in the flashing eight stops flashing, as the hardware has it', () => {
+    const flashing = setPaletteEntry(createPaletteDocument('flash'), 1, 9);
+    expect(generatePaletteOutput(flashing).manifest.flashingLogicalColours).toEqual([1]);
+    const steadied = setNulaColour(flashing, 9, { red: 0, green: 8, blue: 15 });
+    expect(generatePaletteOutput(steadied).manifest.flashingLogicalColours).toEqual([]);
+    expect(physicalColourIn(steadied, 9).flashing).toBe(false);
+  });
+
+  it('emits the two &FE23 bytes a colour, before the VDU bytes, in the source and the BASIC form', () => {
+    const output = generatePaletteOutput(document);
+    expect(Array.from(output.nulaBytes)).toEqual([0x3f, 0x40]);
+    expect(nulaBytesFor(3, orange)).toEqual([0x3f, 0x40]);
+    expect(output.manifest).toMatchObject({ nulaPhysicalColours: [3], nulaByteLength: 2, byteLength: 24 });
+    expect(output.assembly).toContain('.palette_ground_nula');
+    expect(output.assembly).toContain('EQUB &3F, &40 ; physical 3 becomes #ff4400');
+    expect(output.assembly).toContain('EQUB 19, 2, 3, 0, 0, 0 ; logical 2 becomes NuLA #ff4400');
+    expect(output.assembly.indexOf('.palette_ground_nula')).toBeLessThan(output.assembly.indexOf('.palette_ground\n'));
+    expect(output.basic.split('\n')[0]).toBe('?&FE23=&3F:?&FE23=&40');
+    /* The digest covers the NuLA bytes as well, and is the plain one without them. */
+    expect(output.manifest.sha256).not.toBe(generatePaletteOutput(setPaletteEntry(createPaletteDocument('ground'), 2, 3)).manifest.sha256);
+    expect(generatePaletteOutput(createPaletteDocument('plain')).nulaBytes).toHaveLength(0);
+  });
+
+  it('is what the editors preview with when it is the project palette', () => {
+    const palette = resolveProjectPalette([{ name: 'ground.palette.json', content: serializePaletteDocument(document) }], 4);
+    expect(palette.colours).toEqual(['#000000', '#ff0000', '#ff4400', '#ffffff']);
+    expect(palette.flashing).toEqual([]);
   });
 });
 

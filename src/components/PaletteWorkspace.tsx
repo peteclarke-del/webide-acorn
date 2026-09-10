@@ -2,21 +2,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import {
   createPaletteDocument, generatePaletteOutput, PALETTE_MODES, paletteModeProfile, parsePaletteDocument,
-  physicalColour, resetPalette, resolveProjectPalette, serializePaletteDocument, setPaletteEntry,
-  setPaletteMode, type PaletteDocument, type PaletteModeId,
+  physicalColourIn, resetPalette, resolveProjectPalette, serializePaletteDocument, setNulaColour, setPaletteEntry,
+  setPaletteMode, type NulaColour, type PaletteDocument, type PaletteModeId,
 } from '../assets/paletteDocument';
 
 interface PaletteWorkspaceProps {
   /** Every project file, so the workspace can name the palette in use. */
   projectFiles: Array<{ name: string; content: string }>;
+  /** Whether the selected machine has a VideoNuLA fitted, which is what makes 4,096 colours available. */
+  nulaFitted?: boolean;
   onAddSource: (name: string, content: string) => void;
   onAddLivePalette: (stem: string, content: string) => void;
   onNotice: (message: string) => void;
 }
 
+const CHANNELS: Array<{ key: keyof NulaColour; label: string }> = [
+  { key: 'red', label: 'red' }, { key: 'green', label: 'green' }, { key: 'blue', label: 'blue' },
+];
+
 const STORAGE_KEY = '8bit-net-dev:palette';
 
-export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, onNotice }: PaletteWorkspaceProps) {
+export function PaletteWorkspace({ projectFiles, nulaFitted = false, onAddSource, onAddLivePalette, onNotice }: PaletteWorkspaceProps) {
   const recovered = useMemo(() => {
     try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) return parsePaletteDocument(saved); }
     catch { /* an invalid recovery starts a new validated document */ }
@@ -39,6 +45,7 @@ export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, 
   };
 
   const stem = document.name.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'palette';
+  const nulaDefined = document.nula.filter((colour) => colour !== null).length;
 
   return (
     <section className="palette-workspace" aria-label="Palette editor">
@@ -62,11 +69,26 @@ export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, 
             VDU 19 maps each one onto a physical colour. Eight physical colours are steady and eight flash between a
             colour and its complement; a still preview can only show the first phase, so flashing entries say so.
           </p>
+          {nulaFitted && (
+            <p className="binding-note">
+              A VideoNuLA is fitted, so any physical colour can be redefined as one of 4,096: four bits each of red,
+              green and blue, written to &amp;FE23 as two bytes. The definition belongs to the physical colour, so two
+              logical colours that map to the same physical colour share it, and a programmed colour in the flashing
+              eight stops flashing.
+            </p>
+          )}
+          {!nulaFitted && nulaDefined > 0 && (
+            <p className="binding-warning" role="status">
+              This palette defines {nulaDefined} colour{nulaDefined === 1 ? '' : 's'} with a VideoNuLA and the selected machine has none fitted,
+              so on it they show as the machine's own colours. Fit the NuLA in the machine setup to preview them.
+            </p>
+          )}
           <table className="palette-table">
-            <thead><tr><th scope="col">Logical</th><th scope="col">Preview</th><th scope="col">Physical colour</th></tr></thead>
+            <thead><tr><th scope="col">Logical</th><th scope="col">Preview</th><th scope="col">Physical colour</th>{nulaFitted && <th scope="col">NuLA colour</th>}</tr></thead>
             <tbody>
               {document.entries.map((physical, logical) => {
-                const colour = physicalColour(physical);
+                const colour = physicalColourIn(document, physical);
+                const defined = document.nula[physical] ?? null;
                 return (
                   <tr key={logical}>
                     <th scope="row">{logical}</th>
@@ -79,11 +101,35 @@ export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, 
                       <label>
                         <span className="visually-hidden">Physical colour for logical {logical}</span>
                         <select aria-label={`Physical colour for logical ${logical}`} value={physical} onChange={(event) => guard(() => setPaletteEntry(document, logical, Number(event.target.value)))}>
-                          {Array.from({ length: 16 }, (_, index) => <option key={index} value={index}>{index} · {physicalColour(index).name}</option>)}
+                          {Array.from({ length: 16 }, (_, index) => <option key={index} value={index}>{index} · {physicalColourIn(document, index).name}</option>)}
                         </select>
                       </label>
                       {colour.flashing && <small className="binding-warning">This entry flashes on the machine; only its first phase is shown.</small>}
                     </td>
+                    {nulaFitted && (
+                      <td className="palette-nula">
+                        <label>
+                          <input
+                            type="checkbox"
+                            aria-label={`Define physical colour ${physical} with the NuLA, for logical ${logical}`}
+                            checked={defined !== null}
+                            onChange={(event) => guard(() => setNulaColour(document, physical, event.target.checked ? { red: 0, green: 0, blue: 0 } : null))}
+                          />
+                          <span>Redefine</span>
+                        </label>
+                        {defined && CHANNELS.map(({ key, label }) => (
+                          <label key={key}>
+                            <span>{label}</span>
+                            <input
+                              type="number" min={0} max={15} step={1}
+                              aria-label={`NuLA ${label} for logical ${logical}`}
+                              value={defined[key]}
+                              onChange={(event) => guard(() => setNulaColour(document, physical, { ...defined, [key]: Number(event.target.value) }))}
+                            />
+                          </label>
+                        ))}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -113,6 +159,7 @@ export function PaletteWorkspace({ projectFiles, onAddSource, onAddLivePalette, 
           <h2>Generated output</h2>
           <dl className="palette-manifest">
             <div><dt>VDU bytes</dt><dd>{output.manifest.byteLength}</dd></div>
+            <div><dt>NuLA bytes</dt><dd>{output.manifest.nulaByteLength}</dd></div>
             <div><dt>Display mode</dt><dd>{output.manifest.displayMode}</dd></div>
             <div><dt>Flashing</dt><dd>{output.manifest.flashingLogicalColours.length ? output.manifest.flashingLogicalColours.join(', ') : 'none'}</dd></div>
             <div><dt>SHA-256</dt><dd><code>{output.manifest.sha256.slice(0, 16)}...</code></dd></div>

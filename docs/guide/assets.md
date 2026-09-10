@@ -139,16 +139,19 @@ Draw or import a full screen for a chosen display mode, edit it with a rectangul
 2. Choose Display mode first. The mode fixes the pixel dimensions and the number of logical colours, so changing it later reinterprets what is already drawn.
 3. Name the screen in Screen name.
 4. Draw with the pointer, choosing the pen from Logical colour. Screen zoom changes the size the pixels are drawn at and not the size of the screen.
-5. Use Import an image to bring in a picture. It is reduced to the logical colours the mode has.
-6. Drag Rectangular selection to mark an area, then Copy area, Cut area or Paste at cursor. Clear selection drops the marks without changing pixels.
-7. Fill screen sets every pixel to the current logical colour. Undo steps back one change.
-8. Use Add generated source for a one-off, or Add live screen build target so the screen is regenerated on every build.
+5. Choose Fit and Dither, then use Import an image to bring in a picture. Scale to the screen is the default: a four by three picture fills the screen, another shape is fitted inside it, and each screen pixel is the average of the source pixels it covers. Crop takes the top-left corner pixel for pixel, for a picture already drawn at the mode's own size.
+6. Dither decides how colours the palette lacks are shown: nearest colour posterises, the ordered pattern gives a regular texture, and error diffusion keeps the average colour best and suits a photograph or a painting.
+7. Drag Rectangular selection to mark an area, then Copy area, Cut area or Paste at cursor. Clear selection drops the marks without changing pixels.
+8. Fill screen sets every pixel to the current logical colour. Undo steps back one change.
+9. Choose Document, then Add to project to write the screen itself into the project as a .screen.json document, named after the screen. That is what a project folder keeps, and the Document menu opens it again.
+10. Use Add generated source for a one-off, or Add live screen build target so the screen is regenerated on every build.
 
 **What should happen**
 
 - Logical colours are indices, not fixed colours: what each one looks like comes from the palette, so changing the palette changes the screen without redrawing it.
 - Generated output is the packed bytes for the chosen mode, in the order the display hardware reads them.
-- An imported image is reduced to the mode's colour count rather than refused.
+- An imported image is reduced to the mode's colour count rather than refused, and the notice says what it was scaled from, how it was fitted and how many pixels were approximated, so the conversion is never presented as faithful.
+- A 160 by 256 screen is a four by three display with wide pixels, not a tall thin picture; scaling respects that, so a picture keeps its shape.
 
 **Limits**
 
@@ -160,6 +163,7 @@ Draw or import a full screen for a chosen display mode, edit it with a rectangul
 
 - Undo reverses drawing, filling, pasting and importing alike.
 - If an import looks wrong, check that Display mode was chosen before the import rather than after it.
+- If an import arrives as a corner of the picture, Fit was set to Crop; choose Scale to the screen and import again.
 
 In the IDE: Help → `#help/asset-screens`
 
@@ -177,12 +181,15 @@ Choose which physical colour each logical colour shows, for a chosen display mod
 2. Choose Display mode. The mode decides how many logical colours there are to assign.
 3. Name the palette in Palette name.
 4. For each entry under Logical colours, choose the physical colour it shows.
-5. Reset to power-up restores the assignment the machine makes for that mode at switch-on.
-6. Check Colours the editors currently preview with. Setting this palette as the Project palette makes the pixel, font, screen and tile-map editors preview with it.
-7. Use Add generated source, or Add live palette build target to regenerate on every build.
+5. With a VideoNuLA fitted in the machine setup, each row also offers Redefine and red, green and blue levels from 0 to 15, which redefine that physical colour as one of 4,096. The definition belongs to the physical colour, so two logical colours on the same physical colour share it.
+6. Reset to power-up restores the assignment the machine makes for that mode at switch-on.
+7. Check Colours the editors currently preview with. Setting this palette as the Project palette makes the pixel, font, screen and tile-map editors preview with it.
+8. Use Add generated source, or Add live palette build target to regenerate on every build.
 
 **What should happen**
 
+- NuLA colours are generated as two bytes a colour for &FE23, ahead of the VDU 19 bytes, in the assembler source and as pokes in the BASIC form, and the manifest counts them separately.
+- A palette that defines NuLA colours still maps the same logical colours to the same physical ones on a machine without a NuLA, and the workspace says so when that machine is selected.
 - Every other asset editor's preview changes when the project palette changes; no artwork is redrawn.
 - Generated output writes the assignment as assembler source or BASIC statements the program can send to the hardware.
 - The physical colours offered are the steady ones the hardware can produce.
@@ -212,17 +219,19 @@ Enter a pattern of pitches and volumes for the selected sound hardware, and emit
 **Procedure**
 
 1. Open Assets and choose the Sound tab.
-2. Choose Sound hardware. BBC · SN76489 has three tone channels and sixteen volume levels; Atom · 1-bit speaker has one channel and a volume that is only on or off.
-3. Name the tune in Song name.
-4. Set Song rows to the length of the pattern, and Row duration in twentieths of a second to how long each row is held.
-5. Enter pitch and volume for each channel in Pattern, one row at a time.
-6. Set Player zero-page base to an address range the program is not already using; the player keeps its position there.
-7. Use Undo to step back and Clear to empty the pattern.
-8. Read Generated song data and player or Generated song BASIC statements, then Add generated source, or Add live song build target to regenerate on every build.
+2. Choose Sound hardware. BBC · SN76489 has three tone channels and sixteen volume levels; Atom · 1-bit speaker has one channel and a volume that is only on or off; BBC · BeebSID 6581 has three voices written to the chip at &FC20 directly.
+3. For a BeebSID song, set each voice's waveform, pulse width, attack, decay and release under Voices. Pitch in the pattern is then a note, C-0 being 0 and A-4 being 57, up to A#-7 at 94, and volume is the envelope's sustain level; the note's name is shown beside a pitch that sounds.
+4. Name the tune in Song name.
+5. Set Song rows to the length of the pattern, and Row duration in twentieths of a second to how long each row is held.
+6. Enter pitch and volume for each channel in Pattern, one row at a time.
+7. Set Player zero-page base to an address range the program is not already using; the player keeps its position there.
+8. Use Undo to step back and Clear to empty the pattern.
+9. Read Generated song data and player or Generated song BASIC statements, then Add generated source, or Add live song build target to regenerate on every build.
 
 **What should happen**
 
 - The limits offered change with the hardware: choosing the Atom reduces the channels and the volume range to what its speaker can actually produce.
+- A BeebSID player writes each voice's registers itself, closing and opening the gate so a repeated note retriggers, and its reset opens the master volume and closes every gate. The frequency tables it carries are for the 1 MHz clock BeebSID gives the chip.
 - The generated output is the pattern data and a player routine, so the program advances the tune by calling the player once per row rather than writing its own.
 - The player reads and writes only the zero page declared, which is stated in the generated source.
 

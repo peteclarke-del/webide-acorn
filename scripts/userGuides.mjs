@@ -20,7 +20,7 @@ export const GUIDE_AREAS = [
   { id: 'first-run', title: 'First run', topics: ['first-run', 'using-help', 'sample-projects', 'settings-layers'] },
   { id: 'target-selection', title: 'Choosing a target', topics: ['target-selection'] },
   { id: 'rom-import', title: 'Importing firmware', topics: ['rom-import'] },
-  { id: 'projects', title: 'Projects and source', topics: ['projects', 'import-codebase', 'project-store', 'source-provenance', 'source-comparison'] },
+  { id: 'projects', title: 'Projects and source', topics: ['projects', 'import-codebase', 'project-folder-manifest', 'project-store', 'source-provenance', 'source-comparison'] },
   { id: 'editing', title: 'Writing and editing source', topics: ['editor', 'source-text-format', 'editor-splits', 'bookmarks', 'clipboard-safety', 'safe-rename-quick-fixes', 'basic-numbering', 'basic-range-renumber', 'basic-line-diagnostics'] },
   { id: 'navigation', title: 'Finding your way around a codebase', topics: ['source-navigation-workflow', 'symbol-navigation', 'go-to-source', 'call-hierarchy', 'target-navigation', 'generated-symbol-navigation', 'sdk-document-navigation', 'c-source-relationships'] },
   { id: 'assistance', title: 'Completion, signatures and type hints', topics: ['context-completion', 'completion-interaction', 'completion-snippets', 'target-reference-completion', 'c-scope-completion', 'token-help', 'signature-help', 'source-type-hints', 'language-request-safety'] },

@@ -6114,9 +6114,66 @@ Current implemented increment:
     result only the second processor could have produced.
     `src/emulator/parasiteProgramMeasurements.ts` records it and eleven tests
     hold the target model to it.
-  - [ ] Source-level debugging on the parasite is open. It needs breakpoints
-    that hook the parasite's instruction stream and a source map that belongs
-    to it, and neither exists yet.
+  - [x] Source-level debugging on the parasite: EMU-435.
+- [x] EMU-434 Measure what the machine can put on screen in one frame, so a
+  game is designed against a number rather than an argument.
+  - [x] Five routines were run on a Model B under the pinned core and the
+    emulator counted their cycles. A store to the screen costs 5.59 cycles a
+    byte, a copy from host memory 9.70, and a byte pulled across the Tube 9.31.
+    Two 6845 register writes, which is the whole of a hardware scroll, cost 35
+    cycles. Reloading all sixteen NuLA colours costs 208.
+  - [x] The finding the architecture rests on is that the Tube is not a
+    bottleneck for pixels. A byte arriving from the second processor is cheaper
+    than one already in host memory, because a read from a fixed address needs
+    no index, so composing a frame on the parasite is never worse than
+    composing it locally and the composition itself is then free. Anything that
+    can be computed rather than fetched belongs on the parasite.
+  - [x] No mode can be fully redrawn in one frame, in any mode, even as a flat
+    fill. At half rate a ten-kilobyte mode is 84 per cent affordable and a
+    twenty-kilobyte one is 42 per cent, which is what decides between them.
+  - [x] The hardware scroll and the NuLA palette are both free. 192 full
+    palette reloads fit in one frame, which is more than a screen has
+    scanlines, so a four-colour mode can carry a different four colours on
+    every band. That turns MODE 5's limit into a per-band limit rather than a
+    screen limit, and makes it worth more than its colour count suggests.
+  - [x] Evidence: `scripts/measureFrameBudget.mjs` reproduces all five,
+    `src/emulator/frameBudgetMeasurements.ts` records them, `docs/frame-budget.md`
+    is generated from that catalogue, and ten tests hold both to it.
+- [x] PRJ-040 A project written to a folder is the whole project, not only its
+  files. Written back, a project was its source files and nothing else, so a
+  folder opened again had its machine guessed from the source and its build
+  targets proposed afresh; a game for a Model B with a second processor, a
+  NuLA and a BeebSID came back as a Model B with a DFS.
+  - [x] The folder now carries `acorn-project.json`: the machine, the fitted
+    capabilities, the build targets and the settings, with files referred to
+    by name. Opening a folder that has one honours it over the guess; opening
+    one that does not still guesses. A file at that name that is not a manifest
+    is reported and left alone rather than becoming the machine.
+  - [x] A build target in the manifest whose entry file is not in the folder is
+    left out and named, because a build target for a file that is not there
+    fails on its first build for a reason that looks like the assembler's.
+  - [x] Evidence: fourteen contracts in `src/project/projectManifest.test.ts`,
+    including a round trip through a serialised manifest into the project
+    parser, and the import dialog saying where the machine came from.
+- [x] AST-060 An imported image is scaled to the screen rather than cropped,
+  and can be dithered. The Screens workspace imported an image pixel for
+  pixel from its top-left corner, so anything larger than the mode arrived as
+  a corner of itself, and anything not drawn at the mode's own pixel count
+  came out the wrong shape: a 160 by 256 screen is a four by three display
+  with wide pixels, not a tall thin picture.
+  - [x] Scaling is the default and respects the display's shape. A four by
+    three source fills the screen edge to edge; another shape is fitted inside
+    and centred with the rest left as colour zero. Each screen pixel is the
+    average of the source pixels it covers, not one of them. Cropping stays
+    available for a source already drawn at the mode's pixel count.
+  - [x] Dithering is offered in two forms, an ordered four-by-four pattern and
+    error diffusion, and the import notice says what was scaled from what and
+    which dithering was used, so the conversion is never presented as faithful.
+  - [x] Evidence: nine contracts in `src/assets/screenDocument.test.ts`,
+    including that a mid grey against black and white comes out as neither
+    flat colour but a near-even mix under either dithering, and that a
+    checkerboard finer than a screen pixel averages to the same grey for every
+    pixel rather than sampling whichever column fell under it.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
   - [x] Which ones there are is written down rather than left to be asked. A
     Tube takes whatever is plugged into it, Acorn sold four processors for one,
@@ -6214,6 +6271,116 @@ Current implemented increment:
     absence of an Electron or B+ model, the A310-only scope of the ARM adapter,
     and an unknown machine, which must report no support rather than invent it.
 
+- [x] PRJ-208 Opening a folder that held one of the workbench's own sprite
+  documents crashed the import. The pixel array inside the JSON is 255 lines
+  of equal length from a four-character alphabet, which is what the drawn map
+  reader looks for, so it was offered as an 8 by 255 room, chosen for the
+  person because it was the only shape, and refused by the map document
+  because a map may not have 255 rows. That one refusal lost the whole
+  project.
+  - [x] The drawn map reader no longer looks inside files named `.json`: a
+    serialised document is never a hand-drawn room.
+  - [x] A recovery that was asked for and cannot be made is left out and named
+    in the status line, and every other file still arrives.
+  - [x] Opening a project no longer compares the machine that was selected
+    before with the one the project brings. The machine becomes the project's,
+    so that comparison described a move nothing had to survive, and it told a
+    person opening a project for an ADFS machine that DFS was not enabled on
+    it. Departures this build cannot honour are still reported.
+  - [x] Evidence: two contracts in `src/project/codebaseImport.test.ts`, one
+    with a 256-line pixel array that is offered as no map and still imported
+    as a file, one with a drawn room requested at a shape it does not allow
+    that is left out and named while the project is still created.
+- [x] AST-631 The Screens workspace could write the generated bytes of a
+  screen and a live build target for it, and not the screen itself, while the
+  Sprites workspace could always write its document into the project. A
+  loading screen imported from a picture was in the browser's storage and
+  nowhere else: not in the project folder, and not among the screens the
+  Document menu offers to open again.
+  - [x] Document, Add to project writes the editable screen as a `.screen.json`
+    document named after the screen, and the help topic says so.
+  - [x] Evidence: a contract in `src/components/ScreenWorkspace.test.tsx`:
+    naming a screen `loading` and choosing Add to project writes
+    `loading.screen.json` whose document parses back with that name.
+- [x] BLD-331 The browser assembler's evaluator took a symbol, or a symbol plus
+  or minus one other term, and nothing else. The first game program that
+  needed the 6845 start address of its screen wrote `LDA #<(SCREEN / 8)` and
+  was told the expression was unknown.
+  - [x] Expressions are read with parentheses, `* / DIV MOD`, `+ -`, `<< >>`,
+    `AND`, `OR EOR`, and unary `- < > NOT LO() HI()`, at BeebAsm's precedence.
+    Division truncates. Division by zero and an unbalanced bracket are reported
+    as an expression that cannot be read, at its line.
+  - [x] Operand punctuation is stripped according to the addressing mode rather
+    than by pattern, which had taken the closing bracket off `#<(SCREEN / 8)`.
+  - [x] Evidence: two contracts in `src/build/assembler6502.test.ts`, one
+    holding fourteen expression forms to their exact bytes, one holding six
+    unreadable expressions to a report rather than a value.
+- [x] AST-632 A palette document held one of the machine's sixteen physical
+  colours per logical colour and nothing else. A game whose whole look is a
+  different four colours on every band of the screen, chosen from the 4,096 a
+  VideoNuLA offers, had nowhere in the workbench to say so.
+  - [x] A palette document may carry, beside its VDU 19 mapping, what the NuLA
+    redefines each physical colour as: four bits each of red, green and blue,
+    by physical colour. The definition belongs to the physical colour, and a
+    programmed colour in the flashing eight stops flashing, both as the
+    hardware has it and as the pinned core decodes the two writes to &FE23.
+  - [x] The generated output carries the two bytes a colour for &FE23 ahead of
+    the VDU bytes, in the assembler source and as pokes in the BASIC form, so
+    INCLUDEPALETTE builds them in; the manifest counts them. The project
+    palette previews with the NuLA colours in every editor that uses it.
+  - [x] The Palettes workspace offers Redefine and the three levels per row when
+    the selected machine has a NuLA fitted, and says so when a palette defines
+    NuLA colours and the machine has none.
+  - [x] Evidence: six contracts in `src/assets/paletteDocument.test.ts` and
+    three in `src/components/PaletteWorkspace.test.tsx`, including the exact
+    `&3F, &40` for physical colour 3 as #ff4400. A game's four band palettes
+    were written through the module, built into its host program, and read
+    back from the emulated NuLA's own lookup as the colours they name.
+- [x] AST-633 The song editor targeted the SN76489, the Atom speaker and the
+  Electron ULA. A game whose soundtrack is for a BeebSID had nowhere in the
+  workbench to write it.
+  - [x] A BeebSID target: three voices on the 6581 at &FC20, each with its own
+    waveform, pulse width and envelope kept on the song, and a row giving each
+    voice a note (C-0 to A#-7, where a sixteen-bit frequency register runs out
+    at the 1 MHz clock) and a level that is the envelope's sustain, zero
+    closing the gate.
+  - [x] The generated player writes the chip directly, voice by voice, closing
+    and opening the gate so a repeated note retriggers; its reset opens the
+    master volume and closes every gate; it carries the frequency tables for
+    the 1 MHz clock. The Sound workspace offers the voices' settings and names
+    the note beside a pitch that sounds.
+  - [x] Evidence: the player was run on a Model B with BeebSID fitted by
+    `scripts/measureSidSong.mjs`, its reset and then each row called as a
+    program would, and the chip's register file read back after each through
+    the same SID engine the runtime fits. `src/assets/sidSongMeasurements.ts`
+    records it and `src/assets/sidSong.test.ts` holds the measurement, the
+    model the player is written to, and the source the generator emits to each
+    other. Five document contracts and three workspace contracts beside it.
+- [x] EMU-435 A source line in a second-processor program could not be stopped
+  at. The pinned core gives the host an instruction hook, which is what every
+  breakpoint is built on, but the parasite's own execute loop never consults
+  its hook, so debugging a parasite program was refused by name.
+  - [x] The parasite is fitted with a loop that does consult a hook, the core's
+    own loop with one check added, installed on the instance the way the
+    BeebSID and BeebSCSI cards are and used only while a hook is installed. A
+    stop leaves the parasite at the instruction it was about to run and halts
+    the host at the end of its current one, so the whole machine stops at a
+    parasite instruction; resumed, the parasite skips the hook once there, as
+    the host does after its own breakpoint.
+  - [x] A breakpoint says which processor it is on. The parasite program's
+    source map and symbols are kept apart from the host's, and its breakpoints
+    are put on the parasite: from the debug path for a second-processor target,
+    from the source gutter, and from the persisted intents, all stamped by the
+    processor the active target runs on. The Tube panel names where the
+    parasite stopped with its source line, lists its breakpoints, and Step
+    parasite runs the host until the parasite has executed one instruction.
+  - [x] Evidence: five contracts on the fitted loop against a counting fake in
+    `src/emulator/parasiteHooks.test.ts`, and two against the pinned core's own
+    Tube6502 without firmware in `src/emulator/parasiteHooks.core.test.ts`: it
+    still has the shape the loop relies on, and a real parasite stops at the
+    address asked for before the instruction there runs, with the host asked
+    to halt. A game's second-processor program was stopped at a source line
+    through the workbench and pictured.
 ### Phase 4 exit gate
 
 - [ ] EMU-GATE Two 8-bit slices and one scoped ARM slice can run exact resolved

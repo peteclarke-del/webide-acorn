@@ -3,10 +3,16 @@ import { projectDocuments } from '../project/projectDocuments';
 import type { ProjectFile } from '../project/project';
 import { Icon } from './Icon';
 import {
-  clearSongRow, createSongDocument, emptyRow, generateSongOutput, MAX_ROW_DURATION, maximumPitch,
-  MIN_ROW_DURATION, MIN_SONG_ROWS, parseSongDocument, serializeSongDocument, setSongCell, setSongLength,
-  SONG_TARGETS, songTargetProfile, type SongDocument, type SongTarget,
+  clearSongRow, createSongDocument, defaultSidVoice, emptyRow, generateSongOutput, MAX_ROW_DURATION, maximumPitch,
+  MIN_ROW_DURATION, MIN_SONG_ROWS, parseSongDocument, serializeSongDocument, setSidVoice, setSongCell, setSongLength,
+  SID_VOICES, SID_WAVEFORM_BITS, SONG_TARGETS, songTargetProfile, type SidWaveform, type SongDocument, type SongTarget,
 } from '../assets/songDocument';
+
+/** A note number as a musician reads it: C-0 is 0, A-4 is 57. */
+function noteName(note: number): string {
+  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  return `${names[note % 12]}-${Math.floor(note / 12)}`;
+}
 
 interface SongWorkspaceProps {
   /** Everything the project holds, so a song already in it can be opened. */
@@ -54,7 +60,10 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
         const cell = row[channel] ?? emptyRow(target)[0]!;
         return { pitch: Math.min(cell.pitch, maximumPitch(channel, target)), volume: Math.min(cell.volume, next.maxVolume) };
       }));
-    return parseSongDocument({ ...current, target, rows: rows.length ? rows : [emptyRow(target)] });
+    /* A SID song carries its voices; a song for another chip carries none. */
+    const { voices, ...rest } = current;
+    const withVoices = target === 'bbc-beebsid' ? { voices: voices ?? Array.from({ length: SID_VOICES }, () => defaultSidVoice()) } : {};
+    return parseSongDocument({ ...rest, ...withVoices, target, rows: rows.length ? rows : [emptyRow(target)] });
   }
 
   return (
@@ -91,6 +100,8 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
           <p className="binding-note">
             {profile.detail}. {document.target === 'atom-speaker'
               ? 'The pitch number is the speaker half-period delay count, not a musical pitch, and volume is only on or off because a one-bit speaker has no volume.'
+              : document.target === 'bbc-beebsid'
+                ? 'Pitch is a note, C-0 being 0 and A-4 being 57, up to A#-7 at 94, which is where a sixteen-bit frequency register runs out at the 1 MHz clock. Volume is the envelope\'s sustain level, 0 closing the gate; a level that is not zero retriggers the note, so a note held across rows is entered on each.'
               : document.target === 'electron-ula'
                 ? "Pitch is the number OSWORD 7 takes, on the machine's own scale of forty-eight units to the octave, and volume is only on or off: a real Electron was measured playing every amplitude from -1 to -5 at exactly the same divider. There is one generator, so a note sent anywhere else would replace this one rather than sound beside it."
                 : 'Pitch and volume are the numbers OSWORD 7 takes: volume 0 is silence and 1 to 15 become amplitudes -1 to -15, and channel 0 takes pitches 0 to 7.'}
@@ -117,6 +128,7 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
                             type="number" min={0} max={maximumPitch(channel, document.target)} value={cell.pitch}
                             onChange={(event) => guard(() => setSongCell(document, rowIndex, channel, { pitch: Number(event.target.value) }))}
                           />
+                          {document.target === 'bbc-beebsid' && cell.volume > 0 && <small className="song-note-name">{noteName(cell.pitch)}</small>}
                         </td>
                         <td>
                           <input
@@ -134,6 +146,36 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
             </table>
           </div>
         </section>
+
+        {document.target === 'bbc-beebsid' && document.voices && (
+          <section aria-label="Voices">
+            <h2>Voices</h2>
+            <p className="binding-note">
+              Each voice keeps one waveform and one envelope for the whole song. Attack, decay and release are the
+              chip's sixteen rates, 0 the fastest; the pulse width is the pulse waveform's duty cycle out of 4,096
+              and does nothing for the others. The row's level is the sustain, so it is not set here.
+            </p>
+            <table className="song-grid">
+              <thead><tr><th scope="col">Voice</th><th scope="col">Waveform</th><th scope="col">Pulse width</th><th scope="col">Attack</th><th scope="col">Decay</th><th scope="col">Release</th></tr></thead>
+              <tbody>
+                {document.voices.map((voice, index) => (
+                  <tr key={index}>
+                    <th scope="row">{index + 1}</th>
+                    <td>
+                      <select aria-label={`Voice ${index + 1} waveform`} value={voice.waveform} onChange={(event) => guard(() => setSidVoice(document, index, { waveform: event.target.value as SidWaveform }))}>
+                        {(Object.keys(SID_WAVEFORM_BITS) as SidWaveform[]).map((waveform) => <option key={waveform} value={waveform}>{waveform}</option>)}
+                      </select>
+                    </td>
+                    <td><input aria-label={`Voice ${index + 1} pulse width`} type="number" min={0} max={4095} value={voice.pulseWidth} disabled={voice.waveform !== 'pulse'} onChange={(event) => guard(() => setSidVoice(document, index, { pulseWidth: Number(event.target.value) }))} /></td>
+                    {(['attack', 'decay', 'release'] as const).map((stage) => (
+                      <td key={stage}><input aria-label={`Voice ${index + 1} ${stage}`} type="number" min={0} max={15} value={voice[stage]} onChange={(event) => guard(() => setSidVoice(document, index, { [stage]: Number(event.target.value) }))} /></td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
 
         <section aria-label="Generated output">
           <h2><Icon name="music" size={13} /> Generated output</h2>

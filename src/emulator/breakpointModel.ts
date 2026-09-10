@@ -7,6 +7,8 @@ export interface BreakpointCondition {
   value: number;
 }
 
+export type BreakpointProcessor = 'host' | 'parasite';
+
 export interface BreakpointSpec {
   address: number;
   enabled: boolean;
@@ -14,6 +16,12 @@ export interface BreakpointSpec {
   condition?: BreakpointCondition;
   hitTarget?: number;
   logMessage?: string;
+  /**
+   * Which processor the address is on. The host unless said otherwise; the
+   * second processor has its own address space, and a breakpoint at &0800 on
+   * one says nothing about &0800 on the other.
+   */
+  processor?: BreakpointProcessor;
 }
 
 export interface BreakpointRegisters { a: number; x: number; y: number; s: number; p: number; pc: number }
@@ -26,6 +34,7 @@ export function validateBreakpointSpec(input: BreakpointSpec): BreakpointSpec {
   if (input.hitTarget !== undefined && (!Number.isInteger(input.hitTarget) || input.hitTarget < 1 || input.hitTarget > 1_000_000)) throw new Error('Breakpoint hit target must be between 1 and 1,000,000');
   if (input.logMessage !== undefined && input.logMessage.length > 160) throw new Error('Breakpoint log messages are limited to 160 characters');
   if (!input.stop && !input.logMessage?.trim()) throw new Error('A non-stopping breakpoint requires a log message');
+  if (input.processor !== undefined && input.processor !== 'host' && input.processor !== 'parasite') throw new Error('A breakpoint is on the host or on the parasite');
   if (input.condition) {
     if (!REGISTERS.has(input.condition.register) || !OPERATORS.has(input.condition.operator)) throw new Error('Breakpoint condition is invalid');
     const maximum = input.condition.register === 'pc' ? 0xffff : 0xff;
@@ -38,6 +47,7 @@ export function validateBreakpointSpec(input: BreakpointSpec): BreakpointSpec {
     ...(input.condition ? { condition: { ...input.condition } } : {}),
     ...(input.hitTarget === undefined ? {} : { hitTarget: input.hitTarget }),
     ...(input.logMessage?.trim() ? { logMessage: input.logMessage.trim() } : {}),
+    ...(input.processor === 'parasite' ? { processor: 'parasite' as const } : {}),
   };
 }
 

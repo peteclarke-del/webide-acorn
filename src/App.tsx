@@ -73,6 +73,7 @@ import { SdkDocumentView } from './components/SdkDocumentView';
 import { ProjectExportDialog } from './components/ProjectExportDialog';
 import { StartProjectDialog } from './components/StartProjectDialog';
 import { writeDirectory, type FileSystemDirectoryHandleLike } from './project/directoryAccess';
+import { PROJECT_MANIFEST_FILENAME, manifestFromProject, serializeProjectManifest } from './project/projectManifest';
 import { ProjectStorePanel, storeProjectId } from './components/ProjectStorePanel';
 import { SampleWorkspace } from './components/SampleWorkspace';
 import { TileMapWorkspace } from './components/TileMapWorkspace';
@@ -95,7 +96,7 @@ import {
   machinesForPlatform,
   platformClasses,
 } from './data/machines';
-import { compareConfigurations, configurationSummary, resolveConfiguration } from './profiles/profileRegistry';
+import { configurationSummary, resolveConfiguration } from './profiles/profileRegistry';
 import type { PlatformClassId } from './types';
 import { Cpu6502Runtime, type CpuSnapshot } from './runtime/cpu6502';
 import { addPixelSpriteFrame, createPixelAssetDocument, generatePixelAssetOutput, movePixelSpriteFrame, parsePixelAssetDocument, pixelAssetFrames, removePixelSpriteFrame, resizePixelAssetDocument, serializePixelAssetDocument, updatePixelSpriteFrame, type PixelAssetDocument, type PixelAssetKind } from './assets/pixelAssetDocument';
@@ -800,13 +801,19 @@ function App() {
    * the person's own firmware and is never written into the project. */
   const [sidewaysLayout, setSidewaysLayout] = useState<SidewaysAssignment[]>([]);
 
-  /* Write the project's source files back into the folder they came from. Only
-   * the sources are written: build output belongs to the build directory and
-   * putting it here would overwrite work the person did not ask us to touch. */
+  /* Write the project's source files and its manifest back into the folder
+   * they came from. Only those are written: build output belongs to the build
+   * directory and putting it here would overwrite work the person did not ask
+   * us to touch. */
   const writeProjectToFolder = async () => {
     if (!connectedFolder) { setNotice('This project is not connected to a folder on disk. Import one through Start a project to connect it.'); return; }
     try {
-      const result = await writeDirectory(connectedFolder, project.files.filter((file) => file.kind !== 'generated').map((file) => ({ path: file.name, content: file.content })));
+      /* The project's own description goes with its files, so the folder is
+       * the whole project and opens again as the machine it was written for. */
+      const result = await writeDirectory(connectedFolder, [
+        ...project.files.filter((file) => file.kind !== 'generated').map((file) => ({ path: file.name, content: file.content })),
+        { path: PROJECT_MANIFEST_FILENAME, content: serializeProjectManifest(manifestFromProject(project)) },
+      ]);
       const failures = result.failed.length ? ` ${result.failed.length} could not be written: ${result.failed.map((entry) => `${entry.path} (${entry.reason})`).join('; ')}` : '';
       setNotice(`Wrote ${result.written.length} file${result.written.length === 1 ? '' : 's'} to ${connectedFolder.name}.${failures}`);
     } catch (error) {
@@ -822,15 +829,14 @@ function App() {
     setStartProjectOpen(false);
     setConnectedFolder(folder ?? null);
     setWorkspaceTab('Code');
-    /* A project written for one configuration and opened against another is the
-     * moment portability matters. Say what will not survive the move before any
-     * of it is built or run, rather than after it fails. */
+    /* The machine becomes the one the project names, so what is worth saying
+     * is where this build could not give it that: a ROM set it does not have,
+     * a variant it does not know. The differences between the machine that was
+     * selected before and the one the project brings are not a move anything
+     * has to survive, and reporting them told a person opening a project for
+     * an ADFS machine that DFS was not enabled on it. */
     const incoming = resolveConfiguration(next.target);
-    const portability = compareConfigurations(resolved, incoming.target);
-    const notes = [
-      ...incoming.diagnostics.map((item) => item.reason),
-      ...(portability.warnings.length && incoming.exact ? portability.warnings : []),
-    ];
+    const notes = incoming.diagnostics.map((item) => item.reason);
     setNotice(notes.length ? `${description} · ${notes.join(' ')}` : description);
   };
 
@@ -1310,8 +1316,18 @@ function App() {
     try { return transitionDebugSession(current, lifecycle, reason); }
     catch { return current; }
   }), []);
+  /* Which processor the active target runs on, for the commands that name an
+   * address: a breakpoint put on while the active target is a parasite
+   * program is a parasite breakpoint, whichever panel put it on, because the
+   * address is in that processor's space and no other. Read through a ref so
+   * the command path itself does not change identity with the target. */
+  const activeProcessorRef = useRef<'host' | 'parasite'>('host');
   const queueDebugMachineCommand = useCallback((message: Record<string, unknown>) => {
     const type = String(message.type ?? '');
+    if (activeProcessorRef.current === 'parasite') {
+      if (type === 'breakpoint' && message.processor === undefined) message = { ...message, processor: 'parasite' };
+      if (type === 'set-breakpoints' && Array.isArray(message.breakpoints)) message = { ...message, breakpoints: (message.breakpoints as Array<Record<string, unknown>>).map((spec) => spec.processor === undefined ? { ...spec, processor: 'parasite' } : spec) };
+    }
     if (type === 'step' || type === 'step-over' || type === 'step-out' || type === 'source-step') updateDebugLifecycle('stepping', `${type} requested from the attached adapter`);
     else if (type === 'reverse-step' || type === 'reverse-continue') updateDebugLifecycle('rewinding', `${type} requested from retained deterministic history`);
     else if (type === 'run' || type === 'run-to') updateDebugLifecycle('running', `${type} requested from the attached adapter`);
@@ -1411,6 +1427,7 @@ function App() {
   };
 
   const activeBuildTarget = project.buildTargets.find((target) => target.id === project.activeBuildTargetId) ?? project.buildTargets[0]!;
+  useEffect(() => { activeProcessorRef.current = activeBuildTarget?.processor === 'parasite' ? 'parasite' : 'host'; }, [activeBuildTarget?.processor]);
   const backgroundBuildContextIdentity = useMemo(() => JSON.stringify({ target: activeBuildTarget, files: project.files.map(({ id, name, language, content }) => ({ id, name, language, content })), platformClass, machineId: machine.id, variant: resolved.variant, romId: resolved.rom.id, enabledCapabilities }), [activeBuildTarget, enabledCapabilities, machine.id, platformClass, project.files, resolved.rom.id, resolved.variant]);
   const backgroundBuildContextRef = useRef(backgroundBuildContextIdentity);
   backgroundBuildContextRef.current = backgroundBuildContextIdentity;
@@ -1713,11 +1730,13 @@ function App() {
     }
     if (artifact.kind === '6502-binary' && romReady && machineRomSet) {
       const breakpoints = resolveSourceBreakpointAddresses(artifact);
-      /* Debugging a parasite program is refused rather than half-offered: the
-       * breakpoints in this build hook the host processor, so a source line in
-       * a parasite program would stop the wrong one. */
+      /* A parasite program is debugged on the parasite: its source breakpoints
+       * are put on the second processor, whose instruction hooks the runtime
+       * fits, and a stop there halts the whole machine. */
       if (activeBuildTarget?.processor === 'parasite') {
-        setNotice('This target runs on the second processor, and source breakpoints in this build hook the host. Use Run, and the Tube panel in the debugger for the parasite\'s own registers and memory.');
+        queueMachineCommand({ type: 'load-machine-code', bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, autorun: false, processor: 'parasite', breakpoints, sourceLocations: artifact.sourceLocations, symbols: artifact.symbols, programLoadDraft: buildProgramLoadDraft(artifact, 'debug') });
+        setWorkspaceTab('Debugger');
+        setNotice(`Second-processor debug session loading at ${formatAddress(artifact.entryPoint)} · ${breakpoints.length} source breakpoint${breakpoints.length === 1 ? '' : 's'} resolved on the parasite`);
         return;
       }
       queueMachineCommand({ type: 'load-machine-code', bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, autorun: false, processor: 'host', breakpoints, sourceLocations: artifact.sourceLocations, symbols: artifact.symbols, programLoadDraft: buildProgramLoadDraft(artifact, 'debug') });
@@ -2660,7 +2679,7 @@ function App() {
             ) : workspaceTab === 'Debugger' ? (
               <div className="debugger-session-workspace">
                 <DebugSessionPanel session={debugSession} onStop={stopDebugSession} />
-                {archimedesRuntime ? <ArchimedesDebuggerWorkspace connected={romReady} state={archimedesState} memory={archimedesMemory} artifact={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? buildArtifact : null} sourceBreakpointAddresses={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? resolveSourceBreakpointAddresses(buildArtifact) : []} persistedBreakpoints={project.armBreakpoints[activeBuildTarget.id] ?? EMPTY_ARM_BREAKPOINTS} breakpointGroups={project.armBreakpointGroups[activeBuildTarget.id] ?? EMPTY_ARM_BREAKPOINT_GROUPS} onPersistBreakpoints={(intents) => setProject((current) => ({ ...current, armBreakpoints: { ...current.armBreakpoints, [activeBuildTarget.id]: intents } }))} onPersistGroups={(groups) => setProject((current) => ({ ...current, armBreakpointGroups: { ...current.armBreakpointGroups, [activeBuildTarget.id]: groups } }))} onMachineCommand={queueDebugMachineCommand} onNavigateSource={jumpToSourceLocation} /> : <DebuggerWorkspace artifact={assemblyArtifact} currentFiles={project.files} state={runtimeState} runtime={runtimeRef.current} hardwareState={hardwareState} hardwareMemory={hardwareMemory} hardwareDisassembly={hardwareDisassembly} hardwareInspection={hardwareInspection} hardwareConnected={romReady && !!machineRomSet} sourceBreakpointAddresses={assemblyArtifact ? resolveSourceBreakpointAddresses(assemblyArtifact) : []} persistedBreakpoints={project.breakpoints6502[activeBuildTarget.id] ?? EMPTY_6502_BREAKPOINTS} breakpointGroups={project.breakpointGroups6502[activeBuildTarget.id] ?? EMPTY_6502_BREAKPOINT_GROUPS} onPersistBreakpoints={(intents) => setProject((current) => ({ ...current, breakpoints6502: { ...current.breakpoints6502, [activeBuildTarget.id]: intents } }))} onPersistGroups={(groups) => setProject((current) => ({ ...current, breakpointGroups6502: { ...current.breakpointGroups6502, [activeBuildTarget.id]: groups } }))} onMachineCommand={queueDebugMachineCommand} onNavigateSource={jumpToSourceLocation} onStep={() => { updateDebugLifecycle('stepping', 'ROM-less instruction step requested'); stepProgram(); updateDebugLifecycle('paused', 'ROM-less instruction step completed'); }} onContinue={() => { updateDebugLifecycle('running', 'ROM-less continue requested'); continueProgram(); }} onReset={() => { updateDebugLifecycle('starting', 'ROM-less debug session restarting'); resetProgram(); updateDebugLifecycle('paused', 'ROM-less debug session restarted at entry point'); }} onStateChange={setRuntimeState} onAnalyse={openAnalysisPayload} />}
+                {archimedesRuntime ? <ArchimedesDebuggerWorkspace connected={romReady} state={archimedesState} memory={archimedesMemory} artifact={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? buildArtifact : null} sourceBreakpointAddresses={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? resolveSourceBreakpointAddresses(buildArtifact) : []} persistedBreakpoints={project.armBreakpoints[activeBuildTarget.id] ?? EMPTY_ARM_BREAKPOINTS} breakpointGroups={project.armBreakpointGroups[activeBuildTarget.id] ?? EMPTY_ARM_BREAKPOINT_GROUPS} onPersistBreakpoints={(intents) => setProject((current) => ({ ...current, armBreakpoints: { ...current.armBreakpoints, [activeBuildTarget.id]: intents } }))} onPersistGroups={(groups) => setProject((current) => ({ ...current, armBreakpointGroups: { ...current.armBreakpointGroups, [activeBuildTarget.id]: groups } }))} onMachineCommand={queueDebugMachineCommand} onNavigateSource={jumpToSourceLocation} /> : <DebuggerWorkspace processor={activeBuildTarget?.processor === 'parasite' ? 'parasite' : 'host'} artifact={assemblyArtifact} currentFiles={project.files} state={runtimeState} runtime={runtimeRef.current} hardwareState={hardwareState} hardwareMemory={hardwareMemory} hardwareDisassembly={hardwareDisassembly} hardwareInspection={hardwareInspection} hardwareConnected={romReady && !!machineRomSet} sourceBreakpointAddresses={assemblyArtifact ? resolveSourceBreakpointAddresses(assemblyArtifact) : []} persistedBreakpoints={project.breakpoints6502[activeBuildTarget.id] ?? EMPTY_6502_BREAKPOINTS} breakpointGroups={project.breakpointGroups6502[activeBuildTarget.id] ?? EMPTY_6502_BREAKPOINT_GROUPS} onPersistBreakpoints={(intents) => setProject((current) => ({ ...current, breakpoints6502: { ...current.breakpoints6502, [activeBuildTarget.id]: intents } }))} onPersistGroups={(groups) => setProject((current) => ({ ...current, breakpointGroups6502: { ...current.breakpointGroups6502, [activeBuildTarget.id]: groups } }))} onMachineCommand={queueDebugMachineCommand} onNavigateSource={jumpToSourceLocation} onStep={() => { updateDebugLifecycle('stepping', 'ROM-less instruction step requested'); stepProgram(); updateDebugLifecycle('paused', 'ROM-less instruction step completed'); }} onContinue={() => { updateDebugLifecycle('running', 'ROM-less continue requested'); continueProgram(); }} onReset={() => { updateDebugLifecycle('starting', 'ROM-less debug session restarting'); resetProgram(); updateDebugLifecycle('paused', 'ROM-less debug session restarted at entry point'); }} onStateChange={setRuntimeState} onAnalyse={openAnalysisPayload} />}
               </div>
             ) : workspaceTab === 'Tests' ? (
               <TestWorkspace machineManifestId={`${machine.id}/${resolved.variant}/${resolved.rom.id}`} targetName={activeBuildTarget.name} entryFileName={buildEntry?.name ?? 'missing entry'} connected={romReady && !!machineRomSet} supported={buildEntry?.language === '6502'} artifact={assemblyArtifact} result={hardwareTest} plans={project.testPlans.filter((plan) => plan.targetId === activeBuildTarget.id)} testAllRecords={testAllRecords} history={testHistory} onAdd={addTestPlan} onChange={updateTestPlan} onRemove={removeTestPlan} onRun={runHardwareTest} onRunAll={() => void runTestAll()} onCancelAll={cancelTestAll} onDebugFailed={(failed) => { const exact = [buildArtifact, ...retainedArtifacts.map((item) => item.artifact)].find((candidate) => candidate?.provenance?.fingerprint === failed.buildFingerprint); if (!exact || !isMachineCodeArtifact(exact)) { setNotice('The exact failed-test artifact is no longer retained. Run the test again before debugging it.'); return; } void startDebugger(exact); }} />
@@ -2694,7 +2713,7 @@ function App() {
             ) : workspaceTab === 'Fonts' ? (
               <FontWorkspace projectPalette={projectPalette} projectFiles={project.files} onAddSource={addSourceFile} onAddLiveFont={addLiveFont} onNotice={setNotice} />
             ) : workspaceTab === 'Palettes' ? (
-              <PaletteWorkspace
+              <PaletteWorkspace nulaFitted={enabledCapabilities.includes('videonula')}
                 projectFiles={project.files.map((file) => ({ name: file.name, content: file.content }))}
                 onAddSource={addSourceFile}
                 onAddLivePalette={addLivePalette}
@@ -5452,6 +5471,8 @@ function TestWorkspace({
 }
 
 interface DebuggerWorkspaceProps {
+  /** Which processor the active target runs on; its breakpoints and its program counter are that processor's. */
+  processor?: 'host' | 'parasite';
   artifact: AssemblyArtifact | null;
   currentFiles: ProjectFile[];
   state: CpuSnapshot | null;
@@ -5529,7 +5550,9 @@ function TubeProcessorPanel({ state, memory, onMachineCommand }: { state: Machin
   const registerRows = [{ id: 'host', label: `Host ${state.cpuCore}`, values: state.registers }, { id: 'parasite', label: tube.model, values: tube.registers }] as const;
   const renderBytes = (bytes: Array<number | null>) => bytes.map((value, index) => <span title={`${formatAddress(tube.memory.start + index)}${value === null ? ' is Tube ULA I/O and was not read' : ''}`} key={index}>{value === null ? '--' : formatByte(value)}</span>);
   return <section className="tube-debug-panel" aria-label="Tube host and parasite state">
-    <header><div><span className="eyebrow">LIVE JSBEEB TUBE STATE</span><strong>Host and parasite</strong><small>{tube.scheduling}</small></div><div role="group" aria-label="Tube debugger focus"><button type="button" aria-pressed={focus === 'host'} onClick={() => setFocus('host')}>Focus host</button><button type="button" aria-pressed={focus === 'parasite'} onClick={() => setFocus('parasite')}>Focus parasite</button></div></header>
+    <header><div><span className="eyebrow">LIVE JSBEEB TUBE STATE</span><strong>Host and parasite</strong><small>{tube.scheduling}</small></div><div role="group" aria-label="Tube debugger focus"><button type="button" aria-pressed={focus === 'host'} onClick={() => setFocus('host')}>Focus host</button><button type="button" aria-pressed={focus === 'parasite'} onClick={() => setFocus('parasite')}>Focus parasite</button><button type="button" aria-label="Step parasite" title="Run the host until the second processor has executed one instruction" disabled={state.running} onClick={() => onMachineCommand({ type: 'step-parasite' })}>Step parasite</button></div></header>
+    <div className="tube-parasite-position" aria-label="Parasite position"><strong>{tube.stoppedAtBreakpoint ? 'Stopped on the parasite' : 'Parasite'} at {formatAddress(tube.registers.pc)}</strong><span> · {tube.symbol ? `${tube.symbol} · ` : ''}{tube.source ? `${tube.source.fileName}:${tube.source.line}` : 'no source line: the parasite program was not loaded through the debugger, or this address is outside it'}</span></div>
+    {tube.breakpoints.length > 0 && <div className="breakpoint-list hardware-breakpoint-list" aria-label="Parasite breakpoints">{tube.breakpoints.map((breakpoint) => <button type="button" aria-label={`Remove parasite breakpoint ${formatAddress(breakpoint.address)}`} key={breakpoint.address} onClick={() => onMachineCommand({ type: 'breakpoint', address: breakpoint.address, enabled: false, stop: true, processor: 'parasite' })}><strong>{formatAddress(breakpoint.address)}</strong><span>parasite · {breakpoint.stop ? 'pause' : 'log'} · {breakpoint.hits} hit{breakpoint.hits === 1 ? '' : 's'}</span><small>Remove ×</small></button>)}</div>}
     <div className="tube-cpu-grid">{registerRows.map((processor) => <section className={focus === processor.id ? 'focused' : ''} aria-label={`${processor.label} registers`} key={processor.id}><h3>{processor.label}</h3><div>{Object.entries(processor.values).map(([name, value]) => <span key={name}><small>{name.toUpperCase()}</small><strong>{name === 'pc' ? formatAddress(value) : formatByte(value)}</strong></span>)}</div>{processor.id === 'parasite' && <p>{tube.romPaged ? 'Boot ROM paged' : 'Parasite RAM visible'} · IRQ {tube.irqPending ? 'pending' : 'clear'} · NMI {tube.nmiLevel ? 'high' : 'low'}{tube.nmiEdge ? ' / edge' : ''} · cycle debt {tube.cycles.toFixed(2)}</p>}</section>)}</div>
     <div className="tube-ula-state"><strong>Tube ULA channels</strong><code>control &amp;{formatByte(tube.ula.internalStatus)}</code>{tube.ula.hostStatus.map((value, index) => <span key={`h-${index}`}>H{index + 1} &amp;{formatByte(value)}</span>)}{tube.ula.parasiteStatus.map((value, index) => <span key={`p-${index}`}>P{index + 1} &amp;{formatByte(value)}</span>)}<small>P→H R1 {tube.ula.parasiteToHostFifo1} · P→H R3 {tube.ula.parasiteToHostFifo3} · H→P R3 {tube.ula.hostToParasiteFifo3}</small></div>
     <TubeAddressMap state={state} />
@@ -5651,7 +5674,7 @@ function DebugVariablesPanel({ artifact, state, memory, onMachineCommand }: { ar
   </section>;
 }
 
-function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareState, hardwareMemory, hardwareDisassembly, hardwareInspection, hardwareConnected, sourceBreakpointAddresses, persistedBreakpoints, breakpointGroups, onPersistBreakpoints, onPersistGroups, onMachineCommand, onNavigateSource, onStep, onContinue, onReset, onStateChange, onAnalyse }: DebuggerWorkspaceProps) {
+function DebuggerWorkspace({ processor = 'host', artifact, currentFiles, state, runtime, hardwareState, hardwareMemory, hardwareDisassembly, hardwareInspection, hardwareConnected, sourceBreakpointAddresses, persistedBreakpoints, breakpointGroups, onPersistBreakpoints, onPersistGroups, onMachineCommand, onNavigateSource, onStep, onContinue, onReset, onStateChange, onAnalyse }: DebuggerWorkspaceProps) {
   const [breakpointAddress, setBreakpointAddress] = useState('');
   const [breakpointRegister, setBreakpointRegister] = useState('');
   const [breakpointOperator, setBreakpointOperator] = useState('eq');
@@ -5669,7 +5692,7 @@ function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareSta
   const hardwareArtifactLoaded = machineHoldsArtifact(
     artifact ? { origin: artifact.origin, byteLength: artifact.bytes.length } : null,
     hardwareState?.programManifest ?? null,
-    hardwareState?.registers.pc ?? null,
+    processor === 'parasite' ? hardwareState?.tube?.registers.pc ?? null : hardwareState?.registers.pc ?? null,
   );
   useEffect(() => {
     if (!hardwareConnected || !hardwareArtifactLoaded) return;
@@ -5720,7 +5743,7 @@ function DebuggerWorkspace({ artifact, currentFiles, state, runtime, hardwareSta
       {!hardwareState ? <div className="honest-empty runtime-empty">The ROM-aware hardware emulator is booting. Register, breakpoint and instruction state will attach as soon as the bridge reports its first snapshot.</div> : <div className="debug-grid">
         <section><h3>Hardware registers</h3><div className="register-grid">{Object.entries(hardwareState.registers).map(([name, value]) => <div key={name}><span>{name.toUpperCase()}</span><strong>{name === 'pc' ? formatAddress(value) : formatByte(value)}</strong></div>)}</div><h3>Processor flags</h3><div className="flag-row">{['N','V','U','B','D','I','Z','C'].map((flag, index) => <span className={hardwareState.registers.p & (0x80 >> index) ? 'set' : ''} key={flag}>{flag}</span>)}</div><h3>Current instruction</h3><div className="current-instruction"><code>{formatAddress(hardwareState.currentInstruction.address)}</code><span>{hardwareState.currentInstruction.bytes.map(formatByte).join(' ')}</span><strong>{hardwareState.currentInstruction.instruction}</strong><small>{artifact?.sourceMap[hardwareState.currentInstruction.address] ? `source line ${artifact.sourceMap[hardwareState.currentInstruction.address]}` : 'live machine memory'}</small></div><InstructionEffects state={hardwareState} /><h3>Execute breakpoints / run to</h3><div className="breakpoint-editor"><div className="breakpoint-entry"><input aria-label="Hardware breakpoint address" value={breakpointAddress} onChange={(event) => setBreakpointAddress(event.target.value)} placeholder="&E581" /><button type="button" onClick={addHardwareBreakpoint}>Add</button><button type="button" disabled={hardwareState.running} onClick={runToAddress}>Run to</button></div><div className="breakpoint-options"><label><span>Condition</span><select aria-label="Breakpoint condition register" value={breakpointRegister} onChange={(event) => setBreakpointRegister(event.target.value)}><option value="">Always</option>{['a','x','y','s','p','pc'].map((register) => <option value={register} key={register}>{register.toUpperCase()}</option>)}</select></label><label><span>Compare</span><select aria-label="Breakpoint condition operator" value={breakpointOperator} disabled={!breakpointRegister} onChange={(event) => setBreakpointOperator(event.target.value)}><option value="eq">equals</option><option value="ne">not equal</option><option value="lt">less than</option><option value="lte">at most</option><option value="gt">greater than</option><option value="gte">at least</option></select></label><label><span>Value</span><input aria-label="Breakpoint condition value" disabled={!breakpointRegister} value={breakpointValue} onChange={(event) => setBreakpointValue(event.target.value)} placeholder="&03" /></label><label><span>Hit ≥</span><input aria-label="Breakpoint hit target" inputMode="numeric" value={breakpointHitTarget} onChange={(event) => setBreakpointHitTarget(event.target.value)} placeholder="1" /></label><label><span>Action</span><select aria-label="Breakpoint action" value={breakpointMode} onChange={(event) => setBreakpointMode(event.target.value as 'break' | 'log')}><option value="break">Pause</option><option value="log">Log only</option></select></label><label className="breakpoint-log-input"><span>Log message · placeholders: {'{pc} {a} {x} {y} {s} {p} {hits}'}</span><input aria-label="Breakpoint log message" value={breakpointLogMessage} onChange={(event) => setBreakpointLogMessage(event.target.value)} placeholder={breakpointMode === 'log' ? 'X={x} hit {hits}' : 'Optional'} /></label></div></div><div className="breakpoint-list hardware-breakpoint-list" aria-label="Hardware breakpoints">{hardwareState.breakpoints.map((breakpoint) => <button type="button" aria-label={`Remove breakpoint ${formatAddress(breakpoint.address)}`} key={breakpoint.address} onClick={() => onMachineCommand({ type: 'breakpoint', address: breakpoint.address, enabled: false, stop: true })}><strong>{formatAddress(breakpoint.address)}</strong><span>{breakpoint.stop ? 'pause' : 'log'} · {breakpoint.hits} hit{breakpoint.hits === 1 ? '' : 's'}{breakpoint.condition ? ` · ${breakpoint.condition.register.toUpperCase()} ${breakpoint.condition.operator} &${breakpoint.condition.value.toString(16).toUpperCase()}` : ''}{breakpoint.hitTarget ? ` · ≥${breakpoint.hitTarget}` : ''}</span><small>Remove ×</small></button>)}</div><h3>Raw hardware stack</h3><div className="raw-stack">{hardwareState.stack.length ? hardwareState.stack.map((item) => <code key={item.address}>{formatAddress(item.address)}:{formatByte(item.value)}</code>) : <span>No bytes above SP</span>}</div></section>
         <section><h3>Machine state</h3><div className="machine-debug-facts"><div><span>Execution</span><strong>{hardwareState.running ? 'running' : 'paused'}</strong></div><div><span>CPU core</span><strong>{hardwareState.cpuCore}</strong></div><div><span>Reason</span><strong>{hardwareState.reason}</strong></div><div><span>Emulated cycles</span><strong>{hardwareState.cycles.toLocaleString()}</strong></div></div><h3>Interrupt state</h3><div className="interrupt-grid" aria-label="Live CPU interrupt state"><div><span>IRQ line</span><strong className={hardwareState.interrupts.irqLine ? 'asserted' : ''}>{hardwareState.interrupts.irqLine ? 'asserted' : 'clear'}</strong></div><div><span>IRQ accepted</span><strong>{hardwareState.interrupts.irqAccepted ? 'pending' : 'no'}</strong></div><div><span>I mask</span><strong>{hardwareState.interrupts.interruptDisable ? 'set' : 'clear'}</strong></div><div><span>IRQ source mask</span><strong>&amp;{hardwareState.interrupts.irqSourceMask.toString(16).toUpperCase().padStart(8, '0')}</strong></div><div><span>NMI line / edge</span><strong>{hardwareState.interrupts.nmiLevel ? 'high' : 'low'} / {hardwareState.interrupts.nmiEdge ? 'latched' : 'clear'}</strong></div></div><p className="honest-note">IRQ source mask, acceptance and NMI state are read directly from the selected jsbeeb CPU core; named sources below come only from peripheral IFR/IER or status/control snapshots.</p><InterruptHistoryPanel state={hardwareState} onMachineCommand={onMachineCommand} /><HardwareMemoryInspector artifact={artifact} state={hardwareState} memory={hardwareMemory} onMachineCommand={onMachineCommand} onAnalyse={onAnalyse} /></section>
-        <section className="trace-section"><HardwareDisassemblyPanel artifact={artifact} currentFiles={currentFiles} state={hardwareState} disassembly={hardwareDisassembly} onMachineCommand={onMachineCommand} onNavigateSource={onNavigateSource} /><HardwareTracePanel state={hardwareState} onMachineCommand={onMachineCommand} /><h3>Breakpoint event log <small>{hardwareState.breakpointLogs.length} retained</small></h3><div className="breakpoint-event-log" role="log" aria-label="Breakpoint event log">{hardwareState.breakpointLogs.length ? hardwareState.breakpointLogs.slice().reverse().map((entry) => <div key={entry.sequence}><code>#{entry.sequence}</code><strong>{formatAddress(entry.address)}</strong><span>{entry.message}</span><small>hit {entry.hits}</small></div>) : <div className="honest-empty">No breakpoint log events in this debug session.</div>}</div></section>
+        <section className="trace-section"><HardwareDisassemblyPanel processor={processor} artifact={artifact} currentFiles={currentFiles} state={hardwareState} disassembly={hardwareDisassembly} onMachineCommand={onMachineCommand} onNavigateSource={onNavigateSource} /><HardwareTracePanel state={hardwareState} onMachineCommand={onMachineCommand} /><h3>Breakpoint event log <small>{hardwareState.breakpointLogs.length} retained</small></h3><div className="breakpoint-event-log" role="log" aria-label="Breakpoint event log">{hardwareState.breakpointLogs.length ? hardwareState.breakpointLogs.slice().reverse().map((entry) => <div key={entry.sequence}><code>#{entry.sequence}</code><strong>{formatAddress(entry.address)}</strong><span>{entry.message}</span><small>hit {entry.hits}</small></div>) : <div className="honest-empty">No breakpoint log events in this debug session.</div>}</div></section>
       </div>}
       {hardwareState && <Breakpoint6502PersistencePanel intents={persistedBreakpoints} groups={breakpointGroups} resolved={resolvedPersistedBreakpoints} selectedGroupId={breakpointGroupId} groupName={breakpointGroupName} message={breakpointMessage} onSelectedGroup={setBreakpointGroupId} onGroupName={setBreakpointGroupName} onGroups={onPersistGroups} onIntents={onPersistBreakpoints} />}
       {hardwareState && <HardwareWatchpointPanel state={hardwareState} inspection={hardwareInspection} onMachineCommand={onMachineCommand} />}
@@ -5881,7 +5904,7 @@ function HardwareMemoryInspector({ artifact, state, memory, onMachineCommand, on
   </div>;
 }
 
-function HardwareDisassemblyPanel({ artifact, currentFiles, state, disassembly, onMachineCommand, onNavigateSource }: { artifact: AssemblyArtifact | null; currentFiles: ProjectFile[]; state: MachineBridgeSnapshot; disassembly: MachineDisassembly | null; onMachineCommand: (message: Record<string, unknown>) => void; onNavigateSource: (fileId: string, line: number) => void }) {
+function HardwareDisassemblyPanel({ processor = 'host', artifact, currentFiles, state, disassembly, onMachineCommand, onNavigateSource }: { processor?: 'host' | 'parasite'; artifact: AssemblyArtifact | null; currentFiles: ProjectFile[]; state: MachineBridgeSnapshot; disassembly: MachineDisassembly | null; onMachineCommand: (message: Record<string, unknown>) => void; onNavigateSource: (fileId: string, line: number) => void }) {
   const [addressText, setAddressText] = useState(() => artifact ? formatAddress(artifact.entryPoint) : formatAddress(state.registers.pc));
   const [instructionCount, setInstructionCount] = useState('32');
   const [mixed, setMixed] = useState(true);
@@ -5910,8 +5933,9 @@ function HardwareDisassemblyPanel({ artifact, currentFiles, state, disassembly, 
     return location && file ? { ...location, text: file.content.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n')[location.line - 1] ?? '' } : undefined;
   };
   const toggleBreakpoint = (address: number) => {
-    const installed = state.breakpoints.some((breakpoint) => breakpoint.address === address);
-    onMachineCommand({ type: 'breakpoint', address, enabled: !installed, stop: true });
+    const installedOn = processor === 'parasite' ? state.tube?.breakpoints ?? [] : state.breakpoints;
+    const installed = installedOn.some((breakpoint) => breakpoint.address === address);
+    onMachineCommand({ type: 'breakpoint', address, enabled: !installed, stop: true, processor });
   };
 
   return <div className="hardware-disassembly">
@@ -6647,6 +6671,12 @@ interface TraceMapping { addressSpace: 'mapped 6502'; region: string; kind: 'ram
 interface TubeBridgeState {
   model: string; scheduling: string;
   registers: { pc: number; a: number; x: number; y: number; s: number; p: number };
+  /** The parasite program's source line and symbol at its program counter, where its build carried them. */
+  source: { fileName: string; line: number } | null;
+  symbol: string | null;
+  /** True from a parasite breakpoint stop until the parasite has run an instruction. */
+  stoppedAtBreakpoint: boolean;
+  breakpoints: Array<{ address: number; enabled: boolean; stop: boolean; hits: number; condition?: { register: string; operator: string; value: number }; hitTarget?: number; logMessage?: string; processor?: 'host' | 'parasite' }>;
   cycles: number; romPaged: boolean; nmiLevel: boolean; nmiEdge: boolean; irqPending: boolean; resetHeldLow: boolean;
   ula: { internalStatus: number; hostStatus: number[]; parasiteStatus: number[]; parasiteToHostFifo1: number; parasiteToHostFifo3: number; hostToParasiteFifo3: number };
   memory: { start: number; logical: Array<number | null>; physical: number[]; source: string };

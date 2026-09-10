@@ -2283,6 +2283,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "On a Model B, supply the Tube host ROM as well. The vault asks for it as soon as a Tube is switched on.",
       "Start the machine and read the first line it prints.",
       "Open the Debugger and use Focus host and Focus parasite to see the two register sets.",
+      "To stop the second processor at a line of its own program, make the second-processor target the active one, put a breakpoint on the line, and use Build and debug. The Tube panel shows where the parasite stopped, with its source line, and Step parasite runs the host until the parasite has executed one more instruction.",
     ],
     expected: [
       "A 6502 parasite prints Acorn TUBE 6502 64K and a 65C102 prints Acorn TUBE 65C102 Co-Processor. The banner comes from the parasite's own ROM, so it says which one is running.",
@@ -2348,6 +2349,48 @@ export const HELP_TOPICS: HelpTopic[] = [
       "emulator",
       "emulator-wav-capture",
       "asset-sound",
+    ],
+  },
+  {
+    id: "project-folder-manifest",
+    category: "Start",
+    title: "Keep a project in a folder on disk",
+    summary:
+      "Connect a project to a folder, write it back, and have the folder open again as the machine it was written for. The folder carries acorn-project.json, which is the project's own description.",
+    prerequisites: [
+      "A browser with the File System Access API, which at the time of writing is Chromium; the directory input still works everywhere for a one-way import",
+      "A folder you can write to",
+    ],
+    steps: [
+      "Open Start a project and choose the folder route that connects rather than the one that copies.",
+      "Read the Machine line in the plan. A folder that carries acorn-project.json says so there, and the machine, its capabilities and its build targets come from that file rather than from what the source suggests.",
+      "Create the project. It opens as the machine the folder describes.",
+      "Edit as usual, then choose Write to folder from the Project menu or the command palette.",
+      "Look in the folder: every source and asset file is there under its own name, and acorn-project.json beside them.",
+      "Open the folder again on another day, or on another machine. It comes back as the same project.",
+    ],
+    expected: [
+      "acorn-project.json names the machine, the variant, the ROM set, the fitted capabilities, every build target and its entry file by name, the active target, and the settings.",
+      "Files are referred to by name, not by the identifiers the workbench assigns when it opens them, because names are what a folder has.",
+      "A folder with no manifest is imported the way it always was, with the machine guessed from the source.",
+      "A file called acorn-project.json that is not a manifest is reported and left alone. It does not become the machine.",
+      "A build target whose entry file is not in the folder is left out and named in the plan's warnings.",
+    ],
+    limitations: [
+      "The manifest does not carry file contents. That is what a bundle is for; a folder is for files that stay files.",
+      "Breakpoints, bookmarks and test plans are not yet in the manifest.",
+      "The connection to a folder does not survive a reload of the workbench, so it has to be reconnected through Start a project.",
+    ],
+    recovery: [
+      "If the folder opens as the wrong machine, check that acorn-project.json is at the folder's root and not inside a subfolder.",
+      "If a build target is missing, the plan's warnings say which entry file it named and could not find.",
+      "If Write to folder is unavailable, the project is not connected; import the folder through the connecting route rather than the copying one.",
+    ],
+    related: [
+      "projects",
+      "import-codebase",
+      "project-store",
+      "build-targets",
     ],
   },
   {
@@ -3649,6 +3692,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "For an address, opcode, exact memory read or write, or IRQ/NMI-transition event stop, open Hardware trace and configure a trigger. Set pre and post records, then choose whether to pause when that bounded window completes.",
       "For a frame, sync, mode, palette or supported beam-position stop, open Raster timeline, select the event or coordinates, and start capture. The high-overhead hook removes itself when capture stops.",
       "Inspect mapped CPU memory or physical RAM, ROM and bank views.",
+      "A breakpoint put on while the active target runs on the second processor is a parasite breakpoint: it stops the whole machine at that parasite instruction, the Tube panel names the source line, and Step parasite advances the parasite by one instruction. The two processors have separate address spaces, so a parasite breakpoint at an address says nothing about the host's.",
       "When a qualified 6502 Tube profile is selected, use Focus host and Focus parasite to distinguish the two live register sets. Compare the parasite logical CPU view with its physical RAM backing. Boot ROM overlay bytes appear only in the logical view.",
       "Use the dual address map to compare host and parasite regions and their live PC markers. The parasite map changes its ROM overlay regions when the core unpages the boot ROM.",
       "In Parasite memory inspector choose Logical CPU view, Physical RAM backing or Physical boot ROM. Set a bounded address and length, then Read, page, change columns or radix, search, snapshot, copy or export the exact returned bytes.",
@@ -4250,15 +4294,18 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Choose Display mode first. The mode fixes the pixel dimensions and the number of logical colours, so changing it later reinterprets what is already drawn.",
       "Name the screen in Screen name.",
       "Draw with the pointer, choosing the pen from Logical colour. Screen zoom changes the size the pixels are drawn at and not the size of the screen.",
-      "Use Import an image to bring in a picture. It is reduced to the logical colours the mode has.",
+      "Choose Fit and Dither, then use Import an image to bring in a picture. Scale to the screen is the default: a four by three picture fills the screen, another shape is fitted inside it, and each screen pixel is the average of the source pixels it covers. Crop takes the top-left corner pixel for pixel, for a picture already drawn at the mode's own size.",
+      "Dither decides how colours the palette lacks are shown: nearest colour posterises, the ordered pattern gives a regular texture, and error diffusion keeps the average colour best and suits a photograph or a painting.",
       "Drag Rectangular selection to mark an area, then Copy area, Cut area or Paste at cursor. Clear selection drops the marks without changing pixels.",
       "Fill screen sets every pixel to the current logical colour. Undo steps back one change.",
+      "Choose Document, then Add to project to write the screen itself into the project as a .screen.json document, named after the screen. That is what a project folder keeps, and the Document menu opens it again.",
       "Use Add generated source for a one-off, or Add live screen build target so the screen is regenerated on every build.",
     ],
     expected: [
       "Logical colours are indices, not fixed colours: what each one looks like comes from the palette, so changing the palette changes the screen without redrawing it.",
       "Generated output is the packed bytes for the chosen mode, in the order the display hardware reads them.",
-      "An imported image is reduced to the mode's colour count rather than refused.",
+      "An imported image is reduced to the mode's colour count rather than refused, and the notice says what it was scaled from, how it was fitted and how many pixels were approximated, so the conversion is never presented as faithful.",
+      "A 160 by 256 screen is a four by three display with wide pixels, not a tall thin picture; scaling respects that, so a picture keeps its shape.",
     ],
     limitations: [
       "Importing reduces colours and cannot invent detail the mode cannot hold; a photograph in a two-colour mode will look like a two-colour picture.",
@@ -4268,6 +4315,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     recovery: [
       "Undo reverses drawing, filling, pasting and importing alike.",
       "If an import looks wrong, check that Display mode was chosen before the import rather than after it.",
+      "If an import arrives as a corner of the picture, Fit was set to Crop; choose Scale to the screen and import again.",
     ],
     related: [
       "asset-palettes",
@@ -4289,11 +4337,14 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Choose Display mode. The mode decides how many logical colours there are to assign.",
       "Name the palette in Palette name.",
       "For each entry under Logical colours, choose the physical colour it shows.",
+      "With a VideoNuLA fitted in the machine setup, each row also offers Redefine and red, green and blue levels from 0 to 15, which redefine that physical colour as one of 4,096. The definition belongs to the physical colour, so two logical colours on the same physical colour share it.",
       "Reset to power-up restores the assignment the machine makes for that mode at switch-on.",
       "Check Colours the editors currently preview with. Setting this palette as the Project palette makes the pixel, font, screen and tile-map editors preview with it.",
       "Use Add generated source, or Add live palette build target to regenerate on every build.",
     ],
     expected: [
+      "NuLA colours are generated as two bytes a colour for &FE23, ahead of the VDU 19 bytes, in the assembler source and as pokes in the BASIC form, and the manifest counts them separately.",
+      "A palette that defines NuLA colours still maps the same logical colours to the same physical ones on a machine without a NuLA, and the workspace says so when that machine is selected.",
       "Every other asset editor's preview changes when the project palette changes; no artwork is redrawn.",
       "Generated output writes the assignment as assembler source or BASIC statements the program can send to the hardware.",
       "The physical colours offered are the steady ones the hardware can produce.",
@@ -4325,7 +4376,8 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     steps: [
       "Open Assets and choose the Sound tab.",
-      "Choose Sound hardware. BBC \u00b7 SN76489 has three tone channels and sixteen volume levels; Atom \u00b7 1-bit speaker has one channel and a volume that is only on or off.",
+      "Choose Sound hardware. BBC \u00b7 SN76489 has three tone channels and sixteen volume levels; Atom \u00b7 1-bit speaker has one channel and a volume that is only on or off; BBC \u00b7 BeebSID 6581 has three voices written to the chip at &FC20 directly.",
+      "For a BeebSID song, set each voice's waveform, pulse width, attack, decay and release under Voices. Pitch in the pattern is then a note, C-0 being 0 and A-4 being 57, up to A#-7 at 94, and volume is the envelope's sustain level; the note's name is shown beside a pitch that sounds.",
       "Name the tune in Song name.",
       "Set Song rows to the length of the pattern, and Row duration in twentieths of a second to how long each row is held.",
       "Enter pitch and volume for each channel in Pattern, one row at a time.",
@@ -4335,6 +4387,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     expected: [
       "The limits offered change with the hardware: choosing the Atom reduces the channels and the volume range to what its speaker can actually produce.",
+      "A BeebSID player writes each voice's registers itself, closing and opening the gate so a repeated note retriggers, and its reset opens the master volume and closes every gate. The frequency tables it carries are for the 1 MHz clock BeebSID gives the chip.",
       "The generated output is the pattern data and a player routine, so the program advances the tune by calling the player once per row rather than writing its own.",
       "The player reads and writes only the zero page declared, which is stated in the generated source.",
     ],
