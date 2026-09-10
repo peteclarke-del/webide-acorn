@@ -378,7 +378,7 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   clearParasiteBreakpoints();
   parasiteSourceLocations = {}; parasiteSymbols = {};
   parasiteHooks = !model.isAtom && cpu.hasTube && cpu.tube
-    ? fitParasiteInstructionHooks(cpu.tube as unknown as ParasiteProcessor, cpu as unknown as { stop(): void })
+    ? fitParasiteInstructionHooks(cpu.tube as unknown as ParasiteProcessor, cpu as unknown as { stop(): void; halted: boolean })
     : null;
   /*
    * BeebSID, when the profile says one is fitted. It is a 1 MHz bus board

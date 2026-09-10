@@ -6,6 +6,12 @@ import { fitParasiteInstructionHooks, type ParasiteProcessor } from './parasiteH
  * each instruction advances the program counter by one and costs one cycle.
  * The host is a stop flag.
  */
+/* A host whose halt behaves as the core's: set by stop, cleared when it is run. */
+function fakeHost() {
+  const host = { halted: false, stop: vi.fn(() => { host.halted = true; }), run() { host.halted = false; } };
+  return host;
+}
+
 function fakeParasite(): ParasiteProcessor & { executed: number[]; originalCalls: number } {
   const parasite = {
     cycles: 0, cyclesPerHostCycle: 2, cpuMultiplier: 1, pc: 0x0800, takeInt: false,
@@ -22,7 +28,7 @@ function fakeParasite(): ParasiteProcessor & { executed: number[]; originalCalls
 describe('instruction hooks fitted to the second processor', () => {
   it('leaves the core\'s own loop in charge until a hook is installed', () => {
     const parasite = fakeParasite();
-    const host = { stop: vi.fn() };
+    const host = fakeHost();
     const hooks = fitParasiteInstructionHooks(parasite, host);
     parasite.execute(4);
     expect(parasite.originalCalls).toBe(1);
@@ -38,7 +44,7 @@ describe('instruction hooks fitted to the second processor', () => {
 
   it('stops the parasite at the address a hook asks for, before it runs, and halts the host', () => {
     const parasite = fakeParasite();
-    const host = { stop: vi.fn() };
+    const host = fakeHost();
     const hooks = fitParasiteInstructionHooks(parasite, host);
     hooks.add((pc) => pc === 0x0803);
     parasite.execute(10);
@@ -50,12 +56,30 @@ describe('instruction hooks fitted to the second processor', () => {
     expect(parasite.cycles).toBe(17);
   });
 
-  it('steps past the breakpoint it stopped on when resumed, then honours it again on the next visit', () => {
+  it('stays stopped while the host is halted, however often the host asks for its time', () => {
+    /* The host clocks the parasite more than once within one instruction.
+     * A breakpoint that let the parasite run on through those calls stopped
+     * it and then showed it a hundred instructions further along. */
     const parasite = fakeParasite();
-    const host = { stop: vi.fn() };
+    const host = fakeHost();
     const hooks = fitParasiteInstructionHooks(parasite, host);
     hooks.add((pc) => pc === 0x0803);
     parasite.execute(10);
+    parasite.execute(10);
+    parasite.execute(10);
+    expect(parasite.pc).toBe(0x0803);
+    expect(parasite.executed).toHaveLength(3);
+    expect(parasite.cycles).toBe(17);
+    expect(hooks.stopped).toBe(true);
+  });
+
+  it('steps past the breakpoint it stopped on when resumed, then honours it again on the next visit', () => {
+    const parasite = fakeParasite();
+    const host = fakeHost();
+    const hooks = fitParasiteInstructionHooks(parasite, host);
+    hooks.add((pc) => pc === 0x0803);
+    parasite.execute(10);
+    host.run();
     parasite.execute(0);
     expect(parasite.pc).toBeGreaterThan(0x0803);
     expect(hooks.stopped).toBe(false);
@@ -69,7 +93,7 @@ describe('instruction hooks fitted to the second processor', () => {
 
   it('runs every installed hook and stops if any of them asks', () => {
     const parasite = fakeParasite();
-    const host = { stop: vi.fn() };
+    const host = fakeHost();
     const hooks = fitParasiteInstructionHooks(parasite, host);
     const seen: number[] = [];
     hooks.add((pc) => { seen.push(pc); return false; });
@@ -81,7 +105,7 @@ describe('instruction hooks fitted to the second processor', () => {
 
   it('takes a pending interrupt after an instruction, as the core\'s loop does', () => {
     const parasite = fakeParasite();
-    const hooks = fitParasiteInstructionHooks(parasite, { stop: vi.fn() });
+    const hooks = fitParasiteInstructionHooks(parasite, fakeHost());
     hooks.add(() => false);
     parasite.takeInt = true;
     parasite.execute(2);

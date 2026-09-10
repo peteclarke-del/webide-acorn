@@ -37,9 +37,16 @@ export interface ParasiteProcessor {
   execute(cycles: number): void;
 }
 
-/** What it needs of the host: a way to halt it at the end of its instruction. */
+/**
+ * What it needs of the host: a way to halt it at the end of its instruction,
+ * and to see that it is halted. The host clocks the parasite more than once
+ * within one of its own instructions, so after a stop the parasite must stay
+ * stopped until the host is run again, which is when the core clears the
+ * host's halt on the way into its execute.
+ */
 export interface ParasiteHost {
   stop(): void;
+  readonly halted: boolean;
 }
 
 /**
@@ -69,6 +76,12 @@ export function fitParasiteInstructionHooks(parasite: ParasiteProcessor, host: P
 
   parasite.execute = (cycles: number) => {
     if (!hooks.length) { original(cycles); return; }
+    /* Stopped, and the host still halted: nothing runs and no time is owed.
+     * The host asks for the parasite's time more than once within one of its
+     * instructions, and the first version of this let the parasite run on
+     * through those calls, so a breakpoint stopped it and the panel then
+     * showed it a hundred instructions further along. */
+    if (stopped && host.halted) return;
     /* The core's own loop, with the hook consulted before each fetch. The
      * fetch itself is kept as a read of the opcode, as the core does it. */
     parasite.cycles += cycles * parasite.cyclesPerHostCycle * parasite.cpuMultiplier;
