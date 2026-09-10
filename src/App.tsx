@@ -95,7 +95,7 @@ import {
   machinesForPlatform,
   platformClasses,
 } from './data/machines';
-import { compareConfigurations, configurationSummary, resolveConfiguration } from './profiles/profileRegistry';
+import { configurationSummary, resolveConfiguration } from './profiles/profileRegistry';
 import type { PlatformClassId } from './types';
 import { Cpu6502Runtime, type CpuSnapshot } from './runtime/cpu6502';
 import { addPixelSpriteFrame, createPixelAssetDocument, generatePixelAssetOutput, movePixelSpriteFrame, parsePixelAssetDocument, pixelAssetFrames, removePixelSpriteFrame, resizePixelAssetDocument, serializePixelAssetDocument, updatePixelSpriteFrame, type PixelAssetDocument, type PixelAssetKind } from './assets/pixelAssetDocument';
@@ -822,15 +822,14 @@ function App() {
     setStartProjectOpen(false);
     setConnectedFolder(folder ?? null);
     setWorkspaceTab('Code');
-    /* A project written for one configuration and opened against another is the
-     * moment portability matters. Say what will not survive the move before any
-     * of it is built or run, rather than after it fails. */
+    /* The machine becomes the one the project names, so what is worth saying
+     * is where this build could not give it that: a ROM set it does not have,
+     * a variant it does not know. The differences between the machine that was
+     * selected before and the one the project brings are not a move anything
+     * has to survive, and reporting them told a person opening a project for
+     * an ADFS machine that DFS was not enabled on it. */
     const incoming = resolveConfiguration(next.target);
-    const portability = compareConfigurations(resolved, incoming.target);
-    const notes = [
-      ...incoming.diagnostics.map((item) => item.reason),
-      ...(portability.warnings.length && incoming.exact ? portability.warnings : []),
-    ];
+    const notes = incoming.diagnostics.map((item) => item.reason);
     setNotice(notes.length ? `${description} · ${notes.join(' ')}` : description);
   };
 
