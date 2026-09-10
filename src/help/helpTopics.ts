@@ -2351,6 +2351,48 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
   },
   {
+    id: "project-folder-manifest",
+    category: "Start",
+    title: "Keep a project in a folder on disk",
+    summary:
+      "Connect a project to a folder, write it back, and have the folder open again as the machine it was written for. The folder carries acorn-project.json, which is the project's own description.",
+    prerequisites: [
+      "A browser with the File System Access API, which at the time of writing is Chromium; the directory input still works everywhere for a one-way import",
+      "A folder you can write to",
+    ],
+    steps: [
+      "Open Start a project and choose the folder route that connects rather than the one that copies.",
+      "Read the Machine line in the plan. A folder that carries acorn-project.json says so there, and the machine, its capabilities and its build targets come from that file rather than from what the source suggests.",
+      "Create the project. It opens as the machine the folder describes.",
+      "Edit as usual, then choose Write to folder from the Project menu or the command palette.",
+      "Look in the folder: every source and asset file is there under its own name, and acorn-project.json beside them.",
+      "Open the folder again on another day, or on another machine. It comes back as the same project.",
+    ],
+    expected: [
+      "acorn-project.json names the machine, the variant, the ROM set, the fitted capabilities, every build target and its entry file by name, the active target, and the settings.",
+      "Files are referred to by name, not by the identifiers the workbench assigns when it opens them, because names are what a folder has.",
+      "A folder with no manifest is imported the way it always was, with the machine guessed from the source.",
+      "A file called acorn-project.json that is not a manifest is reported and left alone. It does not become the machine.",
+      "A build target whose entry file is not in the folder is left out and named in the plan's warnings.",
+    ],
+    limitations: [
+      "The manifest does not carry file contents. That is what a bundle is for; a folder is for files that stay files.",
+      "Breakpoints, bookmarks and test plans are not yet in the manifest.",
+      "The connection to a folder does not survive a reload of the workbench, so it has to be reconnected through Start a project.",
+    ],
+    recovery: [
+      "If the folder opens as the wrong machine, check that acorn-project.json is at the folder's root and not inside a subfolder.",
+      "If a build target is missing, the plan's warnings say which entry file it named and could not find.",
+      "If Write to folder is unavailable, the project is not connected; import the folder through the connecting route rather than the copying one.",
+    ],
+    related: [
+      "projects",
+      "import-codebase",
+      "project-store",
+      "build-targets",
+    ],
+  },
+  {
     id: "emulator-beebscsi-card",
     category: "Run",
     title: "Put a hard disc on the BeebSCSI card",

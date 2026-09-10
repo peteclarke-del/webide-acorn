@@ -54,9 +54,9 @@ is the part a machine can settle.
 | DOD | 10 | 8 | 2 | 6 | 0 |
 | EXP | 10 | 0 | 0 | 0 | 0 |
 | MED | 10 | 9 | 6 | 3 | 0 |
+| PRJ | 10 | 10 | 7 | 3 | 0 |
 | RSH | 10 | 9 | 8 | 1 | 0 |
 | A11Y | 9 | 4 | 4 | 0 | 0 |
-| PRJ | 9 | 9 | 6 | 3 | 0 |
 | GAME | 8 | 8 | 3 | 5 | 0 |
 | GOV | 7 | 1 | 1 | 0 | 0 |
 | OPS | 7 | 3 | 3 | 0 | 0 |
@@ -168,6 +168,7 @@ are listed rather than quietly counted.
 | EMU-433 | A Tube was fittable and unusable. A second processor booted and there... | `scripts/measureParasiteProgram.mjs` assembles a program in this build, runs it behind all three host and parasite pairings, and reads back &42 at &8000 that the program computed from &10 plus &32. On the host &8000 is... |
 | EMU-430 | The 1 MHz bus answered every address with a bare `break`. The pinned... | a real Acorn ADFS ROM was booted against it and asked. With no image on the card it printed `Disc error 2C at :0/000000`, which is the sense byte the drive assembled and nothing else. With an unformatted LUN it printed... |
 | EMU-434 | Measure what the machine can put on screen in one frame, so a game is... | `scripts/measureFrameBudget.mjs` reproduces all five, `src/emulator/frameBudgetMeasurements.ts` records them, `docs/frame-budget.md` is generated from that catalogue, and ten tests hold both to it. |
+| PRJ-040 | A project written to a folder is the whole project, not only its... | fourteen contracts in `src/project/projectManifest.test.ts`, including a round trip through a serialised manifest into the project parser, and the import dialog saying where the machine came from. |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-... | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round... |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).... | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
 | DBG-523 | Complete decoded call stack, globals, locals, parameters, watches and... | 3 debug-expression contracts and 3 ARM debug-expression contracts cover the decoded call stack, watches and expression evaluation, with the caller-candidate rule proved by the 6502 instruction-state contracts. |

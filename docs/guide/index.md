@@ -5,7 +5,7 @@
 These are the same procedures the IDE carries under Help, published so they can be read
 without starting it. They are generated from one source, so the two cannot disagree.
 
-82 procedures across 16 areas.
+83 procedures across 16 areas.
 
 ## [First run](first-run.md)
 
@@ -26,6 +26,7 @@ without starting it. They are generated from one source, so the two cannot disag
 
 - **Create, recover, save, import and export projects**: Manage browser-recovered working state and explicit saved baselines without confusing recovery with a user save.
 - **Create a project from an existing codebase**: Turn a folder of existing Acorn source into a working project, reviewing the whole plan before anything is created and optionally recovering editable assets from data already in the source.
+- **Keep a project in a folder on disk**: Connect a project to a folder, write it back, and have the folder open again as the machine it was written for. The folder carries acorn-project.json, which is the project's own description.
 - **Keep a project on the server and read its history**: Copy a project into the server-side store, see its revisions, compare or merge two of them, fork when a merge would have to guess, and export or delete what is held.
 - **Inspect imported and generated read-only source**: Use persisted provenance and access state to distinguish authored, imported and generated files, then inspect protected source without accidentally treating output as editable input.
 - **Compare working source with its saved baseline**: Inspect line additions and removals against the explicit saved baseline without leaving the source editor or changing either version.

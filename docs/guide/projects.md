@@ -86,7 +86,47 @@ Turn a folder of existing Acorn source into a working project, reviewing the who
 
 In the IDE: Help → `#help/import-codebase`
 
-## 3. Keep a project on the server and read its history
+## 3. Keep a project in a folder on disk
+
+Connect a project to a folder, write it back, and have the folder open again as the machine it was written for. The folder carries acorn-project.json, which is the project's own description.
+
+**Before you start**
+
+- A browser with the File System Access API, which at the time of writing is Chromium; the directory input still works everywhere for a one-way import
+- A folder you can write to
+
+**Procedure**
+
+1. Open Start a project and choose the folder route that connects rather than the one that copies.
+2. Read the Machine line in the plan. A folder that carries acorn-project.json says so there, and the machine, its capabilities and its build targets come from that file rather than from what the source suggests.
+3. Create the project. It opens as the machine the folder describes.
+4. Edit as usual, then choose Write to folder from the Project menu or the command palette.
+5. Look in the folder: every source and asset file is there under its own name, and acorn-project.json beside them.
+6. Open the folder again on another day, or on another machine. It comes back as the same project.
+
+**What should happen**
+
+- acorn-project.json names the machine, the variant, the ROM set, the fitted capabilities, every build target and its entry file by name, the active target, and the settings.
+- Files are referred to by name, not by the identifiers the workbench assigns when it opens them, because names are what a folder has.
+- A folder with no manifest is imported the way it always was, with the machine guessed from the source.
+- A file called acorn-project.json that is not a manifest is reported and left alone. It does not become the machine.
+- A build target whose entry file is not in the folder is left out and named in the plan's warnings.
+
+**Limits**
+
+- The manifest does not carry file contents. That is what a bundle is for; a folder is for files that stay files.
+- Breakpoints, bookmarks and test plans are not yet in the manifest.
+- The connection to a folder does not survive a reload of the workbench, so it has to be reconnected through Start a project.
+
+**If it goes wrong**
+
+- If the folder opens as the wrong machine, check that acorn-project.json is at the folder's root and not inside a subfolder.
+- If a build target is missing, the plan's warnings say which entry file it named and could not find.
+- If Write to folder is unavailable, the project is not connected; import the folder through the connecting route rather than the copying one.
+
+In the IDE: Help → `#help/project-folder-manifest`
+
+## 4. Keep a project on the server and read its history
 
 Copy a project into the server-side store, see its revisions, compare or merge two of them, fork when a merge would have to guess, and export or delete what is held.
 
@@ -133,7 +173,7 @@ Copy a project into the server-side store, see its revisions, compare or merge t
 
 In the IDE: Help → `#help/project-store`
 
-## 4. Inspect imported and generated read-only source
+## 5. Inspect imported and generated read-only source
 
 Use persisted provenance and access state to distinguish authored, imported and generated files, then inspect protected source without accidentally treating output as editable input.
 
@@ -188,7 +228,7 @@ Use persisted provenance and access state to distinguish authored, imported and 
 
 In the IDE: Help → `#help/source-provenance`
 
-## 5. Compare working source with its saved baseline
+## 6. Compare working source with its saved baseline
 
 Inspect line additions and removals against the explicit saved baseline without leaving the source editor or changing either version.
 

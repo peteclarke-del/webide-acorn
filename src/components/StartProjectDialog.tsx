@@ -556,8 +556,10 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
                 {/* What the codebase says it is for. Shown before the assets,
                   * because it decides how everything below will build. */}
                 <details open>
-                  <summary>Machine · {plan.platform.guessed ? 'not named by this codebase' : plan.platform.machineId}</summary>
-                  <p className="binding-note">{plan.platform.summary}</p>
+                  <summary>Machine · {plan.manifest ? `${plan.manifest.target.machineId}, from the folder's own acorn-project.json` : plan.platform.guessed ? 'not named by this codebase' : plan.platform.machineId}</summary>
+                  <p className="binding-note">{plan.manifest
+                    ? `The folder carries its own description, so the machine, its ${plan.manifest.target.enabledCapabilities.length} fitted capabilit${plan.manifest.target.enabledCapabilities.length === 1 ? 'y' : 'ies'}, ${plan.manifest.buildTargets.length} build target${plan.manifest.buildTargets.length === 1 ? '' : 's'} and its settings come from that rather than from what the source suggests.`
+                    : plan.platform.summary}</p>
                   {!!plan.platform.machineEvidence.length && (
                     <ul className="import-evidence">
                       {plan.platform.machineEvidence.map((signal) => (
