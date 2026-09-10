@@ -523,7 +523,6 @@ export function codebaseImportDocument(
       ? plan.manifest.activeBuildTargetId
       : (buildTargets[0]?.id ?? 'import-default'),
     ...(plan.manifest ? { settings: plan.manifest.settings } : {}),
-    activeBuildTargetId: buildTargets[0]?.id ?? 'import-default',
     /* Recoveries that were asked for and could not be made. The project parser
      * ignores this field; the caller reads it and says so. */
     importSkipped: skipped,
