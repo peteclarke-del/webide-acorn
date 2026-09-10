@@ -2681,7 +2681,7 @@ function App() {
             ) : workspaceTab === 'Fonts' ? (
               <FontWorkspace projectPalette={projectPalette} projectFiles={project.files} onAddSource={addSourceFile} onAddLiveFont={addLiveFont} onNotice={setNotice} />
             ) : workspaceTab === 'Palettes' ? (
-              <PaletteWorkspace
+              <PaletteWorkspace nulaFitted={enabledCapabilities.includes('videonula')}
                 projectFiles={project.files.map((file) => ({ name: file.name, content: file.content }))}
                 onAddSource={addSourceFile}
                 onAddLivePalette={addLivePalette}

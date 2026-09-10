@@ -6,8 +6,8 @@ import { parsePaletteDocument } from '../assets/paletteDocument';
 
 afterEach(() => { cleanup(); localStorage.clear(); });
 
-function renderWorkspace(projectFiles: Array<{ name: string; content: string }> = []) {
-  const props = { projectFiles, onAddSource: vi.fn(), onAddLivePalette: vi.fn(), onNotice: vi.fn() };
+function renderWorkspace(projectFiles: Array<{ name: string; content: string }> = [], nulaFitted = false) {
+  const props = { projectFiles, nulaFitted, onAddSource: vi.fn(), onAddLivePalette: vi.fn(), onNotice: vi.fn() };
   render(<PaletteWorkspace {...props} />);
   return props;
 }
@@ -88,5 +88,35 @@ describe('PaletteWorkspace', () => {
     fireEvent.change(screen.getByLabelText('Palette name'), { target: { value: 'x'.repeat(90) } });
     expect(onNotice).toHaveBeenCalledWith(expect.stringMatching(/1 to 80 characters/));
     expect(stored().name).toBe('untitled-palette');
+  });
+});
+
+describe('a VideoNuLA in the palette workspace', () => {
+  it('offers no NuLA controls when the machine has none fitted', () => {
+    renderWorkspace();
+    expect(screen.queryByLabelText(/with the NuLA/)).toBeNull();
+    expect(screen.queryByText(/A VideoNuLA is fitted/)).toBeNull();
+  });
+
+  it('redefines the physical colour a logical colour maps to, and generates the two &FE23 bytes', () => {
+    renderWorkspace([], true);
+    expect(screen.getByText(/A VideoNuLA is fitted/)).toBeInTheDocument();
+    /* Logical 2 maps to physical 3 in the power-up palette. */
+    fireEvent.click(screen.getByLabelText('Define physical colour 3 with the NuLA, for logical 2'));
+    fireEvent.change(screen.getByLabelText('NuLA red for logical 2'), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText('NuLA green for logical 2'), { target: { value: '4' } });
+    expect(stored().nula[3]).toEqual({ red: 15, green: 4, blue: 0 });
+    expect(screen.getByLabelText('Generated palette assembler source')).toHaveTextContent('EQUB &3F, &40 ; physical 3 becomes #ff4400');
+    expect(screen.getByLabelText('Generated palette BASIC statements')).toHaveTextContent('?&FE23=&3F:?&FE23=&40');
+    expect(within(row(2)).getByText('NuLA #ff4400')).toBeInTheDocument();
+  });
+
+  it('says so when a palette defines NuLA colours and the machine has no NuLA', () => {
+    localStorage.setItem('8bit-net-dev:palette', JSON.stringify({
+      schema: '8bit-net.palette', version: 1, name: 'sky', mode: 'bbc-mode-5', entries: [0, 1, 3, 7],
+      nula: [null, null, null, { red: 15, green: 4, blue: 0 }], extensions: {},
+    }));
+    renderWorkspace();
+    expect(screen.getByText(/defines 1 colour with a VideoNuLA and the selected machine has none fitted/)).toBeInTheDocument();
   });
 });
