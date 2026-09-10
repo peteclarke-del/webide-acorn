@@ -118,12 +118,19 @@ ORG &2000
  * the blind figure painted its rows wherever stale reads sent them. A real
  * transfer waits on register 3's status flag: data available on the host,
  * room on the parasite. This measures that, with a 65C102 at 4 MHz sending as
- * fast as its own flag allows, in the ULA's two-byte mode so the host pays one
- * status check for two bytes. The one-byte mode is measured as well, since it
- * is the mode the machine boots in.
+ * fast as its own flag allows. Both of the ULA's modes for register 3 are
+ * measured: the one-byte mode the machine boots in, and the two-byte mode,
+ * which the host's routine sets itself with S and V in the control register
+ * at &FEE0.
  *
- * The host's routine sets two-byte mode itself, with S and V in the control
- * register at &FEE0.
+ * The flag is checked before every byte in both modes. In two-byte mode the
+ * host's flag is raised once two bytes are in, which invites reading two for
+ * one check, and that is a race: after the first read the parasite's room
+ * flag is up again, and whether the second byte the host reads is the one it
+ * wanted depends on which side got there first. A first version of this read
+ * pairs, measured a better figure, and would have painted a game's rows out
+ * of step. The sender counts, so what arrived can be checked against what was
+ * sent, and a measurement whose bytes are wrong is no measurement.
  */
 const waitOnHost = (label) => `.${label}\n  BIT &FEE4\n  BPL ${label}`;
 export const TUBE_HANDSHAKE_ROUTINE = `
@@ -133,8 +140,7 @@ ORG &2000
   STA &FEE0
   LDX #0
 .page
-  ${Array.from({ length: 16 }, (unused, index) => `${waitOnHost(`w${index}`)}\n  LDA &FEE5\n  STA &3000+${index * 256},X\n  INX\n  LDA &FEE5\n  STA &3000+${index * 256},X\n  DEX`).join('\n  ')}
-  INX
+  ${Array.from({ length: 16 }, (unused, index) => `${waitOnHost(`w${index}`)}\n  LDA &FEE5\n  STA &3000+${index * 256},X`).join('\n  ')}
   INX
   BEQ done
   JMP page
@@ -155,17 +161,34 @@ ORG &2000
 .done
   RTS
 `;
-/** The parasite's side: a byte into register 3 whenever there is room, for ever. */
+/** The parasite's side: a counting byte into register 3 whenever there is room, for ever. */
 export const PARASITE_SENDER = `
 ORG &2000
 .start
   SEI
+  LDX #0
 .again
   BIT &FEFC
   BVC again
-  STA &FEFD
+  STX &FEFD
+  INX
   JMP again
 `;
+
+/**
+ * What the host stored, checked against what the parasite sent: 4,096 bytes
+ * that count up from wherever the count was, each one more than the last.
+ * The host's sixteen pages are filled in an order that is not the address
+ * order, so the check follows the routine's order.
+ */
+function checkReceived(machine, label) {
+  const bytes = [];
+  for (let x = 0; x < 256; x += 1) for (let page = 0; page < 16; page += 1) bytes.push(machine.readbyte(0x3000 + page * 256 + x));
+  let wrong = 0;
+  for (let index = 1; index < bytes.length; index += 1) if (bytes[index] !== ((bytes[index - 1] + 1) & 0xff)) wrong += 1;
+  if (wrong) throw new Error(`${label}: ${wrong} of ${bytes.length} received bytes were not the next in the sequence the parasite sent`);
+  console.log(`${label}: every one of ${bytes.length.toLocaleString()} bytes received was the next one sent`);
+}
 
 /*
  * Reloading the VideoNuLA palette, which is how a four-colour mode gets an
@@ -304,12 +327,17 @@ async function main() {
   const scroll = await time(machine, assemble6502, SCROLL_ROUTINE);
   const palette = await time(machine, assemble6502, NULA_PALETTE_ROUTINE);
 
+  /* The one-byte mode first, because it is the mode the machine boots in.
+   * Changing mode with bytes already in the register loses one of them at
+   * the change, which is a fact about changing mode and not about either. */
   const withParasite = await tubeMachine(assemble6502, createBbcCpu);
-  const handshake = await time(withParasite, assemble6502, TUBE_HANDSHAKE_ROUTINE);
   const handshakeOneByte = await time(withParasite, assemble6502, TUBE_HANDSHAKE_ONE_BYTE_ROUTINE);
+  checkReceived(withParasite, 'one-byte mode');
+  const handshake = await time(withParasite, assemble6502, TUBE_HANDSHAKE_ROUTINE);
+  checkReceived(withParasite, 'two-byte mode');
   console.log('');
 
-  for (const [name, cycles] of [['fill', fill], ['copy', copy], ['tube', tube], ['tube, handshaken, two-byte mode', handshake], ['tube, handshaken, one-byte mode', handshakeOneByte]]) {
+  for (const [name, cycles] of [['fill', fill], ['copy', copy], ['tube, blind', tube], ['tube, kept in step, one-byte mode', handshakeOneByte], ['tube, kept in step, two-byte mode', handshake]]) {
     const perByte = cycles / MOVED_BYTES;
     const perFrame = Math.floor(CYCLES_PER_FRAME / perByte);
     console.log(`${name.padEnd(32)} ${MOVED_BYTES.toLocaleString()} bytes in ${cycles.toLocaleString()} cycles`);
