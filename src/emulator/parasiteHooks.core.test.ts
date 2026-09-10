@@ -63,7 +63,13 @@ describe('the pinned core\'s second processor under the fitted hooks', () => {
     expect(seen).toEqual([0x0800, 0x0802, 0x0804]);
     expect(stop).toHaveBeenCalledTimes(1);
     expect(hooks.stopped).toBe(true);
-    /* Resumed, it runs the instruction it stopped on and carries on. */
+    /* Asked for time again while the host is still halted, it stays put. */
+    parasite.execute(64);
+    expect(parasite.pc).toBe(0x0804);
+    expect(parasite.a).toBe(0x22);
+    /* Run again by the host, as the core's execute does, it runs the
+     * instruction it stopped on and carries on. */
+    cpu.halted = false;
     parasite.execute(64);
     expect(parasite.a).toBe(0x33);
     expect(hooks.stopped).toBe(false);
