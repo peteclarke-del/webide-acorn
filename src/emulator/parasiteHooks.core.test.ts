@@ -3,10 +3,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Cpu6502 } from 'jsbeeb/src/6502.js';
 import { findModel, TubeModel } from 'jsbeeb/src/models.js';
-import { FakeVideo } from 'jsbeeb/src/video.js';
-import { FakeSoundChip } from 'jsbeeb/src/soundchip.js';
+import * as video from 'jsbeeb/src/video.js';
+import * as soundchip from 'jsbeeb/src/soundchip.js';
 import { createBbcCpu } from './bbcCpuFactory';
 import { fitParasiteInstructionHooks, type ParasiteProcessor } from './parasiteHooks';
+
+/* The core's fakes, which its own tests use and its declarations here do not name. */
+const { FakeVideo } = video as unknown as { FakeVideo: new () => object };
+const { FakeSoundChip } = soundchip as unknown as { FakeSoundChip: new () => object };
 
 /*
  * The fitted loop against the pinned core's own parasite, with no firmware:
@@ -18,7 +22,7 @@ import { fitParasiteInstructionHooks, type ParasiteProcessor } from './parasiteH
  * the host asked to halt.
  */
 function parasiteOnAModelB() {
-  const cpu = createBbcCpu(Cpu6502, findModel('B'), { video: new FakeVideo(), soundChip: new FakeSoundChip(), tube: TubeModel }) as unknown as {
+  const cpu = createBbcCpu(Cpu6502, findModel('B')!, { video: new FakeVideo(), soundChip: new FakeSoundChip(), tube: TubeModel } as never) as unknown as {
     tube: ParasiteProcessor & { writemem(address: number, value: number): void; romPaged: boolean; a: number };
     stop(): void;
     halted: boolean;
