@@ -6338,6 +6338,26 @@ Current implemented increment:
     `&3F, &40` for physical colour 3 as #ff4400. A game's four band palettes
     were written through the module, built into its host program, and read
     back from the emulated NuLA's own lookup as the colours they name.
+- [x] AST-633 The song editor targeted the SN76489, the Atom speaker and the
+  Electron ULA. A game whose soundtrack is for a BeebSID had nowhere in the
+  workbench to write it.
+  - [x] A BeebSID target: three voices on the 6581 at &FC20, each with its own
+    waveform, pulse width and envelope kept on the song, and a row giving each
+    voice a note (C-0 to A#-7, where a sixteen-bit frequency register runs out
+    at the 1 MHz clock) and a level that is the envelope's sustain, zero
+    closing the gate.
+  - [x] The generated player writes the chip directly, voice by voice, closing
+    and opening the gate so a repeated note retriggers; its reset opens the
+    master volume and closes every gate; it carries the frequency tables for
+    the 1 MHz clock. The Sound workspace offers the voices' settings and names
+    the note beside a pitch that sounds.
+  - [x] Evidence: the player was run on a Model B with BeebSID fitted by
+    `scripts/measureSidSong.mjs`, its reset and then each row called as a
+    program would, and the chip's register file read back after each through
+    the same SID engine the runtime fits. `src/assets/sidSongMeasurements.ts`
+    records it and `src/assets/sidSong.test.ts` holds the measurement, the
+    model the player is written to, and the source the generator emits to each
+    other. Five document contracts and three workspace contracts beside it.
 ### Phase 4 exit gate
 
 - [ ] EMU-GATE Two 8-bit slices and one scoped ARM slice can run exact resolved

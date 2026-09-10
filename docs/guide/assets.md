@@ -219,17 +219,19 @@ Enter a pattern of pitches and volumes for the selected sound hardware, and emit
 **Procedure**
 
 1. Open Assets and choose the Sound tab.
-2. Choose Sound hardware. BBC · SN76489 has three tone channels and sixteen volume levels; Atom · 1-bit speaker has one channel and a volume that is only on or off.
-3. Name the tune in Song name.
-4. Set Song rows to the length of the pattern, and Row duration in twentieths of a second to how long each row is held.
-5. Enter pitch and volume for each channel in Pattern, one row at a time.
-6. Set Player zero-page base to an address range the program is not already using; the player keeps its position there.
-7. Use Undo to step back and Clear to empty the pattern.
-8. Read Generated song data and player or Generated song BASIC statements, then Add generated source, or Add live song build target to regenerate on every build.
+2. Choose Sound hardware. BBC · SN76489 has three tone channels and sixteen volume levels; Atom · 1-bit speaker has one channel and a volume that is only on or off; BBC · BeebSID 6581 has three voices written to the chip at &FC20 directly.
+3. For a BeebSID song, set each voice's waveform, pulse width, attack, decay and release under Voices. Pitch in the pattern is then a note, C-0 being 0 and A-4 being 57, up to A#-7 at 94, and volume is the envelope's sustain level; the note's name is shown beside a pitch that sounds.
+4. Name the tune in Song name.
+5. Set Song rows to the length of the pattern, and Row duration in twentieths of a second to how long each row is held.
+6. Enter pitch and volume for each channel in Pattern, one row at a time.
+7. Set Player zero-page base to an address range the program is not already using; the player keeps its position there.
+8. Use Undo to step back and Clear to empty the pattern.
+9. Read Generated song data and player or Generated song BASIC statements, then Add generated source, or Add live song build target to regenerate on every build.
 
 **What should happen**
 
 - The limits offered change with the hardware: choosing the Atom reduces the channels and the volume range to what its speaker can actually produce.
+- A BeebSID player writes each voice's registers itself, closing and opening the gate so a repeated note retriggers, and its reset opens the master volume and closes every gate. The frequency tables it carries are for the 1 MHz clock BeebSID gives the chip.
 - The generated output is the pattern data and a player routine, so the program advances the tune by calling the player once per row rather than writing its own.
 - The player reads and writes only the zero page declared, which is stated in the generated source.
 

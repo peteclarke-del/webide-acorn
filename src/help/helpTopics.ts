@@ -4374,7 +4374,8 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     steps: [
       "Open Assets and choose the Sound tab.",
-      "Choose Sound hardware. BBC \u00b7 SN76489 has three tone channels and sixteen volume levels; Atom \u00b7 1-bit speaker has one channel and a volume that is only on or off.",
+      "Choose Sound hardware. BBC \u00b7 SN76489 has three tone channels and sixteen volume levels; Atom \u00b7 1-bit speaker has one channel and a volume that is only on or off; BBC \u00b7 BeebSID 6581 has three voices written to the chip at &FC20 directly.",
+      "For a BeebSID song, set each voice's waveform, pulse width, attack, decay and release under Voices. Pitch in the pattern is then a note, C-0 being 0 and A-4 being 57, up to A#-7 at 94, and volume is the envelope's sustain level; the note's name is shown beside a pitch that sounds.",
       "Name the tune in Song name.",
       "Set Song rows to the length of the pattern, and Row duration in twentieths of a second to how long each row is held.",
       "Enter pitch and volume for each channel in Pattern, one row at a time.",
@@ -4384,6 +4385,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     expected: [
       "The limits offered change with the hardware: choosing the Atom reduces the channels and the volume range to what its speaker can actually produce.",
+      "A BeebSID player writes each voice's registers itself, closing and opening the gate so a repeated note retriggers, and its reset opens the master volume and closes every gate. The frequency tables it carries are for the 1 MHz clock BeebSID gives the chip.",
       "The generated output is the pattern data and a player routine, so the program advances the tune by calling the player once per row rather than writing its own.",
       "The player reads and writes only the zero page declared, which is stated in the generated source.",
     ],

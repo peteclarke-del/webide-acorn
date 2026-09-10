@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CHANNEL_LABELS, clearSongRow, createSongDocument, generateSongOutput, MAX_ATOM_ROWS, MAX_SONG_ROWS,
-  maximumPitch, parseSongDocument, serializeSongDocument, setSongCell, setSongLength, songLabel,
+  CHANNEL_LABELS, clearSongRow, createSongDocument, generateSongOutput, MAX_ATOM_ROWS, MAX_SID_NOTE, MAX_SONG_ROWS,
+  maximumPitch, parseSongDocument, serializeSongDocument, setSidVoice, setSongCell, setSongLength, sidFrequencyRegister, songLabel,
   songTargetProfile, SONG_CHANNELS,
 } from './songDocument';
 import { assemble6502 } from '../build/assembler6502';
@@ -144,5 +144,88 @@ describe('long songs', () => {
     const data = artifact.symbols.SONG_LONG_DATA! - artifact.origin;
     expect(artifact.bytes[data + 63 * 8 + 2]).toBe(200);
     expect(artifact.bytes[data + 63 * 8 + 3]).toBe(9);
+  });
+});
+
+describe('a song for the BeebSID', () => {
+  /* The 6581 at &FC20: three voices, seven registers each, a master volume at
+   * &FC38. The pinned core's own SID (src/emulator/beebSid.ts) decodes these
+   * registers, and the frequency register is what a 1 MHz clock makes of a
+   * pitch: Fout = Fn * 1,000,000 / 16,777,216. */
+  const sid = () => {
+    let document = createSongDocument('dusk', 4, 'bbc-beebsid');
+    document = setSongCell(document, 0, 0, { pitch: 57, volume: 12 });
+    document = setSongCell(document, 1, 2, { pitch: 94, volume: 8 });
+    document = setSidVoice(document, 0, { waveform: 'sawtooth', attack: 2, decay: 9, release: 6 });
+    document = setSidVoice(document, 1, { waveform: 'pulse', pulseWidth: 0x800 });
+    return document;
+  };
+
+  it('has three voices with a waveform and envelope each, and carries them through serialisation', () => {
+    const document = sid();
+    expect(document.rows[0]).toHaveLength(3);
+    expect(songTargetProfile('bbc-beebsid').channelLabels).toEqual(['Voice 1', 'Voice 2', 'Voice 3']);
+    expect(document.voices).toHaveLength(3);
+    expect(document.voices![0]).toEqual({ waveform: 'sawtooth', pulseWidth: 2048, attack: 2, decay: 9, release: 6 });
+    expect(parseSongDocument(serializeSongDocument(document))).toEqual(document);
+    /* A song for another chip carries no voices. */
+    expect(createSongDocument('sn', 4).voices).toBeUndefined();
+    expect(() => setSidVoice(createSongDocument('sn', 4), 0, { attack: 1 })).toThrow(/Only a BeebSID song has voices/);
+  });
+
+  it('plays notes up to A# in the seventh octave, where a sixteen-bit frequency register runs out', () => {
+    expect(maximumPitch(0, 'bbc-beebsid')).toBe(MAX_SID_NOTE);
+    expect(sidFrequencyRegister(0)).toBe(274);
+    expect(sidFrequencyRegister(57)).toBe(7382);
+    expect(sidFrequencyRegister(94)).toBe(62567);
+    expect(sidFrequencyRegister(95)).toBeGreaterThan(0xffff);
+    expect(() => setSongCell(sid(), 0, 0, { pitch: 95, volume: 1 })).toThrow(/pitch must be a whole number from 0 to 94/);
+  });
+
+  it('refuses a voice outside what the chip has', () => {
+    expect(() => setSidVoice(sid(), 0, { attack: 16 })).toThrow(/attack must be a whole number from 0 to 15/);
+    expect(() => setSidVoice(sid(), 1, { pulseWidth: 4096 })).toThrow(/pulse width must be a whole number from 0 to 4095/);
+    expect(() => setSidVoice(sid(), 2, { waveform: 'square' as never })).toThrow(/waveform must be triangle, sawtooth, pulse or noise/);
+    expect(() => setSidVoice(sid(), 3, { attack: 1 })).toThrow(/not on the chip/);
+    /* A document written before voices existed still plays, with the defaults. */
+    const { voices, ...without } = sid();
+    expect(voices).toBeDefined();
+    expect(parseSongDocument(without).voices![2]).toEqual({ waveform: 'pulse', pulseWidth: 2048, attack: 0, decay: 9, release: 6 });
+  });
+
+  it('emits eight bytes a row, three voices and two of padding, then the voice table', () => {
+    const output = generateSongOutput(sid());
+    expect(Array.from(output.bytes.slice(0, 3))).toEqual([4, 3, 10]);
+    expect(Array.from(output.bytes.slice(3, 11))).toEqual([57, 12, 0, 0, 0, 0, 0, 0]);
+    expect(Array.from(output.bytes.slice(11, 19))).toEqual([0, 0, 0, 0, 94, 8, 0, 0]);
+    /* Sawtooth, pulse width 2048, attack 2 decay 9, release 6. */
+    expect(Array.from(output.bytes.slice(3 + 4 * 8, 3 + 4 * 8 + 5))).toEqual([0x20, 0x00, 0x08, 0x29, 0x06]);
+    expect(output.bytes).toHaveLength(3 + 4 * 8 + 15);
+    expect(output.manifest.channels).toBe(3);
+  });
+
+  it('generates a player that writes the chip directly and assembles with no diagnostics', () => {
+    const output = generateSongOutput(sid());
+    const label = songLabel('dusk');
+    /* Voice 1: sustain and release, attack and decay, the note, the pulse width, then gate closed and opened. */
+    expect(output.assembly).toContain('STA &FC26');
+    expect(output.assembly).toContain('LDA #&29\n  STA &FC25');
+    expect(output.assembly).toContain(`LDA ${label}_freq_lo,X\n  STA &FC20`);
+    expect(output.assembly).toContain('LDA #&20\n  STA &FC24\n  LDA #&21\n  STA &FC24');
+    /* Voice 3 is seven registers on. */
+    expect(output.assembly).toContain('STA &FC32');
+    /* Reset opens the master volume and closes every gate. */
+    expect(output.assembly).toContain('LDA #&0F\n  STA &FC38');
+    /* A-4 is &1CD6, at index 57 of the two tables. */
+    const lo = output.assembly.split(`.${label}_freq_lo\n`)[1]!.split(`.${label}_freq_hi`)[0]!.match(/&[0-9A-F]{2}/g)!;
+    const hi = output.assembly.split(`.${label}_freq_hi\n`)[1]!.match(/&[0-9A-F]{2}/g)!;
+    expect(lo).toHaveLength(95);
+    expect(hi).toHaveLength(95);
+    expect(`${hi[57]}${lo[57]!.slice(1)}`).toBe('&1CD6');
+    const artifact = assemble6502(`ORG &1900\n.start\nJSR ${label}_reset\nJSR ${label}_play_row\nRTS\n${output.assembly}`);
+    expect(artifact.diagnostics).toEqual([]);
+    expect(artifact.symbols.SONG_DUSK_PLAY_ROW).toBeDefined();
+    expect(artifact.symbols.SONG_DUSK_VOICES).toBeDefined();
+    expect(output.basic).toContain('CALL the generated player');
   });
 });
