@@ -6304,6 +6304,19 @@ Current implemented increment:
   - [x] Evidence: a contract in `src/components/ScreenWorkspace.test.tsx`:
     naming a screen `loading` and choosing Add to project writes
     `loading.screen.json` whose document parses back with that name.
+- [x] BLD-331 The browser assembler's evaluator took a symbol, or a symbol plus
+  or minus one other term, and nothing else. The first game program that
+  needed the 6845 start address of its screen wrote `LDA #<(SCREEN / 8)` and
+  was told the expression was unknown.
+  - [x] Expressions are read with parentheses, `* / DIV MOD`, `+ -`, `<< >>`,
+    `AND`, `OR EOR`, and unary `- < > NOT LO() HI()`, at BeebAsm's precedence.
+    Division truncates. Division by zero and an unbalanced bracket are reported
+    as an expression that cannot be read, at its line.
+  - [x] Operand punctuation is stripped according to the addressing mode rather
+    than by pattern, which had taken the closing bracket off `#<(SCREEN / 8)`.
+  - [x] Evidence: two contracts in `src/build/assembler6502.test.ts`, one
+    holding fourteen expression forms to their exact bytes, one holding six
+    unreadable expressions to a report rather than a value.
 ### Phase 4 exit gate
 
 - [ ] EMU-GATE Two 8-bit slices and one scoped ARM slice can run exact resolved
