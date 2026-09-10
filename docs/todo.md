@@ -6182,6 +6182,27 @@ Current implemented increment:
     absence of an Electron or B+ model, the A310-only scope of the ARM adapter,
     and an unknown machine, which must report no support rather than invent it.
 
+- [x] AST-632 A palette document held one of the machine's sixteen physical
+  colours per logical colour and nothing else. A game whose whole look is a
+  different four colours on every band of the screen, chosen from the 4,096 a
+  VideoNuLA offers, had nowhere in the workbench to say so.
+  - [x] A palette document may carry, beside its VDU 19 mapping, what the NuLA
+    redefines each physical colour as: four bits each of red, green and blue,
+    by physical colour. The definition belongs to the physical colour, and a
+    programmed colour in the flashing eight stops flashing, both as the
+    hardware has it and as the pinned core decodes the two writes to &FE23.
+  - [x] The generated output carries the two bytes a colour for &FE23 ahead of
+    the VDU bytes, in the assembler source and as pokes in the BASIC form, so
+    INCLUDEPALETTE builds them in; the manifest counts them. The project
+    palette previews with the NuLA colours in every editor that uses it.
+  - [x] The Palettes workspace offers Redefine and the three levels per row when
+    the selected machine has a NuLA fitted, and says so when a palette defines
+    NuLA colours and the machine has none.
+  - [x] Evidence: six contracts in `src/assets/paletteDocument.test.ts` and
+    three in `src/components/PaletteWorkspace.test.tsx`, including the exact
+    `&3F, &40` for physical colour 3 as #ff4400. A game's four band palettes
+    were written through the module, built into its host program, and read
+    back from the emulated NuLA's own lookup as the colours they name.
 ### Phase 4 exit gate
 
 - [ ] EMU-GATE Two 8-bit slices and one scoped ARM slice can run exact resolved
