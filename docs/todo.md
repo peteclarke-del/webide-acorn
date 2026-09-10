@@ -6182,6 +6182,26 @@ Current implemented increment:
     absence of an Electron or B+ model, the A310-only scope of the ARM adapter,
     and an unknown machine, which must report no support rather than invent it.
 
+- [x] PRJ-208 Opening a folder that held one of the workbench's own sprite
+  documents crashed the import. The pixel array inside the JSON is 255 lines
+  of equal length from a four-character alphabet, which is what the drawn map
+  reader looks for, so it was offered as an 8 by 255 room, chosen for the
+  person because it was the only shape, and refused by the map document
+  because a map may not have 255 rows. That one refusal lost the whole
+  project.
+  - [x] The drawn map reader no longer looks inside files named `.json`: a
+    serialised document is never a hand-drawn room.
+  - [x] A recovery that was asked for and cannot be made is left out and named
+    in the status line, and every other file still arrives.
+  - [x] Opening a project no longer compares the machine that was selected
+    before with the one the project brings. The machine becomes the project's,
+    so that comparison described a move nothing had to survive, and it told a
+    person opening a project for an ADFS machine that DFS was not enabled on
+    it. Departures this build cannot honour are still reported.
+  - [x] Evidence: two contracts in `src/project/codebaseImport.test.ts`, one
+    with a 256-line pixel array that is offered as no map and still imported
+    as a file, one with a drawn room requested at a shape it does not allow
+    that is left out and named while the project is still created.
 ### Phase 4 exit gate
 
 - [ ] EMU-GATE Two 8-bit slices and one scoped ARM slice can run exact resolved
