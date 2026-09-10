@@ -22,23 +22,23 @@ is the part a machine can settle.
 
 | Measure | Count |
 | --- | --- |
-| Requirements tracked | 303 |
-| Complete | 216 |
-| Complete and traced | 132 |
-| Complete and described | 81 |
-| Complete and untraced | 3 |
-| Open | 87 |
+| Requirements tracked | 310 |
+| Complete | 222 |
+| Complete and traced | 135 |
+| Complete and described | 83 |
+| Complete and untraced | 4 |
+| Open | 88 |
 
 ## By area
 
 | Area | Tracked | Complete | Traced | Described | Untraced |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 16 | 16 | 0 | 0 |
+| EMU | 25 | 18 | 7 | 11 | 0 |
 | EDT | 23 | 17 | 7 | 10 | 0 |
 | AST | 21 | 21 | 14 | 7 | 0 |
 | DBG | 21 | 21 | 9 | 12 | 0 |
-| EMU | 19 | 13 | 4 | 9 | 0 |
-| ANL | 18 | 16 | 14 | 2 | 0 |
+| ANL | 19 | 17 | 14 | 2 | 1 |
 | BLD | 17 | 14 | 4 | 10 | 0 |
 | UX | 16 | 11 | 4 | 4 | 3 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
@@ -74,6 +74,7 @@ are listed rather than quietly counted.
 | UX-100 | Map project, workspace, asset, emulator, debugger, inspector, research, settings,... |
 | UX-103 | Define global action bar order and state for new/open/save/import/... |
 | UX-104 | Define target/configuration selector, comparison view, compatibility warnings, support... |
+| ANL-311 | A tokenised RISC OS 2 BASIC program was decoded wrongly, and nothing said so.** Reading... |
 
 ## Completed requirements and their evidence
 
@@ -155,6 +156,9 @@ are listed rather than quietly counted.
 | EMU-421 | Add second materially different 8-bit slice selected at P0 (Atom or... | 10 Electron adapter contracts parse the vendored ElkJS runtime and prove the two capability declarations cannot drift, that all 24 unavailable capabilities carry a stated reason, and that no workbench command is left... |
 | EMU-424 | Add Tube host/parasite runtime starting with one selected second | the whole conformance suite on a genuine Master 128 with MOS 3.20 and the 65C102 Turbo Tube ROM through the headless path, 10 tests, 10 passed, the new `tube-parasite-execution` case among them with A, X, its own result... |
 | EMU-424B | Make the Tube hand the language over on a BBC Model B. It works on... | `scripts/measureBbcTube.mjs` boots all four combinations and logs every access to &FEE0 to &FEE7. The banners and the traces are recorded in `src/emulator/bbcTubeMeasurements.ts`, and nine tests hold both the traces and... |
+| EMU-432 | The second processor was chosen by host, and a PiTube Direct does not... | `scripts/measureTubeParasite.mjs` boots all four, `src/emulator/tubeParasiteMeasurements.ts` records what each said, and eleven tests hold the choice and the catalogues to them. |
+| EMU-433 | A Tube was fittable and unusable. A second processor booted and there... | `scripts/measureParasiteProgram.mjs` assembles a program in this build, runs it behind all three host and parasite pairings, and reads back &42 at &8000 that the program computed from &10 plus &32. On the host &8000 is... |
+| EMU-430 | The 1 MHz bus answered every address with a bare `break`. The pinned... | a real Acorn ADFS ROM was booted against it and asked. With no image on the card it printed `Disc error 2C at :0/000000`, which is the sense byte the drive assembled and nothing else. With an unformatted LUN it printed... |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-... | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round... |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).... | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
 | DBG-523 | Complete decoded call stack, globals, locals, parameters, watches and... | 3 debug-expression contracts and 3 ARM debug-expression contracts cover the decoded call stack, watches and expression evaluation, with the caller-candidate rule proved by the 6502 instruction-state contracts. |
@@ -266,6 +270,7 @@ are listed rather than quietly counted.
 | EMU-423 | Add remaining Atom/Electron profiles and expansion combinations. | 54 of 61 parts done |
 | EMU-425 | Add other Tube CPUs only when each meets production profile gate. | 2 of 3 parts done |
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,... | not started |
+| EMU-431 | Sideways RAM is offered without saying how much, and there is more of it than any real... | 2 of 3 parts done |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
 | EMU-GATE | Two 8-bit slices and one scoped ARM slice can run exact resolved profiles with correct... | not started |
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint... | 15 of 16 parts done |

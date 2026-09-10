@@ -203,6 +203,14 @@ not work that way, so `createBbcCpu` takes the parasite and the processor class
 as arguments. That factory is the engine's own body with those two passed in,
 and the B+ this build adds uses it too.
 
+A build target says which side of the Tube its output runs on, because that is a
+property of the program rather than of the session that loads it. The two
+processors have separate memory, a build whose origin suits one is wrong for the
+other, and the run path sends the program where the target says. Source-level
+debugging stays on the host: the breakpoints here hook the host processor, so a
+source line in a parasite program would stop the wrong one, and that is refused
+by name rather than half-offered.
+
 Anything fitted like this is measured against real firmware before it is
 offered, and what the machine said is checked in beside the code as a
 `*Measurements.ts` module with a `scripts/measure*.mjs` that reproduces it.

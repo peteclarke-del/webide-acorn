@@ -1,7 +1,7 @@
 import type { ProjectFile, ProjectTarget, SourceLanguage } from '../project/project';
 import { sha256Hex } from './digest';
 
-export const BUILD_TARGET_SCHEMA = 5 as const;
+export const BUILD_TARGET_SCHEMA = 6 as const;
 export const TOOLCHAIN_REGISTRY_VERSION = '2026.08.2';
 
 export type BuildProfileId = 'debug' | 'size' | 'speed' | 'custom';
@@ -39,6 +39,17 @@ export interface BuildTarget {
   buildPolicy: 'manual' | 'on-save' | 'live';
   entryPoint: { mode: 'source' | 'symbol' | 'address'; value: string };
   machineProfile: 'project';
+  /**
+   * Which side of the Tube this target's output runs on.
+   *
+   * A second processor is not a faster host. It has its own memory, its own
+   * zero page and its own thirty kilobytes with no screen in it, and a program
+   * built for one will not run on the other. The target says which, because
+   * that is a property of the program rather than of the session that happens
+   * to load it, and because a build whose origin suits the parasite is wrong
+   * for the host and the other way round.
+   */
+  processor: 'host' | 'parasite';
   language: Extract<SourceLanguage, 'bbc-basic' | '6502' | 'arm' | 'c'>;
   toolchainVersion: string;
   roots: string[];
@@ -139,6 +150,24 @@ export function validateBuildTarget(target: BuildTarget, files: ProjectFile[], m
   if (target.toolchainId === 'cc65.c-bbc' && target.sourceFileIds.some((id) => !/\.c$/i.test(files.find((file) => file.id === id)?.name ?? ''))) errors.push('cc65 translation units must be .c files; headers are discovered through #include');
   if (target.toolchainId === 'cc65.c-bbc' && machine.id && !['bbc-b', 'bbc-b-plus', 'master'].includes(machine.id)) errors.push('The current cc65 runtime is validated for BBC B, B+ and Master targets only');
   if (target.toolchainId === 'gnu.arm-none-eabi-binutils' && machine.id && !['archimedes-a300', 'archimedes-a400', 'a3000'].includes(machine.id)) errors.push('The first ARM2 raw-binary adapter is scoped to the A300, A400/1 and A3000 Archimedes profiles');
+  /*
+   * A program for the second processor is 6502 machine code and nothing else.
+   * A tokenised BASIC program is loaded by the language on the host, and the
+   * ARM adapter targets an Archimedes rather than a Tube, so either of those
+   * marked for the parasite would be a target that could never be run.
+   */
+  if (target.processor === 'parasite' && toolchain && toolchain.language !== '6502') errors.push(`${toolchain.label} produces ${toolchain.language} output, and a second processor runs 6502 machine code`);
+  if (target.processor === 'parasite' && machine.id && !['bbc-b', 'bbc-bplus', 'master'].includes(machine.id)) errors.push('A second processor is fitted to a BBC B, B+ or Master; no other machine here has a Tube');
+  /*
+   * Where it is loaded is fixed by the parasite rather than by the toolchain.
+   * Below &0200 is its zero page and stack, which belong to the client
+   * operating system already running there, and from &F000 the boot ROM
+   * overlays the address space while it is paged in.
+   */
+  if (target.processor === 'parasite') {
+    const origin = Number.parseInt(target.memoryLayout.defaultOrigin.replace(/^&/, ''), 16);
+    if (!Number.isInteger(origin) || origin < 0x0200 || origin >= 0xf000) errors.push('A second-processor program is loaded between &0200 and &EFFF: below that is the parasite zero page and stack, and above it the boot ROM overlays the address space');
+  }
   if (entry && toolchain && entry.language !== toolchain.language) errors.push(`${toolchain.label} cannot compile ${entry.language} source`);
   if (toolchain && target.language !== toolchain.language) errors.push('The declared target language does not match its toolchain');
   if (toolchain && target.toolchainVersion !== toolchain.version) errors.push(`Toolchain version ${target.toolchainVersion || '(missing)'} is unavailable; select ${toolchain.version}`);
@@ -254,6 +283,9 @@ export function migrateBuildTarget(candidate: Partial<BuildTarget>, fallback: Pi
     buildPolicy: policy === 'on-save' || policy === 'live' ? policy : 'manual',
     entryPoint: entry && (entry.mode === 'source' || entry.mode === 'symbol' || entry.mode === 'address') && typeof entry.value === 'string' ? { mode: entry.mode, value: entry.value.slice(0, 128) } : { mode: 'source', value: '' },
     machineProfile: 'project',
+    /* A target written before this build knew about the Tube ran on the host,
+     * because that was the only place a program could go. */
+    processor: candidate.processor === 'parasite' ? 'parasite' : 'host',
     language: toolchain.language,
     toolchainVersion: toolchain.version,
     roots: ['.'],
@@ -294,6 +326,7 @@ export function parsedBuildDefines(defines: string[]): Record<string, number> {
 function buildTargetDeclarations(toolchain: ToolchainManifest, entryFileId: string) {
   return {
     machineProfile: 'project' as const,
+    processor: 'host' as const,
     language: toolchain.language,
     toolchainVersion: toolchain.version,
     roots: ['.'],

@@ -30,10 +30,22 @@ beforeAll(async () => {
 
 describe('reading the backlog', () => {
   it('finds every requirement the backlog states, and nothing that is not one', () => {
-    const identifiers = (backlog.match(/^- \[[ x]\] [A-Z][A-Z0-9]*(?:-[0-9A-Z]+)+\s/gm) ?? []).length;
+    const identifiers = (backlog.match(/^- \[[ x]\] (?:\*\*)?[A-Z][A-Z0-9]*(?:-[0-9A-Z]+)+\s/gm) ?? []).length;
     expect(requirements).toHaveLength(identifiers);
     expect(requirements.length).toBeGreaterThan(200);
     for (const requirement of requirements) expect(requirement.id).toMatch(/^[A-Z][A-Z0-9]*(?:-[0-9A-Z]+)+$/);
+  });
+
+  it('reads a requirement whose identifier opens a bold run', () => {
+    /* Several entries open that way for emphasis, and the reader used to skip
+     * every one of them. They were missing from the counts and from the
+     * untraced list, which is the one thing this report exists to produce. A
+     * requirement the report cannot see is worse than one it calls untraced. */
+    const bold = (backlog.match(/^- \[[ x]\] \*\*[A-Z][A-Z0-9]*(?:-[0-9A-Z]+)+\s/gm) ?? [])
+      .map((line) => /\*\*([A-Z][A-Z0-9]*(?:-[0-9A-Z]+)+)/.exec(line)![1]!);
+    expect(bold.length, 'the backlog has entries written this way').toBeGreaterThan(0);
+    const found = new Set(requirements.map((requirement) => requirement.id));
+    for (const id of bold) expect(found.has(id), `${id} is read from the backlog`).toBe(true);
   });
 
   it('reads a wrapped title as one title rather than losing the rest of it', () => {

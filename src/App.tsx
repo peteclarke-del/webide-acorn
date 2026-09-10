@@ -1663,8 +1663,14 @@ function App() {
     if (artifact.kind !== '6502-binary') return;
     if (romReady && machineRomSet) {
       const breakpoints = resolveSourceBreakpointAddresses(artifact);
-      queueMachineCommand({ type: 'load-machine-code', bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, autorun: true, breakpoints, sourceLocations: artifact.sourceLocations, symbols: artifact.symbols, programLoadDraft: buildProgramLoadDraft(artifact, 'run') });
-      setNotice(`Loading ${artifact.bytes.length} assembled bytes into ${machine.label} at ${formatAddress(artifact.origin)}`);
+      /* Which side of the Tube this program is for is the target's, not the
+       * session's: the two processors have separate memory and a program built
+       * for one will not run on the other. */
+      const processor = activeBuildTarget?.processor === 'parasite' ? 'parasite' as const : 'host' as const;
+      queueMachineCommand({ type: 'load-machine-code', bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, autorun: true, processor, breakpoints, sourceLocations: artifact.sourceLocations, symbols: artifact.symbols, programLoadDraft: buildProgramLoadDraft(artifact, 'run') });
+      setNotice(processor === 'parasite'
+        ? `Loading ${artifact.bytes.length} assembled bytes into the ${machine.label} second processor at ${formatAddress(artifact.origin)}`
+        : `Loading ${artifact.bytes.length} assembled bytes into ${machine.label} at ${formatAddress(artifact.origin)}`);
       return;
     }
     const state = runtimeRef.current.run();
@@ -1707,7 +1713,14 @@ function App() {
     }
     if (artifact.kind === '6502-binary' && romReady && machineRomSet) {
       const breakpoints = resolveSourceBreakpointAddresses(artifact);
-      queueMachineCommand({ type: 'load-machine-code', bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, autorun: false, breakpoints, sourceLocations: artifact.sourceLocations, symbols: artifact.symbols, programLoadDraft: buildProgramLoadDraft(artifact, 'debug') });
+      /* Debugging a parasite program is refused rather than half-offered: the
+       * breakpoints in this build hook the host processor, so a source line in
+       * a parasite program would stop the wrong one. */
+      if (activeBuildTarget?.processor === 'parasite') {
+        setNotice('This target runs on the second processor, and source breakpoints in this build hook the host. Use Run, and the Tube panel in the debugger for the parasite\'s own registers and memory.');
+        return;
+      }
+      queueMachineCommand({ type: 'load-machine-code', bytes: Array.from(artifact.bytes), origin: artifact.origin, entryPoint: artifact.entryPoint, autorun: false, processor: 'host', breakpoints, sourceLocations: artifact.sourceLocations, symbols: artifact.symbols, programLoadDraft: buildProgramLoadDraft(artifact, 'debug') });
       setNotice(`Hardware debug session loading at ${formatAddress(artifact.entryPoint)} · ${breakpoints.length} source breakpoint${breakpoints.length === 1 ? '' : 's'} resolved`);
     } else if (artifact.kind === '6502-binary') setNotice('ROM-less debug session ready at the program entry point');
   };
@@ -4108,6 +4121,7 @@ function BuildWorkspace({ artifact, metadata, failure, artifactDocumentId, onArt
         }}>{files.filter((file) => compatibleToolchains(file.language, nativeIds).length > 0).map((file) => <option value={file.id} key={file.id}>{file.name}</option>)}</select></label>
         <label><span>Toolchain</span><select aria-label="Build toolchain" value={activeTarget.toolchainId} onChange={(event) => onChange(activeTarget.id, buildToolchainUpdate(event.target.value as BuildTarget['toolchainId']))}>{availableToolchains.map((toolchain) => <option value={toolchain.id} key={toolchain.id}>{toolchain.label}</option>)}</select></label>
         <label><span>Output</span><input aria-label="Build output name" maxLength={128} value={activeTarget.outputName} onChange={(event) => onChange(activeTarget.id, { outputName: event.target.value })} /></label>
+        <label><span>Runs on</span><select aria-label="Build processor" value={activeTarget.processor} disabled={entry?.language !== '6502'} onChange={(event) => onChange(activeTarget.id, { processor: event.target.value as BuildTarget['processor'] })}><option value="host">Host processor</option><option value="parasite">Second processor{entry?.language !== '6502' ? ' · 6502 only' : ''}</option></select></label>
         <label><span>Policy</span><select aria-label="Build policy" value={activeTarget.buildPolicy} onChange={(event) => onChange(activeTarget.id, { buildPolicy: event.target.value as BuildTarget['buildPolicy'] })}><option value="manual">Manual</option><option value="on-save">On explicit save</option><option value="live">Live · 650 ms debounce</option></select></label>
         <label><span>Profile</span><select aria-label="Build profile" value={activeTarget.profile} onChange={(event) => onChange(activeTarget.id, { profile: event.target.value as BuildTarget['profile'] })}>{BUILD_PROFILES.map((profile) => <option value={profile.id} disabled={entry?.language === 'bbc-basic' && profile.id !== 'debug'} key={profile.id}>{profile.label}{entry?.language === 'bbc-basic' && profile.id !== 'debug' ? ' · assembler only' : ''}</option>)}</select></label>
         <label><span>Entry source</span><select aria-label="Build entry-point mode" value={activeTarget.entryPoint.mode} disabled={entry?.language !== '6502' && entry?.language !== 'arm'} onChange={(event) => onChange(activeTarget.id, { entryPoint: { mode: event.target.value as BuildTarget['entryPoint']['mode'], value: '' } })}><option value="source">{entry?.language === 'c' ? 'Generated C startup' : entry?.language === 'arm' ? '_start symbol' : 'Assembler source'}</option><option value="symbol">Symbol</option><option value="address">Address</option></select></label>

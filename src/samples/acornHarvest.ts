@@ -1295,8 +1295,8 @@ export const ACORN_HARVEST: SampleProject = {
       { id: 'harvest-collect', fileId: 'player.asm', line: 51, column: 1, name: 'Acorn collection', description: 'Clears the tile, scores in decimal mode and plays the pickup note.', scope: 'project', enabled: true, anchor: 'CMP #2' },
     ],
     buildTargets: [
-      { schemaVersion: 5, id: 'harvest-game', name: 'Acorn Harvest game', entryFileId: 'main.asm', sourceFileIds: ['main.asm'], toolchainId: '8bit-net.asm.6502', outputName: 'acorn-harvest.bin' },
-      { schemaVersion: 5, id: 'harvest-selftest', name: 'Acorn Harvest self test', entryFileId: 'selftest.asm', sourceFileIds: ['selftest.asm'], toolchainId: '8bit-net.asm.6502', outputName: 'acorn-harvest-selftest.bin' },
+      { schemaVersion: 6, id: 'harvest-game', name: 'Acorn Harvest game', entryFileId: 'main.asm', sourceFileIds: ['main.asm'], toolchainId: '8bit-net.asm.6502', outputName: 'acorn-harvest.bin' },
+      { schemaVersion: 6, id: 'harvest-selftest', name: 'Acorn Harvest self test', entryFileId: 'selftest.asm', sourceFileIds: ['selftest.asm'], toolchainId: '8bit-net.asm.6502', outputName: 'acorn-harvest-selftest.bin' },
     ],
     activeBuildTargetId: 'harvest-game',
     testPlans: [
