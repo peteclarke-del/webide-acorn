@@ -7,13 +7,16 @@
  * below run on a real Model B under the pinned core, and the cycles they take
  * are counted by the emulator rather than by adding up an instruction table.
  *
- * Four questions:
+ * Five questions:
  *
  *   - How cheaply can the host put a byte on screen at all? An unrolled store
  *     is the floor: nothing that draws anything can beat it.
  *   - How cheaply can it copy a byte from somewhere else to the screen? That is
  *     what "the second processor composes a frame and the host shows it" costs,
  *     whatever produced the bytes.
+ *   - What does a byte cost when it really does come from a second processor,
+ *     with the two sides kept in step? The blind read is a ceiling; this is
+ *     what a game pays.
  *   - What does the hardware scroll cost? It is two 6845 registers, and the
  *     answer decides whether scrolling is free or is part of the budget.
  *   - How much of a screen is that, in each mode worth considering?
@@ -25,7 +28,11 @@
 import { argv, exit } from 'node:process';
 import { resolve } from 'node:path';
 import { TestMachine } from 'jsbeeb/tests/test-machine.js';
+import { findModel, TurboTubeModel } from 'jsbeeb/src/models.js';
 import { setNodeBasePath } from 'jsbeeb/src/utils.js';
+import { Cpu6502 } from 'jsbeeb/src/6502.js';
+import { FakeVideo } from 'jsbeeb/src/video.js';
+import { FakeSoundChip } from 'jsbeeb/src/soundchip.js';
 
 /** A Model B runs at 2 MHz, and its display is 50 frames a second. */
 export const HOST_CLOCK_HZ = 2_000_000;
@@ -100,6 +107,64 @@ ORG &2000
   BNE page
 .done
   RTS
+`;
+
+/*
+ * The same transfer with a second processor actually on the other end.
+ *
+ * The blind read above is the ceiling, and a game cannot run at the ceiling:
+ * nothing keeps the two sides in step, so a host that reads before the
+ * parasite has written takes a stale byte, and the first program written to
+ * the blind figure painted its rows wherever stale reads sent them. A real
+ * transfer waits on register 3's status flag: data available on the host,
+ * room on the parasite. This measures that, with a 65C102 at 4 MHz sending as
+ * fast as its own flag allows, in the ULA's two-byte mode so the host pays one
+ * status check for two bytes. The one-byte mode is measured as well, since it
+ * is the mode the machine boots in.
+ *
+ * The host's routine sets two-byte mode itself, with S and V in the control
+ * register at &FEE0.
+ */
+const waitOnHost = (label) => `.${label}\n  BIT &FEE4\n  BPL ${label}`;
+export const TUBE_HANDSHAKE_ROUTINE = `
+ORG &2000
+.start
+  LDA #%10010000
+  STA &FEE0
+  LDX #0
+.page
+  ${Array.from({ length: 16 }, (unused, index) => `${waitOnHost(`w${index}`)}\n  LDA &FEE5\n  STA &3000+${index * 256},X\n  INX\n  LDA &FEE5\n  STA &3000+${index * 256},X\n  DEX`).join('\n  ')}
+  INX
+  INX
+  BEQ done
+  JMP page
+.done
+  RTS
+`;
+export const TUBE_HANDSHAKE_ONE_BYTE_ROUTINE = `
+ORG &2000
+.start
+  LDA #%00010000
+  STA &FEE0
+  LDX #0
+.page
+  ${Array.from({ length: 16 }, (unused, index) => `${waitOnHost(`w${index}`)}\n  LDA &FEE5\n  STA &3000+${index * 256},X`).join('\n  ')}
+  INX
+  BEQ done
+  JMP page
+.done
+  RTS
+`;
+/** The parasite's side: a byte into register 3 whenever there is room, for ever. */
+export const PARASITE_SENDER = `
+ORG &2000
+.start
+  SEI
+.again
+  BIT &FEFC
+  BVC again
+  STA &FEFD
+  JMP again
 `;
 
 /*
@@ -185,6 +250,32 @@ async function time(machine, assemble6502, source) {
   return finished - started;
 }
 
+/**
+ * A Model B with a 65C102 behind its Tube, booted to the prompt, with the
+ * sender running on the parasite. The host routine is then timed exactly as
+ * the others are.
+ */
+async function tubeMachine(assemble6502, createBbcCpu) {
+  const machine = new TestMachine('B');
+  machine.processor = createBbcCpu(Cpu6502, findModel('B'), { video: new FakeVideo(), soundChip: new FakeSoundChip(), tube: TurboTubeModel });
+  machine.processor.config.extraRoms = ['b/dnfs120.rom'];
+  await machine.initialise();
+  machine.startCapture();
+  let banner = '';
+  for (let index = 0; index < 40 && !banner.trimEnd().endsWith('>'); index += 1) {
+    await machine.runFor(1_000_000);
+    banner += machine.drainText({ raw: true });
+  }
+  const tube = machine.processor.tube;
+  if (!tube) throw new Error('the machine has no second processor');
+  const sender = assemble6502(PARASITE_SENDER, '6502', 0x2000, {}, 'bbc-b');
+  for (let offset = 0; offset < sender.bytes.length; offset += 1) tube.writemem(0x2000 + offset, sender.bytes[offset]);
+  tube.pc = 0x2000;
+  await machine.runFor(10_000);
+  console.log('second processor:', JSON.stringify(banner.split('\n').filter(Boolean)[0]), 'sending');
+  return machine;
+}
+
 async function main() {
   const base = argv[2];
   if (!base) {
@@ -193,6 +284,7 @@ async function main() {
   }
   setNodeBasePath(resolve(base));
   const { assemble6502 } = await import('../src/build/assembler6502.ts');
+  const { createBbcCpu } = await import('../src/emulator/bbcCpuFactory.ts');
 
   const machine = new TestMachine('B');
   await machine.initialise();
@@ -212,10 +304,15 @@ async function main() {
   const scroll = await time(machine, assemble6502, SCROLL_ROUTINE);
   const palette = await time(machine, assemble6502, NULA_PALETTE_ROUTINE);
 
-  for (const [name, cycles] of [['fill', fill], ['copy', copy], ['tube', tube]]) {
+  const withParasite = await tubeMachine(assemble6502, createBbcCpu);
+  const handshake = await time(withParasite, assemble6502, TUBE_HANDSHAKE_ROUTINE);
+  const handshakeOneByte = await time(withParasite, assemble6502, TUBE_HANDSHAKE_ONE_BYTE_ROUTINE);
+  console.log('');
+
+  for (const [name, cycles] of [['fill', fill], ['copy', copy], ['tube', tube], ['tube, handshaken, two-byte mode', handshake], ['tube, handshaken, one-byte mode', handshakeOneByte]]) {
     const perByte = cycles / MOVED_BYTES;
     const perFrame = Math.floor(CYCLES_PER_FRAME / perByte);
-    console.log(`${name.padEnd(5)} ${MOVED_BYTES.toLocaleString()} bytes in ${cycles.toLocaleString()} cycles`);
+    console.log(`${name.padEnd(32)} ${MOVED_BYTES.toLocaleString()} bytes in ${cycles.toLocaleString()} cycles`);
     console.log(`      ${perByte.toFixed(2)} cycles a byte, so ${perFrame.toLocaleString()} bytes in one frame`);
     for (const [mode, bytes] of Object.entries(SCREEN_BYTES)) {
       const frames = bytes / perFrame;

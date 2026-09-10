@@ -6,13 +6,17 @@
  * on a real Model B under the pinned core and the emulator counted their cycles;
  * `scripts/measureFrameBudget.mjs` reproduces all five.
  *
- * The result that matters most is the third one. Pulling a byte across the Tube
- * costs the host slightly less than copying one from its own memory, because a
- * read from a fixed address avoids the indexed penalty. So the Tube is not a
- * bottleneck for pixels: composing a frame on the parasite costs the host no
- * more than composing it locally would, and the composition itself is then free
- * from the host's point of view. Anything that can be computed rather than
- * fetched belongs on the second processor.
+ * The result that matters most is the pair of Tube figures. Read blind, with
+ * nothing keeping the two sides in step, a byte from the second processor
+ * costs the host slightly less than one from its own memory, because a read
+ * from a fixed address avoids the indexed penalty. No program can run at that
+ * figure: the first one written to it painted its rows wherever stale reads
+ * sent them. Kept in step, with the host waiting on register 3's flag and a
+ * 65C102 sending as fast as its own flag allows, a byte costs 14.86 cycles in
+ * the ULA's two-byte mode. That is the figure a game pays, and it is half as
+ * much again as a local copy. So the Tube carries what is expensive to compute
+ * and cheap to move, and what the host can fill from a table stays on the
+ * host.
  */
 
 /** A Model B runs at 2 MHz and its display is 50 frames a second. */
@@ -24,7 +28,7 @@ export const FRAME_BUDGET_MEASUREMENT_SOURCE =
   'Measured on a BBC Model B with OS 1.20 and BASIC II by running each routine from its own entry and counting the cycles it took to reach its exit.';
 
 export interface ByteMovementMeasurement {
-  id: 'fill' | 'copy' | 'tube';
+  id: 'fill' | 'copy' | 'tube' | 'tube-handshake' | 'tube-handshake-one-byte';
   label: string;
   /** Cycles for one byte, from 4,096 bytes moved. */
   cyclesPerByte: number;
@@ -46,9 +50,21 @@ export const BYTE_MOVEMENT: readonly ByteMovementMeasurement[] = Object.freeze([
   },
   {
     id: 'tube',
-    label: 'Pull a byte across the Tube to the screen',
+    label: 'Pull a byte across the Tube to the screen, blind',
     cyclesPerByte: 9.31,
-    what: 'The same, with the bytes arriving from the second processor through register 3 at &FEE5. Cheaper than the local copy, because a read from a fixed address needs no index.',
+    what: 'The same, reading register 3 at &FEE5 with nothing on the other end and nothing keeping the two sides in step. Cheaper than the local copy, because a read from a fixed address needs no index. This is a ceiling, not a rate a program can run at: a byte read before the second processor has written it is a stale one.',
+  },
+  {
+    id: 'tube-handshake',
+    label: 'Pull a byte across the Tube to the screen, kept in step, two-byte mode',
+    cyclesPerByte: 14.86,
+    what: 'A 65C102 at 4 MHz sends a byte whenever register 3 has room; the host waits on the data-available flag and reads two bytes for each wait, the ULA being in its two-byte mode. This is what a game pays for a byte the second processor composed.',
+  },
+  {
+    id: 'tube-handshake-one-byte',
+    label: 'Pull a byte across the Tube to the screen, kept in step, one-byte mode',
+    cyclesPerByte: 16.14,
+    what: 'The same transfer in the mode the machine boots in, one status check for every byte.',
   },
 ]);
 
@@ -97,8 +113,10 @@ export const SPECTRUM_SCREEN_BYTES = 6912;
  * The finding, in one place so it can be quoted rather than rederived.
  */
 export const FRAME_BUDGET_FINDINGS: readonly string[] = Object.freeze([
-  'The Tube is not a bottleneck for pixels. A byte arriving from the second processor costs the host 9.31 cycles against 9.70 for one already in its own memory, so composing on the parasite is never worse and the composition is free.',
+  'A byte from the second processor costs the host 14.86 cycles when the two sides are kept in step, against 9.70 for one already in its own memory. The 9.31 of a blind read is a ceiling no program can run at. So the Tube is a bottleneck for pixels after all: 2,691 bytes a frame, a quarter of a MODE 5 screen, half of it at 25 Hz.',
+  'What crosses the Tube is therefore what is expensive to compute and cheap to move: composed sprites, and descriptors for what the host can fill from a table. The host draws the ground from a per-row descriptor at the fill cost, not the Tube cost.',
   'No mode can be fully redrawn in one frame. The best case is a flat fill, and even that covers only 70 per cent of a ten-kilobyte screen.',
+  'The loops on both sides of the Tube matter as much as the link. The 14.86 is a four-instruction sender and an unrolled receiver; a sender that calls a subroutine for each byte and a receiver storing through a zero-page pointer measured a third of that rate on the same machine.',
   'The hardware scroll is free. Two 6845 register writes cost 35 cycles, which is under a tenth of a per cent of a frame.',
   'Reloading the whole NuLA palette costs 208 cycles, and 192 reloads fit in a frame. That is more reloads than there are scanlines, so a four-colour mode can carry a different four colours on every band of the screen.',
   'That last point is what decides the mode. MODE 5 has the same 160 pixel width as MODE 2 for half the bytes, and per-band palettes turn its four-colour limit into a per-band limit rather than a screen limit.',
@@ -132,11 +150,11 @@ export function renderFrameBudget(): string {
   lines.push('');
   lines.push('## How much of a screen that is');
   lines.push('');
-  lines.push('Taking the Tube figure, which is the one a game built around a second processor pays.');
+  lines.push('Taking the handshaken two-byte Tube figure, which is the one a game built around a second processor pays. The blind figure is a ceiling.');
   lines.push('');
   lines.push('| Mode | Screen bytes | At 50 Hz | At 25 Hz | Frames for a full redraw |');
   lines.push('| --- | --- | --- | --- | --- |');
-  const tube = BYTE_MOVEMENT.find((entry) => entry.id === 'tube')!;
+  const tube = BYTE_MOVEMENT.find((entry) => entry.id === 'tube-handshake')!;
   for (const [mode, bytes] of Object.entries(MODE_SCREEN_BYTES)) {
     const at50 = screenFractionPerUpdate(mode, tube.cyclesPerByte);
     const at25 = screenFractionPerUpdate(mode, tube.cyclesPerByte, 2);
@@ -144,6 +162,8 @@ export function renderFrameBudget(): string {
   }
   lines.push('');
   lines.push(`For scale, a ZX Spectrum screen is ${SPECTRUM_SCREEN_BYTES.toLocaleString()} bytes, which is ${(SPECTRUM_SCREEN_BYTES / bytesPerFrame(tube.cyclesPerByte)).toFixed(1)} frames at the same rate. A machine that ran well-regarded arcade conversions had two thirds of a MODE 5 screen to move, and did not move all of it every frame either.`);
+  lines.push('');
+  lines.push(`The kept-in-step figures were measured with a 65C102 at 4 MHz sending through a loop of four instructions. A sender that does more per byte, or a receiver that stores through a zero-page pointer, is slower than this, and the first game program to stream rows this way managed a third of it until its loops were rewritten. The link is the floor; the loops on both sides are what a program pays on top.`);
   lines.push('');
   lines.push('## The two things that are free');
   lines.push('');

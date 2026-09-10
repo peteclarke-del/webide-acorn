@@ -51,24 +51,32 @@ describe('what fits in a frame', () => {
     }
   });
 
-  it('finds the Tube no dearer than the host\'s own memory', () => {
-    /* The finding the architecture rests on. If this ever reverses, composing
-     * on the parasite stops being free and the design has to move. */
+  it('finds the blind Tube read no dearer than host memory, and the kept-in-step transfer dearer', () => {
+    /* The finding the architecture rests on. The blind figure is the ceiling;
+     * the kept-in-step one is what a game pays, and it is the one that puts
+     * the ground on the host and the sprites on the Tube. If the handshaken
+     * cost ever drops below the local copy, that division has to be looked
+     * at again. */
     expect(cost('tube')).toBeLessThan(cost('copy'));
     expect(cost('fill')).toBeLessThan(cost('tube'));
+    expect(cost('tube-handshake')).toBeGreaterThan(cost('copy'));
+    expect(cost('tube-handshake')).toBeLessThan(cost('tube-handshake-one-byte'));
+    expect(cost('tube-handshake')).toBeLessThan(2 * cost('copy'));
   });
 
   it('cannot redraw any mode in a single frame, even as a flat fill', () => {
     for (const mode of Object.keys(MODE_SCREEN_BYTES)) {
       expect(screenFractionPerUpdate(mode, cost('fill')), mode).toBeLessThan(1);
-      expect(screenFractionPerUpdate(mode, cost('tube')), mode).toBeLessThan(0.5);
+      expect(screenFractionPerUpdate(mode, cost('tube-handshake')), mode).toBeLessThan(0.3);
     }
   });
 
-  it('puts a ten-kilobyte mode within reach at half rate and a twenty-kilobyte one out of it', () => {
+  it('puts half a ten-kilobyte mode within reach of the Tube at half rate and a quarter of a twenty-kilobyte one', () => {
     /* This is the mode decision, in one assertion. */
-    expect(screenFractionPerUpdate('MODE 5', cost('tube'), 2)).toBeGreaterThan(0.8);
-    expect(screenFractionPerUpdate('MODE 2', cost('tube'), 2)).toBeLessThan(0.5);
+    expect(screenFractionPerUpdate('MODE 5', cost('tube-handshake'), 2)).toBeGreaterThan(0.5);
+    expect(screenFractionPerUpdate('MODE 2', cost('tube-handshake'), 2)).toBeLessThan(0.3);
+    /* And what the host can fill itself, which is where the ground goes. */
+    expect(screenFractionPerUpdate('MODE 5', cost('fill'))).toBeGreaterThan(0.65);
   });
 
   it('makes the hardware scroll and the NuLA palette effectively free', () => {
@@ -81,15 +89,16 @@ describe('what fits in a frame', () => {
 
   it('keeps a Spectrum screen as the yardstick, and says what it costs here', () => {
     expect(SPECTRUM_SCREEN_BYTES).toBe(6912);
-    const frames = SPECTRUM_SCREEN_BYTES / bytesPerFrame(cost('tube'));
-    expect(frames).toBeGreaterThan(1);
-    expect(frames).toBeLessThan(2);
+    const frames = SPECTRUM_SCREEN_BYTES / bytesPerFrame(cost('tube-handshake'));
+    expect(frames).toBeGreaterThan(2);
+    expect(frames).toBeLessThan(3);
   });
 
   it('states its findings rather than leaving them to be rederived', () => {
     expect(FRAME_BUDGET_FINDINGS.length).toBeGreaterThanOrEqual(5);
     for (const finding of FRAME_BUDGET_FINDINGS) expect(finding.length).toBeGreaterThan(60);
-    expect(FRAME_BUDGET_FINDINGS.join(' ')).toContain('not a bottleneck for pixels');
+    expect(FRAME_BUDGET_FINDINGS.join(' ')).toContain('a bottleneck for pixels after all');
+    expect(FRAME_BUDGET_FINDINGS.join(' ')).toContain('14.86');
   });
 
   it('produces the same bytes every time, so the check is on content and not on ordering', () => {
