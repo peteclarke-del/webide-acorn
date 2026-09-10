@@ -6374,13 +6374,19 @@ Current implemented increment:
     processor the active target runs on. The Tube panel names where the
     parasite stopped with its source line, lists its breakpoints, and Step
     parasite runs the host until the parasite has executed one instruction.
-  - [x] Evidence: five contracts on the fitted loop against a counting fake in
+  - [x] A stop holds. The host clocks the parasite more than once within one
+    of its own instructions, and the first loop let the parasite run on through
+    the second ask, so a breakpoint reported one hit and the panel showed the
+    parasite a hundred instructions further along. It stays put while the host
+    is halted, which the core holds until the runtime's next execute.
+  - [x] Evidence: six contracts on the fitted loop against a counting fake in
     `src/emulator/parasiteHooks.test.ts`, and two against the pinned core's own
     Tube6502 without firmware in `src/emulator/parasiteHooks.core.test.ts`: it
-    still has the shape the loop relies on, and a real parasite stops at the
-    address asked for before the instruction there runs, with the host asked
-    to halt. A game's second-processor program was stopped at a source line
-    through the workbench and pictured.
+    still has the shape the loop relies on, a real parasite stops at the
+    address asked for before the instruction there runs with the host asked to
+    halt, stays there however often the host asks for its time, and carries on
+    when the host runs again. A game's second-processor program was stopped at
+    a source line through the workbench and pictured.
 ### Phase 4 exit gate
 
 - [ ] EMU-GATE Two 8-bit slices and one scoped ARM slice can run exact resolved
