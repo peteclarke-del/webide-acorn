@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_IMPORT_FILES, overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput } from './codebaseImport';
+import { MAX_IMPORT_FILES, overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, skippedRecoveries, type CodebaseFileInput } from './codebaseImport';
 import { assembleProject6502 } from '../build/projectAssembler6502';
 import { generatePixelAssetOutput, parsePixelAssetDocument } from '../assets/pixelAssetDocument';
 import { loadSampleProjects } from '../samples/sampleProjects';
@@ -338,6 +338,37 @@ describe('recovering assets from an imported codebase', () => {
       { path: 'sprites.inc', content: Array.from({ length: 8 }, () => '    EQUB &00,&0F,&F0,&FF,&00,&0F,&F0,&FF').join('\n') },
     ], 'Include');
     expect(include.mapCandidates.filter((candidate) => candidate.id.endsWith(':drawn'))).toEqual([]);
+  });
+
+  it('does not read a JSON document as a drawn map, because a serialised pixel array is a tall thin rectangle', () => {
+    /* This is how a folder holding one of this product's own sprite documents
+     * came back with a 8 by 255 room in it, and then could not be created at
+     * all because 255 rows is more than a map may have. */
+    const pixels = Array.from({ length: 256 }, (_, index) => `    ${index % 4},`).join('\n');
+    const asset = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'assets/hero.asset.json', content: `{\n  "schema": "8bit-net.pixel-asset",\n  "pixels": [\n${pixels}\n  ]\n}\n` },
+    ], 'Asset');
+    expect(asset.mapCandidates.filter((candidate) => candidate.id.endsWith(':drawn'))).toEqual([]);
+    expect(asset.files.map((file) => file.name)).toContain('assets/hero.asset.json');
+  });
+
+  it('leaves out a recovery it cannot make and says so, rather than failing the whole project', () => {
+    const drawn = planCodebaseImport([
+      { path: 'main.asm', content: 'ORG &1900\nRTS\n' },
+      { path: 'rooms/room01.txt', content: ['########', '#......#', '#..##..#', '#..##..#', '#......#', '#.P....#', '#......#', '########'].join('\n') },
+    ], 'Drawn');
+    const room = drawn.mapCandidates.find((candidate) => candidate.id.endsWith(':drawn'))!;
+    expect(room).toBeDefined();
+    const contents = new Map([['main.asm', 'ORG &1900\nRTS\n'], ['rooms/room01.txt', '']]);
+    /* A shape the candidate does not allow: the request is honoured as far as
+     * it can be, which is to name it and carry on. */
+    const selection = { derivedMaps: [{ id: room.id, width: 3, height: 3 }] };
+    const project = projectFromCodebaseImport(drawn, contents, selection);
+    expect(project.files.map((file) => file.name)).toEqual(['main.asm', 'rooms/room01.txt']);
+    const skipped = skippedRecoveries(drawn, contents, selection);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]).toContain('rooms/room01.txt was not recovered as a map');
   });
 
   it('reports map-shaped data without inventing a document for it', () => {

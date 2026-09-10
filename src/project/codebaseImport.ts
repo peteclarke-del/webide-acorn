@@ -347,8 +347,11 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
    * include of EQUB lines is also a rectangle of equal-length lines, and the
    * run above already reads that properly as artwork. */
 
+  /* And not JSON. A serialised document, this product's own sprite or map or
+   * anybody else's data, is lines of equal length as often as not, and its
+   * pixels array reads as a tall thin room. A drawn map is plain text. */
   const asciiMaps: TileMapCandidate[] = files
-    .filter((file) => file.language === 'text')
+    .filter((file) => file.language === 'text' && !/\.json$/i.test(file.name))
     .flatMap((file) => {
       const grid = asciiMapGrid(contents.get(file.name) ?? '');
       if (!grid) return [];
@@ -430,6 +433,7 @@ export function codebaseImportDocument(
   selection: CodebaseImportSelection = {},
 ) {
   const chosen = new Set(selection.derivedAssetIds ?? []);
+  const skipped: string[] = [];
   const identifiers = new Set<string>();
   const idFor = new Map<string, string>();
   const identify = (name: string) => { const id = fileIdentifier(name, identifiers); idFor.set(name, id); return id; };
@@ -445,7 +449,11 @@ export function codebaseImportDocument(
   for (const request of selection.derivedMaps ?? []) {
     const candidate = plan.mapCandidates.find((entry) => entry.id === request.id);
     if (!candidate) continue;
-    const document = tileMapFromCandidate(candidate, request.width, request.height);
+    /* One recovery that cannot be made must not cost the whole project. It is
+     * left out and named, and everything else still arrives. */
+    let document: ReturnType<typeof tileMapFromCandidate>;
+    try { document = tileMapFromCandidate(candidate, request.width, request.height); }
+    catch (error) { skipped.push(`${candidate.sourceFile} was not recovered as a map: ${error instanceof Error ? error.message : String(error)}`); continue; }
     let fileName = `${document.name}.map.json`;
     let counter = 2;
     while (used.has(fileName.toLowerCase())) { fileName = `${document.name}-${counter}.map.json`; counter += 1; }
@@ -459,7 +467,9 @@ export function codebaseImportDocument(
   for (const request of selection.derivedScreens ?? []) {
     const candidate = plan.screenCandidates.find((entry) => entry.id === request.id);
     if (!candidate || !candidate.modes.includes(request.mode)) continue;
-    const document = screenDocumentFromBytes(candidate.sourceLabel.slice(0, 80), request.mode, candidate.bytes);
+    let document: ReturnType<typeof screenDocumentFromBytes>;
+    try { document = screenDocumentFromBytes(candidate.sourceLabel.slice(0, 80), request.mode, candidate.bytes); }
+    catch (error) { skipped.push(`${candidate.sourceFile} was not recovered as a screen: ${error instanceof Error ? error.message : String(error)}`); continue; }
     let fileName = `${candidate.sourceLabel}.screen.json`;
     let counter = 2;
     while (used.has(fileName.toLowerCase())) { fileName = `${candidate.sourceLabel}-${counter}.screen.json`; counter += 1; }
@@ -513,6 +523,10 @@ export function codebaseImportDocument(
       ? plan.manifest.activeBuildTargetId
       : (buildTargets[0]?.id ?? 'import-default'),
     ...(plan.manifest ? { settings: plan.manifest.settings } : {}),
+    activeBuildTargetId: buildTargets[0]?.id ?? 'import-default',
+    /* Recoveries that were asked for and could not be made. The project parser
+     * ignores this field; the caller reads it and says so. */
+    importSkipped: skipped,
     testPlans: [],
     armBreakpoints: {}, armBreakpointGroups: {}, breakpoints6502: {}, breakpointGroups6502: {},
   };
@@ -529,6 +543,15 @@ export function projectFromCodebaseImport(
   selection: CodebaseImportSelection = {},
 ): LocalProject {
   return parseProject(JSON.stringify(codebaseImportDocument(plan, contents, selection)));
+}
+
+/** The recoveries an import was asked for and could not make, each with why. */
+export function skippedRecoveries(
+  plan: CodebaseImportPlan,
+  contents: ReadonlyMap<string, string>,
+  selection: CodebaseImportSelection = {},
+): string[] {
+  return codebaseImportDocument(plan, contents, selection).importSkipped;
 }
 
 /**

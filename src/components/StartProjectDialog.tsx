@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import { loadSampleProjects, sampleLocalProject, type SampleProject } from '../samples/sampleProjects';
-import { fittingGaps, overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, type CodebaseFileInput, type CodebaseImportOptions, type CodebaseImportPlan } from '../project/codebaseImport';
+import { fittingGaps, overrideTargetEntry, planCodebaseImport, projectFromCodebaseImport, skippedRecoveries, type CodebaseFileInput, type CodebaseImportOptions, type CodebaseImportPlan } from '../project/codebaseImport';
 import { directorySupport, pickDirectory, readDirectory, type FileSystemDirectoryHandleLike } from '../project/directoryAccess';
 import { archiveRefusalSummary, readZipArchive } from '../project/archiveImport';
 import { projectFromTemplate, templatesForMachine } from '../project/templateCatalogue';
@@ -221,9 +221,12 @@ export function StartProjectDialog({ onOpenProject, onClose, onNotice, machineId
         return Number.isInteger(width) && Number.isInteger(height) ? [{ id, width: width!, height: height! }] : [];
       });
       const derivedScreens = Object.entries(selectedScreens).map(([id, mode]) => ({ id, mode }));
-      const project = projectFromCodebaseImport(plan, contents, { derivedAssetIds: selectedAssets, derivedMaps, derivedScreens, projectName });
+      const selection = { derivedAssetIds: selectedAssets, derivedMaps, derivedScreens, projectName };
+      const project = projectFromCodebaseImport(plan, contents, selection);
+      const skipped = skippedRecoveries(plan, contents, selection);
       const from = connectedFolder ? `, connected to ${connectedFolder.name}` : '';
-      onOpenProject(project, `Created ${project.name} from ${plan.files.length} imported file${plan.files.length === 1 ? '' : 's'}${from}`, connectedFolder);
+      const left = skipped.length ? ` ${skipped.length} recover${skipped.length === 1 ? 'y was' : 'ies were'} left out: ${skipped.join('; ')}` : '';
+      onOpenProject(project, `Created ${project.name} from ${plan.files.length} imported file${plan.files.length === 1 ? '' : 's'}${from}.${left}`, connectedFolder);
     } catch (error) {
       onNotice(`The imported project could not be created: ${error instanceof Error ? error.message : String(error)}`);
     }
