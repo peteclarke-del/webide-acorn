@@ -131,3 +131,38 @@ describe('a song the project already holds', () => {
     expect(screen.queryByLabelText('Open a song from this project')).toBeNull();
   });
 });
+
+describe('a song for the BeebSID in the workspace', () => {
+  it('switches to three voices with a waveform and envelope each', () => {
+    renderWorkspace();
+    fireEvent.change(screen.getByLabelText('Sound hardware'), { target: { value: 'bbc-beebsid' } });
+    expect(stored().target).toBe('bbc-beebsid');
+    expect(stored().rows[0]).toHaveLength(3);
+    expect(stored().voices).toHaveLength(3);
+    expect(screen.getByRole('columnheader', { name: 'Voice 3' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Voice 1 waveform'), { target: { value: 'sawtooth' } });
+    fireEvent.change(screen.getByLabelText('Voice 1 attack'), { target: { value: '3' } });
+    expect(stored().voices![0]).toMatchObject({ waveform: 'sawtooth', attack: 3 });
+    expect(screen.getByLabelText('Voice 1 pulse width')).toBeDisabled();
+  });
+
+  it('names the note beside a pitch that sounds, and generates the chip writes', () => {
+    renderWorkspace();
+    fireEvent.change(screen.getByLabelText('Sound hardware'), { target: { value: 'bbc-beebsid' } });
+    fireEvent.change(screen.getByLabelText('Row 0 Voice 1 pitch'), { target: { value: '57' } });
+    fireEvent.change(screen.getByLabelText('Row 0 Voice 1 volume'), { target: { value: '12' } });
+    expect(screen.getByText('A-4')).toBeInTheDocument();
+    const generated = screen.getByLabelText('Generated song data and player');
+    expect(generated).toHaveTextContent('STA &FC24');
+    expect(generated).not.toHaveTextContent('JSR &FFF1');
+    expect(screen.getByLabelText('Generated song BASIC statements')).toHaveTextContent('CALL the generated player');
+  });
+
+  it('drops the voices again when the song goes back to the SN76489', () => {
+    renderWorkspace();
+    fireEvent.change(screen.getByLabelText('Sound hardware'), { target: { value: 'bbc-beebsid' } });
+    fireEvent.change(screen.getByLabelText('Sound hardware'), { target: { value: 'bbc-sn76489' } });
+    expect(stored().voices).toBeUndefined();
+    expect(screen.queryByLabelText('Voice 1 waveform')).toBeNull();
+  });
+});

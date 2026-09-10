@@ -43,7 +43,45 @@ export interface SongCell {
   volume: number;
 }
 
-export type SongTarget = 'bbc-sn76489' | 'atom-speaker' | 'electron-ula';
+export type SongTarget = 'bbc-sn76489' | 'atom-speaker' | 'electron-ula' | 'bbc-beebsid';
+
+/*
+ * A BeebSID song. The 6581 on the 1 MHz bus at &FC20 has three voices, each
+ * with a sixteen-bit frequency, a waveform, a pulse width and an ADSR
+ * envelope, and one master volume. A row gives each voice a note and a level:
+ * the note indexes a frequency table for the chip's 1 MHz clock, the level is
+ * the envelope's sustain, and a level of zero closes the gate. The waveform,
+ * the pulse width, the attack, the decay and the release belong to the voice
+ * and are set once for the song. A level that is not zero retriggers the
+ * note, so a note held across rows is written on every row it sounds.
+ */
+export const SID_VOICES = 3;
+export type SidWaveform = 'triangle' | 'sawtooth' | 'pulse' | 'noise';
+export interface SidVoiceSettings {
+  waveform: SidWaveform;
+  /** 0 to 4095; the pulse waveform's duty cycle, ignored by the others. */
+  pulseWidth: number;
+  attack: number;
+  decay: number;
+  release: number;
+}
+export const SID_WAVEFORM_BITS: Readonly<Record<SidWaveform, number>> = Object.freeze({ triangle: 0x10, sawtooth: 0x20, pulse: 0x40, noise: 0x80 });
+/**
+ * The last note the chip can play from a 1 MHz clock: A# in the seventh
+ * octave. The frequency register is sixteen bits, and B-7 needs seventeen.
+ */
+export const MAX_SID_NOTE = 94;
+export const SID_BASE = 0xfc20;
+
+/** The frequency register for a note, C-0 being 0 and A-4 being 57, at the 1 MHz clock BeebSID gives the chip. */
+export function sidFrequencyRegister(note: number): number {
+  const hertz = 440 * 2 ** ((note - 57) / 12);
+  return Math.round(hertz * 16_777_216 / 1_000_000);
+}
+
+export function defaultSidVoice(): SidVoiceSettings {
+  return { waveform: 'pulse', pulseWidth: 2048, attack: 0, decay: 9, release: 6 };
+}
 
 export interface SongTargetProfile {
   id: SongTarget;
@@ -72,6 +110,11 @@ export const SONG_TARGETS: readonly SongTargetProfile[] = Object.freeze([
     channelLabels: ['Tone'],
     detail: 'One ULA tone generator played through OSWORD 7 on channel 1; on or off, with no volume, no second voice and no noise channel a song can mix with it',
   },
+  {
+    id: 'bbc-beebsid', label: 'BBC · BeebSID 6581', channels: SID_VOICES, maxRows: MAX_SONG_ROWS, maxVolume: 15,
+    channelLabels: ['Voice 1', 'Voice 2', 'Voice 3'],
+    detail: 'Three voices on the 6581 at &FC20, each with its own waveform and envelope, written to the chip directly; a note is C-0 to A#-7 and a level is the envelope\'s sustain',
+  },
 ]);
 
 export function songTargetProfile(target: SongTarget): SongTargetProfile {
@@ -91,6 +134,8 @@ export interface SongDocument {
   zeroPageBase: number;
   /** rows[row][channel]. */
   rows: SongCell[][];
+  /** The three voices' waveforms and envelopes, present for a BeebSID song. */
+  voices?: SidVoiceSettings[];
   extensions: Record<string, unknown>;
 }
 
@@ -109,6 +154,7 @@ export function createSongDocument(name = 'untitled-song', rowCount = 16, target
     rowDuration: 10,
     zeroPageBase: 0x70,
     rows: Array.from({ length: Math.min(rowCount, songTargetProfile(target).maxRows) }, () => emptyRow(target)),
+    ...(target === 'bbc-beebsid' ? { voices: Array.from({ length: SID_VOICES }, () => defaultSidVoice()) } : {}),
     extensions: {},
   };
 }
@@ -122,7 +168,21 @@ export function createSongDocument(name = 'untitled-song', rowCount = 16, target
  */
 export function maximumPitch(channel: number, target: SongTarget = 'bbc-sn76489'): number {
   if (target === 'atom-speaker' || target === 'electron-ula') return MAX_PITCH;
+  if (target === 'bbc-beebsid') return MAX_SID_NOTE;
   return channel === 0 ? 7 : MAX_PITCH;
+}
+
+function parseSidVoice(value: unknown, voice: number): SidVoiceSettings {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Voice ${voice + 1} must be an object with a waveform, pulse width, attack, decay and release`);
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.waveform !== 'string' || !(candidate.waveform in SID_WAVEFORM_BITS)) throw new Error(`Voice ${voice + 1} waveform must be triangle, sawtooth, pulse or noise`);
+  const nibble = (name: 'attack' | 'decay' | 'release'): number => {
+    const level = candidate[name];
+    if (!Number.isInteger(level) || (level as number) < 0 || (level as number) > 15) throw new Error(`Voice ${voice + 1} ${name} must be a whole number from 0 to 15`);
+    return level as number;
+  };
+  if (!Number.isInteger(candidate.pulseWidth) || (candidate.pulseWidth as number) < 0 || (candidate.pulseWidth as number) > 4095) throw new Error(`Voice ${voice + 1} pulse width must be a whole number from 0 to 4095`);
+  return { waveform: candidate.waveform as SidWaveform, pulseWidth: candidate.pulseWidth as number, attack: nibble('attack'), decay: nibble('decay'), release: nibble('release') };
 }
 
 export function parseSongDocument(value: string | unknown): SongDocument {
@@ -157,7 +217,24 @@ export function parseSongDocument(value: string | unknown): SongDocument {
     });
   });
   const extensions = parsed.extensions && typeof parsed.extensions === 'object' && !Array.isArray(parsed.extensions) ? parsed.extensions as Record<string, unknown> : {};
-  return { schema: SONG_SCHEMA, version: 1, name: parsed.name.trim(), target, rowDuration: parsed.rowDuration as number, zeroPageBase: zeroPageBase as number, rows, extensions };
+  const document: SongDocument = { schema: SONG_SCHEMA, version: 1, name: parsed.name.trim(), target, rowDuration: parsed.rowDuration as number, zeroPageBase: zeroPageBase as number, rows, extensions };
+  if (target === 'bbc-beebsid') {
+    /* A SID song without its voices is given the default ones, so a document
+     * written before the voices existed still plays; a song for another chip
+     * carries none, because there is nothing for them to describe. */
+    const voices = parsed.voices === undefined ? Array.from({ length: SID_VOICES }, () => defaultSidVoice()) : parsed.voices;
+    if (!Array.isArray(voices) || voices.length !== SID_VOICES) throw new Error(`A BeebSID song has exactly ${SID_VOICES} voices`);
+    document.voices = voices.map((voice, index) => parseSidVoice(voice, index));
+  }
+  return document;
+}
+
+/** Change one voice's waveform or envelope in a BeebSID song. */
+export function setSidVoice(document: SongDocument, voice: number, settings: Partial<SidVoiceSettings>): SongDocument {
+  const validated = parseSongDocument(document);
+  if (validated.target !== 'bbc-beebsid' || !validated.voices) throw new Error('Only a BeebSID song has voices to set');
+  if (!Number.isInteger(voice) || voice < 0 || voice >= SID_VOICES) throw new Error('That voice is not on the chip');
+  return parseSongDocument({ ...validated, voices: validated.voices.map((current, index) => index === voice ? { ...current, ...settings } : current) });
 }
 
 export function serializeSongDocument(document: SongDocument): string {
@@ -232,13 +309,20 @@ export function generateSongOutput(document: SongDocument): SongOutput {
   const profile = songTargetProfile(validated.target);
   const label = songLabel(validated.name);
   const header = [validated.rows.length, profile.channels, validated.rowDuration];
-  const data = validated.rows.flatMap((row) => row.flatMap((cell) => [cell.pitch, cell.volume]));
-  const bytes = Uint8Array.from([...header, ...data]);
+  const sid = validated.target === 'bbc-beebsid';
+  /* A SID row is padded to eight bytes so the row offset is a shift, as it is
+   * for the other chips; three voices would make it six, and six is not a
+   * power of two. */
+  const rowBytes = (row: SongCell[]) => sid ? [...row.flatMap((cell) => [cell.pitch, cell.volume]), 0, 0] : row.flatMap((cell) => [cell.pitch, cell.volume]);
+  const data = validated.rows.flatMap(rowBytes);
+  const voices = validated.voices ?? [];
+  const voiceBytes = voices.flatMap((voice) => [SID_WAVEFORM_BITS[voice.waveform], voice.pulseWidth & 0xff, (voice.pulseWidth >> 8) & 0x0f, (voice.attack << 4) | voice.decay, voice.release]);
+  const bytes = Uint8Array.from([...header, ...data, ...voiceBytes]);
   const pointer = validated.zeroPageBase;
   const pointerHigh = validated.zeroPageBase + 1;
   const channelCounter = validated.zeroPageBase + 2;
   const offsetHigh = validated.zeroPageBase + 3;
-  const stride = profile.channels * 2;
+  const stride = sid ? 8 : profile.channels * 2;
 
   const preamble = [
     `; Generated song ${validated.name} · ${validated.rows.length} rows for ${profile.label}`,
@@ -248,13 +332,29 @@ export function generateSongOutput(document: SongDocument): SongOutput {
     `.${label}`,
     `EQUB ${header.map(hex).join(', ')} ; rows, channels, row duration`,
     `.${label}_data`,
-    ...validated.rows.map((row, index) => `EQUB ${row.flatMap((cell) => [hex(cell.pitch), hex(cell.volume)]).join(', ')} ; row ${index}`),
+    ...validated.rows.map((row, index) => `EQUB ${rowBytes(row).map(hex).join(', ')} ; row ${index}`),
+    ...(sid ? [
+      '; Each voice: waveform bits, pulse width low and high, attack and decay, release.',
+      `.${label}_voices`,
+      ...voices.map((voice, index) => `EQUB ${voiceBytes.slice(index * 5, index * 5 + 5).map(hex).join(', ')} ; voice ${index + 1}, ${voice.waveform}`),
+    ] : []),
     '',
-    '; Rewind to the first row.',
-    `.${label}_reset`,
-    '  LDA #0',
-    `  STA ${label}_row`,
-    '  RTS',
+    ...(sid ? [
+      '; Rewind to the first row, open the master volume and close every gate.',
+      `.${label}_reset`,
+      '  LDA #0',
+      `  STA ${label}_row`,
+      '  LDA #&0F',
+      `  STA &${(SID_BASE + 0x18).toString(16).toUpperCase()}`,
+      ...voices.flatMap((voice, index) => [`  LDA #${hex(SID_WAVEFORM_BITS[voice.waveform])}`, `  STA &${(SID_BASE + index * 7 + 4).toString(16).toUpperCase()}`]),
+      '  RTS',
+    ] : [
+      '; Rewind to the first row.',
+      `.${label}_reset`,
+      '  LDA #0',
+      `  STA ${label}_row`,
+      '  RTS',
+    ]),
     '',
   ];
 
@@ -441,13 +541,89 @@ export function generateSongOutput(document: SongDocument): SongOutput {
     '  SKIP 8',
   ];
 
+  /*
+   * The SID's player writes the chip directly, one voice after another, with
+   * the voice's registers named as constants: the base is &FC20 and each voice
+   * has seven registers. A level of zero closes the gate and leaves the
+   * waveform, so the release runs; a level that is not zero writes the note's
+   * frequency, the voice's pulse width and envelope, the level as sustain,
+   * and closes then opens the gate so a repeated note retriggers. The
+   * frequency tables follow the player: one byte each of low and high for
+   * every note the chip can play from a 1 MHz clock.
+   */
+  const register = (voice: number, offset: number) => `&${(SID_BASE + voice * 7 + offset).toString(16).toUpperCase()}`;
+  const sidPlayer = [
+    '; Play the current row and advance. Carry set means the song has finished.',
+    `; The chip is at &${SID_BASE.toString(16).toUpperCase()}; each voice has seven registers from its base.`,
+    `.${label}_play_row`,
+    `  LDA ${label}_row`,
+    `  CMP ${label}`,
+    `  BCC ${label}_play_go`,
+    '  SEC',
+    '  RTS',
+    `.${label}_play_go`,
+    ...pointerSetup,
+    ...voices.flatMap((voice, index) => {
+      const wave = SID_WAVEFORM_BITS[voice.waveform];
+      return [
+        `; Voice ${index + 1}.`,
+        `  LDY #${index * 2}`,
+        `  LDA (${hex(pointer)}),Y`,
+        '  TAX',
+        '  INY',
+        `  LDA (${hex(pointer)}),Y`,
+        `  BNE ${label}_v${index + 1}_on`,
+        `  LDA #${hex(wave)}`,
+        `  STA ${register(index, 4)}`,
+        `  JMP ${label}_v${index + 1}_done`,
+        `.${label}_v${index + 1}_on`,
+        '  ASL A',
+        '  ASL A',
+        '  ASL A',
+        '  ASL A',
+        `  ORA #${hex(voice.release)}`,
+        `  STA ${register(index, 6)}`,
+        `  LDA #${hex((voice.attack << 4) | voice.decay)}`,
+        `  STA ${register(index, 5)}`,
+        `  LDA ${label}_freq_lo,X`,
+        `  STA ${register(index, 0)}`,
+        `  LDA ${label}_freq_hi,X`,
+        `  STA ${register(index, 1)}`,
+        `  LDA #${hex(voice.pulseWidth & 0xff)}`,
+        `  STA ${register(index, 2)}`,
+        `  LDA #${hex((voice.pulseWidth >> 8) & 0x0f)}`,
+        `  STA ${register(index, 3)}`,
+        `  LDA #${hex(wave)}`,
+        `  STA ${register(index, 4)}`,
+        `  LDA #${hex(wave | 1)}`,
+        `  STA ${register(index, 4)}`,
+        `.${label}_v${index + 1}_done`,
+      ];
+    }),
+    `  INC ${label}_row`,
+    '  CLC',
+    '  RTS',
+    '',
+    `.${label}_row`,
+    '  SKIP 1',
+    '',
+    `; The frequency register for each note at the 1 MHz clock, C-0 to A#-7.`,
+    `.${label}_freq_lo`,
+    ...Array.from({ length: Math.ceil((MAX_SID_NOTE + 1) / 16) }, (_, block) => `EQUB ${Array.from({ length: Math.min(16, MAX_SID_NOTE + 1 - block * 16) }, (__, index) => hex(sidFrequencyRegister(block * 16 + index) & 0xff)).join(', ')}`),
+    `.${label}_freq_hi`,
+    ...Array.from({ length: Math.ceil((MAX_SID_NOTE + 1) / 16) }, (_, block) => `EQUB ${Array.from({ length: Math.min(16, MAX_SID_NOTE + 1 - block * 16) }, (__, index) => hex(sidFrequencyRegister(block * 16 + index) >> 8)).join(', ')}`),
+  ];
+
   const player = validated.target === 'atom-speaker' ? atomPlayer
     : validated.target === 'electron-ula' ? electronPlayer
-      : bbcPlayer;
+      : sid ? sidPlayer
+        : bbcPlayer;
   const assembly = [...preamble, ...player].join('\n');
 
   const basic = validated.target === 'atom-speaker'
     ? '; The Atom has no SOUND statement; use the generated machine-code player.'
+    : sid
+    ? 'REM BASIC has no statement for the SID. CALL the generated player once a row, or poke &FC20 to &FC38 yourself.'
     : validated.target === 'electron-ula'
     ? validated.rows
       .flatMap((row, index) => (row[0]!.volume
