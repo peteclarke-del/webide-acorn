@@ -261,6 +261,12 @@ export interface DiskSetResolvedEntry {
   executionAddress: number;
 }
 
+/** The lines of a text file as the machine reads them: *EXEC and *TYPE take
+ * a carriage return as the end of a line, and a project file has line feeds. */
+export function machineTextBytes(content: string): Uint8Array {
+  return new TextEncoder().encode(content.replace(/\r\n|\r|\n/g, '\r'));
+}
+
 export interface BuiltDiskSetDisc {
   discId: string;
   label: string;
@@ -281,10 +287,19 @@ export interface BuiltDiskSet {
  * The text of a generated `!BOOT` file: one `*RUN` per named entry, in order.
  * It is plain text with carriage returns, which is what `*EXEC` reads.
  */
-export function generatedBootText(side: DiskSetSide): string {
+/**
+ * The !BOOT a side generates. A side with a BASIC program on it is a loader
+ * disc: the first BASIC program is CHAINed and does the rest, since *RUN on a
+ * BASIC program is an error. Otherwise every other file is *RUN in order.
+ * `basicEntryIds` names the entries whose bytes are BASIC programs.
+ */
+export function generatedBootText(side: DiskSetSide, basicEntryIds: ReadonlySet<string> = new Set()): string {
+  const named = (entry: DiskSetEntry) => `${entry.directory === '$' || !entry.directory ? '' : `${entry.directory}.`}${entry.name}`;
+  const loader = side.entries.find((entry) => entry.source.kind !== 'generated-boot' && basicEntryIds.has(entry.id));
+  if (loader) return `CHAIN "${named(loader)}"\r`;
   const commands = side.entries
     .filter((entry) => entry.source.kind !== 'generated-boot')
-    .map((entry) => `*RUN ${entry.directory === '$' || !entry.directory ? '' : `${entry.directory}.`}${entry.name}`);
+    .map((entry) => `*RUN ${named(entry)}`);
   return commands.length ? `${commands.join('\r')}\r` : '*ECHO No files on this side\r';
 }
 

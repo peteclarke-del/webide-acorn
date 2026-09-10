@@ -12,6 +12,17 @@ describe('BBC BASIC II tokeniser adapter', () => {
       '10 MODE 7', '20 PRINT "GOTO 100"', '30 GOTO 100', '40 REM PRINT remains text', '100 END',
     ]);
   });
+  it('leaves an operating system command as typed, since BASIC hands it to OSCLI and a token there is a bad command', () => {
+    const artifact = tokenizeBasic('10 *LOAD LSCREEN FFFF5800\n20 MODE 5:*RUN FIREW\n30 PRINT "*LOAD stays a string"\n40 X=2*LOAD');
+    expect(artifact.diagnostics).toEqual([]);
+    const text = (from: number, to: number) => String.fromCharCode(...artifact.bytes.slice(from, to));
+    expect(text(4, 4 + '*LOAD LSCREEN FFFF5800'.length)).toBe('*LOAD LSCREEN FFFF5800');
+    expect(decodeTokenizedBasic(artifact.bytes)?.lines.map((line) => line.source)).toEqual(['*LOAD LSCREEN FFFF5800', 'MODE 5:*RUN FIREW', 'PRINT "*LOAD stays a string"', 'X=2*LOAD']);
+    /* MODE before the colon is still a token, and a star inside an expression is still an operator with a keyword after it. */
+    expect(artifact.bytes).toContain(0xeb);
+    const lastLine = artifact.bytes.slice(artifact.bytes.lastIndexOf(0x0d, artifact.bytes.length - 3));
+    expect(Array.from(lastLine)).toContain(0xc8);
+  });
   it('uses the protected line-number encoding expected by the decoder', () => {
     const bytes = encodeLineReference(32767);
     const artifact = Uint8Array.from([0x0d, 0, 10, 9, 0xe5, ...bytes, 0x0d, 0xff]);

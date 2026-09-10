@@ -25,7 +25,7 @@ ROM images you own and supply.
 | --- | --- | --- | --- | --- | --- | --- |
 | Acorn Atom | MOS 6502 @ 1 MHz | 2-12 KB base RAM | Runnable | jsbeeb 1.19.1 | 3 | 2 |
 | Acorn BBC Model A | MOS 6502A @ 2 MHz | 16 KB RAM | Described | no ROM manifest registered here | 2 | 2 |
-| Acorn BBC Model B | MOS 6502A @ 2 MHz | 32 KB RAM | Runnable | jsbeeb 1.19.1 | 3 | 3 |
+| Acorn BBC Model B | MOS 6502A @ 2 MHz | 32 KB RAM | Runnable | jsbeeb 1.19.1 | 3 | 4 |
 | Acorn BBC B+ | MOS 6502A @ 2 MHz | 64 or 128 KB RAM | Runnable | jsbeeb 1.19.1 | 2 | 2 |
 | Acorn Electron | MOS 6502A @ 2 MHz variable | 32 KB shared RAM | Runnable | elkjs ff123355 | 3 | 2 |
 | BBC Master Series | WDC 65C12 @ 2 MHz | 128 KB base RAM | Runnable | jsbeeb 1.19.1 | 4 | 3 |

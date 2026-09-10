@@ -6356,6 +6356,102 @@ Current implemented increment:
     records it and `src/assets/sidSong.test.ts` holds the measurement, the
     model the player is written to, and the source the generator emits to each
     other. Five document contracts and three workspace contracts beside it.
+- [x] AST-634 A screen document could only be built in whole: 10,240 bytes
+  for a MODE 5 title beside a program of 12 kilobytes below a screen at &5800
+  does not fit, and loading it from the disc each time hangs a machine that
+  has no disc in the drive, which is what the workbench's own run path is.
+  - [x] INCLUDESCREEN takes RLE after the name and emits the screen
+    run-length packed, a count then a byte with a zero count at the end,
+    under `screen_<name>_rle`; a title that is mostly one colour is a few
+    hundred bytes, and a dozen instructions unpack it.
+  - [x] Evidence: `src/assets/screenDocument.test.ts` packs and unpacks a
+    frame buffer and checks the label and the stated size;
+    `src/build/projectAssembler6502.test.ts` assembles both forms.
+- [x] BLD-332 The browser assembler had no EQUD. An OSFILE control block
+  carries a load address as four bytes, and on a machine with a second
+  processor a host program has to say &FFFF5800 there, which is not a word.
+  - [x] EQUD emits little-endian double words, with a 32-bit range check, and
+    the language service offers it.
+  - [x] Evidence: `src/build/assembler6502.test.ts` assembles
+    `EQUD &FFFF5800, 1` and refuses `&100000000` by name.
+- [x] BLD-334 EQUS read its whole operand as one string, so
+  `EQUS "USING KEYS", 0` emitted the closing quote, the comma and the space
+  as text and no terminator, and a text routine drawing from it ran on into
+  the strings after it. BeebAsm's EQUS takes strings and bytes together.
+  - [x] EQUS and TEXT take the list EQUB takes.
+  - [x] Evidence: `src/build/assembler6502.test.ts` assembles a string with
+    its terminator and a string holding a comma.
+- [x] BLD-333 The BASIC tokeniser tokenised keywords inside an operating
+  system command, so `*LOAD LSCREEN FFFF5800` reached the command line
+  interpreter with a token byte in it and was refused as Bad command. BASIC
+  hands a statement that begins with a star to OSCLI as typed.
+  - [x] A statement's leading star makes the rest of the line literal, as
+    REM does; a star inside an expression is still an operator and the
+    keyword after it is still a keyword.
+  - [x] Evidence: `src/build/basicTokeniser.test.ts` keeps `*LOAD`, `*RUN`
+    after a colon and a starred string as text, and still tokenises `2*LOAD`.
+- [x] MED-310 A disc for a game with a second processor could not be made
+  from a disk set. A host program's file needs &FFFF in the top half of its
+  addresses, so the filing system loads and runs it on the host rather than
+  sending it across the Tube; the set wrote the bare origin. A BASIC loader
+  was not offered at all, since only machine code counted as an artifact. A
+  generated boot file ran every file with *RUN, which on a BASIC program is
+  an error. A text file from the project went on the disc with line feeds,
+  which *EXEC does not read as line ends. And a written image could only be
+  downloaded, not put in the machine that was right there.
+  - [x] On a machine with the Tube fitted, a host target's file is given
+    &FFFF in its top half and a parasite target's is not; a BASIC artifact
+    goes on with conventional addresses. A generated boot file CHAINs the
+    first BASIC program on the side when there is one. Project text goes on
+    with carriage returns. Write and mount writes the first disc into drive
+    0 of the connected machine.
+  - [x] Evidence: `src/media/diskSet.test.ts` for the boot file and the line
+    endings; `docs/guide/media.md` names the controls.
+- [x] EMU-436 The machine could be reset but not booted: Shift+Break, which
+  is how an 8-bit Acorn starts the disc in drive 0, had no control and no
+  command.
+  - [x] Boot from disc, in the runtime toolbar and the command palette, is a
+    hard reset with Shift held for four seconds of wall time, which on a
+    Model B that also starts a second processor is past the moment the
+    filing system reads the key.
+  - [x] Evidence: `holdShiftThroughBoot` in `src/emulator/runtime.ts`, and
+    the disk-set workflow in `docs/guide/media.md`, which names the control;
+    the boot itself is driven by the FireWing demonstration outside this
+    repository, which boots a DFS disc on a Model B with a 65C102.
+- [x] DBG-548 The Tube panel vanished for a render on every snapshot. The
+  runtime sends the machine snapshot and the Tube state as two messages, and
+  the snapshot replaced the whole state, so between the two the state had no
+  Tube: the panel and its Step parasite control disappeared and came back,
+  anything reading the parasite's program counter saw it go and come back,
+  which had the debugger re-sending its breakpoints on every snapshot, their
+  hit counts never rose, and a stop on the parasite lost its source line.
+  - [x] A snapshot carries the last Tube state seen until the next arrives.
+  - [x] The screenshot tooling reports what a page evaluation threw rather
+    than the word Uncaught, which is how this was found.
+  - [x] Evidence: the FireWing demonstration's Tube panel names the line at
+    the load and at the stop, and steps, without a retry; a unit test of the
+    merge is DBG-549.
+- [ ] DBG-549 A test that the bridge keeps the Tube state across a snapshot,
+  so DBG-548 cannot come back unseen.
+- [x] EMU-437 A Model B with the 1770 board could only boot ADFS. The one
+  1770 ROM set put ADFS ahead of the DFS, so Shift+Break on a DFS disc gave
+  Disc error 2C, and the other Model B set is the 8271 with DFS 0.9, which
+  is a different machine.
+  - [x] A second 1770 ROM set with the same ROMs and the DFS first, so a
+    DFS disc boots and *ADFS is still there; the machine setup offers both
+    and says which filing system boots.
+  - [x] Evidence: `src/rom/romProfiles.test.ts` checks the two sets share
+    their ROMs and differ in the model.
+- [x] PRJ-209 A folder project lost its disk sets: the manifest carried the
+  machine, the targets and the settings but not the discs, so a project that
+  had been written as a folder came back with no disc to make.
+  - [x] The manifest carries the disk sets, naming a project file by its
+    name where the project names it by id, and an entry whose file is not in
+    the folder is left out and named on import rather than written as a disc
+    missing a file it declares.
+  - [x] Evidence: `src/project/projectManifest.test.ts` reads, maps and
+    round-trips a set with a generated boot file, a build target and a
+    project file.
 - [x] EMU-435 A source line in a second-processor program could not be stopped
   at. The pinned core gives the host an instruction hook, which is what every
   breakpoint is built on, but the parasite's own execute loop never consults

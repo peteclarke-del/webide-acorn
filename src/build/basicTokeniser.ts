@@ -73,9 +73,18 @@ export function tokenizeBasic(source: string): BasicArtifact {
 
 function tokenizeBody(source: string): number[] {
   const output: number[] = []; let position = 0; let quoted = false; let literalTail = false; let expectsLine = false;
+  /* A statement that begins with a star is an operating system command, and
+   * BASIC hands the rest of the line to OSCLI as typed. Tokenising it turned
+   * *LOAD into a token byte the command line interpreter called Bad command. */
+  let statementStart = true;
   while (position < source.length) {
     const character = source[position]!;
-    if (character === '"') { quoted = !quoted; output.push(0x22); position += 1; continue; }
+    if (character === '"') { quoted = !quoted; output.push(0x22); position += 1; statementStart = false; continue; }
+    if (!quoted && !literalTail && character === '*' && statementStart) { literalTail = true; output.push(0x2a); position += 1; continue; }
+    if (!quoted && !literalTail) {
+      if (character === ':') statementStart = true;
+      else if (!/\s/.test(character)) statementStart = false;
+    }
     if (!quoted && !literalTail && expectsLine) {
       const whitespace = source.slice(position).match(/^\s*/)?.[0] ?? '';
       output.push(...Array.from(whitespace).map((item) => item.charCodeAt(0))); position += whitespace.length;

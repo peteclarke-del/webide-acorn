@@ -119,7 +119,8 @@ export const machineProfiles: MachineProfile[] = [
     variants: ['Model B · 8271 DFS', 'Model B · 1770 DFS', 'Model B · cassette'],
     roms: [
       { id: 'os12-basic2-dfs', label: 'OS 1.20 + BASIC II + DFS 0.90', detail: 'Canonical development set' },
-      { id: 'os12-basic2-adfs', label: 'OS 1.20 + BASIC II + ADFS', detail: '1770 storage profile' },
+      { id: 'os12-basic2-adfs', label: 'OS 1.20 + BASIC II + ADFS', detail: '1770 storage profile, ADFS boots' },
+      { id: 'os12-basic2-dfs1770', label: 'OS 1.20 + BASIC II + 1770 DFS', detail: '1770 storage profile, DFS boots' },
       { id: 'os12-basic1', label: 'OS 1.20 + BASIC I + DFS 0.90', detail: 'Compatibility profile: the same machine with the earlier BASIC' },
     ],
     capabilities: [

@@ -8,7 +8,7 @@
  * byte is offered. */
 import { MAX_PROJECT_SOURCE_BYTES, MAX_SOURCE_FILE_BYTES, sourceUtf8ByteLength } from '../editor/sourceTextFormat';
 import { DEFAULT_TARGET, languageForFilename, parseProject, PROJECT_FORMAT, type LocalProject, type ProjectFile, type ProjectTarget, type SourceLanguage } from './project';
-import { PROJECT_MANIFEST_FILENAME, buildTargetsFromManifest, parseProjectManifest, type ProjectManifest } from './projectManifest';
+import { PROJECT_MANIFEST_FILENAME, buildTargetsFromManifest, diskSetsFromManifest, parseProjectManifest, type ProjectManifest } from './projectManifest';
 import { BUILD_TARGET_SCHEMA, defaultToolchainId, toolchainFor, type ToolchainId } from '../build/buildTarget';
 import { asciiMapGrid } from '../assets/asciiTileMap';
 import { detectPlatform, type DetectedPlatform } from './platformDetection';
@@ -480,6 +480,8 @@ export function codebaseImportDocument(
    * source. The proposal is a guess about a codebase that arrived without a
    * description; a manifest is the description. */
   const fromManifest = plan.manifest ? buildTargetsFromManifest(plan.manifest, idFor) : null;
+  const manifestDiskSets = plan.manifest ? diskSetsFromManifest(plan.manifest, idFor) : null;
+  for (const entry of manifestDiskSets?.dropped ?? []) skipped.push(`Disk set entry left out: ${entry}`);
   const buildTargets: Array<Record<string, unknown>> = fromManifest && fromManifest.targets.length
     ? fromManifest.targets
     : plan.targets.map((target) => ({
@@ -523,6 +525,7 @@ export function codebaseImportDocument(
       ? plan.manifest.activeBuildTargetId
       : (buildTargets[0]?.id ?? 'import-default'),
     ...(plan.manifest ? { settings: plan.manifest.settings } : {}),
+    ...(manifestDiskSets ? { diskSets: manifestDiskSets.diskSets } : {}),
     /* Recoveries that were asked for and could not be made. The project parser
      * ignores this field; the caller reads it and says so. */
     importSkipped: skipped,

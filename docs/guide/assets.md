@@ -157,6 +157,7 @@ Draw or import a full screen for a chosen display mode, edit it with a rectangul
 
 - Importing reduces colours and cannot invent detail the mode cannot hold; a photograph in a two-colour mode will look like a two-colour picture.
 - The editor produces screen data and the INCLUDESCREEN directive. Setting the mode and displaying the data is the program's job.
+- INCLUDESCREEN with RLE after the name emits the screen run-length packed, as a count of 1 to 255 then the byte with a zero count at the end, under a label ending in `_rle`. A title screen that is mostly one colour packs to a few hundred bytes and can sit beside the program that unpacks it, where the whole screen would not fit.
 - The preview uses the project palette. It is not a frame captured from a running machine, and only the emulator's own capture is that.
 
 **If it goes wrong**

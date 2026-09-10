@@ -10,6 +10,7 @@ import {
   diskSetSideQuota,
   diskSetSummary,
   generatedBootText,
+  machineTextBytes,
   validateDiskSet,
   type DiskSetResolvedEntry,
 } from './diskSet';
@@ -185,6 +186,31 @@ describe('disk sets', () => {
       }],
     });
     expect(generatedBootText(set.discs[0]!.sides[0]!)).toBe('*RUN GAME\r*RUN M.MUSIC\r');
+  });
+
+  it('generates a boot file that CHAINs the BASIC loader when the side has one, since *RUN on BASIC is an error', () => {
+    const set = validateDiskSet({
+      ...singleSided,
+      discs: [{
+        ...singleSided.discs[0],
+        sides: [{
+          title: 'X',
+          entries: [
+            { id: 'boot', name: '!BOOT', source: { kind: 'generated-boot' } },
+            entry('a', 'LOADER'),
+            entry('b', 'GAME', 'game'),
+          ],
+          boot: { action: 'exec', entryId: 'boot' },
+        }],
+      }],
+    });
+    expect(generatedBootText(set.discs[0]!.sides[0]!, new Set(['a']))).toBe('CHAIN "LOADER"\r');
+    /* Told nothing is BASIC, it runs everything as before. */
+    expect(generatedBootText(set.discs[0]!.sides[0]!)).toBe('*RUN LOADER\r*RUN GAME\r');
+  });
+
+  it('writes a text file with the carriage returns the machine reads lines by', () => {
+    expect(Array.from(machineTextBytes('*BASIC\nCHAIN "L"\r\nEND\r'))).toEqual(Array.from(new TextEncoder().encode('*BASIC\rCHAIN "L"\rEND\r')));
   });
 
   it('summarises the whole set in one line', () => {

@@ -151,3 +151,23 @@ describe('palette and font inclusion', () => {
       .diagnostics.map((item) => item.message).join(' ')).toMatch(/Font generation failed/);
   });
 });
+
+describe('INCLUDESCREEN', () => {
+  const screen = JSON.stringify({ schema: '8bit-net.screen', version: 1, name: 'title', mode: 'bbc-mode-5', framebufferBase64: Buffer.from(new Uint8Array(10240)).toString('base64') });
+  it('emits the frame buffer, or with RLE the packed form the program unpacks', () => {
+    const files = [
+      { id: 'main.asm', name: 'main.asm', content: 'ORG &1900\nINCLUDESCREEN "title.screen.json"\n' },
+      { id: 'packed.asm', name: 'packed.asm', content: 'ORG &1900\nINCLUDESCREEN "title.screen.json" RLE\n' },
+      { id: 'title.screen.json', name: 'title.screen.json', content: screen },
+    ];
+    const whole = assembleProject6502('main.asm', files, '6502', { defaultOrigin: 0x1900, machineId: 'bbc-b' });
+    expect(whole.diagnostics.filter((item) => item.severity === 'error')).toEqual([]);
+    expect(whole.bytes.length).toBe(10240);
+    expect(whole.symbols.SCREEN_TITLE).toBe(0x1900);
+    const packed = assembleProject6502('packed.asm', files, '6502', { defaultOrigin: 0x1900, machineId: 'bbc-b' });
+    expect(packed.diagnostics.filter((item) => item.severity === 'error')).toEqual([]);
+    expect(packed.bytes.length).toBe(Math.ceil(10240 / 255) * 2 + 1);
+    expect(packed.symbols.SCREEN_TITLE_RLE).toBe(0x1900);
+    expect(packed.symbols.SCREEN_TITLE).toBeUndefined();
+  });
+});
