@@ -33,10 +33,11 @@ to be performed rather than as intentions: `docs/operations.md`.
 Facts about a machine that somebody writes a program against are generated the
 same way, from a catalogue of what the machine itself answered rather than from
 a table typed out once: `docs/bbc-screen-modes.md` is every BBC screen mode with
-its resolution, colours, memory and what is left for a program, and
+its resolution, colours, memory and what is left for a program,
 `docs/tube-processors.md` is every second processor a Tube can carry with which
-of them run here. A contract test fails the moment either stops matching the
-catalogue it came from.
+of them run here, and `docs/frame-budget.md` is what the machine can put on
+screen in one frame, which is the number a game design starts from. A contract
+test fails the moment any of them stops matching the catalogue it came from.
 
 ## System context
 

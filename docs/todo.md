@@ -6085,6 +6085,30 @@ Current implemented increment:
   - [x] Evidence: `scripts/measureTubeParasite.mjs` boots all four,
     `src/emulator/tubeParasiteMeasurements.ts` records what each said, and
     eleven tests hold the choice and the catalogues to them.
+- [x] EMU-434 Measure what the machine can put on screen in one frame, so a
+  game is designed against a number rather than an argument.
+  - [x] Five routines were run on a Model B under the pinned core and the
+    emulator counted their cycles. A store to the screen costs 5.59 cycles a
+    byte, a copy from host memory 9.70, and a byte pulled across the Tube 9.31.
+    Two 6845 register writes, which is the whole of a hardware scroll, cost 35
+    cycles. Reloading all sixteen NuLA colours costs 208.
+  - [x] The finding the architecture rests on is that the Tube is not a
+    bottleneck for pixels. A byte arriving from the second processor is cheaper
+    than one already in host memory, because a read from a fixed address needs
+    no index, so composing a frame on the parasite is never worse than
+    composing it locally and the composition itself is then free. Anything that
+    can be computed rather than fetched belongs on the parasite.
+  - [x] No mode can be fully redrawn in one frame, in any mode, even as a flat
+    fill. At half rate a ten-kilobyte mode is 84 per cent affordable and a
+    twenty-kilobyte one is 42 per cent, which is what decides between them.
+  - [x] The hardware scroll and the NuLA palette are both free. 192 full
+    palette reloads fit in one frame, which is more than a screen has
+    scanlines, so a four-colour mode can carry a different four colours on
+    every band. That turns MODE 5's limit into a per-band limit rather than a
+    screen limit, and makes it worth more than its colour count suggests.
+  - [x] Evidence: `scripts/measureFrameBudget.mjs` reproduces all five,
+    `src/emulator/frameBudgetMeasurements.ts` records them, `docs/frame-budget.md`
+    is generated from that catalogue, and ten tests hold both to it.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
   - [x] Which ones there are is written down rather than left to be asked. A
     Tube takes whatever is plugged into it, Acorn sold four processors for one,
