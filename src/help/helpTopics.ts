@@ -2283,6 +2283,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "On a Model B, supply the Tube host ROM as well. The vault asks for it as soon as a Tube is switched on.",
       "Start the machine and read the first line it prints.",
       "Open the Debugger and use Focus host and Focus parasite to see the two register sets.",
+      "To stop the second processor at a line of its own program, make the second-processor target the active one, put a breakpoint on the line, and use Build and debug. The Tube panel shows where the parasite stopped, with its source line, and Step parasite runs the host until the parasite has executed one more instruction.",
     ],
     expected: [
       "A 6502 parasite prints Acorn TUBE 6502 64K and a 65C102 prints Acorn TUBE 65C102 Co-Processor. The banner comes from the parasite's own ROM, so it says which one is running.",
@@ -3649,6 +3650,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "For an address, opcode, exact memory read or write, or IRQ/NMI-transition event stop, open Hardware trace and configure a trigger. Set pre and post records, then choose whether to pause when that bounded window completes.",
       "For a frame, sync, mode, palette or supported beam-position stop, open Raster timeline, select the event or coordinates, and start capture. The high-overhead hook removes itself when capture stops.",
       "Inspect mapped CPU memory or physical RAM, ROM and bank views.",
+      "A breakpoint put on while the active target runs on the second processor is a parasite breakpoint: it stops the whole machine at that parasite instruction, the Tube panel names the source line, and Step parasite advances the parasite by one instruction. The two processors have separate address spaces, so a parasite breakpoint at an address says nothing about the host's.",
       "When a qualified 6502 Tube profile is selected, use Focus host and Focus parasite to distinguish the two live register sets. Compare the parasite logical CPU view with its physical RAM backing. Boot ROM overlay bytes appear only in the logical view.",
       "Use the dual address map to compare host and parasite regions and their live PC markers. The parasite map changes its ROM overlay regions when the core unpages the boot ROM.",
       "In Parasite memory inspector choose Logical CPU view, Physical RAM backing or Physical boot ROM. Set a bounded address and length, then Read, page, change columns or radix, search, snapshot, copy or export the exact returned bytes.",

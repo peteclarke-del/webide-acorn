@@ -11,6 +11,7 @@ import { UNCAPTURED_READING, resolveAudioDigest, resolveAudioSpeaker } from './a
 import { BrowserAudio } from './browserAudio';
 import { CommandSequence } from './commandSequence';
 import { breakpointMatches, renderBreakpointLog, validateBreakpointSpec, type BreakpointSpec } from './breakpointModel';
+import { fitParasiteInstructionHooks, type ParasiteHooks, type ParasiteProcessor } from './parasiteHooks';
 import { commandBelongsToSession, type DebugCapability, type DebugCommandAudit, type DebugProtocolSnapshot } from './debugProtocol';
 import { validateWatchpointSpec, watchpointKey, watchpointMatches, type WatchpointSpec } from './watchpointModel';
 import { validateRegisterPatch, type Editable6502Register } from './registerEditModel';
@@ -83,6 +84,22 @@ let trace: Array<{ address: number; instruction: string; bytes: number[] }> = []
 interface InstalledBreakpoint { hook: JsBeebDebugHookHandle; spec: BreakpointSpec; hits: number }
 interface BreakpointLogEntry { sequence: number; address: number; hits: number; message: string }
 const breakpointHooks = new Map<number, InstalledBreakpoint>();
+/*
+ * The second processor's breakpoints, source map and symbols, kept apart from
+ * the host's because the two have separate address spaces: &0800 on one says
+ * nothing about &0800 on the other. The hooks are fitted when a machine with
+ * a Tube is built (parasiteHooks.ts says why the core's own loop cannot take
+ * them), and every parasite breakpoint is one of those hooks.
+ */
+let parasiteHooks: ParasiteHooks | null = null;
+interface InstalledParasiteBreakpoint { remove: () => void; spec: BreakpointSpec; hits: number }
+const parasiteBreakpoints = new Map<number, InstalledParasiteBreakpoint>();
+let parasiteSourceLocations: Record<number, TraceSourceLocation> = {};
+let parasiteSymbols: Record<number, string> = {};
+function clearParasiteBreakpoints() {
+  parasiteBreakpoints.forEach((entry) => entry.remove());
+  parasiteBreakpoints.clear();
+}
 let breakpointLogs: BreakpointLogEntry[] = [];
 let breakpointLogSequence = 0;
 interface InstalledWatchpoint { hook: JsBeebDebugHookHandle; spec: WatchpointSpec; hits: number; previousValue?: number; lastValue?: number; pc?: number }
@@ -240,7 +257,7 @@ let tubeTransferEventsDropped = 0;
 type Command = CommandPayload & { commandId?: number; sessionId?: string };
 type CommandPayload =
   | { type: 'initialise'; model: string; romSetId: string; tube?: boolean; extraRoms?: string[]; keyboardLayout?: string; keyRemaps?: MachineKeyRemap[]; sessionManifest: RuntimeSessionManifest }
-  | { type: 'run' | 'pause' | 'stop' | 'step' | 'step-over' | 'step-out' | 'reset' }
+  | { type: 'run' | 'pause' | 'stop' | 'step' | 'step-over' | 'step-out' | 'reset' | 'step-parasite' }
   | { type: 'source-step'; mode: 'in' | 'over' | 'out'; instructionBudget?: number }
   | { type: 'run-to'; address: number }
   | ({ type: 'breakpoint' } & BreakpointSpec)
@@ -356,6 +373,13 @@ async function initialise(modelName: string, romSetId: string, tube = false, ext
   // sideways ROMs before initialise/loadOs reads the config.
   cpu.config.extraRoms = [...extraRoms];
   await Promise.all([cpu.initialise(), browserAudio.ready]);
+  /* Instruction hooks on the second processor, so a breakpoint can be put on
+   * it. Fitted to the instance, as the cards below are. */
+  clearParasiteBreakpoints();
+  parasiteSourceLocations = {}; parasiteSymbols = {};
+  parasiteHooks = !model.isAtom && cpu.hasTube && cpu.tube
+    ? fitParasiteInstructionHooks(cpu.tube as unknown as ParasiteProcessor, cpu as unknown as { stop(): void })
+    : null;
   /*
    * BeebSID, when the profile says one is fitted. It is a 1 MHz bus board
    * rather than part of any machine, so it is fitted to whatever processor was
@@ -923,7 +947,13 @@ function tubeProcessorSnapshot() {
   });
   return {
     model: cpu.model.isMaster ? '65C102 Turbo Tube' : '65C02 Tube',
-    scheduling: 'Parasite execution is cycle-coupled to the host by jsbeeb; independent pause and step are unavailable',
+    scheduling: parasiteHooks
+      ? 'Parasite execution is cycle-coupled to the host by jsbeeb. A breakpoint on the parasite stops the whole machine at that instruction, and Step parasite runs the host until the parasite has executed one'
+      : 'Parasite execution is cycle-coupled to the host by jsbeeb; independent pause and step are unavailable',
+    source: parasiteSourceLocations[pc] ?? null,
+    symbol: parasiteSymbols[pc] ?? null,
+    stoppedAtBreakpoint: parasiteHooks?.stopped ?? false,
+    breakpoints: Array.from(parasiteBreakpoints.values()).map((entry) => ({ ...entry.spec, hits: entry.hits })).sort((a, b) => a.address - b.address),
     registers: { pc, a: hardwareNumber(state, 'a') & 0xff, x: hardwareNumber(state, 'x') & 0xff, y: hardwareNumber(state, 'y') & 0xff, s: hardwareNumber(state, 's') & 0xff, p: hardwareNumber(state, 'p') & 0xff },
     cycles: Number(state.cycles ?? 0),
     romPaged: Boolean(state.romPaged), nmiLevel: Boolean(state.nmiLevel), nmiEdge: Boolean(state.nmiEdge), irqPending: Boolean(state.takeInt), resetHeldLow: Boolean((cpu.tube as unknown as { resetHeldLow?: boolean }).resetHeldLow),
@@ -1166,7 +1196,7 @@ function loadParasiteCode(bytes: number[], origin: number, entryPoint: number, p
  * somewhere unrelated and say nothing about why. They are refused by name
  * rather than silently ignored.
  */
-function loadProgramIntoParasite(bytes: number[], origin: number, entryPoint: number, autorun: boolean, programManifest: ProgramLoadManifest) {
+function loadProgramIntoParasite(bytes: number[], origin: number, entryPoint: number, autorun: boolean, programManifest: ProgramLoadManifest, breakpoints: number[] = [], sourceLocations: Record<string, TraceSourceLocation> = {}, symbols: Record<string, number> = {}) {
   if (!cpu) return;
   running = false;
   clearWatchpoints(); watchpointEvents = []; watchpointSequence = 0;
@@ -1179,9 +1209,14 @@ function loadProgramIntoParasite(bytes: number[], origin: number, entryPoint: nu
   discardHardwareTest();
   /* Source locations and symbols are the host's map. Keeping them would make
    * the disassembly and the call view label parasite addresses with host
-   * names. */
+   * names. The parasite program's own map is kept apart, for the Tube panel
+   * and for the breakpoints put on it. */
   loadedSourceLocations = {}; loadedSymbols = {};
+  parasiteSourceLocations = normalisedSourceLocations(sourceLocations);
+  parasiteSymbols = normalisedSymbols(symbols);
   loadParasiteCode(bytes, origin, entryPoint, programManifest);
+  clearParasiteBreakpoints();
+  breakpoints.filter((address) => Number.isInteger(address) && address >= origin && address < origin + bytes.length).forEach((address) => installBreakpoint({ address, enabled: true, stop: true, processor: 'parasite' }));
   trace = [];
   if (replayEnabled) resetReplaySegment('A parasite program load is an irreversible history boundary');
   running = autorun;
@@ -1513,6 +1548,7 @@ function installBreakpoint(input: BreakpointSpec) {
   if (!cpu) return;
   const spec = validateBreakpointSpec(input);
   const normalized = spec.address & 0xffff;
+  if (spec.processor === 'parasite') { installParasiteBreakpoint(spec, normalized); return; }
   breakpointHooks.get(normalized)?.hook.remove();
   let entry: InstalledBreakpoint;
   const hook = cpu.debugInstruction.add((pc) => {
@@ -1535,6 +1571,57 @@ function installBreakpoint(input: BreakpointSpec) {
   });
   entry = { hook, spec, hits: 0 };
   breakpointHooks.set(normalized, entry);
+}
+
+/*
+ * A breakpoint on the second processor. The same matching as the host's, on
+ * the parasite's registers; a stop halts the whole machine at the parasite
+ * instruction, which the fitted loop arranges.
+ */
+function installParasiteBreakpoint(spec: BreakpointSpec, normalized: number) {
+  if (!parasiteHooks || !cpu?.tube) throw new Error('The attached machine has no Tube parasite processor to put a breakpoint on');
+  parasiteBreakpoints.get(normalized)?.remove();
+  const parasite = cpu.tube as unknown as { a: number; x: number; y: number; s: number; p: { asByte(): number } };
+  const entry: InstalledParasiteBreakpoint = { remove: () => {}, spec, hits: 0 };
+  entry.remove = parasiteHooks.add((pc) => {
+    if (replayInProgress || pc !== normalized) return false;
+    entry.hits++;
+    const registers = { pc, a: parasite.a, x: parasite.x, y: parasite.y, s: parasite.s, p: parasite.p.asByte() };
+    if (!breakpointMatches(spec, registers, entry.hits)) return false;
+    if (spec.logMessage) {
+      const logEntry = { sequence: ++breakpointLogSequence, address: pc, hits: entry.hits, message: `parasite: ${renderBreakpointLog(spec.logMessage, registers, entry.hits)}` };
+      breakpointLogs.push(logEntry); if (breakpointLogs.length > 64) breakpointLogs.shift();
+      send({ type: 'breakpoint-log', ...logEntry });
+    }
+    if (!spec.stop) return false;
+    running = false;
+    const kind = spec.condition ? 'conditional breakpoint' : spec.hitTarget ? 'hit-count breakpoint' : 'breakpoint';
+    setStatus(`parasite ${kind} at &${pc.toString(16).toUpperCase().padStart(4, '0')}`, 'ready');
+    queueMicrotask(() => sendSnapshot(`parasite ${kind}`));
+    return true;
+  });
+  parasiteBreakpoints.set(normalized, entry);
+}
+
+/*
+ * One instruction on the second processor. The parasite has no clock of its
+ * own: it runs inside the host's instruction loop, so this runs the host in
+ * short slices until the parasite has executed one instruction and the fitted
+ * loop has stopped the machine again.
+ */
+function stepParasite() {
+  if (!cpu || !parasiteHooks) { send({ type: 'error', message: 'The attached machine has no Tube parasite processor to step' }); return; }
+  running = false;
+  /* Stopped by a parasite hook, the loop already skips the hook once at the
+   * instruction it stopped on; paused any other way, the first call is for
+   * the instruction about to run and is let through. */
+  let first = !parasiteHooks.stopped;
+  let done = false;
+  const remove = parasiteHooks.add(() => { if (first) { first = false; return false; } done = true; return true; });
+  for (let slice = 0; slice < 512 && !done; slice += 1) executeCycles(16);
+  remove();
+  setStatus(done ? `${cpu.model.name} second processor paused` : `${cpu.model.name} second processor did not execute an instruction in 8,192 host cycles`, 'ready');
+  sendSnapshot('parasite single step');
 }
 
 function clearWatchpoints() {
@@ -1574,6 +1661,21 @@ function installWatchpoint(input: WatchpointSpec) {
   watchpointHooks.set(key, entry);
 }
 
+/** A source map as sent, bounded and checked, keyed by address. */
+function normalisedSourceLocations(sourceLocations: Record<string, TraceSourceLocation>): Record<number, TraceSourceLocation> {
+  return Object.fromEntries(Object.entries(sourceLocations).slice(0, 0x8000).flatMap(([address, location]) => {
+    const numeric = Number(address);
+    return Number.isInteger(numeric) && numeric >= 0 && numeric <= 0xffff && typeof location?.fileName === 'string' && location.fileName.length <= 255 && Number.isInteger(location.line) && location.line > 0 ? [[numeric, { fileName: location.fileName, line: location.line }]] : [];
+  }));
+}
+
+/** Symbols as sent, bounded, keyed by address with the first name kept. */
+function normalisedSymbols(symbols: Record<string, number>): Record<number, string> {
+  const byAddress: Record<number, string> = {};
+  Object.entries(symbols).slice(0, 4096).forEach(([name, address]) => { if (name.length <= 128 && Number.isInteger(address) && address >= 0 && address <= 0xffff && byAddress[address] === undefined) byAddress[address] = name; });
+  return byAddress;
+}
+
 function loadMachineCode(bytes: number[], origin: number, entryPoint: number, autorun = true, breakpoints: number[] = [], sourceLocations: Record<string, TraceSourceLocation> = {}, symbols: Record<string, number> = {}, programManifest?: ProgramLoadManifest) {
   if (!cpu) return;
   if (!Number.isInteger(origin) || !Number.isInteger(entryPoint) || origin < 0 || origin > 0xffff || entryPoint < 0 || entryPoint > 0xffff) {
@@ -1593,12 +1695,8 @@ function loadMachineCode(bytes: number[], origin: number, entryPoint: number, au
   running = false;
   clearWatchpoints(); watchpointEvents = []; watchpointSequence = 0; stopInterruptMonitor(); clearInterruptHistory(); stopRasterMonitor(); clearRasterTimeline(); stopProfiler(); clearProfiler();
   registerEdits = []; registerEditSequence = 0; lastStep = null; stopTrace(); clearTrace();
-  loadedSourceLocations = Object.fromEntries(Object.entries(sourceLocations).slice(0, 0x8000).flatMap(([address, location]) => {
-    const numeric = Number(address);
-    return Number.isInteger(numeric) && numeric >= 0 && numeric <= 0xffff && typeof location?.fileName === 'string' && location.fileName.length <= 255 && Number.isInteger(location.line) && location.line > 0 ? [[numeric, { fileName: location.fileName, line: location.line }]] : [];
-  }));
-  loadedSymbols = {};
-  Object.entries(symbols).slice(0, 4096).forEach(([name, address]) => { if (name.length <= 128 && Number.isInteger(address) && address >= 0 && address <= 0xffff && loadedSymbols[address] === undefined) loadedSymbols[address] = name; });
+  loadedSourceLocations = normalisedSourceLocations(sourceLocations);
+  loadedSymbols = normalisedSymbols(symbols);
   loadedProgramFingerprint = profileBuildFingerprint(bytes, origin);
   bytes.forEach((byte, offset) => cpu!.writemem(origin + offset, byte & 0xff));
   breakpointHooks.forEach((entry) => entry.hook.remove());
@@ -1926,10 +2024,12 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
   else if (command.type === 'source-step') sourceStep(command.mode, command.instructionBudget);
   else if (command.type === 'run-to') runTo(command.address);
   else if (command.type === 'run-test' && cpu) { try { startHardwareTest(command); } catch (error) { send({ type: 'test-result', name: command.name, requestId: command.requestId, planId: command.planId, suite: command.suite, buildFingerprint: command.buildFingerprint, status: 'error', reason: error instanceof Error ? error.message : String(error), cycles: 0, assertions: [] }); } }
-  else if (command.type === 'reset' && cpu) { runToHook?.remove(); runToHook = null; discardHardwareTest(); stopTrace(); clearTrace(); stopInterruptMonitor(); clearInterruptHistory(); stopRasterMonitor(); clearRasterTimeline(); stopProfiler(); clearProfiler(); loadedProgramFingerprint = 'ROM-session'; if (bbcMouseJoystickEnabled && !cpu.model.isAtom) updateBbcMouseJoystick(undefined, true); cpu.reset(true); running = true; trace = []; emulatedCycles = 0; registerEdits = []; registerEditSequence = 0; lastStep = null; if (replayEnabled) resetReplaySegment('Hard reset is an irreversible history boundary'); setStatus(`${cpu.model.name} reset`, 'ready'); sendSnapshot('hard reset'); }
+  else if (command.type === 'reset' && cpu) { runToHook?.remove(); runToHook = null; clearParasiteBreakpoints(); discardHardwareTest(); stopTrace(); clearTrace(); stopInterruptMonitor(); clearInterruptHistory(); stopRasterMonitor(); clearRasterTimeline(); stopProfiler(); clearProfiler(); loadedProgramFingerprint = 'ROM-session'; if (bbcMouseJoystickEnabled && !cpu.model.isAtom) updateBbcMouseJoystick(undefined, true); cpu.reset(true); running = true; trace = []; emulatedCycles = 0; registerEdits = []; registerEditSequence = 0; lastStep = null; if (replayEnabled) resetReplaySegment('Hard reset is an irreversible history boundary'); setStatus(`${cpu.model.name} reset`, 'ready'); sendSnapshot('hard reset'); }
+  else if (command.type === 'step-parasite') stepParasite();
   else if (command.type === 'breakpoint' && cpu) {
     const address = command.address & 0xffff;
-    breakpointHooks.get(address)?.hook.remove(); breakpointHooks.delete(address);
+    if (command.processor === 'parasite') { parasiteBreakpoints.get(address)?.remove(); parasiteBreakpoints.delete(address); }
+    else { breakpointHooks.get(address)?.hook.remove(); breakpointHooks.delete(address); }
     try {
       if (command.enabled) installBreakpoint(command);
       sendSnapshot('breakpoints changed');
@@ -1938,9 +2038,10 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
     try {
       if (!Array.isArray(command.breakpoints) || command.breakpoints.length > 64) throw new Error('At most 64 permanent 6502 breakpoints may be installed');
       const specs = command.breakpoints.map(validateBreakpointSpec);
-      const addresses = new Set<number>();
-      specs.forEach((spec) => { if (addresses.has(spec.address)) throw new Error(`Duplicate breakpoint address &${spec.address.toString(16).toUpperCase().padStart(4, '0')}`); addresses.add(spec.address); });
+      const addresses = new Set<string>();
+      specs.forEach((spec) => { const key = `${spec.processor ?? 'host'}:${spec.address}`; if (addresses.has(key)) throw new Error(`Duplicate breakpoint address &${spec.address.toString(16).toUpperCase().padStart(4, '0')}`); addresses.add(key); });
       breakpointHooks.forEach((entry) => entry.hook.remove()); breakpointHooks.clear();
+      clearParasiteBreakpoints();
       specs.forEach(installBreakpoint);
       sendSnapshot('breakpoint set changed');
     } catch (error) { send({ type: 'error', message: error instanceof Error ? error.message : String(error) }); }
@@ -2070,7 +2171,7 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
   else if (command.type === 'load-basic') loadBasic(command.bytes, command.autorun, command.format, command.programManifest);
   else if (command.type === 'load-machine-code') {
     if (command.processor === 'parasite') {
-      try { loadProgramIntoParasite(command.bytes, command.origin, command.entryPoint, command.autorun !== false, command.programManifest); }
+      try { loadProgramIntoParasite(command.bytes, command.origin, command.entryPoint, command.autorun !== false, command.programManifest, command.breakpoints ?? [], command.sourceLocations ?? {}, command.symbols ?? {}); }
       catch (error) { const message = error instanceof Error ? error.message : String(error); setStatus(message, 'error'); send({ type: 'error', message }); }
     } else loadMachineCode(command.bytes, command.origin, command.entryPoint, command.autorun, command.breakpoints, command.sourceLocations, command.symbols, command.programManifest);
   }

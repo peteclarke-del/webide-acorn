@@ -32,15 +32,16 @@ Control the live 6502 or 65C12 core with registers, flags, breakpoints, logpoint
 17. For an address, opcode, exact memory read or write, or IRQ/NMI-transition event stop, open Hardware trace and configure a trigger. Set pre and post records, then choose whether to pause when that bounded window completes.
 18. For a frame, sync, mode, palette or supported beam-position stop, open Raster timeline, select the event or coordinates, and start capture. The high-overhead hook removes itself when capture stops.
 19. Inspect mapped CPU memory or physical RAM, ROM and bank views.
-20. When a qualified 6502 Tube profile is selected, use Focus host and Focus parasite to distinguish the two live register sets. Compare the parasite logical CPU view with its physical RAM backing. Boot ROM overlay bytes appear only in the logical view.
-21. Use the dual address map to compare host and parasite regions and their live PC markers. The parasite map changes its ROM overlay regions when the core unpages the boot ROM.
-22. In Parasite memory inspector choose Logical CPU view, Physical RAM backing or Physical boot ROM. Set a bounded address and length, then Read, page, change columns or radix, search, snapshot, copy or export the exact returned bytes.
-23. The selected 2 KiB 6502 Tube boot image occupies &F800 to &FFFF inside the core 4 KiB physical ROM store. &F000 to &F7FF therefore reads as zero for that firmware.
-24. Read Cross-processor ULA transfers from newest to oldest. Each retained event comes from a real jsbeeb ULA method boundary and includes side, access, register, byte, both PCs, host cycle, parasite cycle and monotonic time.
-25. Treat a double hyphen in parasite logical memory as intentional. Addresses &FEF8 to &FEFF are Tube ULA I/O, so the inspector does not read them and cannot acknowledge or consume a FIFO.
-26. Use profiler and replay controls within their declared bounds.
-27. Edit registers or main RAM only while paused and verify the read-back result.
-28. Choose Stop session to send a sequenced Stop command, pause the core and retain the immutable record as Terminated. Restart begins the same bound session again. Build and debug creates a new binding.
+20. A breakpoint put on while the active target runs on the second processor is a parasite breakpoint: it stops the whole machine at that parasite instruction, the Tube panel names the source line, and Step parasite advances the parasite by one instruction. The two processors have separate address spaces, so a parasite breakpoint at an address says nothing about the host's.
+21. When a qualified 6502 Tube profile is selected, use Focus host and Focus parasite to distinguish the two live register sets. Compare the parasite logical CPU view with its physical RAM backing. Boot ROM overlay bytes appear only in the logical view.
+22. Use the dual address map to compare host and parasite regions and their live PC markers. The parasite map changes its ROM overlay regions when the core unpages the boot ROM.
+23. In Parasite memory inspector choose Logical CPU view, Physical RAM backing or Physical boot ROM. Set a bounded address and length, then Read, page, change columns or radix, search, snapshot, copy or export the exact returned bytes.
+24. The selected 2 KiB 6502 Tube boot image occupies &F800 to &FFFF inside the core 4 KiB physical ROM store. &F000 to &F7FF therefore reads as zero for that firmware.
+25. Read Cross-processor ULA transfers from newest to oldest. Each retained event comes from a real jsbeeb ULA method boundary and includes side, access, register, byte, both PCs, host cycle, parasite cycle and monotonic time.
+26. Treat a double hyphen in parasite logical memory as intentional. Addresses &FEF8 to &FEFF are Tube ULA I/O, so the inspector does not read them and cannot acknowledge or consume a FIFO.
+27. Use profiler and replay controls within their declared bounds.
+28. Edit registers or main RAM only while paused and verify the read-back result.
+29. Choose Stop session to send a sequenced Stop command, pause the core and retain the immutable record as Terminated. Restart begins the same bound session again. Build and debug creates a new binding.
 
 **What should happen**
 

@@ -6114,9 +6114,7 @@ Current implemented increment:
     result only the second processor could have produced.
     `src/emulator/parasiteProgramMeasurements.ts` records it and eleven tests
     hold the target model to it.
-  - [ ] Source-level debugging on the parasite is open. It needs breakpoints
-    that hook the parasite's instruction stream and a source map that belongs
-    to it, and neither exists yet.
+  - [x] Source-level debugging on the parasite: EMU-435.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
   - [x] Which ones there are is written down rather than left to be asked. A
     Tube takes whatever is plugged into it, Acorn sold four processors for one,
@@ -6214,6 +6212,31 @@ Current implemented increment:
     absence of an Electron or B+ model, the A310-only scope of the ARM adapter,
     and an unknown machine, which must report no support rather than invent it.
 
+- [x] EMU-435 A source line in a second-processor program could not be stopped
+  at. The pinned core gives the host an instruction hook, which is what every
+  breakpoint is built on, but the parasite's own execute loop never consults
+  its hook, so debugging a parasite program was refused by name.
+  - [x] The parasite is fitted with a loop that does consult a hook, the core's
+    own loop with one check added, installed on the instance the way the
+    BeebSID and BeebSCSI cards are and used only while a hook is installed. A
+    stop leaves the parasite at the instruction it was about to run and halts
+    the host at the end of its current one, so the whole machine stops at a
+    parasite instruction; resumed, the parasite skips the hook once there, as
+    the host does after its own breakpoint.
+  - [x] A breakpoint says which processor it is on. The parasite program's
+    source map and symbols are kept apart from the host's, and its breakpoints
+    are put on the parasite: from the debug path for a second-processor target,
+    from the source gutter, and from the persisted intents, all stamped by the
+    processor the active target runs on. The Tube panel names where the
+    parasite stopped with its source line, lists its breakpoints, and Step
+    parasite runs the host until the parasite has executed one instruction.
+  - [x] Evidence: five contracts on the fitted loop against a counting fake in
+    `src/emulator/parasiteHooks.test.ts`, and two against the pinned core's own
+    Tube6502 without firmware in `src/emulator/parasiteHooks.core.test.ts`: it
+    still has the shape the loop relies on, and a real parasite stops at the
+    address asked for before the instruction there runs, with the host asked
+    to halt. A game's second-processor program was stopped at a source line
+    through the workbench and pictured.
 ### Phase 4 exit gate
 
 - [ ] EMU-GATE Two 8-bit slices and one scoped ARM slice can run exact resolved
