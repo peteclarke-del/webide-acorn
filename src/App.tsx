@@ -73,6 +73,7 @@ import { SdkDocumentView } from './components/SdkDocumentView';
 import { ProjectExportDialog } from './components/ProjectExportDialog';
 import { StartProjectDialog } from './components/StartProjectDialog';
 import { writeDirectory, type FileSystemDirectoryHandleLike } from './project/directoryAccess';
+import { PROJECT_MANIFEST_FILENAME, manifestFromProject, serializeProjectManifest } from './project/projectManifest';
 import { ProjectStorePanel, storeProjectId } from './components/ProjectStorePanel';
 import { SampleWorkspace } from './components/SampleWorkspace';
 import { TileMapWorkspace } from './components/TileMapWorkspace';
@@ -800,13 +801,19 @@ function App() {
    * the person's own firmware and is never written into the project. */
   const [sidewaysLayout, setSidewaysLayout] = useState<SidewaysAssignment[]>([]);
 
-  /* Write the project's source files back into the folder they came from. Only
-   * the sources are written: build output belongs to the build directory and
-   * putting it here would overwrite work the person did not ask us to touch. */
+  /* Write the project's source files and its manifest back into the folder
+   * they came from. Only those are written: build output belongs to the build
+   * directory and putting it here would overwrite work the person did not ask
+   * us to touch. */
   const writeProjectToFolder = async () => {
     if (!connectedFolder) { setNotice('This project is not connected to a folder on disk. Import one through Start a project to connect it.'); return; }
     try {
-      const result = await writeDirectory(connectedFolder, project.files.filter((file) => file.kind !== 'generated').map((file) => ({ path: file.name, content: file.content })));
+      /* The project's own description goes with its files, so the folder is
+       * the whole project and opens again as the machine it was written for. */
+      const result = await writeDirectory(connectedFolder, [
+        ...project.files.filter((file) => file.kind !== 'generated').map((file) => ({ path: file.name, content: file.content })),
+        { path: PROJECT_MANIFEST_FILENAME, content: serializeProjectManifest(manifestFromProject(project)) },
+      ]);
       const failures = result.failed.length ? ` ${result.failed.length} could not be written: ${result.failed.map((entry) => `${entry.path} (${entry.reason})`).join('; ')}` : '';
       setNotice(`Wrote ${result.written.length} file${result.written.length === 1 ? '' : 's'} to ${connectedFolder.name}.${failures}`);
     } catch (error) {

@@ -8,6 +8,7 @@
  * byte is offered. */
 import { MAX_PROJECT_SOURCE_BYTES, MAX_SOURCE_FILE_BYTES, sourceUtf8ByteLength } from '../editor/sourceTextFormat';
 import { DEFAULT_TARGET, languageForFilename, parseProject, PROJECT_FORMAT, type LocalProject, type ProjectFile, type ProjectTarget, type SourceLanguage } from './project';
+import { PROJECT_MANIFEST_FILENAME, buildTargetsFromManifest, parseProjectManifest, type ProjectManifest } from './projectManifest';
 import { BUILD_TARGET_SCHEMA, defaultToolchainId, toolchainFor, type ToolchainId } from '../build/buildTarget';
 import { asciiMapGrid } from '../assets/asciiTileMap';
 import { detectPlatform, type DetectedPlatform } from './platformDetection';
@@ -55,7 +56,7 @@ const BINARY_MARKERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
 
 export type ImportExclusionReason =
   | 'ignored-directory' | 'unsupported-file-type' | 'not-text' | 'file-too-large'
-  | 'project-size-limit' | 'file-count-limit' | 'empty-name';
+  | 'project-size-limit' | 'file-count-limit' | 'empty-name' | 'project-manifest';
 
 export interface CodebaseFileInput {
   /** Path relative to the chosen folder, using forward slashes. */
@@ -120,6 +121,13 @@ export interface CodebaseImportPlan {
   mapCandidates: TileMapCandidate[];
   totalBytes: number;
   warnings: string[];
+  /**
+   * The project's own description, when the folder carries one. It names the
+   * machine, the capabilities, the build targets and the settings, and it is
+   * honoured over anything guessed from the source. Null when the folder has
+   * none, which is every folder that did not come from this workbench.
+   */
+  manifest: ProjectManifest | null;
 }
 
 function extensionOf(path: string): string {
@@ -259,11 +267,26 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
     .flatMap((input) => input.bytes ? [screenDumpCandidate(input.path.replace(/\\/g, '/').replace(/^\.\//, ''), input.bytes) ?? []] : [])
     .flat();
 
+  let manifest: ProjectManifest | null = null;
   for (const input of ordered) {
     const path = input.path.replace(/\\/g, '/').replace(/^\.\//, '');
     const segments = path.split('/').filter((segment) => segment && segment !== '.' && segment !== '..');
     const base = segments[segments.length - 1] ?? '';
     if (!base) { exclusions.push({ path, reason: 'empty-name', detail: 'The entry has no filename.' }); continue; }
+    /* The folder's own description of the project. It is read, not imported
+     * as a source file, and it has to be at the root: a manifest in a
+     * subfolder belongs to whatever that subfolder is. */
+    const relativeForManifest = sharedRoot && path.startsWith(sharedRoot) ? path.slice(sharedRoot.length) : path;
+    if (relativeForManifest === PROJECT_MANIFEST_FILENAME) {
+      try {
+        manifest = parseProjectManifest(input.content);
+        exclusions.push({ path, reason: 'project-manifest', detail: 'Read as the project\'s own description rather than imported as a file.' });
+      } catch (error) {
+        warnings.push(`${path} was not read as a project manifest: ${error instanceof Error ? error.message : String(error)}`);
+        exclusions.push({ path, reason: 'project-manifest', detail: 'Not a manifest this workbench can read, so it was left alone.' });
+      }
+      continue;
+    }
     const ignored = segments.slice(0, -1).find((segment) => IGNORED_SEGMENTS.has(segment) || segment.startsWith('.'));
     if (ignored) { exclusions.push({ path, reason: 'ignored-directory', detail: `Inside ${ignored}.` }); continue; }
     if (base.startsWith('.')) { exclusions.push({ path, reason: 'unsupported-file-type', detail: 'Dot files are not imported.' }); continue; }
@@ -305,7 +328,13 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
   if (renamed.length) warnings.push(`${renamed.length} file${renamed.length === 1 ? '' : 's'} shared a name with another file and ${renamed.length === 1 ? 'was' : 'were'} renamed. Any INCLUDE directive that named ${renamed.length === 1 ? 'it' : 'them'} needs updating.`);
   warnings.push(...pathWarnings);
 
-  const { targets, warnings: targetWarnings } = proposeTargets(files, contents);
+  /* Targets are proposed from the source only for a folder that does not
+   * describe its own. A manifest with build targets is the description, and
+   * a warning that two files tied for the entry would be a warning about a
+   * guess nobody is going to use. */
+  const proposed = proposeTargets(files, contents);
+  const targets = proposed.targets;
+  const targetWarnings = manifest?.buildTargets.length ? [] : proposed.warnings;
   const runs = files
     .filter((file) => file.language === '6502')
     .flatMap((file) => assemblyByteRuns(file.name, contents.get(file.name) ?? ''));
@@ -342,7 +371,11 @@ export function planCodebaseImport(inputs: readonly CodebaseFileInput[], folderN
   if (!files.length) warnings.push('No editable source file was found in that folder.');
   const platform = detectPlatform(files.map((file) => ({ name: file.name, content: contents.get(file.name) ?? '' })));
 
-  return { name: folderName.trim() || 'Imported project', files, exclusions, targets, derivedAssets, screenCandidates, mapCandidates, platform, totalBytes, warnings: [...warnings, ...targetWarnings] };
+  if (manifest) {
+    const missing = manifest.buildTargets.filter((target) => !files.some((file) => file.name === target.entryFile || file.name.toLowerCase() === target.entryFile.toLowerCase()));
+    for (const target of missing) warnings.push(`${PROJECT_MANIFEST_FILENAME} names a build target, ${target.name}, whose entry file ${target.entryFile} is not in the folder, so it is left out.`);
+  }
+  return { name: manifest?.name || folderName.trim() || 'Imported project', files, exclusions, targets, derivedAssets, screenCandidates, mapCandidates, platform, totalBytes, warnings: [...warnings, ...targetWarnings], manifest };
 }
 
 /**
@@ -433,15 +466,21 @@ export function codebaseImportDocument(
     used.add(fileName.toLowerCase());
     files.push(savedFile(identify(fileName), fileName, serializeScreenDocument(document), 'text'));
   }
-  const buildTargets = plan.targets.map((target) => ({
-    schemaVersion: BUILD_TARGET_SCHEMA,
-    id: target.id,
-    name: target.name,
-    entryFileId: idFor.get(target.entryName) ?? target.entryName,
-    sourceFileIds: [idFor.get(target.entryName) ?? target.entryName],
-    toolchainId: target.toolchainId,
-    outputName: target.outputName,
-  }));
+  /* The folder's own build targets win over the ones proposed from the
+   * source. The proposal is a guess about a codebase that arrived without a
+   * description; a manifest is the description. */
+  const fromManifest = plan.manifest ? buildTargetsFromManifest(plan.manifest, idFor) : null;
+  const buildTargets: Array<Record<string, unknown>> = fromManifest && fromManifest.targets.length
+    ? fromManifest.targets
+    : plan.targets.map((target) => ({
+      schemaVersion: BUILD_TARGET_SCHEMA,
+      id: target.id,
+      name: target.name,
+      entryFileId: idFor.get(target.entryName) ?? target.entryName,
+      sourceFileIds: [idFor.get(target.entryName) ?? target.entryName],
+      toolchainId: target.toolchainId,
+      outputName: target.outputName,
+    }));
   if (!buildTargets.length && files.length) {
     const first = files.find((file) => file.language !== 'text') ?? files[0]!;
     const language = first.language === 'text' ? '6502' : first.language;
@@ -464,11 +503,16 @@ export function codebaseImportDocument(
      * than carried: a project cannot be set up with hardware that machine never
      * had.
      */
-    target: targetFor(plan.platform),
+    target: plan.manifest ? plan.manifest.target : targetFor(plan.platform),
     breakpoints: {},
     bookmarks: [],
     buildTargets,
-    activeBuildTargetId: buildTargets[0]?.id ?? 'import-default',
+    /* The manifest's choice of active target, where it names one that exists;
+     * otherwise the first, as an import with no manifest always had. */
+    activeBuildTargetId: plan.manifest?.activeBuildTargetId && buildTargets.some((target) => target.id === plan.manifest!.activeBuildTargetId)
+      ? plan.manifest.activeBuildTargetId
+      : (buildTargets[0]?.id ?? 'import-default'),
+    ...(plan.manifest ? { settings: plan.manifest.settings } : {}),
     testPlans: [],
     armBreakpoints: {}, armBreakpointGroups: {}, breakpoints6502: {}, breakpointGroups6502: {},
   };

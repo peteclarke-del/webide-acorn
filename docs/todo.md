@@ -6085,6 +6085,22 @@ Current implemented increment:
   - [x] Evidence: `scripts/measureTubeParasite.mjs` boots all four,
     `src/emulator/tubeParasiteMeasurements.ts` records what each said, and
     eleven tests hold the choice and the catalogues to them.
+- [x] PRJ-040 A project written to a folder is the whole project, not only its
+  files. Written back, a project was its source files and nothing else, so a
+  folder opened again had its machine guessed from the source and its build
+  targets proposed afresh; a game for a Model B with a second processor, a
+  NuLA and a BeebSID came back as a Model B with a DFS.
+  - [x] The folder now carries `acorn-project.json`: the machine, the fitted
+    capabilities, the build targets and the settings, with files referred to
+    by name. Opening a folder that has one honours it over the guess; opening
+    one that does not still guesses. A file at that name that is not a manifest
+    is reported and left alone rather than becoming the machine.
+  - [x] A build target in the manifest whose entry file is not in the folder is
+    left out and named, because a build target for a file that is not there
+    fails on its first build for a reason that looks like the assembler's.
+  - [x] Evidence: fourteen contracts in `src/project/projectManifest.test.ts`,
+    including a round trip through a serialised manifest into the project
+    parser, and the import dialog saying where the machine came from.
 - [ ] EMU-425 Add other Tube CPUs only when each meets production profile gate.
   - [x] Which ones there are is written down rather than left to be asked. A
     Tube takes whatever is plugged into it, Acorn sold four processors for one,

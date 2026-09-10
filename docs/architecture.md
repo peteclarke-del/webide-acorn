@@ -99,6 +99,17 @@ there; and there is **no shared administration**, because there is one local
 identity and nothing that proves it. Drawing them as empty boxes would suggest
 they are wired and idle rather than absent.
 
+## A project that lives in a folder
+
+A project is browser-local by default and leaves as a bundle or a download.
+It can also be connected to a folder on disk through the File System Access
+API, and written back to it. Written back, it is its source and asset files
+plus `acorn-project.json`: the project's own description, which names the
+machine, the fitted capabilities, the build targets and the settings, and
+refers to files by name because names are what a folder has. Opening a folder
+that carries one honours it over anything guessed from the source; opening one
+that does not still guesses, as before. See `src/project/projectManifest.ts`.
+
 ## Modules
 
 | Directory | What lives there |
