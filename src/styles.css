@@ -1221,6 +1221,17 @@
   .context-card dd { margin: 3px 0 0; color: var(--theme-ink); font: var(--fs-7)/1 var(--font-mono); }
   .context-card > button { display: flex; align-items: center; gap: 3px; margin-top: 8px; padding: 0; border: 0; background: transparent; color: var(--theme-primary-light); font-size: var(--fs-8); }
   .inspector-section { padding: 10px; border-top: 1px solid var(--theme-line); }
+  .inspector-problems { padding: 8px; }
+  .problem-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+  .problem-item > button { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 2px 8px; width: 100%; padding: 7px 9px; border: 1px solid var(--theme-line); border-radius: 4px; background: var(--theme-surface-1); color: var(--theme-ink); text-align: left; font: var(--fs-7)/1.35 var(--font-ui); }
+  .problem-item > button:hover:not(:disabled), .problem-item > button:focus-visible { background: var(--theme-selection); border-color: var(--theme-primary); }
+  .problem-item > button:disabled { cursor: default; opacity: var(--control-disabled-opacity); }
+  .problem-severity { grid-row: span 2; align-self: start; font: 700 var(--fs-5-5)/1.6 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+  .problem-error .problem-severity { color: var(--theme-danger); }
+  .problem-warning .problem-severity { color: var(--theme-warning); }
+  .problem-info .problem-severity { color: var(--theme-muted); }
+  .problem-message { grid-column: 2; color: var(--theme-ink); }
+  .problem-location { grid-column: 2; color: var(--theme-faint); font: var(--fs-6)/1 var(--font-mono); }
   .honest-empty { margin: 0; color: var(--theme-faint); font-size: var(--fs-8); line-height: 1.5; }
   /* A button in an empty state had no styling and fell back to the browser's
    * own grey, which put faint text on it at 1.77:1. It is a real control and
