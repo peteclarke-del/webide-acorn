@@ -118,27 +118,31 @@ final class NativeProcessRunner
         $process->setTimeout(null);
         $deadline = microtime(true) + BuildLimits::stageSeconds();
         $timedOut = false;
-        $process->start(function (string $type, string $buffer) use (&$stdout, &$stderr, &$overflow): void {
-            $target = $type === Process::ERR ? $stderr : $stdout;
-            $remaining = BuildLimits::LOG_BYTES - strlen($target);
-            if ($remaining <= 0 || strlen($buffer) > $remaining) {
-                if ($remaining > 0) {
-                    $target .= substr($buffer, 0, $remaining);
-                }
-                if ($type === Process::ERR) {
-                    $stderr = $target;
-                } else {
-                    $stdout = $target;
-                }
-                $overflow = true;
-
-                return;
-            }
-            $target .= $buffer;
+        $seen = 0;
+        $process->start(function (string $type, string $buffer) use (&$stdout, &$stderr, &$overflow, &$seen): void {
+            /*
+             * Only the first LOG_BYTES of each stream is kept; the rest is
+             * drained and thrown away rather than stopping the tool. A verbose
+             * assembler listing a large binary prints far more than the log
+             * budget yet still finishes and writes its artifact, so a chatty but
+             * finite tool must not be treated as a failure. A tool that never
+             * stops printing is a different thing, and OUTPUT_KILL_BYTES of total
+             * output is where that line is drawn.
+             */
+            $seen += strlen($buffer);
             if ($type === Process::ERR) {
-                $stderr = $target;
+                $remaining = BuildLimits::LOG_BYTES - strlen($stderr);
+                if ($remaining > 0) {
+                    $stderr .= substr($buffer, 0, $remaining);
+                }
             } else {
-                $stdout = $target;
+                $remaining = BuildLimits::LOG_BYTES - strlen($stdout);
+                if ($remaining > 0) {
+                    $stdout .= substr($buffer, 0, $remaining);
+                }
+            }
+            if ($seen > BuildLimits::OUTPUT_KILL_BYTES) {
+                $overflow = true;
             }
         });
         while ($process->isRunning()) {

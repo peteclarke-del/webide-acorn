@@ -19,7 +19,7 @@
  * and the shortfall is quantified so a user can see how much has to go.
  */
 import { createDfsDsdImage, DFS_DSD_IMAGE_SIZE } from './dfsDsdImage';
-import { createDfsImageFromFiles, type DfsImageProject, type DfsLogicalFile } from './dfsImage';
+import { createDfsImageFromFiles, type DfsImageLayout, type DfsImageProject, type DfsLogicalFile } from './dfsImage';
 
 export const DISK_SET_SCHEMA = '8bit-net.disk-set';
 export const DISK_SET_VERSION = 1;
@@ -70,6 +70,12 @@ export interface DiskSetDisc {
   format: 'dfs-ssd' | 'dfs-dsd';
   /** One side for an SSD, two for a DSD. */
   sides: DiskSetSide[];
+  /**
+   * Optional catalogue-layout choices for a single-sided image. They let the
+   * set reproduce a disc written by a real DFS or BeebAsm byte for byte; left
+   * out, the workbench's own layout is used. Ignored for double-sided images.
+   */
+  layout?: DfsImageLayout;
 }
 
 export interface DiskSet {
@@ -115,7 +121,8 @@ export function validateDiskSet(value: unknown): DiskSet {
     const expectedSides = disc.format === 'dfs-dsd' ? 2 : 1;
     assert(Array.isArray(disc.sides) && disc.sides.length === expectedSides, `${label} must declare exactly ${expectedSides} side${expectedSides === 1 ? '' : 's'}`);
     const sides = (disc.sides as unknown[]).map((rawSide, sideIndex) => validateSide(rawSide, `${label} side ${sideIndex}`));
-    return { id: disc.id, label, format: disc.format as DiskSetDisc['format'], sides };
+    const layout = validateLayout(disc.layout, label);
+    return { id: disc.id, label, format: disc.format as DiskSetDisc['format'], sides, ...(layout ? { layout } : {}) };
   });
 
   return Object.freeze({
@@ -123,6 +130,26 @@ export function validateDiskSet(value: unknown): DiskSet {
     id: (candidate.id as string).trim(), name,
     discs: Object.freeze(discs.map((disc) => Object.freeze({ ...disc, sides: Object.freeze(disc.sides.map((side) => Object.freeze({ ...side, entries: Object.freeze(side.entries.map((entry) => Object.freeze({ ...entry }))) }))) }))),
   }) as DiskSet;
+}
+
+function validateLayout(value: unknown, where: string): DfsImageLayout | undefined {
+  if (value === undefined || value === null) return undefined;
+  assert(typeof value === 'object', `${where} layout must be an object`);
+  const raw = value as Record<string, unknown>;
+  const layout: DfsImageLayout = {};
+  if (raw.titlePadding !== undefined) {
+    assert(raw.titlePadding === 'space' || raw.titlePadding === 'nul', `${where} layout titlePadding must be space or nul`);
+    layout.titlePadding = raw.titlePadding;
+  }
+  if (raw.catalogueOrder !== undefined) {
+    assert(raw.catalogueOrder === 'as-written' || raw.catalogueOrder === 'newest-first', `${where} layout catalogueOrder must be as-written or newest-first`);
+    layout.catalogueOrder = raw.catalogueOrder;
+  }
+  if (raw.trimToUsedSectors !== undefined) {
+    assert(typeof raw.trimToUsedSectors === 'boolean', `${where} layout trimToUsedSectors must be true or false`);
+    layout.trimToUsedSectors = raw.trimToUsedSectors;
+  }
+  return Object.keys(layout).length ? layout : undefined;
 }
 
 function validateSide(value: unknown, where: string): DiskSetSide {
@@ -380,7 +407,7 @@ function sideProject(disc: DiskSetDisc, side: DiskSetSide, resolved: ReadonlyMap
       bytes: supplied.bytes,
     };
   });
-  return { title: side.title, bootOption: BOOT_OPTION[side.boot.action], files };
+  return { title: side.title, bootOption: BOOT_OPTION[side.boot.action], files, ...(disc.layout ? { layout: disc.layout } : {}) };
 }
 
 function usedSectors(project: DfsImageProject): number {

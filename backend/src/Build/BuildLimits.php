@@ -37,6 +37,17 @@ final class BuildLimits
     public const STAGE_SECONDS_MAXIMUM = 60.0;
     public const STAGE_SECONDS_VARIABLE = 'NATIVE_STAGE_SECONDS';
     public const LOG_BYTES = 256 * 1024;
+    /**
+     * How much a tool may print before its output is treated as an abuse rather
+     * than a build. Only the first LOG_BYTES of each stream is kept; the rest is
+     * drained and discarded so a chatty but finite tool (a verbose assembler
+     * listing a large binary, byte by byte) still runs to completion and writes
+     * its artifact. A tool that never stops printing is stopped here instead. The
+     * ceiling sits well above the verbose output of the largest artifact a build
+     * may produce, which for BeebAsm is on the order of fifteen printed bytes per
+     * assembled byte.
+     */
+    public const OUTPUT_KILL_BYTES = 64 * 1024 * 1024;
     public const DOCUMENTS = 32;
     public const DOCUMENT_BYTES = 2 * 1024 * 1024;
     public const ARTIFACT_BYTES = 1024 * 1024;

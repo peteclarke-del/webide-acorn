@@ -73,6 +73,29 @@ final class BuildCacheTest extends TestCase
         return ['schema' => '8bit-net.native-build-response', 'version' => 1, 'result' => ['logs' => [$marker], 'timing' => ['durationMs' => 1234.5]], 'artifact' => ['bytesBase64' => 'AAEC']];
     }
 
+    public function testDegradesToNoCacheWhenItsDirectoryCannotBeMade(): void
+    {
+        /*
+         * A build that assembled must never fail because the cache could not
+         * be written. A read-only store root made mkdir emit a warning that
+         * the dev error handler promoted to an exception, so a Graveyard build
+         * that produced its binary returned a 500 instead. The write must fail
+         * soft and simply not cache.
+         */
+        $file = sys_get_temp_dir().'/build-cache-blocker-'.bin2hex(random_bytes(8));
+        file_put_contents($file, 'not a directory');
+        try {
+            $blocked = new BuildCache($file.'/store', $this->log->logger);
+            $request = $this->request();
+            $key = $this->key($request);
+            $blocked->write(BuildCache::LOCAL_OWNER, $key, $this->files($request), $this->response());
+            self::assertNull($blocked->read(BuildCache::LOCAL_OWNER, $key, $this->files($request)));
+            self::assertStringContainsString('build-cache-directory-unavailable', $this->log->written());
+        } finally {
+            @unlink($file);
+        }
+    }
+
     public function testReturnsWhatItStoredForTheSameBuild(): void
     {
         $request = $this->request();

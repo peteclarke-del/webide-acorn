@@ -211,7 +211,7 @@ final class BuildCache
         }
         $path = $this->pathFor($owner, $key);
         $directory = dirname($path);
-        if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
+        if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
             $this->logger->warning('build-cache-directory-unavailable', ['keyPrefix' => substr($key, 0, 16)]);
 
             return;
@@ -380,7 +380,7 @@ final class BuildCache
     private function count(string $owner, string $counter, int $by = 1): void
     {
         $directory = $this->ownerRoot($owner);
-        if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
+        if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
             return;
         }
         $path = $this->countersPath($owner);

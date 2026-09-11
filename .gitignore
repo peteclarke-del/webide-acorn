@@ -51,3 +51,6 @@ coverage/
 /elkulator/
 /arculator-wasm/
 /allegro5/
+
+# Local native build/store root used when running the backend outside Docker
+.native-store/
