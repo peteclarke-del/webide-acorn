@@ -6419,6 +6419,14 @@ Current implemented increment:
     the disk-set workflow in `docs/guide/media.md`, which names the control;
     the boot itself is driven by the FireWing demonstration outside this
     repository, which boots a DFS disc on a Model B with a 65C102.
+- [x] EMU-440 Two commands for the machine queued in one tick lost the
+  first: the workbench kept one command slot, and React took the last write
+  to it. Build and boot mounts the disc and then resets with Shift held in
+  one go, so the machine reset with no disc in the drive and the 1770 DFS
+  waited for one for good, which read as the emulator hanging.
+  - [x] The slot is a list, sent in order and never more than one behind.
+  - [x] Evidence: the FireWing demonstration boots the game with Build and
+    boot, which needs both commands to arrive.
 - [x] AST-635 A song could not be heard where it was written. The Sound
   workspace had no way to play a composition, so a tune was a table of
   numbers until it was built into a program and run.

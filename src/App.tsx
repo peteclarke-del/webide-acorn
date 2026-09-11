@@ -552,7 +552,13 @@ function App() {
   }, [appearance]);
   const [resolvedRomRecords, setResolvedRomRecords] = useState<StoredRom[]>([]);
   const [romInventoryRevision, setRomInventoryRevision] = useState(0);
-  const [machineCommand, setMachineCommand] = useState<MachineCommand>();
+  /* Commands for the machine wait in a list, not a slot: two queued in one
+   * tick, the way Build and boot mounts the disc and then resets with Shift
+   * held, both reach the machine in order. A slot kept only the last, so the
+   * machine reset with no disc in the drive and the filing system waited
+   * for one for good. */
+  const [machineCommands, setMachineCommands] = useState<MachineCommand[]>([]);
+  const machineCommandIdRef = useRef(0);
   const [hardwareState, setHardwareState] = useState<MachineBridgeSnapshot | null>(null);
   /* Static reachability and observed execution are separate kinds of evidence.
    * They are only shown together when the running program can be proved to be
@@ -1305,7 +1311,10 @@ function App() {
     );
   };
 
-  const queueMachineCommand = useCallback((message: Record<string, unknown>) => setMachineCommand((current) => ({ id: (current?.id ?? 0) + 1, message })), []);
+  const queueMachineCommand = useCallback((message: Record<string, unknown>) => {
+    const id = ++machineCommandIdRef.current;
+    setMachineCommands((current) => [...current.slice(-255), { id, message }]);
+  }, []);
   const updateDebugLifecycle = useCallback((lifecycle: DebugLifecycleState, reason: string) => setDebugSession((current) => {
     if (!current) return current;
     try { return transitionDebugSession(current, lifecycle, reason); }
@@ -2757,7 +2766,7 @@ function App() {
             )}
           </section>
           {runtimeOpen && <PanelSeparator panel="runtime" orientation="horizontal" before={false} label="Resize the machine runtime" size={panelSizes.runtime} onResize={resizePanelTo} />}
-          {runtimeOpen && <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} command={machineCommand} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />}
+          {runtimeOpen && <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} commands={machineCommands} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />}
         </main>
             ),
           };
@@ -6828,7 +6837,7 @@ interface EmulatorPanelProps {
   romReady: boolean;
   tube: boolean;
   extraRoms: string[];
-  command?: MachineCommand;
+  commands: MachineCommand[];
   artifact: AssemblyArtifact | null;
   state: CpuSnapshot | null;
   onRun: () => void;
@@ -6884,7 +6893,7 @@ interface ArchimedesBridgeSnapshot {
   memoryKiB: number;
 }
 
-function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineModel, romSetId, engineId, projectSettings, archimedesRuntime, romReady, tube, extraRoms, command, artifact, state, onRun, onStep, onReset, onMachineState, onMachineMemory, onArchimedesState, onArchimedesMemory, onMachineDisassembly, onHardwareInspection, onMachineMedia, onMachineTest, onMachineError, onNotice }: EmulatorPanelProps) {
+function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineModel, romSetId, engineId, projectSettings, archimedesRuntime, romReady, tube, extraRoms, commands, artifact, state, onRun, onStep, onReset, onMachineState, onMachineMemory, onArchimedesState, onArchimedesMemory, onMachineDisassembly, onHardwareInspection, onMachineMedia, onMachineTest, onMachineError, onNotice }: EmulatorPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [frameLoaded, setFrameLoaded] = useState(false);
   const [machineState, setMachineState] = useState<MachineBridgeSnapshot | null>(null);
@@ -7486,20 +7495,24 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   }, [archimedesFastBootMs, archimedesListenerReady, archimedesRuntime, electronListenerReady, electronRomUrls, frameLoaded, fullArchimedesMachine, fullElectronMachine, poweredMachine, machineModel, romSetId, runtimeIdentity, tube, keyboardLayout, keyRemaps, extraRoms.join('\n')]);
 
   useEffect(() => {
-    if (!poweredMachine || (!machineState && !archimedesState && !electronState) || !command || command.id === sentCommandRef.current) return;
-    sentCommandRef.current = command.id;
-    const draft = command.message.programLoadDraft as ProgramLoadDraft | undefined;
-    if (draft && (command.message.type === 'load-machine-code' || command.message.type === 'load-arm-program' || command.message.type === 'run-test' || command.message.type === 'load-basic') && sessionManifest) {
-      try {
-        const { programLoadDraft: _draft, ...message } = command.message;
-        const bytes = Uint8Array.from(message.bytes as number[]);
-        const dynamicBasic = message.type === 'load-basic';
-        sendMachine({ ...message, programManifest: bindProgramLoadManifest(draft, sessionManifest.fingerprint, bytes, dynamicBasic ? 0 : Number(message.origin), dynamicBasic ? 0 : Number(message.entryPoint)), commandId: command.id });
-      } catch (error) { onNotice(`Program load refused · ${error instanceof Error ? error.message : String(error)}`); }
-      return;
+    if (!poweredMachine || (!machineState && !archimedesState && !electronState)) return;
+    /* Every command not yet sent, in the order it was queued. */
+    for (const command of commands) {
+      if (command.id <= sentCommandRef.current) continue;
+      sentCommandRef.current = command.id;
+      const draft = command.message.programLoadDraft as ProgramLoadDraft | undefined;
+      if (draft && (command.message.type === 'load-machine-code' || command.message.type === 'load-arm-program' || command.message.type === 'run-test' || command.message.type === 'load-basic') && sessionManifest) {
+        try {
+          const { programLoadDraft: _draft, ...message } = command.message;
+          const bytes = Uint8Array.from(message.bytes as number[]);
+          const dynamicBasic = message.type === 'load-basic';
+          sendMachine({ ...message, programManifest: bindProgramLoadManifest(draft, sessionManifest.fingerprint, bytes, dynamicBasic ? 0 : Number(message.origin), dynamicBasic ? 0 : Number(message.entryPoint)), commandId: command.id });
+        } catch (error) { onNotice(`Program load refused · ${error instanceof Error ? error.message : String(error)}`); }
+        continue;
+      }
+      sendMachine({ ...command.message, commandId: command.id });
     }
-    sendMachine({ ...command.message, commandId: command.id });
-  }, [archimedesState, command, electronState, poweredMachine, machineState, sessionManifest?.fingerprint]);
+  }, [archimedesState, commands, electronState, poweredMachine, machineState, sessionManifest?.fingerprint]);
 
   return (
     <section
