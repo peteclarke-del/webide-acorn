@@ -317,7 +317,7 @@ export const SHOTS = [
   {
     file: 'sprite-editor.png',
     topics: ['assets'],
-    steps: [{ clickText: { selector: '.mode-tab', text: 'Sprites' } }],
+    steps: [{ workspace: 'Sprites' }],
     shows: ['Sprites editor', 'Animation frames', 'Palette index', 'Generated output'],
   },
   {

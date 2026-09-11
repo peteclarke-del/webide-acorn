@@ -251,6 +251,9 @@ type BuildActivityStatus = 'idle' | 'queued' | 'building' | 'succeeded' | 'faile
 interface BuildActivity { requestId: number; status: BuildActivityStatus; trigger: BuildTrigger; targetName: string; message: string; startedAt?: number; finishedAt?: number; }
 interface BuildLogRecord extends BuildActivity { diagnostics: number; fingerprint?: string; }
 interface RetainedBuildArtifact { targetId: string; targetName: string; artifact: BuildArtifact; metadata: BuildResultMetadata; builtAt: number }
+/** The result of checking a source for errors: the assembler's own diagnostics,
+ * with nothing kept and no artifact produced. */
+interface SourceCheck { targetName: string; fileName: string; running: boolean; diagnostics: BuildArtifact['diagnostics']; error?: string }
 interface MachineCommand { id: number; message: Record<string, unknown>; }
 interface MachineMemory { address: number; bytes: number[]; requestId: string; addressSpace: MemorySpaceId; addressSpaceLabel: string; bank?: number; capturedAtCycles: number; }
 interface ArchimedesMemory { address: number; bytes: number[]; requestId: string; emulationMs: number; running: boolean; addressSpace: string; }
@@ -502,6 +505,7 @@ function App() {
   const [armBasicDialect, setArmBasicDialect] = useState<'bbc-basic-5-riscos2' | 'bbc-basic-5' | 'bbc-basic-6'>('bbc-basic-5');
   const [analysisActivity, setAnalysisActivity] = useState<{ status: 'idle' | 'running' | 'failed'; message: string }>({ status: 'idle', message: '' });
   const analysisTaskRef = useRef<AnalysisTask | undefined>(undefined);
+  const [sourceCheck, setSourceCheck] = useState<SourceCheck | null>(null);
   const [buildArtifact, setBuildArtifact] = useState<BuildArtifact | null>(null);
   const [buildResultMetadata, setBuildResultMetadata] = useState<BuildResultMetadata | null>(null);
   const [buildFailureMetadata, setBuildFailureMetadata] = useState<BuildResultMetadata | null>(null);
@@ -1616,6 +1620,28 @@ function App() {
     worker.postMessage({ requestId, request: requestFor(target) });
   };
 
+  /* Check a source for errors and lint: run the assembler over the active build
+   * target and report what it says, without keeping an artifact or disturbing
+   * the build state. The Problems panel is filled by a real build; this is the
+   * on-demand check the Analyse workspace offers for the file in hand. */
+  const runSourceCheck = async (fileId?: string) => {
+    const active = project.files.find((candidate) => candidate.id === (fileId ?? activeFileId));
+    const target = project.buildTargets.find((candidate) => candidate.id === project.activeBuildTargetId) ?? project.buildTargets[0];
+    if (!target) { setSourceCheck({ targetName: '', fileName: active?.name ?? '', running: false, diagnostics: [], error: 'This project has no build target to assemble against.' }); return; }
+    const entry = active ?? project.files.find((candidate) => candidate.id === target.entryFileId);
+    const fileName = entry?.name ?? target.name;
+    setSourceCheck({ targetName: target.name, fileName, running: true, diagnostics: [] });
+    try {
+      const response = toolchainFor(target.toolchainId)?.execution === 'server-native'
+        ? await invokeNativeToolchain({ ...requestFor(target), cacheMode: 'use' })
+        : executeBuild({ ...requestFor(target), cacheMode: 'use' });
+      setSourceCheck({ targetName: target.name, fileName, running: false, diagnostics: response.artifact.diagnostics });
+    } catch (error) {
+      const diagnostics = error instanceof BuildExecutionError ? error.result.diagnostics : [];
+      setSourceCheck({ targetName: target.name, fileName, running: false, diagnostics, error: diagnostics.length ? undefined : (error instanceof Error ? error.message : String(error)) });
+    }
+  };
+
   const buildActiveSource = async (destination: 'Build targets' | 'Debugger' | 'Tests' | 'run' = 'Build targets', cacheMode: BuildRequest['cacheMode'] = 'use') => {
     cancelBackgroundBuild('Automatic build superseded by explicit command');
     const target = project.buildTargets.find((candidate) => candidate.id === project.activeBuildTargetId) ?? project.buildTargets[0]!;
@@ -2121,6 +2147,23 @@ function App() {
     },
   ];
 
+  /* The workspaces and the asset editors, each a menu titled for its group with
+   * its sections as the items, so the section bar is two dropdowns rather than a
+   * row of tabs that runs off a window that is not full screen. The section you
+   * are on is ticked. */
+  const sectionMenus: PanelMenu[] = [
+    {
+      id: 'menu-workspace',
+      label: 'Workspace',
+      items: workspaceTabs.map((tab) => ({ id: `section-${tab}`, label: tab, description: `Show the ${tab} workspace`, checked: workspaceTab === tab, onSelect: () => (tab === 'Search' ? openProjectSearch() : setWorkspaceTab(tab)) })),
+    },
+    {
+      id: 'menu-assets',
+      label: 'Assets',
+      items: assetTabs.map((tab) => ({ id: `asset-${tab}`, label: tab, description: `Open the ${tab} editor`, checked: workspaceTab === tab, onSelect: () => setWorkspaceTab(tab) })),
+    },
+  ];
+
   /* Every workbench shortcut is dispatched from the resolved binding table, so
    * the palette labels, the Settings keyboard panel and the actual key handler
    * cannot drift apart. Chords the user unbinds simply stop resolving. */
@@ -2278,31 +2321,8 @@ function App() {
 
       <nav className="modebar" aria-label="IDE sections">
         <PanelMenuBar label="Workbench menu" menus={workbenchMenus} />
-        <div className="tab-group-label"><span />WORKSPACE</div>
-        <div className="tab-scroll">
-          {workspaceTabs.map((tab) => (
-            <button
-              className={workspaceTab === tab ? 'mode-tab active' : 'mode-tab'}
-              key={tab}
-              type="button"
-              aria-current={workspaceTab === tab ? 'page' : undefined}
-              onClick={() => tab === 'Search' ? openProjectSearch() : setWorkspaceTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-          <div className="tab-group-label assets-label"><span />ASSETS</div>
-          {assetTabs.map((tab) => (
-            <button
-              className={workspaceTab === tab ? 'mode-tab active' : 'mode-tab'}
-              key={tab}
-              type="button"
-              onClick={() => setWorkspaceTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <PanelMenuBar label="Sections" menus={sectionMenus} />
+        <span className="modebar-spacer" />
         <button className="panel-menu-button" type="button" aria-label={`Open help for ${workspaceTab}`} title={`Open technical help for ${workspaceTab}`} onClick={() => openHelp(workspaceHelpTopic)}>
           <Icon name="book" />
         </button>
@@ -2721,6 +2741,10 @@ function App() {
                 onAnnotationsChange={applyAnalysisAnnotations}
                 onHistoryMove={moveAnalysisHistory}
                 coverage={analysisCoverage}
+                sourceCheck={sourceCheck}
+                activeSourceName={activeSource?.name}
+                onRunSourceCheck={() => { void runSourceCheck(); }}
+                onNavigateDiagnostic={(diagnostic) => { const fileId = diagnostic.fileId ?? project.files.find((candidate) => candidate.name === diagnostic.fileName)?.id; if (fileId) { setWorkspaceTab('Code'); jumpToSourceLocation(fileId, diagnostic.line, diagnostic.column); } }}
               />
             ) : workspaceTab === 'Build targets' ? (
               <BuildWorkspace artifact={buildArtifact} metadata={buildResultMetadata} failure={buildFailureMetadata} artifactDocumentId={artifactDocumentId} onArtifactDocumentChange={setArtifactDocumentId} requestedSymbol={artifactSymbolSelection} onRequestedSymbolHandled={() => setArtifactSymbolSelection(undefined)} stale={!!buildArtifact && !buildArtifactIsCurrent} pinned={artifactPinned} activity={buildActivity} history={buildHistory} buildAllRecords={buildAllRecords} files={project.files} activeFileId={activeFileId} targets={project.buildTargets} activeTarget={activeBuildTarget} machineId={machine.id} machineCpu={machine.cpu} nativeToolchains={nativeToolchains} errors={buildTargetErrors} onSelect={selectBuildTarget} onChange={updateBuildTarget} onAdd={addBuildTarget} onDelete={deleteBuildTarget} onBuild={() => { void buildActiveSource(); }} onBuildBypass={() => { void buildActiveSource('Build targets', 'bypass'); }} onBuildAll={() => void runBuildAll()} onCancelAll={cancelBuildAll} onCancel={() => cancelBackgroundBuild()} onTogglePinned={() => setArtifactPinned((current) => !current)} onAnalyse={analyseBuildArtifact} onNavigate={jumpToSourceLocation} />
@@ -2863,6 +2887,12 @@ export interface AnalysisWorkspaceProps {
   onHistoryMove: (direction: 'undo' | 'redo') => void;
   /* Observed execution, or the reason it cannot honestly be shown here. */
   coverage: RuntimeCoverage | null;
+  /* Checking the current source for errors and lint, alongside the binary
+   * disassembler. The result is the assembler's own diagnostics. */
+  sourceCheck?: SourceCheck | null;
+  activeSourceName?: string;
+  onRunSourceCheck?: () => void;
+  onNavigateDiagnostic?: (diagnostic: BuildArtifact['diagnostics'][number]) => void;
 }
 
 /* The analyser can read what the project already holds, so choosing the
@@ -2891,7 +2921,9 @@ export function AnalysisWorkspace({
   file, origin, entryPoint, processor, activity, onOriginChange, onEntryChange,
   onProcessorChange, armBasicDialect, onArmBasicDialectChange, onOpen, candidates, onChooseCandidate, onReanalyse, onCancel, onAddSource, onResearch, debugAvailable, onDebugAddress, onNotice,
   annotations, history, onAnnotationsChange, onHistoryMove, coverage,
+  sourceCheck, activeSourceName, onRunSourceCheck, onNavigateDiagnostic,
 }: AnalysisWorkspaceProps) {
+  const [mode, setMode] = useState<'binary' | 'source'>('binary');
   const [filter, setFilter] = useState('');
   const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
   const [analysisView, setAnalysisView] = useState<'listing' | 'hex'>('listing');
@@ -3135,9 +3167,57 @@ export function AnalysisWorkspace({
     }
   };
 
+  const modeToggle = (
+    <div className="analysis-mode-switch" role="tablist" aria-label="Analysis mode">
+      <button type="button" role="tab" aria-selected={mode === 'binary'} className={mode === 'binary' ? 'active' : undefined} onClick={() => setMode('binary')}>Binary</button>
+      <button type="button" role="tab" aria-selected={mode === 'source'} className={mode === 'source' ? 'active' : undefined} onClick={() => setMode('source')}>Source</button>
+    </div>
+  );
+
+  if (mode === 'source') {
+    return (
+      <div className="analysis-workspace">
+        {modeToggle}
+        <section className="analysis-source-check" aria-label="Source check">
+          <div className="source-check-head">
+            <div><strong>Check source for errors</strong><span>{sourceCheck?.fileName ?? activeSourceName ?? 'No source file open'}{sourceCheck && !sourceCheck.running ? ` · ${sourceCheck.targetName}` : ''}</span></div>
+            <button className="primary-action compact" type="button" disabled={sourceCheck?.running} onClick={onRunSourceCheck}>{sourceCheck?.running ? 'Checking...' : 'Check for errors'}</button>
+          </div>
+          {!sourceCheck ? (
+            <p className="honest-empty">Run the assembler over the current build target and list what it reports, without keeping an artifact. This does not replace a build; the Problems panel holds a real build's diagnostics.</p>
+          ) : sourceCheck.running ? (
+            <p className="honest-empty">Running the assembler over {sourceCheck.targetName}...</p>
+          ) : sourceCheck.error ? (
+            <p className="honest-empty">{sourceCheck.error}</p>
+          ) : !sourceCheck.diagnostics.length ? (
+            <p className="honest-empty">No errors or warnings. {sourceCheck.targetName} assembled cleanly.</p>
+          ) : (
+            <ul className="problem-list">
+              {sourceCheck.diagnostics.map((diagnostic, index) => {
+                const where = diagnostic.fileName ? `${diagnostic.fileName}${diagnostic.line ? ` ${diagnostic.line}:${diagnostic.column}` : ''}` : diagnostic.stage ?? 'build';
+                const canNavigate = !!diagnostic.fileName || !!diagnostic.fileId;
+                return (
+                  <li key={`${diagnostic.fileName ?? 'build'}-${diagnostic.line}-${diagnostic.column}-${index}`} className={`problem-item problem-${diagnostic.severity}`}>
+                    <button type="button" disabled={!canNavigate} title={canNavigate ? `Go to ${where}` : 'This diagnostic has no source location'} onClick={() => onNavigateDiagnostic?.(diagnostic)}>
+                      <span className="problem-severity">{diagnostic.severity}</span>
+                      <span className="problem-message">{diagnostic.message}</span>
+                      <small className="problem-location">{where}</small>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
+    );
+  }
+
   if (!file) {
     return (
-      <div className="analysis-empty">
+      <div className="analysis-workspace">
+        {modeToggle}
+        <div className="analysis-empty">
         <div className="placeholder-icon"><Icon name="terminal" size={30} /></div>
         <span className="eyebrow">LOCAL · PRIVATE · READ-ONLY</span>
         <h2>{activity.status === 'running' ? 'Analysing file' : 'File analyser'}</h2>
@@ -3145,6 +3225,7 @@ export function AnalysisWorkspace({
         {activity.status === 'running' ? <button type="button" onClick={onCancel}>Cancel analysis</button> : <button className="primary-action" type="button" onClick={onOpen}><Icon name="open" size={16} /> Choose Acorn file</button>}
         <ProjectAnalysisPicker candidates={candidates} onChoose={onChooseCandidate} disabled={activity.status === 'running'} />
         <small>Select one data file plus an optional matching .inf sidecar · 4 MiB input limit</small>
+        </div>
       </div>
     );
   }
@@ -3157,6 +3238,7 @@ export function AnalysisWorkspace({
 
   return (
     <div className="analysis-workspace">
+      {modeToggle}
       <div className="analysis-toolbar" role="group" aria-label="Analysis tools">
         <div className="analysis-file-identity">
           <span className={`analysis-kind kind-${file.analysis.kind}`}>{file.analysis.kind === 'bbc-basic' ? 'BASIC' : file.analysis.kind === 'machine-code' ? processor.toUpperCase() : 'TEXT'}</span>

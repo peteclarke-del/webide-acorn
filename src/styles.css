@@ -119,16 +119,8 @@
   .tone-amber { border-color: color-mix(in srgb, var(--theme-accent) 42%, var(--theme-line)); color: var(--theme-accent); }
   .tone-blue { border-color: color-mix(in srgb, var(--theme-secondary) 42%, var(--theme-line)); color: var(--theme-secondary); }
 
-  .modebar { z-index: 18; display: flex; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
-  .tab-scroll { display: flex; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .tab-scroll::-webkit-scrollbar { display: none; }
-  .tab-group-label { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; padding: 0 8px 0 12px; color: var(--theme-primary); font: 700 var(--fs-7)/1 var(--font-mono); letter-spacing: .12em; }
-  .tab-group-label span { width: 12px; height: 1px; background: currentColor; }
-  .assets-label { padding-left: 16px; color: var(--theme-accent); }
-  .mode-tab { position: relative; flex: 0 0 auto; min-height: var(--control-h-strip); padding: 0 10px; border: 0; background: transparent; color: var(--theme-muted); font-size: var(--fs-10); white-space: nowrap; }
-  .mode-tab:hover { background: var(--theme-hover); color: var(--theme-ink); }
-  .mode-tab.active { color: var(--theme-ink-strong); background: var(--theme-surface-3); }
-  .mode-tab.active::after { position: absolute; right: 8px; bottom: 0; left: 8px; height: 2px; background: var(--machine-accent, var(--theme-primary)); content: ''; }
+  .modebar { z-index: 50; display: flex; align-items: stretch; min-width: 0; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
+  .modebar-spacer { flex: 1 1 auto; min-width: 0; }
   .panel-menu-button { width: 38px; margin-left: auto; border: 0; border-left: 1px solid var(--theme-line); background: transparent; color: var(--theme-muted); }
   .panel-menu-button:hover { color: var(--theme-ink); }
 
@@ -485,6 +477,14 @@
   .primary-action:hover { background: color-mix(in srgb, var(--theme-primary-dark) 55%, var(--theme-surface-2)); }
   .primary-action.compact { min-height: var(--control-h); margin-top: 7px; font-size: var(--fs-8); }
   .analysis-workspace { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; background: var(--theme-editor); }
+  .analysis-mode-switch { display: flex; flex: 0 0 auto; gap: 4px; padding: 6px 9px; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
+  .analysis-mode-switch button { min-height: var(--control-h); padding: 0 14px; border: 1px solid var(--theme-line); border-radius: 4px; background: var(--theme-surface-2); color: var(--theme-muted); font-size: var(--fs-8); }
+  .analysis-mode-switch button.active { border-color: var(--theme-primary); background: var(--theme-selection); color: var(--theme-ink-strong); }
+  .analysis-source-check { display: grid; flex: 1; align-content: start; gap: 10px; min-height: 0; padding: 12px; overflow: auto; }
+  .source-check-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .source-check-head > div { display: grid; gap: 2px; min-width: 0; }
+  .source-check-head strong { color: var(--theme-ink-strong); font-size: var(--fs-9); }
+  .source-check-head span { color: var(--theme-faint); font: var(--fs-7)/1.3 var(--font-mono); word-break: break-word; }
   .analysis-toolbar { display: flex; flex: 0 0 auto; min-width: 0; align-items: center; gap: 10px; min-height: 48px; padding: 6px 9px; border-bottom: 1px solid var(--theme-line); background: var(--theme-surface-1); }
   .analysis-file-identity { display: flex; min-width: 125px; align-items: center; gap: 7px; }
   .analysis-file-identity > div { min-width: 0; }
@@ -1021,7 +1021,6 @@
    * wrapped inside it would draw its last menus over the workbench. The
    * workspaces beside it scroll instead, which is what they are built to do. */
   .modebar .panel-menu-bar { flex: 0 0 auto; flex-wrap: nowrap; gap: 0; padding-right: 4px; border-right: 1px solid var(--theme-line); }
-  .modebar .tab-scroll { flex: 1 1 auto; }
   .modebar .panel-actions-button { min-height: var(--control-h-strip); border-radius: 0; }
   .panel-menu { position: relative; }
   .panel-actions-button { min-height: var(--control-h); padding: 0 var(--control-pad-x); border: 1px solid transparent; border-radius: var(--radius-xs); background: transparent; color: var(--theme-muted); font: 650 var(--fs-8)/1 var(--font-ui); }
@@ -1634,8 +1633,6 @@
     .brand-name { font-size: var(--fs-12); }
     .global-actions .action-cluster:first-child, .global-actions > .icon-button, .global-actions .tone-blue { display: none; }
     .global-actions .action-cluster { border-right: 0; }
-    .tab-group-label { display: none; }
-    .mode-tab { min-height: var(--control-h-strip); padding-inline: 9px; }
     .workbench { grid-template-columns: 1fr; grid-template-rows: 39px minmax(0, 1fr); }
     .activity-rail { grid-row: 1; flex-direction: row; padding: 2px 4px; border-right: 0; border-bottom: 1px solid var(--theme-line); }
     .rail-button { width: 34px; height: 34px; margin: 0 3px 0 0; }
@@ -1705,7 +1702,7 @@
     .rail-button, .plain-icon, .collapse-button, .emulator-controls button, .tree-trash-actions button {
       border: 1px solid ButtonText;
     }
-    .rail-button.active, .mode-tab.active { outline: 2px solid Highlight; outline-offset: -2px; }
+    .rail-button.active { outline: 2px solid Highlight; outline-offset: -2px; }
     /* A range input draws its own track and thumb, which the system replaces;
      * a border keeps the control's extent visible either way. */
     input[type="range"], input[type="color"], input[type="file"] { border: 1px solid ButtonText; }

@@ -548,6 +548,31 @@ await stage('smoke', async () => {
       return result.result.value;
     };
 
+    /* The section bar is two dropdown menus, Workspace and Assets, rather than a
+     * row of tabs. To reach a section, open whichever menu holds it and click the
+     * entry; to list them, read both menus. */
+    const gotoSection = async (name) => {
+      for (const title of ['Workspace', 'Assets']) {
+        await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+        await delay(160);
+        const clicked = await evaluate(`(() => { const item = [...document.querySelectorAll('.panel-menu-item')].find((element) => element.textContent.trim() === ${JSON.stringify(name)}); if (!item) return false; item.click(); return true; })()`);
+        if (clicked) return true;
+        await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+      }
+      return false;
+    };
+    const listSections = async () => {
+      const names = [];
+      for (const title of ['Workspace', 'Assets']) {
+        await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+        await delay(160);
+        names.push(...await evaluate(`[...document.querySelectorAll('.panel-menu-item')].map((element) => element.textContent.trim())`));
+        await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+      }
+      return names;
+    };
+
+
     await call('Page.enable');
     await call('Runtime.enable');
     await call('Log.enable');
@@ -720,11 +745,7 @@ await stage('smoke', async () => {
      *
      * The build is driven through the real command rather than by seeding a
      * result, so the path a person takes is the path that is scanned. */
-    await evaluate(`(() => {
-      const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === 'Build targets');
-      if (tab) tab.click();
-      return true;
-    })()`);
+    await gotoSection('Build targets');
     await delay(500);
     const built = await evaluate(`(() => {
       /* Inside the workspace, because the workbench's own menu bar carries a
@@ -773,7 +794,7 @@ await stage('smoke', async () => {
     })()`);
     await delay(400);
 
-    const offered = await evaluate(`[...document.querySelectorAll('.modebar .mode-tab')].map((tab) => tab.textContent.trim()).filter(Boolean)`);
+    const offered = await listSections();
     if (!offered.length) throw new Error('The workspace tab strip offered nothing, so nothing was scanned for accessibility');
     const accessibility = [];
     /* The drag-alternative rule can only say something if something draggable
@@ -784,12 +805,7 @@ await stage('smoke', async () => {
     const visited = [];
     const mismatched = [];
     for (const workspace of offered) {
-      const opened = await evaluate(`(() => {
-        const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === ${JSON.stringify(workspace)});
-        if (!tab) return false;
-        tab.click();
-        return true;
-      })()`);
+      const opened = await gotoSection(workspace);
       if (!opened) continue;
       await delay(500);
       visited.push(workspace);
@@ -865,7 +881,8 @@ await stage('smoke', async () => {
       return { id: steps.join('>'), named, escape: node.getAttribute('aria-keyshortcuts') ?? '', markup: node.outerHTML.slice(0, 180) };
     })()`);
 
-    await evaluate(`(() => { const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === 'Code'); if (tab) tab.click(); document.body.focus(); })()`);
+    await gotoSection('Code');
+    await evaluate('document.body.focus()');
     await delay(400);
     const seen = new Set();
     const heldWithEscape = [];
@@ -920,10 +937,7 @@ await stage('smoke', async () => {
     for (const [theme, contrast] of PALETTES) {
       await evaluate(`(() => { const root = document.documentElement; root.setAttribute('data-theme', ${JSON.stringify(theme)}); root.setAttribute('data-contrast', ${JSON.stringify(contrast)}); })()`);
       for (const workspace of visited) {
-        await evaluate(`(() => {
-          const tab = [...document.querySelectorAll('.modebar .mode-tab')].find((candidate) => candidate.textContent.trim() === ${JSON.stringify(workspace)});
-          if (tab) tab.click();
-        })()`);
+        await gotoSection(workspace);
         await delay(320);
         for (const finding of await evaluate(SCAN)) {
           if (finding.rule !== 'contrast') continue;
