@@ -220,6 +220,36 @@ export async function statusNotice(page) {
   return String(await page.evaluate("(document.querySelector('.status-left')?.textContent ?? '').trim()"));
 }
 
+/**
+ * Open a menu on the workbench menu bar and click one of its items by name.
+ * Matches an item exactly, then by a single one that starts with the name
+ * (a menu entry carries its shortcut in the same element, so "Build and run"
+ * reads as "Build and runF5"). Throws when the menu or a usable item is not
+ * found, so a rename fails here rather than silently doing nothing.
+ */
+export async function clickMenuItem(page, menu, item) {
+  const opened = await page.evaluate(`(() => {
+    const button = [...document.querySelectorAll('.panel-actions-button, [role=menubar] button, button')].find((element) => element.textContent.trim() === ${JSON.stringify(menu)});
+    if (!button) return 'no ' + ${JSON.stringify(menu)} + ' menu';
+    button.click();
+    return true;
+  })()`);
+  if (opened !== true) throw new Error(`the ${menu} menu could not be opened: ${opened}`);
+  await delay(400);
+  const chosen = await page.evaluate(`(() => {
+    const items = [...document.querySelectorAll('.panel-menu-item, [role=menu] button')];
+    const exact = items.filter((element) => element.textContent.trim() === ${JSON.stringify(item)});
+    const prefixed = items.filter((element) => element.textContent.trim().startsWith(${JSON.stringify(item)}));
+    const match = exact[0] ?? (prefixed.length === 1 ? prefixed[0] : undefined);
+    if (!match) return 'no ' + ${JSON.stringify(item)} + ' item';
+    if (match.disabled) return ${JSON.stringify(item)} + ' is disabled';
+    match.click();
+    return true;
+  })()`);
+  if (chosen !== true) throw new Error(`the ${menu} menu could not run ${item}: ${chosen}`);
+  await delay(350);
+}
+
 /** Open a project file in the editor and replace its text the way a person would. */
 export async function editFile(page, { name, text }) {
   await runStep(page, { workspace: 'Code' });
@@ -249,8 +279,7 @@ export async function saveToFolder(page) {
  * the workbench to report the boot done. Returns the status line it settled on.
  */
 export async function buildAndBoot(page, { timeoutMs = 120000 } = {}) {
-  await runStep(page, { clickText: { selector: '.workbench-menu button, .menu-bar button, button', text: 'Build' } });
-  await runStep(page, { clickText: { selector: 'button', text: 'Build and boot' } });
+  await clickMenuItem(page, 'Build', 'Build and boot');
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const text = await statusNotice(page);
