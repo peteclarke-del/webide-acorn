@@ -392,6 +392,7 @@ function App() {
   const [configOpen, setConfigOpen] = useState(true);
   const [explorerOpen, setExplorerOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inspectorView, setInspectorView] = useState<'inspector' | 'problems'>('inspector');
   /* The machine runtime shares the workspace with the editor. It can be put
    * away like any other panel, because somebody writing code who is not running
    * anything should not have to give it a third of the window. */
@@ -2526,12 +2527,41 @@ function App() {
             inspector: inspectorOpen && (
           <aside className="inspector-panel panel-surface" aria-label="Inspector">
             <div className="inspector-tabs" role="tablist" aria-label="Inspector views">
-              <button className="active" role="tab" aria-selected="true" type="button">Inspector</button>
-              <button role="tab" aria-selected="false" type="button">Problems <span>{problemCount}</span></button>
+              <button className={inspectorView === 'inspector' ? 'active' : undefined} role="tab" aria-selected={inspectorView === 'inspector'} type="button" onClick={() => setInspectorView('inspector')}>Inspector</button>
+              <button className={inspectorView === 'problems' ? 'active' : undefined} role="tab" aria-selected={inspectorView === 'problems'} type="button" onClick={() => setInspectorView('problems')}>Problems <span>{problemCount}</span></button>
               <PanelMoveControls panel="inspector" />
               <button className="plain-icon inspector-close" type="button" aria-label="Close inspector" onClick={() => setInspectorOpen(false)}><Icon name="close" size={15} /></button>
             </div>
             <div className="inspector-scroll">
+              {inspectorView === 'problems' && (
+                <section className="inspector-problems" aria-label="Problems">
+                  {!buildArtifact ? (
+                    <p className="honest-empty">No build yet. Build a target to see its problems.</p>
+                  ) : !buildArtifactIsCurrent ? (
+                    <p className="honest-empty">The build is out of date, so its problems are not shown. Rebuild to refresh them.</p>
+                  ) : !buildArtifact.diagnostics.length ? (
+                    <p className="honest-empty">No problems in the current build.</p>
+                  ) : (
+                    <ul className="problem-list">
+                      {buildArtifact.diagnostics.map((diagnostic, index) => {
+                        const fileId = diagnostic.fileId ?? project.files.find((file) => file.name === diagnostic.fileName)?.id;
+                        const canNavigate = !!fileId && project.files.some((file) => file.id === fileId);
+                        const where = diagnostic.fileName ? `${diagnostic.fileName}${diagnostic.line ? ` ${diagnostic.line}:${diagnostic.column}` : ''}` : diagnostic.stage ?? 'build';
+                        return (
+                          <li key={`${diagnostic.fileId ?? diagnostic.fileName ?? 'build'}-${diagnostic.line}-${diagnostic.column}-${index}`} className={`problem-item problem-${diagnostic.severity}`}>
+                            <button type="button" disabled={!canNavigate} title={canNavigate ? `Go to ${where}` : 'This problem has no source location to open'} onClick={() => { if (fileId) { setWorkspaceTab('Code'); jumpToSourceLocation(fileId, diagnostic.line, diagnostic.column); } }}>
+                              <span className="problem-severity">{diagnostic.severity}</span>
+                              <span className="problem-message">{diagnostic.message}</span>
+                              <small className="problem-location">{where}</small>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+              )}
+              {inspectorView === 'inspector' && (<>
               <section className="context-card">
                 <div className="context-kind">{workspaceTab === 'Code' ? 'ACTIVE SOURCE FILE' : 'WORKSPACE STATUS'}</div>
                 <div className="context-title"><code>{workspaceTab === 'Code' ? activeSource?.name : workspaceTab}</code><span>{workspaceTab === 'Code' ? activeSourceLanguage : workspaceTab === 'Media' && latestMedia ? mediaLocation(latestMedia) : workspaceTab === 'Debugger' && hardwareState ? `hardware ${hardwareState.running ? 'running' : 'paused'}` : workspaceTab === 'Debugger' && runtimeState ? runtimeState.status : workspaceTab === 'Build targets' && buildArtifact ? (isMachineCodeArtifact(buildArtifact) ? buildArtifact.processor : buildArtifact.kind === 'atom-basic-text' ? 'Atom BASIC' : 'BBC BASIC II') : 'no adapter'}</span></div>
@@ -2548,6 +2578,7 @@ function App() {
                 <div className="section-title"><span>DEBUG SESSION</span><small>{hardwareState ? (hardwareState.running ? 'running' : 'paused') : runtimeState?.status ?? 'disconnected'}</small></div>
                 {hardwareState ? <div className="mini-registers"><code>A {formatByte(hardwareState.registers.a)}</code><code>X {formatByte(hardwareState.registers.x)}</code><code>Y {formatByte(hardwareState.registers.y)}</code><code>SP {formatByte(hardwareState.registers.s)}</code><code>PC {formatAddress(hardwareState.registers.pc)}</code></div> : runtimeState ? <div className="mini-registers"><code>A {formatByte(runtimeState.registers.a)}</code><code>X {formatByte(runtimeState.registers.x)}</code><code>Y {formatByte(runtimeState.registers.y)}</code><code>SP {formatByte(runtimeState.registers.sp)}</code><code>PC {formatAddress(runtimeState.registers.pc)}</code></div> : <p className="honest-empty">No runtime is attached. Build a source or supply the selected ROM set to populate live state.</p>}
               </section>
+              </>)}
             </div>
           </aside>
         ),
