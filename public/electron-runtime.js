@@ -74,7 +74,7 @@
     'load-machine-code': 'program-load', 'load-basic': 'basic-load',
     'load-disc': 'media', 'load-tape': 'media', 'eject-disc': 'media', 'export-disc': 'media', 'eject-tape': 'media',
     'load-scsi-lun': 'beebscsi', 'eject-scsi-lun': 'beebscsi', 'export-scsi-lun': 'beebscsi',
-    'save-state': 'state-save', 'load-state': 'state-save',
+    'save-state': 'state-save', 'load-state': 'state-save', 'state-handoff-request': 'state-save', 'bind-program': 'program-load',
     'capture-screen': 'screen-capture',
     'focus-input': 'input-focus', 'release-input': 'input-focus',
     'set-keyboard-layout': 'keyboard-mapping', 'set-key-remaps': 'keyboard-mapping',

@@ -1,4 +1,5 @@
 import { fake6502 } from 'jsbeeb/src/fake6502.js';
+import { isDetached, peerWindowOf } from './machineWindow';
 import { findModel } from 'jsbeeb/src/models.js';
 import { BPlusCpu6502, resolveMachineModel } from './bbcBPlus';
 import { Cpu6502 } from 'jsbeeb/src/6502.js';
@@ -293,6 +294,8 @@ type CommandPayload =
   | { type: 'export-scsi-lun'; lun: number }
   | { type: 'eject-tape' }
   | { type: 'save-state' }
+  | { type: 'state-handoff-request' }
+  | { type: 'bind-program'; processor?: TestProcessor; sourceLocations?: Record<string, TraceSourceLocation>; symbols?: Record<string, number>; programManifest?: ProgramLoadManifest | null }
   | { type: 'load-state'; json: string }
   | { type: 'capture-screen' }
   | { type: 'focus-input' | 'release-input' }
@@ -318,7 +321,10 @@ let commandAudit: DebugCommandAudit[] = [];
 const debugCapabilities: DebugCapability[] = ['execution', 'register-read', 'register-write', 'memory-read', 'memory-write', 'execute-breakpoint', 'conditional-breakpoint', 'logpoint', 'data-watchpoint', 'source-step', 'trace', 'interrupt-monitor', 'raster-breakpoint', 'profiler', 'replay', 'hardware-inspection', 'media', 'screen-capture', 'audio'];
 function recordDebugCommand(command: Command) { commandAudit = [...commandAudit, { sequence: ++acceptedCommands, commandId: command.commandId ?? 0, type: command.type, acceptedAtMs: performance.now() }].slice(-32); }
 function debugProtocolSnapshot(): DebugProtocolSnapshot { return { version: 2, adapter: 'jsbeeb', sessionBound: Boolean(debugSessionId), owner: 'workbench-parent', acceptedCommands, lastCommandId: commandAudit.at(-1)?.commandId ?? 0, auditCapacity: 32, audit: commandAudit.slice(), capabilities: debugCapabilities.slice() }; }
-function send(message: Record<string, unknown>) { const payload = message.type === 'snapshot' ? { ...message, protocol: debugProtocolSnapshot(), programManifest: loadedProgramManifest } : message; window.parent.postMessage({ channel: '8bit-net-machine', sessionId: debugSessionId, eventSequence: ++eventSequence, ...payload }, window.location.origin); }
+/* The window this runtime reports to: the workbench's window when this page
+ * was opened as the machine's own window, else the frame's parent. */
+const peer = peerWindowOf(window) as Window;
+function send(message: Record<string, unknown>) { const payload = message.type === 'snapshot' ? { ...message, protocol: debugProtocolSnapshot(), programManifest: loadedProgramManifest } : message; peer.postMessage({ channel: '8bit-net-machine', sessionId: debugSessionId, eventSequence: ++eventSequence, ...payload }, window.location.origin); }
 function setStatus(message: string, tone: 'waiting' | 'ready' | 'error' = 'waiting') { status.textContent = message; status.className = tone === 'waiting' ? '' : tone; }
 
 async function initialise(modelName: string, romSetId: string, tube = false, extraRoms: string[] = [], requestedKeyboardLayout: unknown = 'physical', requestedSessionManifest?: RuntimeSessionManifest, requestedKeyRemaps: unknown = []) {
@@ -450,6 +456,7 @@ function executeCycles(cycles: number) {
   cpu.execute(cycles);
   const after = cpu.cycleSeconds * cpu.model.cyclesPerSecond + cpu.currentCycles;
   emulatedCycles += Math.max(0, after - before);
+  releaseBootShiftWhenDue();
 }
 
 function instructionAt(address: number) {
@@ -1300,16 +1307,26 @@ const OS_BOOT_CYCLE_CEILING = 20_000_000;
  * offers the ROMs the boot, and a disc with a boot option is then started.
  * On a Model B with a second processor that offer comes after the Tube has
  * started the parasite and its banner has been printed, which is past two
- * seconds; four seconds of wall time at normal speed is past it on every
- * machine here. The key goes down after the reset, since the reset clears
- * the keyboard matrix, and a Shift still held once the disc has booted is
- * read by nothing.
+ * seconds of the machine's own time. The key is held for three seconds of
+ * that time, counted in cycles by the run loop, because wall time is not
+ * the machine's: in a browser window that is not in front, or a headless
+ * one, the machine runs at a fraction of real time and a wall-clock hold
+ * let go before the filing system had looked. The key goes down after the
+ * reset, since the reset clears the keyboard matrix, and a Shift still held
+ * once the disc has booted is read by nothing.
  */
+const BOOT_SHIFT_CYCLES = 6_000_000;
+let bootShiftReleaseAt: number | null = null;
+const BOOT_SHIFT = { keyCode: 16, which: 16, charCode: 0, location: 1, altKey: false, ctrlKey: false, shiftKey: true, preventDefault() {} } as KeyboardEvent;
 function holdShiftThroughBoot(): void {
   if (!keyboard) return;
-  const shift = { keyCode: 16, which: 16, charCode: 0, location: 1, altKey: false, ctrlKey: false, shiftKey: true, preventDefault() {} } as KeyboardEvent;
-  keyboard.keyDown(shift);
-  window.setTimeout(() => keyboard?.keyUp(shift), 4000);
+  keyboard.keyDown(BOOT_SHIFT);
+  bootShiftReleaseAt = emulatedCycles + BOOT_SHIFT_CYCLES;
+}
+function releaseBootShiftWhenDue(): void {
+  if (bootShiftReleaseAt === null || emulatedCycles < bootShiftReleaseAt) return;
+  bootShiftReleaseAt = null;
+  keyboard?.keyUp(BOOT_SHIFT);
 }
 
 function runUntilOperatingSystemReady(): { marker: number | null; ready: boolean; cycles: number } {
@@ -1753,18 +1770,38 @@ async function loadTape(name: string, values: number[]) {
   send({ type: 'media-loaded', kind: 'tape', name, size: bytes.length, format });
 }
 
+/** The machine's whole state as the envelope a state file holds, with the mounted discs. */
+function machineStateJson(): { json: string; timestamp: string } | null {
+  if (!cpu || !runtimeSessionManifest) return null;
+  const media = mountedDiscs.size ? {
+    drives: Array.from(mountedDiscs, ([drive, disc]) => ({ drive, name: disc.name, bytes: disc.bytes })),
+  } : undefined;
+  const snapshot = createSnapshot(cpu, cpu.model, media);
+  const payloadJson = snapshotToJSON(snapshot);
+  return { json: createMachineStateEnvelope(payloadJson, cpu.model.name, runtimeSessionManifest), timestamp: snapshot.timestamp.replace(/[:.]/g, '-') };
+}
+
+/* The machine handed to another window: its state, and whether it was
+ * running, so the page that takes it can carry on. */
+function handOverState() {
+  if (!cpu) return;
+  const wasRunning = running;
+  running = false;
+  try {
+    const state = machineStateJson();
+    if (state) send({ type: 'state-handoff', json: state.json, running: wasRunning });
+  } catch (error) { send({ type: 'error', message: `Unable to hand the machine over: ${error instanceof Error ? error.message : String(error)}` }); }
+  running = wasRunning;
+}
+
 function saveState() {
   if (!cpu || !runtimeSessionManifest) return;
   try {
     const wasRunning = running;
     running = false;
-    const media = mountedDiscs.size ? {
-      drives: Array.from(mountedDiscs, ([drive, disc]) => ({ drive, name: disc.name, bytes: disc.bytes })),
-    } : undefined;
-    const snapshot = createSnapshot(cpu, cpu.model, media);
-    const payloadJson = snapshotToJSON(snapshot);
-    const json = createMachineStateEnvelope(payloadJson, cpu.model.name, runtimeSessionManifest);
-    const timestamp = snapshot.timestamp.replace(/[:.]/g, '-');
+    const state = machineStateJson();
+    if (!state) return;
+    const { json, timestamp } = state;
     send({ type: 'state-saved', json, filename: `8bit-net-${cpu.model.name.replace(/[^A-Za-z0-9._-]+/g, '-')}-${timestamp}.8bitstate.json`, size: json.length, schema: '8bit-net.machine-state', version: 1, romCount: runtimeSessionManifest.roms.length, adapterVersion: runtimeSessionManifest.adapter.version });
     running = wasRunning;
     setStatus(`${cpu.model.name} state saved`, 'ready');
@@ -2026,7 +2063,7 @@ function captureHardwareInspection(): HardwareInspection {
 }
 
 window.addEventListener('message', (event: MessageEvent<Command>) => {
-  if (event.origin !== window.location.origin || event.source !== window.parent) return;
+  if (event.origin !== window.location.origin || event.source !== peer) return;
   const command = event.data;
   if (!command || typeof command.type !== 'string') return;
   if (!commandBelongsToSession(debugSessionId, command.sessionId)) return;
@@ -2196,6 +2233,16 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
   }
   else if (command.type === 'save-state') saveState();
   else if (command.type === 'load-state') loadState(command.json);
+  else if (command.type === 'state-handoff-request') handOverState();
+  else if (command.type === 'bind-program' && cpu) {
+    /* A program's map and manifest, for a runtime that took the machine's
+     * state from another window: the memory came with the state, the names
+     * did not. */
+    if (command.processor === 'parasite') { parasiteSourceLocations = normalisedSourceLocations(command.sourceLocations ?? {}); parasiteSymbols = normalisedSymbols(command.symbols ?? {}); }
+    else { loadedSourceLocations = normalisedSourceLocations(command.sourceLocations ?? {}); loadedSymbols = normalisedSymbols(command.symbols ?? {}); }
+    loadedProgramManifest = command.programManifest ?? null;
+    sendSnapshot('program bound');
+  }
   else if (command.type === 'capture-screen') captureScreen();
   else if (command.type === 'focus-input') { canvas.focus(); send({ type: 'input-focus', captured: document.activeElement === canvas }); }
   else if (command.type === 'release-input') { canvas.blur(); cpu?.sysvia?.clearKeys?.(); cpu?.atomppia?.clearKeys?.(); send({ type: 'input-focus', captured: false }); }
@@ -2413,4 +2460,12 @@ window.addEventListener('pagehide', () => {
   clearWatchpoints(); stopTrace(); stopProfiler(); stopReplay();
   void browserAudio?.close(); browserAudio = null;
 }, { once: true });
+if (isDetached(window)) {
+  window.addEventListener('beforeunload', () => { if (cpu) handOverState(); });
+  const fullScreenButton = document.getElementById('full-screen') as HTMLButtonElement | null;
+  if (fullScreenButton) {
+    fullScreenButton.hidden = false;
+    fullScreenButton.addEventListener('click', () => { void (document.fullscreenElement ? document.exitFullscreen() : canvas.requestFullscreen()); });
+  }
+}
 send({ type: 'bridge-ready' });

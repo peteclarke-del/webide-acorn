@@ -227,7 +227,8 @@ Enter a pattern of pitches and volumes for the selected sound hardware, and emit
 6. Enter pitch and volume for each channel in Pattern, one row at a time.
 7. Set Player zero-page base to an address range the program is not already using; the player keeps its position there.
 8. Use Undo to step back and Clear to empty the pattern.
-9. Read Generated song data and player or Generated song BASIC statements, then Add generated source, or Add live song build target to regenerate on every build.
+9. Use Play under Pattern to hear the song through the browser from the current row; the row that is sounding is highlighted. Pause holds the place, Stop goes back to the first row, and the rewind and fast-forward controls move four rows. It is an audition on the machine's pitch scale with the browser's own oscillators, not the chip: the SN76489's tones are square waves and its noise channel noise, the Electron and the Atom are square waves, and the 6581's waveforms, pulse and envelope are approximated. Build the song and run it to hear the chip.
+10. Read Generated song data and player or Generated song BASIC statements, then Add generated source, or Add live song build target to regenerate on every build.
 
 **What should happen**
 

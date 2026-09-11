@@ -304,6 +304,40 @@ export function generatedBootText(side: DiskSetSide, basicEntryIds: ReadonlySet<
 }
 
 /**
+ * The bytes for every entry of a set that has a source now: build artifacts
+ * by target, project text with the machine's line endings, and the generated
+ * boot file, which CHAINs the side's first BASIC program when it has one.
+ * An entry with no source is left out, which is what the quota and the build
+ * refuse on.
+ */
+export function resolveDiskSetEntries(
+  set: DiskSet,
+  artifacts: ReadonlyArray<{ targetId: string; bytes: Uint8Array; loadAddress: number; executionAddress: number; kind: 'machine-code' | 'bbc-basic' }>,
+  projectFiles: ReadonlyArray<{ id: string; content: string }>,
+): Map<string, DiskSetResolvedEntry> {
+  const artifactByTarget = new Map(artifacts.map((artifact) => [artifact.targetId, artifact]));
+  const resolved = new Map<string, DiskSetResolvedEntry>();
+  for (const disc of set.discs) {
+    for (const side of disc.sides) {
+      const basicEntryIds = new Set(side.entries.filter((entry) => entry.source.kind === 'build-target' && artifactByTarget.get(entry.source.targetId)?.kind === 'bbc-basic').map((entry) => entry.id));
+      for (const entry of side.entries) {
+        if (entry.source.kind === 'build-target') {
+          const artifact = artifactByTarget.get(entry.source.targetId);
+          if (artifact) resolved.set(entry.id, { bytes: artifact.bytes, loadAddress: artifact.loadAddress, executionAddress: artifact.executionAddress });
+        } else if (entry.source.kind === 'project-file') {
+          const fileId = entry.source.fileId;
+          const file = projectFiles.find((candidate) => candidate.id === fileId);
+          if (file && file.content.length) resolved.set(entry.id, { bytes: machineTextBytes(file.content), loadAddress: 0, executionAddress: 0 });
+        } else {
+          resolved.set(entry.id, { bytes: machineTextBytes(generatedBootText(side, basicEntryIds)), loadAddress: 0, executionAddress: 0 });
+        }
+      }
+    }
+  }
+  return resolved;
+}
+
+/**
  * Write every disc in the set. `resolved` supplies the bytes for each entry
  * identifier; an entry with no bytes is refused by name rather than skipped,
  * because a disc missing a file it declares is worse than no disc.

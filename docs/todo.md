@@ -6411,13 +6411,67 @@ Current implemented increment:
   is how an 8-bit Acorn starts the disc in drive 0, had no control and no
   command.
   - [x] Boot from disc, in the runtime toolbar and the command palette, is a
-    hard reset with Shift held for four seconds of wall time, which on a
-    Model B that also starts a second processor is past the moment the
-    filing system reads the key.
+    hard reset with Shift held for three seconds of the machine's own time,
+    counted in cycles, which on a Model B that also starts a second
+    processor is past the moment the filing system reads the key; a
+    wall-clock hold let go too soon in a window the browser was throttling.
   - [x] Evidence: `holdShiftThroughBoot` in `src/emulator/runtime.ts`, and
     the disk-set workflow in `docs/guide/media.md`, which names the control;
     the boot itself is driven by the FireWing demonstration outside this
     repository, which boots a DFS disc on a Model B with a 65C102.
+- [x] EMU-440 Two commands for the machine queued in one tick lost the
+  first: the workbench kept one command slot, and React took the last write
+  to it. Build and boot mounts the disc and then resets with Shift held in
+  one go, so the machine reset with no disc in the drive and the 1770 DFS
+  waited for one for good, which read as the emulator hanging.
+  - [x] The slot is a list, sent in order and never more than one behind.
+  - [x] Evidence: the FireWing demonstration boots the game with Build and
+    boot, which needs both commands to arrive.
+- [x] AST-635 A song could not be heard where it was written. The Sound
+  workspace had no way to play a composition, so a tune was a table of
+  numbers until it was built into a program and run.
+  - [x] Play, Pause, Stop, rewind and fast forward under Pattern sound the
+    song through the browser from the current row, which is highlighted:
+    each row as a frequency, a level and a waveform on the machine's own
+    pitch scale, the SN76489's noise as noise, the Atom timed by its delay
+    loop, and the 6581's waveforms and envelope approximated. The workspace
+    says it is an audition and the chip is heard by building and running.
+  - [x] Evidence: `src/assets/songPlayback.test.ts` for the pitch scales,
+    the rows and the transport; `src/assets/songPlayer.test.ts` for what is
+    asked of the browser's audio; `src/components/SongWorkspace.test.tsx`
+    plays, steps, pauses, stops and runs off the end through the controls.
+- [x] EMU-439 A game that starts from a disc had no Run. Build and run
+  runs one target; the game needed every target built, the disk set written
+  and mounted, and a Shift+Break, four places apart, and the first thing
+  tried in the live workbench was to run the second processor's program on
+  its own, which left the host mid-banner.
+  - [x] Build and boot, in the Build menu and beside Run in the toolbar,
+    does the four in order from the builds it just made.
+  - [x] Evidence: `src/media/diskSetArtifacts.test.ts` and
+    `src/media/diskSet.test.ts` for the disc the builds become, which the
+    Media workspace and Build and boot now share.
+- [x] EMU-438 The machine was confined to the panel at the bottom of the
+  Code workspace, which is not how a person plays or tests a game. The user
+  asked for the emulator to be decoupled from the workbench into a window of
+  its own, or full screen, or however they choose, with debugging and
+  stepping still working against it.
+  - [x] Pop out machine in the run panel's toolbar puts the machine in a
+    window of its own, and Dock machine, in the toolbar or in the place the
+    machine left, brings it back. The runtime is the same page in either
+    place and reports to the window that opened it or the frame that holds
+    it. The move carries the machine's state through the runtime's own state
+    file, and the workbench tells the new runtime the program's names and the
+    breakpoints again, so the debugger, the Tube panel, the memory views and
+    the controls keep working. The window has its own Full screen control,
+    and hands its state over as it closes. The control says POP OUT and
+    DOCK in words: as an icon it read as full screen, which sits beside it,
+    and was not found.
+  - [x] Evidence: `src/emulator/machineWindow.test.ts` for the peer, the
+    window features and the handoff shape; the FireWing demonstration pops
+    the machine out, stops the second processor at a source line in the
+    window, and docks it.
+  - [ ] The A310 and Electron runtime pages still report only to their
+    frame; the control says so for them.
 - [x] DBG-548 The Tube panel vanished for a render on every snapshot. The
   runtime sends the machine snapshot and the Tube state as two messages, and
   the snapshot replaced the whole state, so between the two the state had no
