@@ -6418,6 +6418,16 @@ Current implemented increment:
     the disk-set workflow in `docs/guide/media.md`, which names the control;
     the boot itself is driven by the FireWing demonstration outside this
     repository, which boots a DFS disc on a Model B with a 65C102.
+- [x] EMU-439 A game that starts from a disc had no Run. Build and run
+  runs one target; the game needed every target built, the disk set written
+  and mounted, and a Shift+Break, four places apart, and the first thing
+  tried in the live workbench was to run the second processor's program on
+  its own, which left the host mid-banner.
+  - [x] Build and boot, in the Build menu and beside Run in the toolbar,
+    does the four in order from the builds it just made.
+  - [x] Evidence: `src/media/diskSetArtifacts.test.ts` and
+    `src/media/diskSet.test.ts` for the disc the builds become, which the
+    Media workspace and Build and boot now share.
 - [x] EMU-438 The machine was confined to the panel at the bottom of the
   Code workspace, which is not how a person plays or tests a game. The user
   asked for the emulator to be decoupled from the workbench into a window of
@@ -6431,7 +6441,9 @@ Current implemented increment:
     file, and the workbench tells the new runtime the program's names and the
     breakpoints again, so the debugger, the Tube panel, the memory views and
     the controls keep working. The window has its own Full screen control,
-    and hands its state over as it closes.
+    and hands its state over as it closes. The control says POP OUT and
+    DOCK in words: as an icon it read as full screen, which sits beside it,
+    and was not found.
   - [x] Evidence: `src/emulator/machineWindow.test.ts` for the peer, the
     window features and the handoff shape; the FireWing demonstration pops
     the machine out, stops the second processor at a source line in the

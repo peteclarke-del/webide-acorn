@@ -4,6 +4,8 @@ import { createVerified6502AssemblySource } from './analysis/disassemblyAssembly
 import { createArmAssemblySource, verifyArmAssemblySource, type ArmAssemblyVerification } from './analysis/disassemblyArmAssemblyExport';
 import { correlateRuntimeCoverage, rowCoverageLabel, type RuntimeCoverage } from './analysis/runtimeCoverage';
 import { DiskSetWorkspace, type DiskSetSourceArtifact } from './components/DiskSetWorkspace';
+import { diskSetArtifactFor } from './media/diskSetArtifacts';
+import { buildDiskSet, resolveDiskSetEntries } from './media/diskSet';
 import { SettingsLayersPanel } from './components/SettingsLayersPanel';
 import { AppearancePanel } from './components/AppearancePanel';
 import { applyAppearance, applyScaleToFrames, readAppearance, saveAppearance, syncFrameScale, watchSystemAppearance, type Appearance } from './theme/appearance';
@@ -510,24 +512,9 @@ function App() {
   /* Only machine-code artifacts can go on a disc as loadable files, and only
    * retained ones exist as bytes right now. A target that has not been built in
    * this session is simply absent, which is what the disk-set surface reports. */
-  const diskSetArtifacts = useMemo<DiskSetSourceArtifact[]>(() => retainedArtifacts.flatMap((retained): DiskSetSourceArtifact[] => {
-    /* On a machine with a second processor the filing system reads a file's
-     * addresses to decide which side of the Tube it belongs on: &FFFF in the
-     * top half says the host. A host program without it would be loaded
-     * into the parasite and run there. A BASIC program's addresses are
-     * conventional, since CHAIN puts it at PAGE wherever that is. */
-    const target = project.buildTargets.find((candidate) => candidate.id === retained.targetId);
-    const hostSide = project.target.enabledCapabilities.includes('tube') && target?.processor !== 'parasite' ? 0x30000 : 0;
-    const common = {
-      targetId: retained.targetId,
-      targetName: retained.targetName,
-      outputName: retained.artifact.provenance?.target.outputName ?? retained.targetName,
-      bytes: retained.artifact.bytes,
-      fingerprint: retained.artifact.provenance?.fingerprint ?? '',
-    };
-    if (retained.artifact.kind === 'bbc-basic-program') return [{ ...common, loadAddress: hostSide | 0x1900, executionAddress: hostSide | 0x8023, kind: 'bbc-basic' as const }];
-    if (!isMachineCodeArtifact(retained.artifact)) return [];
-    return [{ ...common, loadAddress: hostSide | retained.artifact.origin, executionAddress: hostSide | retained.artifact.entryPoint, kind: 'machine-code' as const }];
+  const diskSetArtifacts = useMemo<DiskSetSourceArtifact[]>(() => retainedArtifacts.flatMap((retained) => {
+    const artifact = diskSetArtifactFor(retained, project.buildTargets, project.target.enabledCapabilities);
+    return artifact ? [artifact] : [];
   }), [retainedArtifacts, project.buildTargets, project.target.enabledCapabilities]);
   const [artifactDocumentId, setArtifactDocumentId] = useState<string>();
   const [artifactSymbolSelection, setArtifactSymbolSelection] = useState<string>();
@@ -1533,6 +1520,29 @@ function App() {
     } catch (error) { setNotice(`Build all not started · ${error instanceof Error ? error.message : String(error)}`); return [] as BuildAllRecord[]; }
     finally { if (buildAllAbortRef.current === controller) buildAllAbortRef.current = undefined; buildAllWorkersRef.current.clear(); }
   };
+  /* The game, in one action: every target built, the project's first disk
+   * set written from those builds, put in drive 0, and the machine booted
+   * from it with Shift held. This is what Run means for a project that
+   * starts from a disc rather than from one program. */
+  const buildAndBoot = async () => {
+    const set = project.diskSets[0];
+    if (!set) { setNotice('Build and boot needs a disk set · define one in Media'); return; }
+    const records = (await runBuildAll()) ?? [];
+    const failed = records.filter((record) => record.status === 'failed' || record.status === 'skipped');
+    if (!records.length || failed.length) { setNotice(`Build and boot stopped · ${failed.length || 'no'} target${failed.length === 1 ? '' : 's'} did not build`); return; }
+    const artifacts = records.flatMap((record) => {
+      const artifact = record.response ? diskSetArtifactFor({ targetId: record.targetId, targetName: record.targetName, artifact: record.response.artifact }, project.buildTargets, project.target.enabledCapabilities) : null;
+      return artifact ? [artifact] : [];
+    });
+    try {
+      const built = buildDiskSet(set, resolveDiskSetEntries(set, artifacts, project.files.map((file) => ({ id: file.id, content: file.content }))));
+      const first = built.discs[0]!;
+      queueMachineCommand({ type: 'load-disc', name: safeFilename(first.filename), bytes: Array.from(first.image), drive: 0 });
+      queueMachineCommand({ type: 'reset', boot: true });
+      setWorkspaceTab('Code');
+      setNotice(`${first.filename} written from ${records.length} builds, put in drive 0, and the machine booted from it with Shift held`);
+    } catch (error) { setNotice(`Build and boot stopped · ${error instanceof Error ? error.message : String(error)}`); }
+  };
 
   const startBackgroundBuild = async (trigger: Extract<BuildTrigger, 'on-save' | 'live'>, requestId: number) => {
     if (artifactPinned) return;
@@ -1995,6 +2005,7 @@ function App() {
     { id: 'editor-search-project', label: 'Search and replace project', short: 'Search project...', icon: 'search', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
     { id: 'editor-go-line', label: 'Go to line or project symbol', short: 'Go to line...', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
     { id: 'build-active', label: 'Build selected target', short: 'Build', icon: 'build', category: 'Build', keywords: ['compile', 'assemble', 'tokenize'], enabled: canBuild, disabledReason: buildTargetErrors[0] ?? 'Build target is invalid', run: () => { buildActiveSource(); } },
+    { id: 'build-boot', label: 'Build every target, write the disk set, mount it and boot the machine from it', short: 'Build and boot', icon: 'open', category: 'Run', keywords: ['disc', 'disk', 'boot', 'game', 'run', 'shift', 'break'], enabled: !!project.diskSets.length && !!hardwareState && !archimedesRuntime, disabledReason: !project.diskSets.length ? 'Define a disk set in Media first' : !hardwareState ? 'Power on the machine first' : 'The A310 boots from its own ROM set', run: () => { void buildAndBoot(); } },
     { id: 'run-active', label: 'Build and run selected target', short: 'Build and run', icon: 'play', category: 'Run', keywords: ['execute', 'emulator'], enabled: canRun, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before running BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: runProgram },
     { id: 'debug-active', label: 'Build and debug selected target', short: 'Build and debug', icon: 'debug', category: 'Debug', keywords: ['breakpoint', 'inspect'], enabled: canDebug, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before debugging BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: () => void startDebugger() },
     { id: 'debug-run-to', label: 'Debugger: run to address', short: 'Run to address...', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
@@ -2248,6 +2259,7 @@ function App() {
             <ToolbarButton label="Open technical help" icon="book" onClick={() => openHelp('using-help')} />
             <ToolbarButton label={canBuild ? `Build target ${activeBuildTarget.name}` : buildTargetErrors[0] ?? 'Build target is invalid'} icon="build" tone="amber" onClick={() => buildActiveSource()} disabled={!canBuild} />
             <ToolbarButton label={canRun ? `Build and run target ${activeBuildTarget.name}` : buildEntry?.language === 'arm' ? 'ARM2 Run requires RISC OS application packaging; use Debug for the raw image' : buildEntry?.language === 'bbc-basic' ? 'BASIC execution requires the selected ROM set' : buildTargetErrors[0] ?? 'Run requires a buildable target'} icon="play" tone="green" onClick={runProgram} disabled={!canRun} />
+            {project.diskSets.length > 0 && <ToolbarButton label={hardwareState && !archimedesRuntime ? `Build and boot: build every target, write ${project.diskSets[0]!.name}, mount it and boot the machine from it` : 'Build and boot needs a powered 8-bit machine'} icon="open" tone="green" onClick={() => { void buildAndBoot(); }} disabled={!hardwareState || !!archimedesRuntime} />}
             <ToolbarButton label={canDebug ? `Build and debug target ${activeBuildTarget.name}` : buildEntry?.language === 'arm' ? 'ARM2 Debug requires qualified A310 firmware' : buildEntry?.language === 'bbc-basic' ? 'BASIC debugging requires the selected ROM set' : buildTargetErrors[0] ?? 'Debug requires a buildable target'} icon="debug" tone="blue" onClick={() => void startDebugger()} disabled={!canDebug} />
           </div>
           <ToolbarButton label="Cloud projects unavailable · local workspace only" icon="cloud" onClick={() => undefined} disabled />
@@ -7947,20 +7959,22 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           >
             <Icon name="image" />
           </button>
+          {/* Words rather than an icon: an icon for this read as full
+            * screen, which sits beside it, and nobody found it. */}
           <button
-            className="icon-button"
+            className={`emulator-input-button ${poppedOut ? "captured" : ""}`}
             type="button"
             aria-label={poppedOut ? "Dock machine" : "Pop out machine"}
             title={
               popOutBlock
                 ?? (poppedOut
-                  ? "Bring the machine back into the workbench, with its state"
-                  : "Put the machine in a window of its own, with its state, program and breakpoints; size it or make it full screen there, and the debugger keeps working")
+                  ? "Dock: bring the machine back into this panel, keeping its state"
+                  : "Pop out: open the machine in its own window (drag it to another screen or make it full screen there); the debugger, breakpoints and stepping keep working")
             }
             disabled={!poweredMachine || !!popOutBlock || (!poppedOut && !machineState)}
             onClick={() => (poppedOut ? dockMachine() : popOutMachine())}
           >
-            <Icon name={poppedOut ? "open" : "expand"} />
+            {poppedOut ? "DOCK" : "POP OUT"}
           </button>
           <button
             className="icon-button"

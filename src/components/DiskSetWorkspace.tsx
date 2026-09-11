@@ -13,8 +13,7 @@ import {
   diskSetBuildPlan,
   diskSetSideQuota,
   diskSetSummary,
-  generatedBootText,
-  machineTextBytes,
+  resolveDiskSetEntries,
   validateDiskSet,
   type DiskSet,
   type DiskSetBootAction,
@@ -24,17 +23,8 @@ import {
   type DiskSetSide,
 } from '../media/diskSet';
 
-export interface DiskSetSourceArtifact {
-  targetId: string;
-  targetName: string;
-  outputName: string;
-  bytes: Uint8Array;
-  loadAddress: number;
-  executionAddress: number;
-  fingerprint: string;
-  /** A BASIC program is CHAINed by a generated boot file rather than run. */
-  kind: 'machine-code' | 'bbc-basic';
-}
+export type { DiskSetSourceArtifact } from '../media/diskSetArtifacts';
+import type { DiskSetSourceArtifact } from '../media/diskSetArtifacts';
 
 export interface DiskSetWorkspaceProps {
   sets: DiskSet[];
@@ -82,29 +72,7 @@ export function DiskSetWorkspace({ sets, buildTargets, projectFiles, artifacts, 
 
   /* Bytes for every entry that has a source available now. An entry missing
    * from this map is exactly what the quota and the build refuse on. */
-  const resolvedEntries = useMemo(() => {
-    const resolved = new Map<string, DiskSetResolvedEntry>();
-    if (!selected) return resolved;
-    for (const disc of selected.discs) {
-      for (const side of disc.sides) {
-        /* Which entries are BASIC programs decides what the boot file says. */
-        const basicEntryIds = new Set(side.entries.filter((entry) => entry.source.kind === 'build-target' && artifactByTarget.get(entry.source.targetId)?.kind === 'bbc-basic').map((entry) => entry.id));
-        for (const entry of side.entries) {
-          if (entry.source.kind === 'build-target') {
-            const artifact = artifactByTarget.get(entry.source.targetId);
-            if (artifact) resolved.set(entry.id, { bytes: artifact.bytes, loadAddress: artifact.loadAddress, executionAddress: artifact.executionAddress });
-          } else if (entry.source.kind === 'project-file') {
-            const fileId = entry.source.fileId;
-            const file = projectFiles.find((candidate) => candidate.id === fileId);
-            if (file && file.content.length) resolved.set(entry.id, { bytes: machineTextBytes(file.content), loadAddress: 0, executionAddress: 0 });
-          } else {
-            resolved.set(entry.id, { bytes: machineTextBytes(generatedBootText(side, basicEntryIds)), loadAddress: 0, executionAddress: 0 });
-          }
-        }
-      }
-    }
-    return resolved;
-  }, [selected, artifactByTarget, projectFiles]);
+  const resolvedEntries = useMemo(() => selected ? resolveDiskSetEntries(selected, artifacts, projectFiles) : new Map<string, DiskSetResolvedEntry>(), [selected, artifacts, projectFiles]);
 
   const sizes = useMemo(() => new Map([...resolvedEntries].map(([id, value]) => [id, value.bytes.length])), [resolvedEntries]);
 

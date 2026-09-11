@@ -22,9 +22,9 @@ is the part a machine can settle.
 
 | Measure | Count |
 | --- | --- |
-| Requirements tracked | 330 |
-| Complete | 241 |
-| Complete and traced | 154 |
+| Requirements tracked | 331 |
+| Complete | 242 |
+| Complete and traced | 155 |
 | Complete and described | 83 |
 | Complete and untraced | 4 |
 | Open | 89 |
@@ -34,7 +34,7 @@ is the part a machine can settle.
 | Area | Tracked | Complete | Traced | Described | Untraced |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 16 | 16 | 0 | 0 |
-| EMU | 30 | 23 | 12 | 11 | 0 |
+| EMU | 31 | 24 | 13 | 11 | 0 |
 | AST | 26 | 26 | 19 | 7 | 0 |
 | DBG | 23 | 22 | 10 | 12 | 0 |
 | EDT | 23 | 17 | 7 | 10 | 0 |
@@ -173,6 +173,7 @@ are listed rather than quietly counted.
 | BLD-333 | The BASIC tokeniser tokenised keywords inside an operating system... | `src/build/basicTokeniser.test.ts` keeps `*LOAD`, `*RUN` after a colon and a starred string as text, and still tokenises `2*LOAD`. |
 | MED-310 | A disc for a game with a second processor could not be made from a... | `src/media/diskSet.test.ts` for the boot file and the line endings; `docs/guide/media.md` names the controls. |
 | EMU-436 | The machine could be reset but not booted: Shift+Break, which is how... | `holdShiftThroughBoot` in `src/emulator/runtime.ts`, and the disk-set workflow in `docs/guide/media.md`, which names the control; the boot itself is driven by the FireWing demonstration outside this repository, which... |
+| EMU-439 | A game that starts from a disc had no Run. Build and run runs one... | `src/media/diskSetArtifacts.test.ts` and `src/media/diskSet.test.ts` for the disc the builds become, which the Media workspace and Build and boot now share. |
 | EMU-438 | The machine was confined to the panel at the bottom of the Code... | `src/emulator/machineWindow.test.ts` for the peer, the window features and the handoff shape; the FireWing demonstration pops the machine out, stops the second processor at a source line in the window, and docks it.... |
 | DBG-548 | The Tube panel vanished for a render on every snapshot. The runtime... | the FireWing demonstration's Tube panel names the line at the load and at the stop, and steps, without a retry; a unit test of the merge is DBG-549. |
 | EMU-437 | A Model B with the 1770 board could only boot ADFS. The one 1770 ROM... | `src/rom/romProfiles.test.ts` checks the two sets share their ROMs and differ in the model. |
