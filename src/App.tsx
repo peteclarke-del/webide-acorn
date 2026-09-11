@@ -73,6 +73,7 @@ import { SdkDocumentView } from './components/SdkDocumentView';
 import { ProjectExportDialog } from './components/ProjectExportDialog';
 import { StartProjectDialog } from './components/StartProjectDialog';
 import { writeDirectory, type FileSystemDirectoryHandleLike } from './project/directoryAccess';
+import { POPOUT_WINDOW_NAME, isMachineHandoff, popoutWindowFeatures, type MachineHandoff } from './emulator/machineWindow';
 import { PROJECT_MANIFEST_FILENAME, manifestFromProject, serializeProjectManifest } from './project/projectManifest';
 import { ProjectStorePanel, storeProjectId } from './components/ProjectStorePanel';
 import { SampleWorkspace } from './components/SampleWorkspace';
@@ -6907,6 +6908,22 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   const [archimedesListenerReady, setArchimedesListenerReady] = useState(false);
   const [electronListenerReady, setElectronListenerReady] = useState(false);
   const [frameGeneration, setFrameGeneration] = useState(0);
+  /* The machine in a window of its own. The window is the runtime's peer
+   * while it is open; the state it hands over is loaded into whichever
+   * runtime comes next, and what the workbench told the last runtime about
+   * the program and the breakpoints is told again, so the debugger follows
+   * the machine out and back. */
+  const popoutRef = useRef<Window | null>(null);
+  /* The window is opened in the click itself, since a browser opens a window
+   * only for a person's action; it loads while the runtime in the frame is
+   * asked for its state, and becomes the peer once that state has arrived. */
+  const pendingPopoutRef = useRef<Window | null>(null);
+  const pendingPopoutReadyRef = useRef(false);
+  const [poppedOut, setPoppedOut] = useState(false);
+  const handoffRef = useRef<MachineHandoff | null>(null);
+  const handoffPendingRef = useRef<'pop-out' | 'dock' | null>(null);
+  const lastProgramRef = useRef<Record<string, unknown> | null>(null);
+  const lastBreakpointsRef = useRef<Record<string, unknown> | null>(null);
   const [machinePowered, setMachinePowered] = useState(true);
   const [runtimeSpeed, setRuntimeSpeed] = useState<RuntimeSpeed>(() => readSetting<RuntimeSpeed>('machine.runtimeSpeed', settingLayers));
   const [machineVolume, setMachineVolume] = useState(() => readSetting<number>('machine.volume', settingLayers));
@@ -7008,7 +7025,15 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   const framebufferWidth = fullArchimedesMachine ? archimedesState?.hardware.vidc.width : fullElectronMachine ? 640 : 1024;
   const framebufferHeight = fullArchimedesMachine ? archimedesState?.hardware.vidc.height : fullElectronMachine ? 512 : 625;
   const scaledViewport = scaledFramebufferViewport(emulatorScale, framebufferWidth, framebufferHeight);
-  const postTransportCommand = (envelope: Record<string, unknown>) => { transportPendingRef.current = Number(envelope.commandId); frameRef.current?.contentWindow?.postMessage(envelope, window.location.origin); };
+  const peerWindow = () => (popoutRef.current && !popoutRef.current.closed ? popoutRef.current : frameRef.current?.contentWindow ?? null);
+  /* A fresh runtime page, in a window or in the frame, starts its event
+   * numbering from one and has to be initialised: the bridge forgets the
+   * last one. */
+  const resetBridgeForNewRuntime = () => {
+    transportCommandRef.current = 0; receivedEventRef.current = 0; transportPendingRef.current = null; transportQueueRef.current = []; sentCommandRef.current = 0; initialiseSentRef.current = '';
+    setMachineState(null); onMachineState(null);
+  };
+  const postTransportCommand = (envelope: Record<string, unknown>) => { transportPendingRef.current = Number(envelope.commandId); peerWindow()?.postMessage(envelope, window.location.origin); };
   /* The reason this adapter cannot honour a command, or null when it can. Only
    * the Electron slice restricts anything today, and it refuses in the
    * workbench with the core's own recorded reason rather than sending a command
@@ -7017,6 +7042,8 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   const sendMachine = (message: Record<string, unknown>) => {
     const refusal = adapterBlock(String(message.type));
     if (refusal) { onNotice(`${machine} adapter · ${refusal}`); return; }
+    if (message.type === 'load-machine-code') lastProgramRef.current = { processor: message.processor ?? 'host', sourceLocations: message.sourceLocations, symbols: message.symbols, programManifest: message.programManifest ?? null };
+    if (message.type === 'set-breakpoints') lastBreakpointsRef.current = message;
     const envelope = { ...(fullArchimedesMachine ? { channel: '8bit-net-archimedes' } : fullElectronMachine ? { channel: electronChannel } : {}), ...message, sessionId: debugSessionId, commandId: ++transportCommandRef.current };
     if (transportPendingRef.current === null) { postTransportCommand(envelope); return; }
     if (transportQueueRef.current.length >= 64) { onNotice('Debug command queue is full · wait for the attached core to acknowledge pending work'); return; }
@@ -7064,9 +7091,40 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
     return () => { stopped = true; cancelAnimationFrame(frame); const previous = gamepadEdgesRef.current; GAMEPAD_ACTIONS.forEach(({ id }) => { if (previous.has(id)) sendMachine({ type: 'gamepad-key-edge', action: id, code: gamepadConfig.mapping[id], pressed: false }); }); if (nativeAnalogue && analogueGamepadRef.current) sendMachine({ type: 'bbc-analogue-joystick', channels: [0x8000, 0x8000, 0x8000, 0x8000], buttons: [false, false] }); if (nativeAtomMmc && analogueGamepadRef.current) sendMachine({ type: 'atom-atommc-joystick', up: false, down: false, left: false, right: false, fire: false }); gamepadEdgesRef.current = new Set(); analogueGamepadRef.current = ''; };
   }, [gamepadConfig, poweredMachine, full6502Machine, bbcAnalogueSupported, atomMmcJoystickSupported, runtimeIdentity]);
 
+  useEffect(() => {
+    if (!poppedOut) return;
+    const timer = window.setInterval(() => {
+      if (!popoutRef.current || !popoutRef.current.closed) return;
+      /* Closed by hand: the runtime handed its state over as it went, when
+       * the browser let it. Either way the machine comes back in here. */
+      popoutRef.current = null;
+      resetBridgeForNewRuntime();
+      setPoppedOut(false); setFrameLoaded(false);
+      onNotice(handoffRef.current ? 'The machine window was closed · the machine is back in the workbench with its state' : 'The machine window was closed before its state could be handed over · the machine is back in the workbench, reset');
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [poppedOut, onMachineState, onNotice]);
+  const popOutMachine = () => {
+    if (!poweredMachine || poppedOut || handoffPendingRef.current) return;
+    const opened = window.open(frameSource, POPOUT_WINDOW_NAME, popoutWindowFeatures(framebufferWidth ?? 1024, (framebufferHeight ?? 625) + 60));
+    if (!opened) { onNotice('The browser did not open a window for the machine · allow pop-ups for this site and try again'); return; }
+    pendingPopoutRef.current = opened; pendingPopoutReadyRef.current = false;
+    handoffPendingRef.current = 'pop-out';
+    sendMachine({ type: 'state-handoff-request' });
+  };
+  const dockMachine = () => {
+    if (!poppedOut || handoffPendingRef.current) return;
+    if (!popoutRef.current || popoutRef.current.closed) { popoutRef.current = null; setPoppedOut(false); return; }
+    handoffPendingRef.current = 'dock';
+    sendMachine({ type: 'state-handoff-request' });
+  };
+  const popOutBlock = fullArchimedesMachine || fullElectronMachine ? 'The A310 and Electron runtime pages report to the frame that holds them; popping them out is not wired yet' : null;
   const powerOffMachine = () => {
     if (!fullMachine || !machinePowered) return;
     if (document.fullscreenElement) void document.exitFullscreen();
+    if (popoutRef.current && !popoutRef.current.closed) popoutRef.current.close();
+    if (pendingPopoutRef.current && !pendingPopoutRef.current.closed) pendingPopoutRef.current.close();
+    popoutRef.current = null; pendingPopoutRef.current = null; handoffRef.current = null; handoffPendingRef.current = null; setPoppedOut(false);
     setMachinePowered(false); setFrameLoaded(false); setMachineState(null); setArchimedesState(null); setArchimedesListenerReady(false); setInputControlsOpen(false); setInputCaptured(false); setMachineAudio(null); setAudioRecording(false); setMachineError(undefined); setMachineProgram(undefined); setProgramManifest(null);
     transportPendingRef.current = null; transportQueueRef.current = []; initialiseSentRef.current = '';
     onMachineState(null); onMachineMemory(null); onArchimedesState(null); onArchimedesMemory(null); onMachineDisassembly(null); onHardwareInspection(null); onMachineMedia([]); onMachineTest(null);
@@ -7081,8 +7139,21 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
 
   useEffect(() => {
     const receive = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || event.source !== frameRef.current?.contentWindow) return;
+      if (event.origin !== window.location.origin) return;
       if (event.data?.channel !== (fullArchimedesMachine ? '8bit-net-archimedes' : fullElectronMachine ? electronChannel : '8bit-net-machine')) return;
+      /* The machine's own window, loading while the frame's runtime is still
+       * the peer: only its arrival is noted until the state has crossed. */
+      if (pendingPopoutRef.current && event.source === pendingPopoutRef.current) {
+        if (event.data.type === 'bridge-ready') pendingPopoutReadyRef.current = true;
+        return;
+      }
+      if (event.source !== peerWindow()) return;
+      /* The machine's own window has loaded its page: it is a fresh runtime,
+       * and is brought up the way a freshly loaded frame is. */
+      if (event.data.type === 'bridge-ready' && popoutRef.current && event.source === popoutRef.current) {
+        resetBridgeForNewRuntime(); setFrameLoaded(true);
+        return;
+      }
       const acceptedSequence = acceptDebugEvent(event.data, debugSessionId, receivedEventRef.current);
       if (acceptedSequence === null) return;
       receivedEventRef.current = acceptedSequence;
@@ -7216,6 +7287,16 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
         setMachineState((current) => { const next = current?.tube && !snapshot.tube ? { ...snapshot, tube: current.tube } : snapshot; onMachineState(next); return next; });
         if (isRuntimeSpeed(snapshot.speed)) setRuntimeSpeed(snapshot.speed); setMachineError(undefined);
       }
+      if (event.data.type === 'ready' && handoffRef.current) {
+        /* The runtime that took over: the machine's state, then the names the
+         * workbench gave the last one, then the breakpoints, then running if
+         * it was. Commands go in order through the transport. */
+        const handoff = handoffRef.current; handoffRef.current = null;
+        sendMachine({ type: 'load-state', json: handoff.json });
+        if (lastProgramRef.current) sendMachine({ type: 'bind-program', ...lastProgramRef.current });
+        if (lastBreakpointsRef.current) sendMachine(lastBreakpointsRef.current);
+        if (handoff.running) sendMachine({ type: 'run' });
+      }
       if (event.data.type === 'ready') { setMachineError(undefined); sendMachine({ type: 'set-volume', volume: machineVolume }); sendMachine({ type: 'set-display-filter', filter: displayFilter }); if (runtimeSpeed !== 1) sendMachine({ type: 'set-speed', speed: runtimeSpeed }); if (bbcAnalogueSupported && bbcMouseJoystick) sendMachine({ type: 'set-bbc-mouse-joystick', enabled: true }); }
       if (event.data.type === 'speed-state' && isRuntimeSpeed(event.data.speed)) { const speed = event.data.speed; setRuntimeSpeed(speed); writeSetting('machine.runtimeSpeed', speed); onNotice(`Live jsbeeb runtime speed changed to ${speed}x`); }
       if (event.data.type === 'speed-rejected' || event.data.type === 'audio-rejected') onNotice(String(event.data.message));
@@ -7273,6 +7354,26 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           onMachineMedia((current) => current.filter((item) => item.kind !== 'tape'));
           onNotice('Cassette ejected · live input adapter acknowledged');
         }
+      }
+      if (event.data.type === 'state-handoff' && isMachineHandoff(event.data)) {
+        handoffRef.current = { json: event.data.json, running: event.data.running };
+        const pending = handoffPendingRef.current; handoffPendingRef.current = null;
+        if (pending === 'pop-out') {
+          const opened = pendingPopoutRef.current; pendingPopoutRef.current = null;
+          if (!opened || opened.closed) { handoffRef.current = null; onNotice('The machine\'s window was closed before the machine could move into it'); return; }
+          popoutRef.current = opened;
+          resetBridgeForNewRuntime();
+          setPoppedOut(true);
+          /* Its page may have announced itself already; then it is ready now. */
+          setFrameLoaded(pendingPopoutReadyRef.current);
+          onNotice('The machine is in its own window · its state, program and breakpoints go with it · Dock brings it back');
+        } else if (pending === 'dock') {
+          popoutRef.current?.close(); popoutRef.current = null;
+          resetBridgeForNewRuntime();
+          setPoppedOut(false); setFrameLoaded(false);
+          onNotice('The machine is back in the workbench with its state');
+        }
+        return;
       }
       if (event.data.type === 'state-saved' && typeof event.data.json === 'string') {
         downloadBlob(new Blob([event.data.json], { type: 'application/json' }), safeFilename(String(event.data.filename ?? 'machine-state.8bitstate.json')));
@@ -7849,6 +7950,21 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           <button
             className="icon-button"
             type="button"
+            aria-label={poppedOut ? "Dock machine" : "Pop out machine"}
+            title={
+              popOutBlock
+                ?? (poppedOut
+                  ? "Bring the machine back into the workbench, with its state"
+                  : "Put the machine in a window of its own, with its state, program and breakpoints; size it or make it full screen there, and the debugger keeps working")
+            }
+            disabled={!poweredMachine || !!popOutBlock || (!poppedOut && !machineState)}
+            onClick={() => (poppedOut ? dockMachine() : popOutMachine())}
+          >
+            <Icon name={poppedOut ? "open" : "expand"} />
+          </button>
+          <button
+            className="icon-button"
+            type="button"
             aria-label="Toggle machine full screen"
             title="Show the real framebuffer full screen"
             disabled={
@@ -7966,6 +8082,13 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
             className={`machine-frame-wrap scale-${emulatorScale}`}
             ref={machineFrameRef}
           >
+            {poppedOut ? (
+              <div className="machine-popped-out" role="status">
+                <strong>The machine is in its own window</strong>
+                <span>Its state, program and breakpoints went with it. The debugger, the memory views and the controls here work against that window.</span>
+                <button type="button" onClick={dockMachine}>Dock machine</button>
+              </div>
+            ) : (
             <iframe
               key={`${frameSource}:${frameGeneration}`}
               ref={frameRef}
@@ -7981,6 +8104,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
               }}
               style={scaledViewport}
             />
+            )}
             <button
               className="fullscreen-exit"
               type="button"

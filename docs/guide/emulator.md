@@ -524,10 +524,13 @@ Choose a fluid fit or an exact one-times or two-times integer viewport for the g
 13. Choose Exit full screen or press the browser full-screen exit key. The retained Fit, 1x or 2x mode resumes in the integrated workbench.
 14. Use Capture machine screen to download the actual framebuffer. Capture dimensions come from the emulator and are independent of CSS scaling.
 15. Do not use a scaled screenshot to infer guest resolution. Inspect the capture acknowledgement or live A310 VIDC dimensions for the authoritative pixel extent.
+16. Choose Pop out machine to put the machine in a window of its own. The runtime hands its state over, the new window loads it, and the workbench tells it the program's names and the breakpoints again, so the debugger, the Tube panel, the memory views and the machine controls in the workbench keep working against that window. Size the window as you like, or use its Full screen control.
+17. Choose Dock machine, in the toolbar or in the place the machine left, to bring it back the same way. Closing the window by hand also brings it back; the runtime hands its state over as it closes when the browser lets it, and says so if it could not.
 
 **What should happen**
 
 - Fit has no fixed inline framebuffer viewport and follows the available workbench region.
+- Popped out, the machine keeps its memory, registers, mounted discs, program names and breakpoints; watchpoints, traces and the profiler are not carried and are set again if wanted. The A310 and Electron runtime pages cannot be popped out yet, and the control says so.
 - 1x uses the exact current framebuffer width and height as CSS pixel dimensions.
 - 2x doubles the exact current framebuffer width and height without resizing guest memory.
 - Integer modes expose scrollbars instead of silently shrinking an oversized viewport.

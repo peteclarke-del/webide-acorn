@@ -6418,6 +6418,26 @@ Current implemented increment:
     the disk-set workflow in `docs/guide/media.md`, which names the control;
     the boot itself is driven by the FireWing demonstration outside this
     repository, which boots a DFS disc on a Model B with a 65C102.
+- [x] EMU-438 The machine was confined to the panel at the bottom of the
+  Code workspace, which is not how a person plays or tests a game. The user
+  asked for the emulator to be decoupled from the workbench into a window of
+  its own, or full screen, or however they choose, with debugging and
+  stepping still working against it.
+  - [x] Pop out machine in the run panel's toolbar puts the machine in a
+    window of its own, and Dock machine, in the toolbar or in the place the
+    machine left, brings it back. The runtime is the same page in either
+    place and reports to the window that opened it or the frame that holds
+    it. The move carries the machine's state through the runtime's own state
+    file, and the workbench tells the new runtime the program's names and the
+    breakpoints again, so the debugger, the Tube panel, the memory views and
+    the controls keep working. The window has its own Full screen control,
+    and hands its state over as it closes.
+  - [x] Evidence: `src/emulator/machineWindow.test.ts` for the peer, the
+    window features and the handoff shape; the FireWing demonstration pops
+    the machine out, stops the second processor at a source line in the
+    window, and docks it.
+  - [ ] The A310 and Electron runtime pages still report only to their
+    frame; the control says so for them.
 - [x] DBG-548 The Tube panel vanished for a render on every snapshot. The
   runtime sends the machine snapshot and the Tube state as two messages, and
   the snapshot replaced the whole state, so between the two the state had no
