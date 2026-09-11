@@ -257,7 +257,9 @@ let tubeTransferEventsDropped = 0;
 type Command = CommandPayload & { commandId?: number; sessionId?: string };
 type CommandPayload =
   | { type: 'initialise'; model: string; romSetId: string; tube?: boolean; extraRoms?: string[]; keyboardLayout?: string; keyRemaps?: MachineKeyRemap[]; sessionManifest: RuntimeSessionManifest }
-  | { type: 'run' | 'pause' | 'stop' | 'step' | 'step-over' | 'step-out' | 'reset' | 'step-parasite' }
+  | { type: 'run' | 'pause' | 'stop' | 'step' | 'step-over' | 'step-out' | 'step-parasite' }
+  /** `boot` holds Shift through the reset, which is how the machine boots the disc in drive 0. */
+  | { type: 'reset'; boot?: boolean }
   | { type: 'source-step'; mode: 'in' | 'over' | 'out'; instructionBudget?: number }
   | { type: 'run-to'; address: number }
   | ({ type: 'breakpoint' } & BreakpointSpec)
@@ -1293,6 +1295,23 @@ function finishHardwareTest(reason: 'stop address reached' | 'timeout') {
 const OS_READY_ENTRY_ADDRESS = MOS_TEST_EVENT_ADDRESSES.osrdch;
 const OS_BOOT_CYCLE_CEILING = 20_000_000;
 
+/*
+ * Shift+Break. The filing system reads Shift once, when the operating system
+ * offers the ROMs the boot, and a disc with a boot option is then started.
+ * On a Model B with a second processor that offer comes after the Tube has
+ * started the parasite and its banner has been printed, which is past two
+ * seconds; four seconds of wall time at normal speed is past it on every
+ * machine here. The key goes down after the reset, since the reset clears
+ * the keyboard matrix, and a Shift still held once the disc has booted is
+ * read by nothing.
+ */
+function holdShiftThroughBoot(): void {
+  if (!keyboard) return;
+  const shift = { keyCode: 16, which: 16, charCode: 0, location: 1, altKey: false, ctrlKey: false, shiftKey: true, preventDefault() {} } as KeyboardEvent;
+  keyboard.keyDown(shift);
+  window.setTimeout(() => keyboard?.keyUp(shift), 4000);
+}
+
 function runUntilOperatingSystemReady(): { marker: number | null; ready: boolean; cycles: number } {
   /* The Atom MOS is not the BBC MOS and this build has no verified readiness
    * entry point for it, so no marker is claimed for that model. */
@@ -2024,7 +2043,7 @@ window.addEventListener('message', (event: MessageEvent<Command>) => {
   else if (command.type === 'source-step') sourceStep(command.mode, command.instructionBudget);
   else if (command.type === 'run-to') runTo(command.address);
   else if (command.type === 'run-test' && cpu) { try { startHardwareTest(command); } catch (error) { send({ type: 'test-result', name: command.name, requestId: command.requestId, planId: command.planId, suite: command.suite, buildFingerprint: command.buildFingerprint, status: 'error', reason: error instanceof Error ? error.message : String(error), cycles: 0, assertions: [] }); } }
-  else if (command.type === 'reset' && cpu) { runToHook?.remove(); runToHook = null; clearParasiteBreakpoints(); discardHardwareTest(); stopTrace(); clearTrace(); stopInterruptMonitor(); clearInterruptHistory(); stopRasterMonitor(); clearRasterTimeline(); stopProfiler(); clearProfiler(); loadedProgramFingerprint = 'ROM-session'; if (bbcMouseJoystickEnabled && !cpu.model.isAtom) updateBbcMouseJoystick(undefined, true); cpu.reset(true); running = true; trace = []; emulatedCycles = 0; registerEdits = []; registerEditSequence = 0; lastStep = null; if (replayEnabled) resetReplaySegment('Hard reset is an irreversible history boundary'); setStatus(`${cpu.model.name} reset`, 'ready'); sendSnapshot('hard reset'); }
+  else if (command.type === 'reset' && cpu) { runToHook?.remove(); runToHook = null; clearParasiteBreakpoints(); discardHardwareTest(); stopTrace(); clearTrace(); stopInterruptMonitor(); clearInterruptHistory(); stopRasterMonitor(); clearRasterTimeline(); stopProfiler(); clearProfiler(); loadedProgramFingerprint = 'ROM-session'; if (bbcMouseJoystickEnabled && !cpu.model.isAtom) updateBbcMouseJoystick(undefined, true); cpu.reset(true); running = true; trace = []; emulatedCycles = 0; registerEdits = []; registerEditSequence = 0; lastStep = null; if (command.boot) holdShiftThroughBoot(); if (replayEnabled) resetReplaySegment('Hard reset is an irreversible history boundary'); setStatus(`${cpu.model.name} reset${command.boot ? ' with Shift held' : ''}`, 'ready'); sendSnapshot(command.boot ? 'hard reset, booting the disc' : 'hard reset'); }
   else if (command.type === 'step-parasite') stepParasite();
   else if (command.type === 'breakpoint' && cpu) {
     const address = command.address & 0xffff;

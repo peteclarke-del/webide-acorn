@@ -113,7 +113,11 @@ export async function openPage(chromium) {
   });
   const evaluate = async (expression) => {
     const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
-    if (result.exceptionDetails) throw new Error(result.exceptionDetails.text.slice(0, 200));
+    if (result.exceptionDetails) {
+      /* The text alone is "Uncaught"; what was thrown is in the exception. */
+      const detail = result.exceptionDetails.exception?.description ?? result.exceptionDetails.exception?.value ?? result.exceptionDetails.text;
+      throw new Error(String(detail).slice(0, 400));
+    }
     return result.result.value;
   };
 

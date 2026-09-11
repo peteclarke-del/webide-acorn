@@ -75,7 +75,10 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
       const mapInclude = /^\s*INCLUDEMAP\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(source);
       const paletteInclude = /^\s*INCLUDEPALETTE\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(source);
       const fontInclude = /^\s*INCLUDEFONT\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(source);
-      const screenInclude = /^\s*INCLUDESCREEN\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(source);
+      /* INCLUDESCREEN "file" [RLE]: the frame buffer as it is, or run-length
+       * packed for a program to unpack, which is how a title screen that is
+       * mostly one colour fits beside the program that shows it. */
+      const screenInclude = /^\s*INCLUDESCREEN\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))(?:\s*,?\s*(RLE|RUNLENGTH))?\s*(?:;.*)?$/i.exec(source);
       const songInclude = /^\s*INCLUDESONG\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(source);
       const include = /^\s*INCLUDE\s+(?:"([^"]+)"|'([^']+)'|([^\s;]+))\s*(?:;.*)?$/i.exec(source);
       if (songInclude) {
@@ -95,7 +98,7 @@ export function assembleProject6502(entryFileId: string, files: AssemblySourceFi
         if (!target) { diagnostics.push(sourceDiagnostic(file, index + 1, `Included screen not found: ${requested}`)); continue; }
         if (!dependencySet.has(target.id) && target.id !== entry.id) { dependencySet.add(target.id); dependencies.push(target.name); }
         try {
-          const generated = generateScreenOutput(parseScreenDocument(target.content));
+          const generated = generateScreenOutput(parseScreenDocument(target.content), { runLength: !!screenInclude[4] });
           for (const generatedLine of generated.assembly.split('\n')) if (!pushLine(generatedLine, { fileId: target.id, fileName: target.name, line: 1 })) return;
         } catch (error) { diagnostics.push(sourceDiagnostic(target, 1, `Screen generation failed: ${error instanceof Error ? error.message : String(error)}`)); }
       } else if (fontInclude) {

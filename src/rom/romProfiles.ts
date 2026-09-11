@@ -175,6 +175,27 @@ export const ROM_SETS: RomSetDefinition[] = [
     ],
   },
   {
+    /* The same board and the same ROMs with the DFS ahead of ADFS, so
+     * Shift+Break boots a DFS disc: a game on an SSD needs this one, and a
+     * machine that also has a hard disc keeps ADFS for *ADFS. */
+    id: 'os12-basic2-dfs1770', machineIds: ['bbc-b'], label: 'BBC MOS 1.20 + BASIC II + 1770 DFS', adapterModel: 'B1770', engine,
+    requirements: [
+      rom('os', 'MOS 1.20 operating system', 'os.rom', [16384], 'operating-system'),
+      rom('basic', 'BBC BASIC II', 'BASIC.ROM', [16384], 'language'),
+      rom('dfs1770', '1770 DFS', 'b1770/dfs1770.rom', [8192, 16384], 'filing-system'),
+      rom('adfs', 'ADFS', 'b1770/zADFS.ROM', [16384], 'filing-system'),
+      rom('tube6502', '6502 Tube boot ROM', 'tube/6502Tube.rom', [2048], 'extension', false, 'tube'),
+      rom('tube65c102', '65C102 Turbo Tube boot ROM', 'tube/65C102Tube.rom', [2048], 'extension', false, 'tube-turbo', {
+        provenanceNote: 'The parasite ROM for a 65C102 behind the Tube. Acorn sold this board for the Master; a PiTube Direct puts one behind any machine with a Tube interface.',
+      }),
+      rom('tube-host', '6502 Tube host, in DNFS 1.20', 'b/dnfs120.rom', [16384], 'extension', false, 'tube', {
+        runtimeMount: 'sideways',
+        provenanceNote: 'A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM.',
+      }),
+      bbcWifi(),
+    ],
+  },
+  {
     /*
      * The BBC Model B+, on the machine this build adds to the engine.
      *

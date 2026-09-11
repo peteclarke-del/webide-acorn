@@ -22,31 +22,31 @@ is the part a machine can settle.
 
 | Measure | Count |
 | --- | --- |
-| Requirements tracked | 319 |
-| Complete | 231 |
-| Complete and traced | 144 |
+| Requirements tracked | 329 |
+| Complete | 240 |
+| Complete and traced | 153 |
 | Complete and described | 83 |
 | Complete and untraced | 4 |
-| Open | 88 |
+| Open | 89 |
 
 ## By area
 
 | Area | Tracked | Complete | Traced | Described | Untraced |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 36 | 16 | 16 | 0 | 0 |
-| EMU | 27 | 20 | 9 | 11 | 0 |
-| AST | 25 | 25 | 18 | 7 | 0 |
+| EMU | 29 | 22 | 11 | 11 | 0 |
+| AST | 26 | 26 | 19 | 7 | 0 |
+| DBG | 23 | 22 | 10 | 12 | 0 |
 | EDT | 23 | 17 | 7 | 10 | 0 |
-| DBG | 21 | 21 | 9 | 12 | 0 |
+| BLD | 21 | 18 | 8 | 10 | 0 |
 | ANL | 19 | 17 | 14 | 2 | 1 |
-| BLD | 18 | 15 | 5 | 10 | 0 |
 | UX | 16 | 11 | 4 | 4 | 3 |
-| PRJ | 11 | 11 | 8 | 3 | 0 |
+| PRJ | 12 | 12 | 9 | 3 | 0 |
+| MED | 11 | 10 | 7 | 3 | 0 |
 | CLD | 10 | 5 | 5 | 0 | 0 |
 | DOC | 10 | 9 | 7 | 2 | 0 |
 | DOD | 10 | 8 | 2 | 6 | 0 |
 | EXP | 10 | 0 | 0 | 0 | 0 |
-| MED | 10 | 9 | 6 | 3 | 0 |
 | RSH | 10 | 9 | 8 | 1 | 0 |
 | A11Y | 9 | 4 | 4 | 0 | 0 |
 | GAME | 8 | 8 | 3 | 5 | 0 |
@@ -167,6 +167,15 @@ are listed rather than quietly counted.
 | BLD-331 | The browser assembler's evaluator took a symbol, or a symbol plus or... | two contracts in `src/build/assembler6502.test.ts`, one holding fourteen expression forms to their exact bytes, one holding six unreadable expressions to a report rather than a value. |
 | AST-632 | A palette document held one of the machine's sixteen physical colours... | six contracts in `src/assets/paletteDocument.test.ts` and three in `src/components/PaletteWorkspace.test.tsx`, including the exact `&3F, &40` for physical colour 3 as #ff4400. A game's four band palettes were written... |
 | AST-633 | The song editor targeted the SN76489, the Atom speaker and the... | the player was run on a Model B with BeebSID fitted by `scripts/measureSidSong.mjs`, its reset and then each row called as a program would, and the chip's register file read back after each through the same SID engine... |
+| AST-634 | A screen document could only be built in whole: 10,240 bytes for a... | `src/assets/screenDocument.test.ts` packs and unpacks a frame buffer and checks the label and the stated size; `src/build/projectAssembler6502.test.ts` assembles both forms. |
+| BLD-332 | The browser assembler had no EQUD. An OSFILE control block carries a... | `src/build/assembler6502.test.ts` assembles `EQUD &FFFF5800, 1` and refuses `&100000000` by name. |
+| BLD-334 | EQUS read its whole operand as one string, so `EQUS "USING KEYS", 0`... | `src/build/assembler6502.test.ts` assembles a string with its terminator and a string holding a comma. |
+| BLD-333 | The BASIC tokeniser tokenised keywords inside an operating system... | `src/build/basicTokeniser.test.ts` keeps `*LOAD`, `*RUN` after a colon and a starred string as text, and still tokenises `2*LOAD`. |
+| MED-310 | A disc for a game with a second processor could not be made from a... | `src/media/diskSet.test.ts` for the boot file and the line endings; `docs/guide/media.md` names the controls. |
+| EMU-436 | The machine could be reset but not booted: Shift+Break, which is how... | `holdShiftThroughBoot` in `src/emulator/runtime.ts`, and the disk-set workflow in `docs/guide/media.md`, which names the control; the boot itself is driven by the FireWing demonstration outside this repository, which... |
+| DBG-548 | The Tube panel vanished for a render on every snapshot. The runtime... | the FireWing demonstration's Tube panel names the line at the load and at the stop, and steps, without a retry; a unit test of the merge is DBG-549. |
+| EMU-437 | A Model B with the 1770 board could only boot ADFS. The one 1770 ROM... | `src/rom/romProfiles.test.ts` checks the two sets share their ROMs and differ in the model. |
+| PRJ-209 | A folder project lost its disk sets: the manifest carried the... | `src/project/projectManifest.test.ts` reads, maps and round-trips a set with a generated boot file, a build target and a project file. |
 | EMU-435 | A source line in a second-processor program could not be stopped at.... | six contracts on the fitted loop against a counting fake in `src/emulator/parasiteHooks.test.ts`, and two against the pinned core's own Tube6502 without firmware in `src/emulator/parasiteHooks.core.test.ts`: it still... |
 | DBG-504 | Implement data, interrupt, event, raster breakpoints capability-... | 3 breakpoint-model contracts and 3 watchpoint contracts covering address, opcode and exact memory-access stops, with 3 6502 persistence contracts and 5 ARM persistence contracts proving intents survive a project round... |
 | DBG-522 | Implement Tube host/parasite side-by-side state and focus (DBG-023).... | 3 debug-protocol contracts and 4 debug-session contracts cover host and parasite state, focus selection and the separate cycle domains, with 3 instruction-state contracts for the register sets. |
@@ -281,6 +290,7 @@ are listed rather than quietly counted.
 | EMU-426 | Integrate first ARM2/ARM3 Archimedes adapter with ROM/user flow,... | not started |
 | EMU-431 | Sideways RAM is offered without saying how much, and there is more of it than any real... | 2 of 3 parts done |
 | EMU-427 | Add later Archimedes/ARM profiles based on verified equivalence. | not started |
+| DBG-549 | A test that the bridge keeps the Tube state across a snapshot, so DBG-548 cannot come... | not started |
 | EMU-GATE | Two 8-bit slices and one scoped ARM slice can run exact resolved profiles with correct... | not started |
 | TST-506 | Build platform conformance suites for CPU/flags, timing, banking, media, Tube, breakpoint... | 15 of 16 parts done |
 | DEBUG-GATE | Each production slice passes source breakpoint, instruction step, registers, memory,... | not started |

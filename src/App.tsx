@@ -509,18 +509,25 @@ function App() {
   /* Only machine-code artifacts can go on a disc as loadable files, and only
    * retained ones exist as bytes right now. A target that has not been built in
    * this session is simply absent, which is what the disk-set surface reports. */
-  const diskSetArtifacts = useMemo<DiskSetSourceArtifact[]>(() => retainedArtifacts.flatMap((retained) => {
-    if (!isMachineCodeArtifact(retained.artifact)) return [];
-    return [{
+  const diskSetArtifacts = useMemo<DiskSetSourceArtifact[]>(() => retainedArtifacts.flatMap((retained): DiskSetSourceArtifact[] => {
+    /* On a machine with a second processor the filing system reads a file's
+     * addresses to decide which side of the Tube it belongs on: &FFFF in the
+     * top half says the host. A host program without it would be loaded
+     * into the parasite and run there. A BASIC program's addresses are
+     * conventional, since CHAIN puts it at PAGE wherever that is. */
+    const target = project.buildTargets.find((candidate) => candidate.id === retained.targetId);
+    const hostSide = project.target.enabledCapabilities.includes('tube') && target?.processor !== 'parasite' ? 0x30000 : 0;
+    const common = {
       targetId: retained.targetId,
       targetName: retained.targetName,
       outputName: retained.artifact.provenance?.target.outputName ?? retained.targetName,
       bytes: retained.artifact.bytes,
-      loadAddress: retained.artifact.origin,
-      executionAddress: retained.artifact.entryPoint,
       fingerprint: retained.artifact.provenance?.fingerprint ?? '',
-    }];
-  }), [retainedArtifacts]);
+    };
+    if (retained.artifact.kind === 'bbc-basic-program') return [{ ...common, loadAddress: hostSide | 0x1900, executionAddress: hostSide | 0x8023, kind: 'bbc-basic' as const }];
+    if (!isMachineCodeArtifact(retained.artifact)) return [];
+    return [{ ...common, loadAddress: hostSide | retained.artifact.origin, executionAddress: hostSide | retained.artifact.entryPoint, kind: 'machine-code' as const }];
+  }), [retainedArtifacts, project.buildTargets, project.target.enabledCapabilities]);
   const [artifactDocumentId, setArtifactDocumentId] = useState<string>();
   const [artifactSymbolSelection, setArtifactSymbolSelection] = useState<string>();
   const [buildAllRecords, setBuildAllRecords] = useState<BuildAllRecord[]>([]);
@@ -2002,6 +2009,7 @@ function App() {
     { id: 'runtime-continue', label: 'Runtime: continue execution', short: 'Continue', icon: 'play', category: 'Run', keywords: ['resume', 'play'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Hardware CPU is already running' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'run' }) : continueProgram() },
     { id: 'runtime-step', label: 'Runtime: step one instruction', short: 'Step', category: 'Debug', keywords: ['cpu', 'instruction'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Pause the hardware CPU first' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'step' }) : stepProgram() },
     { id: 'runtime-reset', label: 'Runtime: reset machine or program', short: 'Reset', icon: 'reset', category: 'Run', keywords: ['restart'], enabled: !!hardwareState || !!runtimeState, disabledReason: 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'reset' }) : resetProgram() },
+    { id: 'runtime-boot', label: 'Runtime: boot from disc (Shift+Break)', short: 'Boot', icon: 'open', category: 'Run', keywords: ['shift', 'break', 'disc', 'boot'], enabled: !!hardwareState && !archimedesRuntime, disabledReason: 'No 8-bit machine is attached', run: () => queueMachineCommand({ type: 'reset', boot: true }) },
     { id: 'view-target', label: `${configOpen ? 'Hide' : 'Show'} target configuration`, short: 'Target configuration', checked: configOpen, category: 'View', keywords: ['machine', 'profile'], enabled: true, run: toggleConfigPanel },
     { id: 'view-explorer', label: `${explorerOpen ? 'Hide' : 'Show'} project explorer`, short: 'Project explorer', checked: explorerOpen, category: 'View', keywords: ['files', 'tree'], enabled: true, run: toggleExplorerPanel },
     { id: 'view-inspector', label: `${inspectorOpen ? 'Hide' : 'Show'} inspector`, short: 'Inspector', checked: inspectorOpen, category: 'View', keywords: ['problems', 'registers'], enabled: true, run: () => setInspectorOpen((current) => !current) },
@@ -2673,6 +2681,7 @@ function App() {
                 onChange={(diskSets) => setProject((current) => ({ ...current, diskSets }))}
                 onNotice={setNotice}
                 onDownload={(filename, bytes) => downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), safeFilename(filename))}
+                onMount={romReady && !!machineRomSet ? (filename, bytes) => queueMachineCommand({ type: 'load-disc', name: safeFilename(filename), bytes: Array.from(bytes), drive: 0 }) : undefined}
               />
               <MediaWorkspace machineId={machine.id} buildArtifact={buildArtifactIsCurrent ? buildArtifact : null} artifact={assemblyArtifact} armArtifact={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? buildArtifact : null} connected={romReady && !!(machineRomSet || archimedesRuntime)} archimedesConnected={romReady && !!archimedesRuntime && /^riscos3/.test(archimedesRuntime.profile.arculatorRomSet)} archimedesDiscConnected={romReady && !!archimedesRuntime} discSupported={machine.capabilities.some((item) => item.providesDiscStorage && enabledCapabilities.includes(item.id))} tapeSupported={enabledCapabilities.includes('cassette')} scsiSupported={enabledCapabilities.includes('beebscsi')} mounted={hardwareMedia} onCommand={queueMachineCommand} onNotice={setNotice} onAnalyse={openAnalysisPayload} />
               </div>
@@ -7197,7 +7206,15 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
       if (event.data.type === 'snapshot') {
         if (event.data.sessionManifest?.fingerprint !== sessionManifest?.fingerprint) { const message = 'jsbeeb snapshot refused because its runtime session manifest does not match the parent binding'; setMachineError(message); onMachineError(message); return; }
         if (event.data.programManifest && event.data.programManifest.sessionFingerprint !== sessionManifest?.fingerprint) { const message = 'jsbeeb snapshot refused because its loaded program is bound to another runtime session'; setMachineError(message); onMachineError(message); return; }
-        const snapshot = event.data as MachineBridgeSnapshot; setMachineState(snapshot); if (isRuntimeSpeed(snapshot.speed)) setRuntimeSpeed(snapshot.speed); onMachineState(snapshot); setMachineError(undefined);
+        /* The Tube's state comes in its own message right after this one, so
+         * the last one seen is carried over rather than dropped for a render:
+         * dropped, the Tube panel vanished for a frame on every snapshot, and
+         * anything reading the parasite's program counter saw it go and come
+         * back, which had the debugger re-sending its breakpoints on every
+         * snapshot and the counts on them never rising. */
+        const snapshot = event.data as MachineBridgeSnapshot;
+        setMachineState((current) => { const next = current?.tube && !snapshot.tube ? { ...snapshot, tube: current.tube } : snapshot; onMachineState(next); return next; });
+        if (isRuntimeSpeed(snapshot.speed)) setRuntimeSpeed(snapshot.speed); setMachineError(undefined);
       }
       if (event.data.type === 'ready') { setMachineError(undefined); sendMachine({ type: 'set-volume', volume: machineVolume }); sendMachine({ type: 'set-display-filter', filter: displayFilter }); if (runtimeSpeed !== 1) sendMachine({ type: 'set-speed', speed: runtimeSpeed }); if (bbcAnalogueSupported && bbcMouseJoystick) sendMachine({ type: 'set-bbc-mouse-joystick', enabled: true }); }
       if (event.data.type === 'speed-state' && isRuntimeSpeed(event.data.speed)) { const speed = event.data.speed; setRuntimeSpeed(speed); writeSetting('machine.runtimeSpeed', speed); onNotice(`Live jsbeeb runtime speed changed to ${speed}x`); }
@@ -7636,6 +7653,22 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
             }
           >
             <Icon name="debug" />
+          </button>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Boot from disc"
+            title={
+              fullMachine && !fullArchimedesMachine
+                ? machinePowered
+                  ? "Hard reset with Shift held, which boots the disc in drive 0"
+                  : "Power on the machine first"
+                : "Shift+Break is an 8-bit machine's way of booting a disc"
+            }
+            disabled={!fullMachine || fullArchimedesMachine || !poweredMachine}
+            onClick={() => sendMachine({ type: "reset", boot: true })}
+          >
+            <Icon name="open" />
           </button>
           <button
             className="icon-button"
