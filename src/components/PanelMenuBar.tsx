@@ -55,6 +55,15 @@ export function PanelMenuBar({ label, menus }: PanelMenuBarProps) {
   const [focused, setFocused] = useState(0);
   const barRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<HTMLDivElement>(null);
+  /* The menu follows the pointer: the title opens it, an item or the title
+   * keeps it, and leaving both closes it, the way a desktop menu behaves. The
+   * close is deferred a moment so the small step from the title to the items
+   * does not read as leaving. */
+  const closeTimer = useRef<number | undefined>(undefined);
+  const openedByKeyboard = useRef(false);
+  const cancelClose = () => { if (closeTimer.current !== undefined) { window.clearTimeout(closeTimer.current); closeTimer.current = undefined; } };
+  const scheduleClose = () => { cancelClose(); closeTimer.current = window.setTimeout(() => setOpenId(null), 140); };
+  useEffect(() => () => cancelClose(), []);
 
   /* A menu that stays open when the pointer goes elsewhere is a menu that eats
    * the next click somebody makes. */
@@ -67,8 +76,10 @@ export function PanelMenuBar({ label, menus }: PanelMenuBarProps) {
     return () => document.removeEventListener('mousedown', dismiss);
   }, [openId]);
 
+  /* Move focus into a menu opened from the keyboard; a menu opened by the
+   * pointer is driven by the pointer and must not steal focus. */
   useEffect(() => {
-    if (!openId) return;
+    if (!openId || !openedByKeyboard.current) return;
     itemsRef.current?.querySelector<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')?.focus();
   }, [openId]);
 
@@ -86,7 +97,7 @@ export function PanelMenuBar({ label, menus }: PanelMenuBarProps) {
     if (key === 'ArrowLeft') { event.preventDefault(); setOpenId(null); focus(index - 1); return; }
     if (key === 'Home') { event.preventDefault(); setOpenId(null); focus(0); return; }
     if (key === 'End') { event.preventDefault(); setOpenId(null); focus(offered.length - 1); return; }
-    if (key === 'ArrowDown' || key === 'Enter' || key === ' ') { event.preventDefault(); setOpenId(offered[index]!.id); return; }
+    if (key === 'ArrowDown' || key === 'Enter' || key === ' ') { event.preventDefault(); openedByKeyboard.current = true; setOpenId(offered[index]!.id); return; }
     if (key === 'Escape') { setOpenId(null); }
   };
 
@@ -103,7 +114,7 @@ export function PanelMenuBar({ label, menus }: PanelMenuBarProps) {
   };
 
   return (
-    <div className="panel-menu-bar" role="menubar" aria-label={label} ref={barRef}>
+    <div className="panel-menu-bar" role="menubar" aria-label={label} ref={barRef} onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
       {offered.map((menu, index) => (
         <div className="panel-menu" key={menu.id}>
           <button
@@ -114,7 +125,8 @@ export function PanelMenuBar({ label, menus }: PanelMenuBarProps) {
             aria-expanded={openId === menu.id}
             tabIndex={index === focused ? 0 : -1}
             className={openId === menu.id ? 'panel-actions-button open' : 'panel-actions-button'}
-            onClick={() => { setFocused(index); setOpenId((current) => current === menu.id ? null : menu.id); }}
+            onMouseEnter={() => { cancelClose(); openedByKeyboard.current = false; setFocused(index); setOpenId(menu.id); }}
+            onClick={() => { openedByKeyboard.current = false; setFocused(index); setOpenId((current) => current === menu.id ? null : menu.id); }}
             onKeyDown={(event) => onBarKey(event, index)}
           >
             {menu.label}

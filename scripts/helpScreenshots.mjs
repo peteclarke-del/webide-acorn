@@ -159,15 +159,19 @@ export async function reset(page) {
  * below reads as the procedure its topic describes rather than as a script.
  */
 export const STEPS = {
-  /** Open one of the workspaces, by the name on its tab. */
+  /** Open one of the workspaces or asset editors, by the name in its section menu. */
   async workspace(page, name) {
-    const opened = await until(() => page.evaluate(`(() => {
-      const tab = [...document.querySelectorAll('.mode-tab')].find((button) => button.textContent.trim() === ${JSON.stringify(name)});
-      if (!tab) return false;
-      tab.click();
-      return true;
-    })()`), `the ${name} workspace tab to appear`);
-    if (!opened) throw new Error(`there is no ${name} workspace tab`);
+    const opened = await until(async () => {
+      for (const title of ['Workspace', 'Assets']) {
+        await page.evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+        await delay(160);
+        const clicked = await page.evaluate(`(() => { const item = [...document.querySelectorAll('.panel-menu-item')].find((element) => element.textContent.trim() === ${JSON.stringify(name)}); if (!item) return false; item.click(); return true; })()`);
+        if (clicked) return true;
+        await page.evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+      }
+      return false;
+    }, `the ${name} section`);
+    if (!opened) throw new Error(`there is no ${name} section`);
     await delay(500);
   },
   /** Click the first element matching a selector. */
