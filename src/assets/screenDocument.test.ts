@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createScreenDocument, decodeBase64, encodeBase64, fillScreen, generateScreenOutput,
+  createScreenDocument, decodeBase64, encodeBase64, fillScreen, generateScreenOutput, runLengthPack, runLengthUnpack,
   importImageIntoScreen, paintScreenPixel, parseScreenDocument, readScreenPixel, screenByteForPixel,
   screenBytes, screenGeometry, screenLabel, serializeScreenDocument, setScreenMode, withScreenBytes,
 } from './screenDocument';
@@ -218,6 +218,29 @@ describe('image import', () => {
     expect(() => importImageIntoScreen(createScreenDocument('s'), new Uint8Array(4), 0, 1, palette)).toThrow(/positive width and height/);
     expect(() => importImageIntoScreen(createScreenDocument('s'), new Uint8Array(4), 4, 4, palette)).toThrow(/shorter than its declared size/);
     expect(() => importImageIntoScreen(createScreenDocument('s'), image(1, 1, [0, 0, 0]), 1, 1, [])).toThrow(/No palette colours/);
+  });
+});
+
+describe('run-length packed screen output', () => {
+  it('packs runs as a count and a byte, ends with a zero count, and unpacks to the same bytes', () => {
+    const bytes = Uint8Array.from([...new Array(300).fill(0), 7, 7, 9, ...new Array(20).fill(0xff)]);
+    const packed = runLengthPack(bytes);
+    expect(Array.from(packed)).toEqual([255, 0, 45, 0, 2, 7, 1, 9, 20, 0xff, 0]);
+    expect(Array.from(runLengthUnpack(packed))).toEqual(Array.from(bytes));
+  });
+
+  it('emits the packed form under a _rle label when asked, and says how small it is', () => {
+    const document = fillScreen(createScreenDocument('title', 'bbc-mode-5'), 0);
+    const output = generateScreenOutput(document, { runLength: true });
+    expect(output.assembly).toContain('.screen_title_rle\n');
+    expect(output.assembly).toContain('.screen_title_rle_end');
+    expect(output.assembly).not.toContain('.screen_title\n');
+    expect(output.manifest.byteLength).toBe(10240);
+    expect(output.manifest.packedLength).toBe(Math.ceil(10240 / 255) * 2 + 1);
+    expect(output.assembly).toContain(`run-length packed to ${output.manifest.packedLength}`);
+    /* The plain form is unchanged. */
+    expect(generateScreenOutput(document).assembly).toContain('.screen_title\n');
+    expect(generateScreenOutput(document).manifest.packedLength).toBeUndefined();
   });
 });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PROJECT_MANIFEST_FILENAME,
   buildTargetsFromManifest,
+  diskSetsFromManifest,
   manifestFromProject,
   parseProjectManifest,
   serializeProjectManifest,
@@ -124,6 +125,59 @@ describe('a folder that carries its manifest', () => {
     expect(plan.manifest).toBeNull();
     expect(plan.warnings.join(' ')).toContain('was not read as a project manifest');
     expect(plan.files.map((file) => file.name)).not.toContain(PROJECT_MANIFEST_FILENAME);
+  });
+});
+
+const DISK_SET = {
+  schema: '8bit-net.disk-set', version: 1, id: 'release', name: 'Release',
+  discs: [{ id: 'd1', label: 'Game', format: 'dfs-ssd', sides: [{
+    title: 'GAME',
+    entries: [
+      { id: 'boot', name: '!BOOT', directory: '$', source: { kind: 'generated-boot' } },
+      { id: 'host', name: 'FIREW', directory: '$', source: { kind: 'build-target', targetId: 'host' } },
+      { id: 'notes', name: 'NOTES', directory: '$', source: { kind: 'project-file', fileId: 'README.md' } },
+    ],
+    boot: { action: 'exec', entryId: 'boot' },
+  }] }],
+};
+
+describe('a manifest that carries disk sets', () => {
+  it('reads them, and points a project-file entry at the file by id once the folder is open', () => {
+    const manifest = parseProjectManifest(JSON.stringify({ ...MANIFEST, diskSets: [DISK_SET] }));
+    expect(manifest.diskSets).toHaveLength(1);
+    const idFor = new Map([['README.md', 'file-readme']]);
+    const { diskSets, dropped } = diskSetsFromManifest(manifest, idFor);
+    expect(dropped).toEqual([]);
+    const notes = diskSets[0]!.discs[0]!.sides[0]!.entries.find((entry) => entry.name === 'NOTES')!;
+    expect(notes.source).toEqual({ kind: 'project-file', fileId: 'file-readme' });
+  });
+
+  it('leaves out an entry whose file is not in the folder, and names it', () => {
+    const manifest = parseProjectManifest(JSON.stringify({ ...MANIFEST, diskSets: [DISK_SET] }));
+    const { diskSets, dropped } = diskSetsFromManifest(manifest, new Map());
+    expect(dropped).toEqual(['Release: README.md is not in the folder']);
+    expect(diskSets[0]!.discs[0]!.sides[0]!.entries.map((entry) => entry.name)).toEqual(['!BOOT', 'FIREW']);
+  });
+
+  it('drops a disk set that is not one rather than repairing it', () => {
+    const manifest = parseProjectManifest(JSON.stringify({ ...MANIFEST, diskSets: [{ schema: 'other' }, DISK_SET] }));
+    expect(manifest.diskSets.map((set) => set.id)).toEqual(['release']);
+  });
+
+  it('comes back through a folder with the disk set intact', () => {
+    const folder = [...FOLDER.filter((input) => input.path !== PROJECT_MANIFEST_FILENAME), { path: PROJECT_MANIFEST_FILENAME, content: JSON.stringify({ ...MANIFEST, diskSets: [DISK_SET] }) }];
+    const plan = planCodebaseImport(folder, 'FireWing', { pathsIncludeChosenFolder: false });
+    const contents = new Map(folder.filter((input) => input.path !== PROJECT_MANIFEST_FILENAME).map((input) => [input.path, input.content]));
+    const project = projectFromCodebaseImport(plan, contents);
+    expect(project.diskSets).toHaveLength(1);
+    const readme = project.files.find((file) => file.name === 'README.md')!;
+    const notes = project.diskSets[0]!.discs[0]!.sides[0]!.entries.find((entry) => entry.name === 'NOTES')!;
+    expect(notes.source).toEqual({ kind: 'project-file', fileId: readme.id });
+    /* And written back, the file is named again. */
+    const written = manifestFromProject(project);
+    const writtenNotes = written.diskSets[0]!.discs[0]!.sides[0]!.entries.find((entry) => entry.name === 'NOTES')!;
+    expect(writtenNotes.source).toEqual({ kind: 'project-file', fileId: 'README.md' });
+    expect(Object.keys(JSON.parse(serializeProjectManifest(written)))).toEqual(['format', 'name', 'target', 'buildTargets', 'activeBuildTargetId', 'diskSets', 'settings']);
   });
 });
 

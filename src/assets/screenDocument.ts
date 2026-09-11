@@ -495,6 +495,8 @@ export interface ScreenOutput {
     height: number;
     bitsPerPixel: number;
     byteLength: number;
+    /** Present when the output is run-length packed. */
+    packedLength?: number;
     sha256: string;
     /** Logical colours the picture actually uses. */
     usedColours: number[];
@@ -505,19 +507,54 @@ export function screenLabel(name: string): string {
   return `screen_${name.replace(/[^A-Za-z0-9_]/g, '_').replace(/^[^A-Za-z_]/, '_$&')}`;
 }
 
-export function generateScreenOutput(document: ScreenDocument): ScreenOutput {
+export interface ScreenOutputOptions {
+  /** Emit the frame buffer run-length packed as well: pairs of a count (1 to
+   * 255) and a byte, ended by a count of 0, under `<label>_rle`. A title
+   * screen that is mostly one colour packs to a few hundred bytes, which
+   * fits beside a program where the whole screen would not. */
+  runLength?: boolean;
+}
+
+/** The run-length form: count then byte, a zero count at the end. */
+export function runLengthPack(bytes: Uint8Array): Uint8Array {
+  const packed: number[] = [];
+  let index = 0;
+  while (index < bytes.length) {
+    const value = bytes[index]!;
+    let count = 1;
+    while (count < 255 && index + count < bytes.length && bytes[index + count] === value) count += 1;
+    packed.push(count, value);
+    index += count;
+  }
+  packed.push(0);
+  return Uint8Array.from(packed);
+}
+
+export function runLengthUnpack(packed: Uint8Array): Uint8Array {
+  const bytes: number[] = [];
+  for (let index = 0; index < packed.length; index += 2) {
+    const count = packed[index]!;
+    if (count === 0) break;
+    const value = packed[index + 1];
+    if (value === undefined) throw new Error('The run-length data ends inside a pair');
+    for (let repeat = 0; repeat < count; repeat += 1) bytes.push(value);
+  }
+  return Uint8Array.from(bytes);
+}
+
+export function generateScreenOutput(document: ScreenDocument, options: ScreenOutputOptions = {}): ScreenOutput {
   const { document: validated, geometry, bytes } = decodedScreen(document);
-  return screenOutputFromBytes(validated.name, validated.mode, geometry, bytes);
+  return screenOutputFromBytes(validated.name, validated.mode, geometry, bytes, options);
 }
 
 /** The same generation, for a caller that already holds the frame buffer. */
-export function generateScreenOutputFromBytes(name: string, mode: PaletteModeId, bytes: Uint8Array): ScreenOutput {
+export function generateScreenOutputFromBytes(name: string, mode: PaletteModeId, bytes: Uint8Array, options: ScreenOutputOptions = {}): ScreenOutput {
   const geometry = screenGeometry(mode);
   if (bytes.length !== geometry.byteLength) throw new Error(`${paletteModeProfile(mode).label} needs a ${geometry.byteLength.toLocaleString()}-byte frame buffer, not ${bytes.length.toLocaleString()}`);
-  return screenOutputFromBytes(name, mode, geometry, bytes);
+  return screenOutputFromBytes(name, mode, geometry, bytes, options);
 }
 
-function screenOutputFromBytes(name: string, mode: PaletteModeId, geometry: ScreenModeGeometry, bytes: Uint8Array): ScreenOutput {
+function screenOutputFromBytes(name: string, mode: PaletteModeId, geometry: ScreenModeGeometry, bytes: Uint8Array, options: ScreenOutputOptions = {}): ScreenOutput {
   const validated = { name, mode };
   const used = new Set<number>();
   /* Stop as soon as every colour the mode has is accounted for; a full-screen
@@ -529,15 +566,23 @@ function screenOutputFromBytes(name: string, mode: PaletteModeId, geometry: Scre
     }
   }
   const label = screenLabel(validated.name);
-  const rows = Array.from({ length: Math.ceil(bytes.length / 16) }, (_, row) =>
-    `EQUB ${Array.from(bytes.slice(row * 16, row * 16 + 16)).map((byte) => `&${byte.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')}`);
+  const hexRows = (data: Uint8Array) => Array.from({ length: Math.ceil(data.length / 16) }, (_, row) =>
+    `EQUB ${Array.from(data.slice(row * 16, row * 16 + 16)).map((byte) => `&${byte.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')}`);
+  const packed = options.runLength ? runLengthPack(bytes) : undefined;
   const assembly = [
     `; Generated screen ${validated.name} for ${paletteModeProfile(validated.mode).label}`,
     `; ${geometry.width} by ${geometry.height} pixels at ${geometry.bitsPerPixel} bits per pixel`,
-    `; ${bytes.length} frame-buffer bytes in hardware block order · SHA-256 ${sha256Hex(bytes)}`,
-    `.${label}`,
-    ...rows,
-    `.${label}_end`,
+    ...(packed ? [
+      `; ${bytes.length} frame-buffer bytes in hardware block order, run-length packed to ${packed.length}: a count of 1 to 255 then the byte, ended by a count of 0 · SHA-256 of the frame buffer ${sha256Hex(bytes)}`,
+      `.${label}_rle`,
+      ...hexRows(packed),
+      `.${label}_rle_end`,
+    ] : [
+      `; ${bytes.length} frame-buffer bytes in hardware block order · SHA-256 ${sha256Hex(bytes)}`,
+      `.${label}`,
+      ...hexRows(bytes),
+      `.${label}_end`,
+    ]),
   ].join('\n');
   return {
     bytes,
@@ -554,6 +599,7 @@ function screenOutputFromBytes(name: string, mode: PaletteModeId, geometry: Scre
       height: geometry.height,
       bitsPerPixel: geometry.bitsPerPixel,
       byteLength: bytes.length,
+      ...(packed ? { packedLength: packed.length } : {}),
       sha256: sha256Hex(bytes),
       usedColours: [...used].sort((left, right) => left - right),
     },

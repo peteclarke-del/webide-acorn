@@ -151,9 +151,14 @@ function estimateSize(operation: string, operand: string, processor: Processor, 
     if (reserved === undefined || reserved < 1 || reserved > 0x10000) { diagnostic(diagnostics, line, 'SKIP requires a constant reservation of 1 to 65,536 bytes'); return 0; }
     return reserved;
   }
-  if (operation === 'EQUB' || operation === 'BYTE') return dataItems(operand).reduce((sum, item) => sum + (isString(item) ? decodeString(item).length : 1), 0);
-  if (operation === 'EQUS' || operation === 'TEXT') return decodeString(operand).length;
+  /* EQUS takes the same list EQUB does, strings and bytes together, as
+   * BeebAsm's does: `EQUS "USING KEYS", 0` is a string with its terminator.
+   * Read as one string it emitted the closing quote, the comma and the
+   * space as text and no terminator at all, and text drawn from it ran on
+   * into whatever followed. */
+  if (operation === 'EQUB' || operation === 'BYTE' || operation === 'EQUS' || operation === 'TEXT') return dataItems(operand).reduce((sum, item) => sum + (isString(item) ? decodeString(item).length : 1), 0);
   if (operation === 'EQUW' || operation === 'WORD') return dataItems(operand).length * 2;
+  if (operation === 'EQUD') return dataItems(operand).length * 4;
   const mode = addressingMode(operation, operand, symbols);
   const opcode = opcodeFor(operation, mode, processor);
   if (opcode === undefined) { diagnostic(diagnostics, line, `${operation} does not support ${mode} addressing on ${processor.toUpperCase()}`); return 0; }
@@ -164,13 +169,21 @@ function encode(operation: string, operand: string, address: number, processor: 
   /* Reserved space advances the program counter in pass one but contributes no
    * bytes, so a trailing reservation never pads the emitted binary. */
   if (operation === 'SKIP') return undefined;
-  if (operation === 'EQUB' || operation === 'BYTE') {
+  if (operation === 'EQUB' || operation === 'BYTE' || operation === 'EQUS' || operation === 'TEXT') {
     return dataItems(operand).flatMap((item) => isString(item) ? decodeString(item) : [checkedByte(item, symbols, diagnostics, line)]);
   }
-  if (operation === 'EQUS' || operation === 'TEXT') return decodeString(operand);
   if (operation === 'EQUW' || operation === 'WORD') return dataItems(operand).flatMap((item) => {
     const value = requiredValue(item, symbols, diagnostics, line);
     return [value & 0xff, value >>> 8 & 0xff];
+  });
+  /* A double word is what an OSFILE control block or a Tube-side address
+   * wants: &FFFF5800 says the host's own memory to a filing system on a
+   * machine with a second processor, and it does not fit a word. */
+  if (operation === 'EQUD') return dataItems(operand).flatMap((item) => {
+    const value = evaluate(item, symbols);
+    if (value === undefined) { diagnostic(diagnostics, line, `Unknown or invalid expression: ${item}`); return [0, 0, 0, 0]; }
+    if (value < 0 || value > 0xffffffff) diagnostic(diagnostics, line, `Value is outside the 32-bit range: ${item}`);
+    return [value & 0xff, value >>> 8 & 0xff, value >>> 16 & 0xff, value >>> 24 & 0xff];
   });
   const mode = addressingMode(operation, operand, symbols);
   const opcode = opcodeFor(operation, mode, processor);

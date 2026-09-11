@@ -79,6 +79,23 @@ the release gate whenever it stops matching the code.
 | 6502 Tube host, in DNFS 1.20 | extension | optional · needed for tube | 16 KiB | `os12-basic2-adfs/b/dnfs120.rom` | A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM. |
 | 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `os12-basic2-adfs/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
 
+### BBC MOS 1.20 + BASIC II + 1770 DFS
+
+- Machines: Acorn BBC Model B
+- Engine: jsbeeb 1.19.1
+- Adapter model: `B1770`
+
+| ROM | Purpose | Needed | Accepted length | Vault key | Note |
+| --- | --- | --- | --- | --- | --- |
+| MOS 1.20 operating system | operating system | required | 16 KiB | `os12-basic2-dfs1770/os.rom` | - |
+| BBC BASIC II | language | required | 16 KiB | `os12-basic2-dfs1770/BASIC.ROM` | - |
+| 1770 DFS | filing system | required | 8 KiB or 16 KiB | `os12-basic2-dfs1770/b1770/dfs1770.rom` | - |
+| ADFS | filing system | required | 16 KiB | `os12-basic2-dfs1770/b1770/zADFS.ROM` | - |
+| 6502 Tube boot ROM | extension | optional · needed for tube | 2 KiB | `os12-basic2-dfs1770/tube/6502Tube.rom` | - |
+| 65C102 Turbo Tube boot ROM | extension | optional · needed for tube-turbo | 2 KiB | `os12-basic2-dfs1770/tube/65C102Tube.rom` | The parasite ROM for a 65C102 behind the Tube. Acorn sold this board for the Master; a PiTube Direct puts one behind any machine with a Tube interface. |
+| 6502 Tube host, in DNFS 1.20 | extension | optional · needed for tube | 16 KiB | `os12-basic2-dfs1770/b/dnfs120.rom` | A Model B needs the Tube host code in a sideways bank. OS 1.20 finds the Tube and stops there: it writes the ULA control register, reads it back and goes no further, and the language transfer is done by a ROM. Acorn shipped that code in DNFS. Without it the machine boots to its own banner with the parasite sitting in its ROM. |
+| 1MHzPi BBC WiFi development ROM | extension | optional · needed for 1mhzpi | 16 KiB | `os12-basic2-dfs1770/development/BBCWiFi-development.rom` | Snapshot from the active 1MHzPi project; also intended for BBC B+, BBC B and Master. Re-import after firmware rebuilds. |
+
 ### B+ MOS 2.00 + BASIC II + 1770 DFS
 
 - Machines: Acorn BBC B+

@@ -1,4 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { previewRows, transportForward, transportPause, transportPlay, transportRewind, transportStop, type Transport } from '../assets/songPlayback';
+import { browserAudioContext, SongPlayer, type PlayerContext } from '../assets/songPlayer';
 import { projectDocuments } from '../project/projectDocuments';
 import type { ProjectFile } from '../project/project';
 import { Icon } from './Icon';
@@ -40,6 +42,53 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
   const output = useMemo(() => generateSongOutput(document), [document]);
 
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, serializeSongDocument(document)); } catch { /* the storage panel reports quota */ } }, [document]);
+
+  /* Playback: the transport is one state the buttons, the row highlight and
+   * the speaker all read. When it starts, or is moved while playing, the
+   * rows from that one are scheduled on the audio clock in one go, so the
+   * tempo holds even in a window the browser is throttling; a timer only
+   * follows the clock to move the highlight and to stop at the end. The
+   * browser's audio context is made on the first Play, which is the user
+   * action a browser wants before it will make a sound. */
+  const [transport, setTransport] = useState<Transport>({ row: 0, playing: false });
+  const contextRef = useRef<PlayerContext | null>(null);
+  const playerRef = useRef<{ player: SongPlayer; channels: number } | null>(null);
+  const runRef = useRef<{ fromRow: number; startTime: number } | null>(null);
+  const audioAvailable = typeof (globalThis as { AudioContext?: unknown }).AudioContext === 'function' || typeof (globalThis as { webkitAudioContext?: unknown }).webkitAudioContext === 'function';
+  const rows = useMemo(() => previewRows(document), [document]);
+  useEffect(() => {
+    if (!transport.playing) { runRef.current = null; playerRef.current?.player.silence(); return; }
+    const context = contextRef.current ?? browserAudioContext();
+    if (!context) { setTransport(transportStop()); onNotice('This browser has no audio output to play the song through'); return; }
+    contextRef.current = context;
+    if (context.state === 'suspended') void context.resume?.();
+    if (!playerRef.current || playerRef.current.channels !== profile.channels) {
+      playerRef.current?.player.dispose();
+      playerRef.current = { player: new SongPlayer(context, profile.channels), channels: profile.channels };
+    }
+    if (!rows[transport.row]) { setTransport(transportStop()); return; }
+    /* A run is the rows from where playing started or was moved to; the
+     * highlight following the clock does not start a new one. */
+    const run = runRef.current;
+    const expectedRow = run ? rows.findIndex((row) => row.start - rows[run.fromRow]!.start > context.currentTime - run.startTime) - 1 : -1;
+    if (!run || (expectedRow >= 0 && expectedRow !== transport.row && Math.abs(expectedRow - transport.row) > 1)) {
+      const startTime = context.currentTime + 0.05;
+      runRef.current = { fromRow: transport.row, startTime };
+      playerRef.current.player.scheduleRows(rows.slice(transport.row), startTime);
+    }
+    const timer = window.setInterval(() => {
+      const current = runRef.current;
+      if (!current) return;
+      const elapsed = context.currentTime - current.startTime;
+      const base = rows[current.fromRow]!.start;
+      const reached = rows.findIndex((row) => row.start - base + row.duration > elapsed);
+      if (reached < 0) { runRef.current = null; setTransport(transportStop()); return; }
+      setTransport((state) => state.playing && state.row !== reached ? { ...state, row: reached } : state);
+    }, 60);
+    return () => window.clearInterval(timer);
+  }, [transport, rows, profile.channels, onNotice]);
+  useEffect(() => () => { playerRef.current?.player.dispose(); playerRef.current = null; }, []);
+  useEffect(() => { setTransport((state) => state.row >= rows.length ? transportStop() : state); }, [rows.length]);
 
   const guard = (operation: () => SongDocument, message?: string) => {
     try {
@@ -97,6 +146,13 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
       <div className="song-body">
         <section aria-label="Pattern">
           <h2>Pattern</h2>
+          <div className="song-transport" role="group" aria-label="Playback">
+            <button type="button" aria-label="Rewind four rows" title="Back four rows" onClick={() => setTransport((state) => transportRewind(state))}>⏮</button>
+            <button type="button" aria-label={transport.playing ? 'Pause song' : 'Play song'} title={audioAvailable ? (transport.playing ? 'Pause' : 'Play the song from this row through the browser') : 'This browser has no audio output'} disabled={!audioAvailable} onClick={() => setTransport((state) => state.playing ? transportPause(state) : transportPlay(state, rows.length))}>{transport.playing ? '⏸ Pause' : '▶ Play'}</button>
+            <button type="button" aria-label="Stop song" title="Stop, and back to the first row" onClick={() => setTransport(transportStop())}>⏹ Stop</button>
+            <button type="button" aria-label="Fast forward four rows" title="On four rows" onClick={() => setTransport((state) => transportForward(state, rows.length))}>⏭</button>
+            <span className="song-transport-position" aria-live="polite">Row {transport.row} of {rows.length}{transport.playing ? ' · playing' : ''}</span>
+          </div>
           <p className="binding-note">
             {profile.detail}. {document.target === 'atom-speaker'
               ? 'The pitch number is the speaker half-period delay count, not a musical pitch, and volume is only on or off because a one-bit speaker has no volume.'
@@ -105,7 +161,7 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
               : document.target === 'electron-ula'
                 ? "Pitch is the number OSWORD 7 takes, on the machine's own scale of forty-eight units to the octave, and volume is only on or off: a real Electron was measured playing every amplitude from -1 to -5 at exactly the same divider. There is one generator, so a note sent anywhere else would replace this one rather than sound beside it."
                 : 'Pitch and volume are the numbers OSWORD 7 takes: volume 0 is silence and 1 to 15 become amplitudes -1 to -15, and channel 0 takes pitches 0 to 7.'}
-            {' '}Nothing is synthesised here; build the song and run it to hear the real hardware play it.
+            {' '}Play auditions the song through the browser's own oscillators on the machine's pitch scale, which is an approximation of the chip; build the song and run it to hear the chip itself.
           </p>
           <div className="song-grid-scroll">
             <table className="song-grid">
@@ -118,7 +174,7 @@ export function SongWorkspace({ projectFiles = [], onAddSource, onAddLiveSong, o
               </thead>
               <tbody>
                 {document.rows.map((row, rowIndex) => (
-                  <tr key={rowIndex} className={row.every((cell) => cell.volume === 0) ? 'song-row-silent' : undefined}>
+                  <tr key={rowIndex} className={[row.every((cell) => cell.volume === 0) ? 'song-row-silent' : '', transport.playing && rowIndex === transport.row ? 'song-row-playing' : ''].filter(Boolean).join(' ') || undefined} aria-current={transport.playing && rowIndex === transport.row ? 'true' : undefined}>
                     <th scope="row">{rowIndex}</th>
                     {row.map((cell, channel) => (
                       <Fragment key={channel}>

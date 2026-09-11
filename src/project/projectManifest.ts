@@ -54,15 +54,27 @@ export interface ProjectManifest {
   target: ProjectTarget;
   buildTargets: ManifestBuildTarget[];
   activeBuildTargetId: string | null;
-  /**
-   * The disk sets the project defines. They record which build outputs and
-   * files go on which disc and how the machine boots, so a folder keeps its
-   * disc recipe rather than that living only in browser storage. They refer to
-   * build targets by identifier, which is stable across a folder being opened,
-   * so unlike file identifiers they survive the round trip unchanged.
-   */
+  /** Disk sets as the project holds them, except that a project-file source's
+   * `fileId` is the file's name, because a folder has names and not ids. */
   diskSets: DiskSet[];
   settings: Record<string, unknown>;
+}
+
+/** A disk set with every project-file source renamed through `rename`. */
+function renameDiskSetFiles(set: DiskSet, rename: (fileId: string) => string | undefined): DiskSet | null {
+  const raw = JSON.parse(JSON.stringify(set)) as { discs: Array<{ sides: Array<{ entries: Array<{ name: string; source: { kind: string; fileId?: string } }>; boot: { entryId?: string; action: string } }> }> };
+  for (const disc of raw.discs) {
+    for (const side of disc.sides) {
+      side.entries = side.entries.filter((entry) => {
+        if (entry.source.kind !== 'project-file') return true;
+        const renamed = rename(entry.source.fileId ?? '');
+        if (renamed === undefined) return false;
+        entry.source.fileId = renamed;
+        return true;
+      });
+    }
+  }
+  try { return validateDiskSet(raw); } catch { return null; }
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
@@ -136,12 +148,10 @@ export function parseProjectManifest(text: string): ProjectManifest {
     seen.add(id);
   }
 
-  /* A disk set that no longer validates (a renamed field, a target it names
-   * gone) is dropped rather than refused, on the same principle as a build
-   * target: the folder is more useful open without one disc recipe than closed. */
-  const diskSets: DiskSet[] = (Array.isArray(parsed.diskSets) ? parsed.diskSets : []).flatMap((item): DiskSet[] => {
-    try { return [validateDiskSet(item)]; }
-    catch { return []; }
+  /* A disk set that is not one is dropped whole, as the project parser drops
+   * it, rather than partly repaired into a disc that is not what was meant. */
+  const diskSets: DiskSet[] = (Array.isArray(parsed.diskSets) ? parsed.diskSets : []).slice(0, 16).flatMap((candidate): DiskSet[] => {
+    try { return [validateDiskSet(candidate)]; } catch { return []; }
   });
 
   return {
@@ -153,6 +163,25 @@ export function parseProjectManifest(text: string): ProjectManifest {
     diskSets,
     settings: isRecord(parsed.settings) ? parsed.settings : {},
   };
+}
+
+/**
+ * The project's disk sets from a manifest, with each project-file source
+ * pointed at the file's id. An entry naming a file that is not in the folder
+ * is left out and named, since a disc missing a file it declares is worse
+ * than a disc without the entry.
+ */
+export function diskSetsFromManifest(manifest: ProjectManifest, idFor: ReadonlyMap<string, string>): { diskSets: DiskSet[]; dropped: string[] } {
+  const dropped: string[] = [];
+  const diskSets = (manifest.diskSets ?? []).flatMap((set) => {
+    const renamed = renameDiskSetFiles(set, (name) => {
+      const id = idFor.get(name) ?? idFor.get(name.toLowerCase());
+      if (!id) dropped.push(`${set.name}: ${name} is not in the folder`);
+      return id;
+    });
+    return renamed ? [renamed] : [];
+  });
+  return { diskSets, dropped };
 }
 
 /** The manifest a project would write for itself. */
@@ -177,13 +206,17 @@ export function manifestFromProject(project: LocalProject): ProjectManifest {
       ...(target.includePaths.length && !(target.includePaths.length === 1 && target.includePaths[0] === '.') ? { includePaths: target.includePaths } : {}),
     }];
   });
+  const diskSets = project.diskSets.flatMap((set) => {
+    const renamed = renameDiskSetFiles(set, (id) => nameOf.get(id));
+    return renamed ? [renamed] : [];
+  });
   return {
     format: PROJECT_FORMAT,
     name: project.name,
     target: { ...project.target, enabledCapabilities: [...project.target.enabledCapabilities] },
     buildTargets,
     activeBuildTargetId: buildTargets.some((target) => target.id === project.activeBuildTargetId) ? project.activeBuildTargetId : null,
-    diskSets: project.diskSets.map((set) => structuredClone(set)),
+    diskSets,
     settings: { ...project.settings },
   };
 }
@@ -196,7 +229,7 @@ export function serializeProjectManifest(manifest: ProjectManifest): string {
     target: manifest.target,
     buildTargets: manifest.buildTargets,
     activeBuildTargetId: manifest.activeBuildTargetId,
-    ...(manifest.diskSets.length ? { diskSets: manifest.diskSets } : {}),
+    ...(manifest.diskSets?.length ? { diskSets: manifest.diskSets } : {}),
     settings: manifest.settings,
   }, null, 2)}\n`;
 }

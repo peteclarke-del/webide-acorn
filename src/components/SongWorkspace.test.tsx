@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { SongWorkspace } from './SongWorkspace';
 import { createSongDocument, parseSongDocument, serializeSongDocument } from '../assets/songDocument';
@@ -24,6 +24,52 @@ function projectHolding(name: string, content: string) {
 const stored = () => parseSongDocument(localStorage.getItem('8bit-net-dev:song')!);
 
 describe('SongWorkspace', () => {
+  it('plays the song row by row from the transport, highlights the row, and stops, rewinds and fast forwards', () => {
+    /* A browser audio context that records rather than sounds. */
+    const started: string[] = [];
+    const clock = { now: 0 };
+    class FakeAudioContext {
+      get currentTime() { return clock.now; }
+      sampleRate = 8000; destination = 'speaker'; state = 'running';
+      resume() { return Promise.resolve(); }
+      close() { return Promise.resolve(); }
+      createOscillator() { started.push('oscillator'); const param = { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} }; return { type: 'sine', frequency: param, connect() {}, disconnect() {}, start() {}, stop() {} }; }
+      createGain() { const param = { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} }; return { gain: param, connect() {}, disconnect() {} }; }
+      createBuffer(_c: number, length: number) { return { getChannelData: () => new Float32Array(length) }; }
+      createBufferSource() { return { buffer: null, loop: false, connect() {}, disconnect() {}, start() {}, stop() {} }; }
+    }
+    (globalThis as { AudioContext?: unknown }).AudioContext = FakeAudioContext;
+    vi.useFakeTimers();
+    try {
+      renderWorkspace();
+      const position = () => screen.getByText(/Row \d+ of \d+/).textContent;
+      expect(position()).toBe('Row 0 of 16');
+      fireEvent.click(screen.getByRole('button', { name: 'Play song' }));
+      expect(position()).toBe('Row 0 of 16 · playing');
+      expect(started.length).toBe(4);
+      expect(screen.getAllByRole('row').find((row) => row.getAttribute('aria-current') === 'true')).toHaveTextContent('0');
+      clock.now += 0.6;
+      act(() => { vi.advanceTimersByTime(100); });
+      expect(position()).toBe('Row 1 of 16 · playing');
+      fireEvent.click(screen.getByRole('button', { name: 'Fast forward four rows' }));
+      expect(position()).toBe('Row 5 of 16 · playing');
+      fireEvent.click(screen.getByRole('button', { name: 'Rewind four rows' }));
+      expect(position()).toBe('Row 1 of 16 · playing');
+      fireEvent.click(screen.getByRole('button', { name: 'Pause song' }));
+      expect(position()).toBe('Row 1 of 16');
+      fireEvent.click(screen.getByRole('button', { name: 'Stop song' }));
+      expect(position()).toBe('Row 0 of 16');
+      /* Playing through the end stops at the start. */
+      fireEvent.click(screen.getByRole('button', { name: 'Play song' }));
+      clock.now += 16 * 0.5 + 0.2;
+      act(() => { vi.advanceTimersByTime(100); });
+      expect(position()).toBe('Row 0 of 16');
+    } finally {
+      vi.useRealTimers();
+      delete (globalThis as { AudioContext?: unknown }).AudioContext;
+    }
+  });
+
   it('starts from a silent sixteen-row grid of four machine channels', () => {
     renderWorkspace();
     expect(stored().rows).toHaveLength(16);
@@ -73,10 +119,10 @@ describe('SongWorkspace', () => {
     expect(screen.getByLabelText('Generated song data and player')).toHaveTextContent('LDA (&80),Y');
   });
 
-  it('says it does not synthesise the machine sound in the browser', () => {
+  it('says the browser playback is an audition and the chip is heard by building and running', () => {
     renderWorkspace();
-    expect(screen.getByText(/Nothing is synthesised here/)).toBeInTheDocument();
-    expect(screen.getByText(/run it to hear the real hardware play it/)).toBeInTheDocument();
+    expect(screen.getByText(/an approximation of the chip/)).toBeInTheDocument();
+    expect(screen.getByText(/run it to hear the chip itself/)).toBeInTheDocument();
   });
 
   it('offers generated source and a live build target', () => {

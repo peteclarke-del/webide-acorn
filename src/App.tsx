@@ -4,6 +4,8 @@ import { createVerified6502AssemblySource } from './analysis/disassemblyAssembly
 import { createArmAssemblySource, verifyArmAssemblySource, type ArmAssemblyVerification } from './analysis/disassemblyArmAssemblyExport';
 import { correlateRuntimeCoverage, rowCoverageLabel, type RuntimeCoverage } from './analysis/runtimeCoverage';
 import { DiskSetWorkspace, type DiskSetSourceArtifact } from './components/DiskSetWorkspace';
+import { diskSetArtifactFor } from './media/diskSetArtifacts';
+import { buildDiskSet, resolveDiskSetEntries } from './media/diskSet';
 import { SettingsLayersPanel } from './components/SettingsLayersPanel';
 import { AppearancePanel } from './components/AppearancePanel';
 import { applyAppearance, applyScaleToFrames, readAppearance, saveAppearance, syncFrameScale, watchSystemAppearance, type Appearance } from './theme/appearance';
@@ -73,6 +75,7 @@ import { SdkDocumentView } from './components/SdkDocumentView';
 import { ProjectExportDialog } from './components/ProjectExportDialog';
 import { StartProjectDialog } from './components/StartProjectDialog';
 import { writeDirectory, type FileSystemDirectoryHandleLike } from './project/directoryAccess';
+import { POPOUT_WINDOW_NAME, isMachineHandoff, popoutWindowFeatures, type MachineHandoff } from './emulator/machineWindow';
 import { PROJECT_MANIFEST_FILENAME, manifestFromProject, serializeProjectManifest } from './project/projectManifest';
 import { ProjectStorePanel, storeProjectId } from './components/ProjectStorePanel';
 import { SampleWorkspace } from './components/SampleWorkspace';
@@ -510,17 +513,9 @@ function App() {
    * retained ones exist as bytes right now. A target that has not been built in
    * this session is simply absent, which is what the disk-set surface reports. */
   const diskSetArtifacts = useMemo<DiskSetSourceArtifact[]>(() => retainedArtifacts.flatMap((retained) => {
-    if (!isMachineCodeArtifact(retained.artifact)) return [];
-    return [{
-      targetId: retained.targetId,
-      targetName: retained.targetName,
-      outputName: retained.artifact.provenance?.target.outputName ?? retained.targetName,
-      bytes: retained.artifact.bytes,
-      loadAddress: retained.artifact.origin,
-      executionAddress: retained.artifact.entryPoint,
-      fingerprint: retained.artifact.provenance?.fingerprint ?? '',
-    }];
-  }), [retainedArtifacts]);
+    const artifact = diskSetArtifactFor(retained, project.buildTargets, project.target.enabledCapabilities);
+    return artifact ? [artifact] : [];
+  }), [retainedArtifacts, project.buildTargets, project.target.enabledCapabilities]);
   const [artifactDocumentId, setArtifactDocumentId] = useState<string>();
   const [artifactSymbolSelection, setArtifactSymbolSelection] = useState<string>();
   const [buildAllRecords, setBuildAllRecords] = useState<BuildAllRecord[]>([]);
@@ -557,7 +552,13 @@ function App() {
   }, [appearance]);
   const [resolvedRomRecords, setResolvedRomRecords] = useState<StoredRom[]>([]);
   const [romInventoryRevision, setRomInventoryRevision] = useState(0);
-  const [machineCommand, setMachineCommand] = useState<MachineCommand>();
+  /* Commands for the machine wait in a list, not a slot: two queued in one
+   * tick, the way Build and boot mounts the disc and then resets with Shift
+   * held, both reach the machine in order. A slot kept only the last, so the
+   * machine reset with no disc in the drive and the filing system waited
+   * for one for good. */
+  const [machineCommands, setMachineCommands] = useState<MachineCommand[]>([]);
+  const machineCommandIdRef = useRef(0);
   const [hardwareState, setHardwareState] = useState<MachineBridgeSnapshot | null>(null);
   /* Static reachability and observed execution are separate kinds of evidence.
    * They are only shown together when the running program can be proved to be
@@ -1310,7 +1311,10 @@ function App() {
     );
   };
 
-  const queueMachineCommand = useCallback((message: Record<string, unknown>) => setMachineCommand((current) => ({ id: (current?.id ?? 0) + 1, message })), []);
+  const queueMachineCommand = useCallback((message: Record<string, unknown>) => {
+    const id = ++machineCommandIdRef.current;
+    setMachineCommands((current) => [...current.slice(-255), { id, message }]);
+  }, []);
   const updateDebugLifecycle = useCallback((lifecycle: DebugLifecycleState, reason: string) => setDebugSession((current) => {
     if (!current) return current;
     try { return transitionDebugSession(current, lifecycle, reason); }
@@ -1524,6 +1528,29 @@ function App() {
       return records;
     } catch (error) { setNotice(`Build all not started · ${error instanceof Error ? error.message : String(error)}`); return [] as BuildAllRecord[]; }
     finally { if (buildAllAbortRef.current === controller) buildAllAbortRef.current = undefined; buildAllWorkersRef.current.clear(); }
+  };
+  /* The game, in one action: every target built, the project's first disk
+   * set written from those builds, put in drive 0, and the machine booted
+   * from it with Shift held. This is what Run means for a project that
+   * starts from a disc rather than from one program. */
+  const buildAndBoot = async () => {
+    const set = project.diskSets[0];
+    if (!set) { setNotice('Build and boot needs a disk set · define one in Media'); return; }
+    const records = (await runBuildAll()) ?? [];
+    const failed = records.filter((record) => record.status === 'failed' || record.status === 'skipped');
+    if (!records.length || failed.length) { setNotice(`Build and boot stopped · ${failed.length || 'no'} target${failed.length === 1 ? '' : 's'} did not build`); return; }
+    const artifacts = records.flatMap((record) => {
+      const artifact = record.response ? diskSetArtifactFor({ targetId: record.targetId, targetName: record.targetName, artifact: record.response.artifact }, project.buildTargets, project.target.enabledCapabilities) : null;
+      return artifact ? [artifact] : [];
+    });
+    try {
+      const built = buildDiskSet(set, resolveDiskSetEntries(set, artifacts, project.files.map((file) => ({ id: file.id, content: file.content }))));
+      const first = built.discs[0]!;
+      queueMachineCommand({ type: 'load-disc', name: safeFilename(first.filename), bytes: Array.from(first.image), drive: 0 });
+      queueMachineCommand({ type: 'reset', boot: true });
+      setWorkspaceTab('Code');
+      setNotice(`${first.filename} written from ${records.length} builds, put in drive 0, and the machine booted from it with Shift held`);
+    } catch (error) { setNotice(`Build and boot stopped · ${error instanceof Error ? error.message : String(error)}`); }
   };
 
   const startBackgroundBuild = async (trigger: Extract<BuildTrigger, 'on-save' | 'live'>, requestId: number) => {
@@ -1987,6 +2014,7 @@ function App() {
     { id: 'editor-search-project', label: 'Search and replace project', short: 'Search project...', icon: 'search', category: 'Editor', keywords: ['find', 'regex'], enabled: true, run: openProjectSearch },
     { id: 'editor-go-line', label: 'Go to line or project symbol', short: 'Go to line...', category: 'Editor', keywords: ['jump', 'navigate', 'label', 'procedure', 'function'], enabled: !!activeSource, disabledReason: 'No active source file', run: goToLineCommand },
     { id: 'build-active', label: 'Build selected target', short: 'Build', icon: 'build', category: 'Build', keywords: ['compile', 'assemble', 'tokenize'], enabled: canBuild, disabledReason: buildTargetErrors[0] ?? 'Build target is invalid', run: () => { buildActiveSource(); } },
+    { id: 'build-boot', label: 'Build every target, write the disk set, mount it and boot the machine from it', short: 'Build and boot', icon: 'open', category: 'Run', keywords: ['disc', 'disk', 'boot', 'game', 'run', 'shift', 'break'], enabled: !!project.diskSets.length && !!hardwareState && !archimedesRuntime, disabledReason: !project.diskSets.length ? 'Define a disk set in Media first' : !hardwareState ? 'Power on the machine first' : 'The A310 boots from its own ROM set', run: () => { void buildAndBoot(); } },
     { id: 'run-active', label: 'Build and run selected target', short: 'Build and run', icon: 'play', category: 'Run', keywords: ['execute', 'emulator'], enabled: canRun, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before running BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: runProgram },
     { id: 'debug-active', label: 'Build and debug selected target', short: 'Build and debug', icon: 'debug', category: 'Debug', keywords: ['breakpoint', 'inspect'], enabled: canDebug, disabledReason: buildEntry?.language === 'bbc-basic' ? 'Supply the selected ROM set before debugging BASIC' : buildTargetErrors[0] ?? 'Select a buildable target', run: () => void startDebugger() },
     { id: 'debug-run-to', label: 'Debugger: run to address', short: 'Run to address...', category: 'Debug', keywords: ['continue', 'pc'], enabled: debugPaused, disabledReason: debugAttached ? 'Pause the attached core first' : 'Start a ROM-aware debug session first', run: runToAddressCommand },
@@ -2002,6 +2030,7 @@ function App() {
     { id: 'runtime-continue', label: 'Runtime: continue execution', short: 'Continue', icon: 'play', category: 'Run', keywords: ['resume', 'play'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Hardware CPU is already running' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'run' }) : continueProgram() },
     { id: 'runtime-step', label: 'Runtime: step one instruction', short: 'Step', category: 'Debug', keywords: ['cpu', 'instruction'], enabled: !!hardwareState ? !hardwareState.running : !!runtimeState, disabledReason: hardwareState?.running ? 'Pause the hardware CPU first' : 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'step' }) : stepProgram() },
     { id: 'runtime-reset', label: 'Runtime: reset machine or program', short: 'Reset', icon: 'reset', category: 'Run', keywords: ['restart'], enabled: !!hardwareState || !!runtimeState, disabledReason: 'No runtime is attached', run: () => hardwareState ? queueMachineCommand({ type: 'reset' }) : resetProgram() },
+    { id: 'runtime-boot', label: 'Runtime: boot from disc (Shift+Break)', short: 'Boot', icon: 'open', category: 'Run', keywords: ['shift', 'break', 'disc', 'boot'], enabled: !!hardwareState && !archimedesRuntime, disabledReason: 'No 8-bit machine is attached', run: () => queueMachineCommand({ type: 'reset', boot: true }) },
     { id: 'view-target', label: `${configOpen ? 'Hide' : 'Show'} target configuration`, short: 'Target configuration', checked: configOpen, category: 'View', keywords: ['machine', 'profile'], enabled: true, run: toggleConfigPanel },
     { id: 'view-explorer', label: `${explorerOpen ? 'Hide' : 'Show'} project explorer`, short: 'Project explorer', checked: explorerOpen, category: 'View', keywords: ['files', 'tree'], enabled: true, run: toggleExplorerPanel },
     { id: 'view-inspector', label: `${inspectorOpen ? 'Hide' : 'Show'} inspector`, short: 'Inspector', checked: inspectorOpen, category: 'View', keywords: ['problems', 'registers'], enabled: true, run: () => setInspectorOpen((current) => !current) },
@@ -2239,6 +2268,7 @@ function App() {
             <ToolbarButton label="Open technical help" icon="book" onClick={() => openHelp('using-help')} />
             <ToolbarButton label={canBuild ? `Build target ${activeBuildTarget.name}` : buildTargetErrors[0] ?? 'Build target is invalid'} icon="build" tone="amber" onClick={() => buildActiveSource()} disabled={!canBuild} />
             <ToolbarButton label={canRun ? `Build and run target ${activeBuildTarget.name}` : buildEntry?.language === 'arm' ? 'ARM2 Run requires RISC OS application packaging; use Debug for the raw image' : buildEntry?.language === 'bbc-basic' ? 'BASIC execution requires the selected ROM set' : buildTargetErrors[0] ?? 'Run requires a buildable target'} icon="play" tone="green" onClick={runProgram} disabled={!canRun} />
+            {project.diskSets.length > 0 && <ToolbarButton label={hardwareState && !archimedesRuntime ? `Build and boot: build every target, write ${project.diskSets[0]!.name}, mount it and boot the machine from it` : 'Build and boot needs a powered 8-bit machine'} icon="open" tone="green" onClick={() => { void buildAndBoot(); }} disabled={!hardwareState || !!archimedesRuntime} />}
             <ToolbarButton label={canDebug ? `Build and debug target ${activeBuildTarget.name}` : buildEntry?.language === 'arm' ? 'ARM2 Debug requires qualified A310 firmware' : buildEntry?.language === 'bbc-basic' ? 'BASIC debugging requires the selected ROM set' : buildTargetErrors[0] ?? 'Debug requires a buildable target'} icon="debug" tone="blue" onClick={() => void startDebugger()} disabled={!canDebug} />
           </div>
           <ToolbarButton label="Cloud projects unavailable · local workspace only" icon="cloud" onClick={() => undefined} disabled />
@@ -2673,6 +2703,7 @@ function App() {
                 onChange={(diskSets) => setProject((current) => ({ ...current, diskSets }))}
                 onNotice={setNotice}
                 onDownload={(filename, bytes) => downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), safeFilename(filename))}
+                onMount={romReady && !!machineRomSet ? (filename, bytes) => queueMachineCommand({ type: 'load-disc', name: safeFilename(filename), bytes: Array.from(bytes), drive: 0 }) : undefined}
               />
               <MediaWorkspace machineId={machine.id} buildArtifact={buildArtifactIsCurrent ? buildArtifact : null} artifact={assemblyArtifact} armArtifact={buildArtifactIsCurrent && buildArtifact?.kind === 'arm-binary' ? buildArtifact : null} connected={romReady && !!(machineRomSet || archimedesRuntime)} archimedesConnected={romReady && !!archimedesRuntime && /^riscos3/.test(archimedesRuntime.profile.arculatorRomSet)} archimedesDiscConnected={romReady && !!archimedesRuntime} discSupported={machine.capabilities.some((item) => item.providesDiscStorage && enabledCapabilities.includes(item.id))} tapeSupported={enabledCapabilities.includes('cassette')} scsiSupported={enabledCapabilities.includes('beebscsi')} mounted={hardwareMedia} onCommand={queueMachineCommand} onNotice={setNotice} onAnalyse={openAnalysisPayload} />
               </div>
@@ -2735,7 +2766,7 @@ function App() {
             )}
           </section>
           {runtimeOpen && <PanelSeparator panel="runtime" orientation="horizontal" before={false} label="Resize the machine runtime" size={panelSizes.runtime} onResize={resizePanelTo} />}
-          {runtimeOpen && <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} command={machineCommand} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />}
+          {runtimeOpen && <EmulatorPanel machine={machine.label} variant={resolved.variant} machineProfile={{ platformClass, machineId: machine.id, romId: resolved.rom.id, enabledCapabilities }} romRecords={resolvedRomRecords} machineModel={machineRomSet?.adapterModel} romSetId={machineRomSet?.id} engineId={machineRomSet?.engine.id} projectSettings={project.settings} archimedesRuntime={archimedesRuntime} romReady={romReady} tube={enabledCapabilities.includes('tube')} extraRoms={machineRomSet ? runtimeSidewaysRomPaths(machineRomSet, enabledCapabilities) : []} commands={machineCommands} artifact={assemblyArtifact} state={runtimeState} onMachineState={setHardwareState} onMachineMemory={setHardwareMemory} onArchimedesState={setArchimedesState} onArchimedesMemory={setArchimedesMemory} onMachineDisassembly={setHardwareDisassembly} onHardwareInspection={setHardwareInspection} onMachineMedia={setHardwareMedia} onMachineTest={receiveMachineTest} onMachineError={(message) => { if (debugSession && !['terminated', 'disconnected'].includes(debugSession.lifecycle)) updateDebugLifecycle('crashed', message); }} onNotice={setNotice} onRun={continueProgram} onStep={stepProgram} onReset={resetProgram} />}
         </main>
             ),
           };
@@ -6806,7 +6837,7 @@ interface EmulatorPanelProps {
   romReady: boolean;
   tube: boolean;
   extraRoms: string[];
-  command?: MachineCommand;
+  commands: MachineCommand[];
   artifact: AssemblyArtifact | null;
   state: CpuSnapshot | null;
   onRun: () => void;
@@ -6862,7 +6893,7 @@ interface ArchimedesBridgeSnapshot {
   memoryKiB: number;
 }
 
-function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineModel, romSetId, engineId, projectSettings, archimedesRuntime, romReady, tube, extraRoms, command, artifact, state, onRun, onStep, onReset, onMachineState, onMachineMemory, onArchimedesState, onArchimedesMemory, onMachineDisassembly, onHardwareInspection, onMachineMedia, onMachineTest, onMachineError, onNotice }: EmulatorPanelProps) {
+function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineModel, romSetId, engineId, projectSettings, archimedesRuntime, romReady, tube, extraRoms, commands, artifact, state, onRun, onStep, onReset, onMachineState, onMachineMemory, onArchimedesState, onArchimedesMemory, onMachineDisassembly, onHardwareInspection, onMachineMedia, onMachineTest, onMachineError, onNotice }: EmulatorPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [frameLoaded, setFrameLoaded] = useState(false);
   const [machineState, setMachineState] = useState<MachineBridgeSnapshot | null>(null);
@@ -6898,6 +6929,22 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   const [archimedesListenerReady, setArchimedesListenerReady] = useState(false);
   const [electronListenerReady, setElectronListenerReady] = useState(false);
   const [frameGeneration, setFrameGeneration] = useState(0);
+  /* The machine in a window of its own. The window is the runtime's peer
+   * while it is open; the state it hands over is loaded into whichever
+   * runtime comes next, and what the workbench told the last runtime about
+   * the program and the breakpoints is told again, so the debugger follows
+   * the machine out and back. */
+  const popoutRef = useRef<Window | null>(null);
+  /* The window is opened in the click itself, since a browser opens a window
+   * only for a person's action; it loads while the runtime in the frame is
+   * asked for its state, and becomes the peer once that state has arrived. */
+  const pendingPopoutRef = useRef<Window | null>(null);
+  const pendingPopoutReadyRef = useRef(false);
+  const [poppedOut, setPoppedOut] = useState(false);
+  const handoffRef = useRef<MachineHandoff | null>(null);
+  const handoffPendingRef = useRef<'pop-out' | 'dock' | null>(null);
+  const lastProgramRef = useRef<Record<string, unknown> | null>(null);
+  const lastBreakpointsRef = useRef<Record<string, unknown> | null>(null);
   const [machinePowered, setMachinePowered] = useState(true);
   const [runtimeSpeed, setRuntimeSpeed] = useState<RuntimeSpeed>(() => readSetting<RuntimeSpeed>('machine.runtimeSpeed', settingLayers));
   const [machineVolume, setMachineVolume] = useState(() => readSetting<number>('machine.volume', settingLayers));
@@ -6999,7 +7046,15 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   const framebufferWidth = fullArchimedesMachine ? archimedesState?.hardware.vidc.width : fullElectronMachine ? 640 : 1024;
   const framebufferHeight = fullArchimedesMachine ? archimedesState?.hardware.vidc.height : fullElectronMachine ? 512 : 625;
   const scaledViewport = scaledFramebufferViewport(emulatorScale, framebufferWidth, framebufferHeight);
-  const postTransportCommand = (envelope: Record<string, unknown>) => { transportPendingRef.current = Number(envelope.commandId); frameRef.current?.contentWindow?.postMessage(envelope, window.location.origin); };
+  const peerWindow = () => (popoutRef.current && !popoutRef.current.closed ? popoutRef.current : frameRef.current?.contentWindow ?? null);
+  /* A fresh runtime page, in a window or in the frame, starts its event
+   * numbering from one and has to be initialised: the bridge forgets the
+   * last one. */
+  const resetBridgeForNewRuntime = () => {
+    transportCommandRef.current = 0; receivedEventRef.current = 0; transportPendingRef.current = null; transportQueueRef.current = []; sentCommandRef.current = 0; initialiseSentRef.current = '';
+    setMachineState(null); onMachineState(null);
+  };
+  const postTransportCommand = (envelope: Record<string, unknown>) => { transportPendingRef.current = Number(envelope.commandId); peerWindow()?.postMessage(envelope, window.location.origin); };
   /* The reason this adapter cannot honour a command, or null when it can. Only
    * the Electron slice restricts anything today, and it refuses in the
    * workbench with the core's own recorded reason rather than sending a command
@@ -7008,6 +7063,8 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   const sendMachine = (message: Record<string, unknown>) => {
     const refusal = adapterBlock(String(message.type));
     if (refusal) { onNotice(`${machine} adapter · ${refusal}`); return; }
+    if (message.type === 'load-machine-code') lastProgramRef.current = { processor: message.processor ?? 'host', sourceLocations: message.sourceLocations, symbols: message.symbols, programManifest: message.programManifest ?? null };
+    if (message.type === 'set-breakpoints') lastBreakpointsRef.current = message;
     const envelope = { ...(fullArchimedesMachine ? { channel: '8bit-net-archimedes' } : fullElectronMachine ? { channel: electronChannel } : {}), ...message, sessionId: debugSessionId, commandId: ++transportCommandRef.current };
     if (transportPendingRef.current === null) { postTransportCommand(envelope); return; }
     if (transportQueueRef.current.length >= 64) { onNotice('Debug command queue is full · wait for the attached core to acknowledge pending work'); return; }
@@ -7055,9 +7112,40 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
     return () => { stopped = true; cancelAnimationFrame(frame); const previous = gamepadEdgesRef.current; GAMEPAD_ACTIONS.forEach(({ id }) => { if (previous.has(id)) sendMachine({ type: 'gamepad-key-edge', action: id, code: gamepadConfig.mapping[id], pressed: false }); }); if (nativeAnalogue && analogueGamepadRef.current) sendMachine({ type: 'bbc-analogue-joystick', channels: [0x8000, 0x8000, 0x8000, 0x8000], buttons: [false, false] }); if (nativeAtomMmc && analogueGamepadRef.current) sendMachine({ type: 'atom-atommc-joystick', up: false, down: false, left: false, right: false, fire: false }); gamepadEdgesRef.current = new Set(); analogueGamepadRef.current = ''; };
   }, [gamepadConfig, poweredMachine, full6502Machine, bbcAnalogueSupported, atomMmcJoystickSupported, runtimeIdentity]);
 
+  useEffect(() => {
+    if (!poppedOut) return;
+    const timer = window.setInterval(() => {
+      if (!popoutRef.current || !popoutRef.current.closed) return;
+      /* Closed by hand: the runtime handed its state over as it went, when
+       * the browser let it. Either way the machine comes back in here. */
+      popoutRef.current = null;
+      resetBridgeForNewRuntime();
+      setPoppedOut(false); setFrameLoaded(false);
+      onNotice(handoffRef.current ? 'The machine window was closed · the machine is back in the workbench with its state' : 'The machine window was closed before its state could be handed over · the machine is back in the workbench, reset');
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [poppedOut, onMachineState, onNotice]);
+  const popOutMachine = () => {
+    if (!poweredMachine || poppedOut || handoffPendingRef.current) return;
+    const opened = window.open(frameSource, POPOUT_WINDOW_NAME, popoutWindowFeatures(framebufferWidth ?? 1024, (framebufferHeight ?? 625) + 60));
+    if (!opened) { onNotice('The browser did not open a window for the machine · allow pop-ups for this site and try again'); return; }
+    pendingPopoutRef.current = opened; pendingPopoutReadyRef.current = false;
+    handoffPendingRef.current = 'pop-out';
+    sendMachine({ type: 'state-handoff-request' });
+  };
+  const dockMachine = () => {
+    if (!poppedOut || handoffPendingRef.current) return;
+    if (!popoutRef.current || popoutRef.current.closed) { popoutRef.current = null; setPoppedOut(false); return; }
+    handoffPendingRef.current = 'dock';
+    sendMachine({ type: 'state-handoff-request' });
+  };
+  const popOutBlock = fullArchimedesMachine || fullElectronMachine ? 'The A310 and Electron runtime pages report to the frame that holds them; popping them out is not wired yet' : null;
   const powerOffMachine = () => {
     if (!fullMachine || !machinePowered) return;
     if (document.fullscreenElement) void document.exitFullscreen();
+    if (popoutRef.current && !popoutRef.current.closed) popoutRef.current.close();
+    if (pendingPopoutRef.current && !pendingPopoutRef.current.closed) pendingPopoutRef.current.close();
+    popoutRef.current = null; pendingPopoutRef.current = null; handoffRef.current = null; handoffPendingRef.current = null; setPoppedOut(false);
     setMachinePowered(false); setFrameLoaded(false); setMachineState(null); setArchimedesState(null); setArchimedesListenerReady(false); setInputControlsOpen(false); setInputCaptured(false); setMachineAudio(null); setAudioRecording(false); setMachineError(undefined); setMachineProgram(undefined); setProgramManifest(null);
     transportPendingRef.current = null; transportQueueRef.current = []; initialiseSentRef.current = '';
     onMachineState(null); onMachineMemory(null); onArchimedesState(null); onArchimedesMemory(null); onMachineDisassembly(null); onHardwareInspection(null); onMachineMedia([]); onMachineTest(null);
@@ -7072,8 +7160,21 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
 
   useEffect(() => {
     const receive = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || event.source !== frameRef.current?.contentWindow) return;
+      if (event.origin !== window.location.origin) return;
       if (event.data?.channel !== (fullArchimedesMachine ? '8bit-net-archimedes' : fullElectronMachine ? electronChannel : '8bit-net-machine')) return;
+      /* The machine's own window, loading while the frame's runtime is still
+       * the peer: only its arrival is noted until the state has crossed. */
+      if (pendingPopoutRef.current && event.source === pendingPopoutRef.current) {
+        if (event.data.type === 'bridge-ready') pendingPopoutReadyRef.current = true;
+        return;
+      }
+      if (event.source !== peerWindow()) return;
+      /* The machine's own window has loaded its page: it is a fresh runtime,
+       * and is brought up the way a freshly loaded frame is. */
+      if (event.data.type === 'bridge-ready' && popoutRef.current && event.source === popoutRef.current) {
+        resetBridgeForNewRuntime(); setFrameLoaded(true);
+        return;
+      }
       const acceptedSequence = acceptDebugEvent(event.data, debugSessionId, receivedEventRef.current);
       if (acceptedSequence === null) return;
       receivedEventRef.current = acceptedSequence;
@@ -7197,7 +7298,25 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
       if (event.data.type === 'snapshot') {
         if (event.data.sessionManifest?.fingerprint !== sessionManifest?.fingerprint) { const message = 'jsbeeb snapshot refused because its runtime session manifest does not match the parent binding'; setMachineError(message); onMachineError(message); return; }
         if (event.data.programManifest && event.data.programManifest.sessionFingerprint !== sessionManifest?.fingerprint) { const message = 'jsbeeb snapshot refused because its loaded program is bound to another runtime session'; setMachineError(message); onMachineError(message); return; }
-        const snapshot = event.data as MachineBridgeSnapshot; setMachineState(snapshot); if (isRuntimeSpeed(snapshot.speed)) setRuntimeSpeed(snapshot.speed); onMachineState(snapshot); setMachineError(undefined);
+        /* The Tube's state comes in its own message right after this one, so
+         * the last one seen is carried over rather than dropped for a render:
+         * dropped, the Tube panel vanished for a frame on every snapshot, and
+         * anything reading the parasite's program counter saw it go and come
+         * back, which had the debugger re-sending its breakpoints on every
+         * snapshot and the counts on them never rising. */
+        const snapshot = event.data as MachineBridgeSnapshot;
+        setMachineState((current) => { const next = current?.tube && !snapshot.tube ? { ...snapshot, tube: current.tube } : snapshot; onMachineState(next); return next; });
+        if (isRuntimeSpeed(snapshot.speed)) setRuntimeSpeed(snapshot.speed); setMachineError(undefined);
+      }
+      if (event.data.type === 'ready' && handoffRef.current) {
+        /* The runtime that took over: the machine's state, then the names the
+         * workbench gave the last one, then the breakpoints, then running if
+         * it was. Commands go in order through the transport. */
+        const handoff = handoffRef.current; handoffRef.current = null;
+        sendMachine({ type: 'load-state', json: handoff.json });
+        if (lastProgramRef.current) sendMachine({ type: 'bind-program', ...lastProgramRef.current });
+        if (lastBreakpointsRef.current) sendMachine(lastBreakpointsRef.current);
+        if (handoff.running) sendMachine({ type: 'run' });
       }
       if (event.data.type === 'ready') { setMachineError(undefined); sendMachine({ type: 'set-volume', volume: machineVolume }); sendMachine({ type: 'set-display-filter', filter: displayFilter }); if (runtimeSpeed !== 1) sendMachine({ type: 'set-speed', speed: runtimeSpeed }); if (bbcAnalogueSupported && bbcMouseJoystick) sendMachine({ type: 'set-bbc-mouse-joystick', enabled: true }); }
       if (event.data.type === 'speed-state' && isRuntimeSpeed(event.data.speed)) { const speed = event.data.speed; setRuntimeSpeed(speed); writeSetting('machine.runtimeSpeed', speed); onNotice(`Live jsbeeb runtime speed changed to ${speed}x`); }
@@ -7256,6 +7375,26 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           onMachineMedia((current) => current.filter((item) => item.kind !== 'tape'));
           onNotice('Cassette ejected · live input adapter acknowledged');
         }
+      }
+      if (event.data.type === 'state-handoff' && isMachineHandoff(event.data)) {
+        handoffRef.current = { json: event.data.json, running: event.data.running };
+        const pending = handoffPendingRef.current; handoffPendingRef.current = null;
+        if (pending === 'pop-out') {
+          const opened = pendingPopoutRef.current; pendingPopoutRef.current = null;
+          if (!opened || opened.closed) { handoffRef.current = null; onNotice('The machine\'s window was closed before the machine could move into it'); return; }
+          popoutRef.current = opened;
+          resetBridgeForNewRuntime();
+          setPoppedOut(true);
+          /* Its page may have announced itself already; then it is ready now. */
+          setFrameLoaded(pendingPopoutReadyRef.current);
+          onNotice('The machine is in its own window · its state, program and breakpoints go with it · Dock brings it back');
+        } else if (pending === 'dock') {
+          popoutRef.current?.close(); popoutRef.current = null;
+          resetBridgeForNewRuntime();
+          setPoppedOut(false); setFrameLoaded(false);
+          onNotice('The machine is back in the workbench with its state');
+        }
+        return;
       }
       if (event.data.type === 'state-saved' && typeof event.data.json === 'string') {
         downloadBlob(new Blob([event.data.json], { type: 'application/json' }), safeFilename(String(event.data.filename ?? 'machine-state.8bitstate.json')));
@@ -7356,20 +7495,24 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
   }, [archimedesFastBootMs, archimedesListenerReady, archimedesRuntime, electronListenerReady, electronRomUrls, frameLoaded, fullArchimedesMachine, fullElectronMachine, poweredMachine, machineModel, romSetId, runtimeIdentity, tube, keyboardLayout, keyRemaps, extraRoms.join('\n')]);
 
   useEffect(() => {
-    if (!poweredMachine || (!machineState && !archimedesState && !electronState) || !command || command.id === sentCommandRef.current) return;
-    sentCommandRef.current = command.id;
-    const draft = command.message.programLoadDraft as ProgramLoadDraft | undefined;
-    if (draft && (command.message.type === 'load-machine-code' || command.message.type === 'load-arm-program' || command.message.type === 'run-test' || command.message.type === 'load-basic') && sessionManifest) {
-      try {
-        const { programLoadDraft: _draft, ...message } = command.message;
-        const bytes = Uint8Array.from(message.bytes as number[]);
-        const dynamicBasic = message.type === 'load-basic';
-        sendMachine({ ...message, programManifest: bindProgramLoadManifest(draft, sessionManifest.fingerprint, bytes, dynamicBasic ? 0 : Number(message.origin), dynamicBasic ? 0 : Number(message.entryPoint)), commandId: command.id });
-      } catch (error) { onNotice(`Program load refused · ${error instanceof Error ? error.message : String(error)}`); }
-      return;
+    if (!poweredMachine || (!machineState && !archimedesState && !electronState)) return;
+    /* Every command not yet sent, in the order it was queued. */
+    for (const command of commands) {
+      if (command.id <= sentCommandRef.current) continue;
+      sentCommandRef.current = command.id;
+      const draft = command.message.programLoadDraft as ProgramLoadDraft | undefined;
+      if (draft && (command.message.type === 'load-machine-code' || command.message.type === 'load-arm-program' || command.message.type === 'run-test' || command.message.type === 'load-basic') && sessionManifest) {
+        try {
+          const { programLoadDraft: _draft, ...message } = command.message;
+          const bytes = Uint8Array.from(message.bytes as number[]);
+          const dynamicBasic = message.type === 'load-basic';
+          sendMachine({ ...message, programManifest: bindProgramLoadManifest(draft, sessionManifest.fingerprint, bytes, dynamicBasic ? 0 : Number(message.origin), dynamicBasic ? 0 : Number(message.entryPoint)), commandId: command.id });
+        } catch (error) { onNotice(`Program load refused · ${error instanceof Error ? error.message : String(error)}`); }
+        continue;
+      }
+      sendMachine({ ...command.message, commandId: command.id });
     }
-    sendMachine({ ...command.message, commandId: command.id });
-  }, [archimedesState, command, electronState, poweredMachine, machineState, sessionManifest?.fingerprint]);
+  }, [archimedesState, commands, electronState, poweredMachine, machineState, sessionManifest?.fingerprint]);
 
   return (
     <section
@@ -7640,6 +7783,22 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           <button
             className="icon-button"
             type="button"
+            aria-label="Boot from disc"
+            title={
+              fullMachine && !fullArchimedesMachine
+                ? machinePowered
+                  ? "Hard reset with Shift held, which boots the disc in drive 0"
+                  : "Power on the machine first"
+                : "Shift+Break is an 8-bit machine's way of booting a disc"
+            }
+            disabled={!fullMachine || fullArchimedesMachine || !poweredMachine}
+            onClick={() => sendMachine({ type: "reset", boot: true })}
+          >
+            <Icon name="open" />
+          </button>
+          <button
+            className="icon-button"
+            type="button"
             aria-label="Reset runtime"
             title={
               fullMachine
@@ -7813,6 +7972,23 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
           >
             <Icon name="image" />
           </button>
+          {/* Words rather than an icon: an icon for this read as full
+            * screen, which sits beside it, and nobody found it. */}
+          <button
+            className={`emulator-input-button ${poppedOut ? "captured" : ""}`}
+            type="button"
+            aria-label={poppedOut ? "Dock machine" : "Pop out machine"}
+            title={
+              popOutBlock
+                ?? (poppedOut
+                  ? "Dock: bring the machine back into this panel, keeping its state"
+                  : "Pop out: open the machine in its own window (drag it to another screen or make it full screen there); the debugger, breakpoints and stepping keep working")
+            }
+            disabled={!poweredMachine || !!popOutBlock || (!poppedOut && !machineState)}
+            onClick={() => (poppedOut ? dockMachine() : popOutMachine())}
+          >
+            {poppedOut ? "DOCK" : "POP OUT"}
+          </button>
           <button
             className="icon-button"
             type="button"
@@ -7933,6 +8109,13 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
             className={`machine-frame-wrap scale-${emulatorScale}`}
             ref={machineFrameRef}
           >
+            {poppedOut ? (
+              <div className="machine-popped-out" role="status">
+                <strong>The machine is in its own window</strong>
+                <span>Its state, program and breakpoints went with it. The debugger, the memory views and the controls here work against that window.</span>
+                <button type="button" onClick={dockMachine}>Dock machine</button>
+              </div>
+            ) : (
             <iframe
               key={`${frameSource}:${frameGeneration}`}
               ref={frameRef}
@@ -7948,6 +8131,7 @@ function EmulatorPanel({ machine, variant, machineProfile, romRecords, machineMo
               }}
               style={scaledViewport}
             />
+            )}
             <button
               className="fullscreen-exit"
               type="button"

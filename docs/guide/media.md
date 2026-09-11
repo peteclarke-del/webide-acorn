@@ -61,7 +61,8 @@ Record which build artifacts and files go on which disc and side, in what order,
 4. Use Add file, then choose the build target, project file or generated boot file each entry comes from.
 5. Set the DFS filename and directory letter for each entry, and reorder entries with the arrow controls.
 6. Choose the boot action and the file it acts on.
-7. Read the sector and file counts on each side, then use Write disk set.
+7. Read the sector and file counts on each side, then use Write disk set, or Write and mount to put the first disc in drive 0 of the connected machine.
+8. To start the machine from the disc, use Boot from disc in the runtime toolbar, which is a hard reset with Shift held.
 
 **What should happen**
 
@@ -69,6 +70,9 @@ Record which build artifacts and files go on which disc and side, in what order,
 - Write disk set stays unavailable, naming the targets to build, until every source exists.
 - Each side reports its sector and file use against the real DFS limits before anything is written.
 - Every image is written through the same DFS writer used elsewhere, so each side is reparsed and byte-compared.
+- On a machine with a second processor, a host target's file is catalogued with &FFFF in the top half of its addresses, so the filing system loads and runs it on the host; a second-processor target's file is catalogued at its own origin and goes across the Tube.
+- A generated boot file CHAINs the first BASIC program on the side when there is one, and otherwise runs each file in order.
+- A project text file is written with carriage returns, which is how *EXEC reads lines.
 
 **Limits**
 

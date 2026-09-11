@@ -13,7 +13,7 @@ import {
   diskSetBuildPlan,
   diskSetSideQuota,
   diskSetSummary,
-  generatedBootText,
+  resolveDiskSetEntries,
   validateDiskSet,
   type DiskSet,
   type DiskSetBootAction,
@@ -23,15 +23,8 @@ import {
   type DiskSetSide,
 } from '../media/diskSet';
 
-export interface DiskSetSourceArtifact {
-  targetId: string;
-  targetName: string;
-  outputName: string;
-  bytes: Uint8Array;
-  loadAddress: number;
-  executionAddress: number;
-  fingerprint: string;
-}
+export type { DiskSetSourceArtifact } from '../media/diskSetArtifacts';
+import type { DiskSetSourceArtifact } from '../media/diskSetArtifacts';
 
 export interface DiskSetWorkspaceProps {
   sets: DiskSet[];
@@ -42,6 +35,8 @@ export interface DiskSetWorkspaceProps {
   onChange: (sets: DiskSet[]) => void;
   onNotice: (message: string) => void;
   onDownload: (filename: string, bytes: Uint8Array) => void;
+  /** Put a written image in the machine's drive 0. Absent when no machine is connected. */
+  onMount?: (filename: string, bytes: Uint8Array) => void;
 }
 
 const BOOT_ACTIONS: Array<{ value: DiskSetBootAction; label: string }> = [
@@ -80,7 +75,7 @@ function emptySet(index: number): DiskSet {
   });
 }
 
-export function DiskSetWorkspace({ sets, buildTargets, projectFiles, artifacts, onChange, onNotice, onDownload }: DiskSetWorkspaceProps) {
+export function DiskSetWorkspace({ sets, buildTargets, projectFiles, artifacts, onChange, onNotice, onDownload, onMount }: DiskSetWorkspaceProps) {
   const [selectedSetId, setSelectedSetId] = useState<string | null>(sets[0]?.id ?? null);
   const selected = sets.find((set) => set.id === selectedSetId) ?? sets[0] ?? null;
 
@@ -88,29 +83,7 @@ export function DiskSetWorkspace({ sets, buildTargets, projectFiles, artifacts, 
 
   /* Bytes for every entry that has a source available now. An entry missing
    * from this map is exactly what the quota and the build refuse on. */
-  const resolvedEntries = useMemo(() => {
-    const resolved = new Map<string, DiskSetResolvedEntry>();
-    if (!selected) return resolved;
-    const encoder = new TextEncoder();
-    for (const disc of selected.discs) {
-      for (const side of disc.sides) {
-        for (const entry of side.entries) {
-          if (entry.source.kind === 'build-target') {
-            const artifact = artifactByTarget.get(entry.source.targetId);
-            if (artifact) resolved.set(entry.id, { bytes: artifact.bytes, loadAddress: artifact.loadAddress, executionAddress: artifact.executionAddress });
-          } else if (entry.source.kind === 'project-file') {
-            const fileId = entry.source.fileId;
-            const file = projectFiles.find((candidate) => candidate.id === fileId);
-            if (file && file.content.length) resolved.set(entry.id, { bytes: encoder.encode(file.content), loadAddress: 0, executionAddress: 0 });
-          } else {
-            const bytes = encoder.encode(generatedBootText(side));
-            resolved.set(entry.id, { bytes, loadAddress: 0, executionAddress: 0 });
-          }
-        }
-      }
-    }
-    return resolved;
-  }, [selected, artifactByTarget, projectFiles]);
+  const resolvedEntries = useMemo(() => selected ? resolveDiskSetEntries(selected, artifacts, projectFiles) : new Map<string, DiskSetResolvedEntry>(), [selected, artifacts, projectFiles]);
 
   const sizes = useMemo(() => new Map([...resolvedEntries].map(([id, value]) => [id, value.bytes.length])), [resolvedEntries]);
 
@@ -154,6 +127,20 @@ export function DiskSetWorkspace({ sets, buildTargets, projectFiles, artifacts, 
     }
   };
 
+  /* The first disc into drive 0 of the machine that is right there, so a set
+   * can be tried without a download and a mount by hand. */
+  const mount = () => {
+    if (!selected || !onMount) return;
+    try {
+      const built = buildDiskSet(selected, resolvedEntries);
+      const first = built.discs[0]!;
+      onMount(first.filename, first.image);
+      onNotice(`${first.filename} written and put in drive 0 · ${first.image.length.toLocaleString()} bytes · Boot from disc starts it`);
+    } catch (error) {
+      onNotice(`Disk set not written · ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   if (!selected) {
     return (
       <section className="disk-set-workspace" aria-label="Disk sets">
@@ -185,6 +172,7 @@ export function DiskSetWorkspace({ sets, buildTargets, projectFiles, artifacts, 
         <button type="button" onClick={() => edit((draft) => { draft.discs.push(emptyDisc(draft.discs.length)); })}>Add disc</button>
         <button type="button" onClick={removeSet}>Remove set</button>
         <button type="button" className="primary-action compact" disabled={!!missingTargets.length} title={missingTargets.length ? `Build ${missingTargets.join(', ')} first` : 'Write every image in this set'} onClick={build}>Write disk set</button>
+        {onMount && <button type="button" disabled={!!missingTargets.length} title={missingTargets.length ? `Build ${missingTargets.join(', ')} first` : 'Write the first disc and put it in drive 0'} onClick={mount}>Write and mount</button>}
       </div>
 
       {/* A named region rather than a live one: this is standing content, and a

@@ -288,6 +288,12 @@ export interface DiskSetResolvedEntry {
   executionAddress: number;
 }
 
+/** The lines of a text file as the machine reads them: *EXEC and *TYPE take
+ * a carriage return as the end of a line, and a project file has line feeds. */
+export function machineTextBytes(content: string): Uint8Array {
+  return new TextEncoder().encode(content.replace(/\r\n|\r|\n/g, '\r'));
+}
+
 export interface BuiltDiskSetDisc {
   discId: string;
   label: string;
@@ -308,11 +314,54 @@ export interface BuiltDiskSet {
  * The text of a generated `!BOOT` file: one `*RUN` per named entry, in order.
  * It is plain text with carriage returns, which is what `*EXEC` reads.
  */
-export function generatedBootText(side: DiskSetSide): string {
+/**
+ * The !BOOT a side generates. A side with a BASIC program on it is a loader
+ * disc: the first BASIC program is CHAINed and does the rest, since *RUN on a
+ * BASIC program is an error. Otherwise every other file is *RUN in order.
+ * `basicEntryIds` names the entries whose bytes are BASIC programs.
+ */
+export function generatedBootText(side: DiskSetSide, basicEntryIds: ReadonlySet<string> = new Set()): string {
+  const named = (entry: DiskSetEntry) => `${entry.directory === '$' || !entry.directory ? '' : `${entry.directory}.`}${entry.name}`;
+  const loader = side.entries.find((entry) => entry.source.kind !== 'generated-boot' && basicEntryIds.has(entry.id));
+  if (loader) return `CHAIN "${named(loader)}"\r`;
   const commands = side.entries
     .filter((entry) => entry.source.kind !== 'generated-boot')
-    .map((entry) => `*RUN ${entry.directory === '$' || !entry.directory ? '' : `${entry.directory}.`}${entry.name}`);
+    .map((entry) => `*RUN ${named(entry)}`);
   return commands.length ? `${commands.join('\r')}\r` : '*ECHO No files on this side\r';
+}
+
+/**
+ * The bytes for every entry of a set that has a source now: build artifacts
+ * by target, project text with the machine's line endings, and the generated
+ * boot file, which CHAINs the side's first BASIC program when it has one.
+ * An entry with no source is left out, which is what the quota and the build
+ * refuse on.
+ */
+export function resolveDiskSetEntries(
+  set: DiskSet,
+  artifacts: ReadonlyArray<{ targetId: string; bytes: Uint8Array; loadAddress: number; executionAddress: number; kind: 'machine-code' | 'bbc-basic' }>,
+  projectFiles: ReadonlyArray<{ id: string; content: string }>,
+): Map<string, DiskSetResolvedEntry> {
+  const artifactByTarget = new Map(artifacts.map((artifact) => [artifact.targetId, artifact]));
+  const resolved = new Map<string, DiskSetResolvedEntry>();
+  for (const disc of set.discs) {
+    for (const side of disc.sides) {
+      const basicEntryIds = new Set(side.entries.filter((entry) => entry.source.kind === 'build-target' && artifactByTarget.get(entry.source.targetId)?.kind === 'bbc-basic').map((entry) => entry.id));
+      for (const entry of side.entries) {
+        if (entry.source.kind === 'build-target') {
+          const artifact = artifactByTarget.get(entry.source.targetId);
+          if (artifact) resolved.set(entry.id, { bytes: artifact.bytes, loadAddress: artifact.loadAddress, executionAddress: artifact.executionAddress });
+        } else if (entry.source.kind === 'project-file') {
+          const fileId = entry.source.fileId;
+          const file = projectFiles.find((candidate) => candidate.id === fileId);
+          if (file && file.content.length) resolved.set(entry.id, { bytes: machineTextBytes(file.content), loadAddress: 0, executionAddress: 0 });
+        } else {
+          resolved.set(entry.id, { bytes: machineTextBytes(generatedBootText(side, basicEntryIds)), loadAddress: 0, executionAddress: 0 });
+        }
+      }
+    }
+  }
+  return resolved;
 }
 
 /**

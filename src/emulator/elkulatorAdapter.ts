@@ -115,6 +115,8 @@ export const ELKULATOR_COMMAND_CAPABILITY: Readonly<Record<string, string>> = Ob
   'export-scsi-lun': 'beebscsi',
   'eject-tape': 'media',
   'save-state': 'state-save',
+  'state-handoff-request': 'state-save',
+  'bind-program': 'program-load',
   'load-state': 'state-save',
   'capture-screen': 'screen-capture',
   'focus-input': 'input-focus',

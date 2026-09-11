@@ -50,7 +50,7 @@ describe('ROM profile registry', () => {
     expect(requiredRomRequirements(bbc, ['1mhzpi']).map((item) => item.id)).toContain('1mhzpi-wifi');
   });
   it('shares the development BBC WiFi manifest across supported BBC and Master adapters', () => {
-    for (const definition of [romSetFor('bbc-b', 'os12-basic2-dfs'), romSetFor('bbc-b', 'os12-basic2-adfs'), romSetFor('master', 'mos320')]) {
+    for (const definition of [romSetFor('bbc-b', 'os12-basic2-dfs'), romSetFor('bbc-b', 'os12-basic2-adfs'), romSetFor('bbc-b', 'os12-basic2-dfs1770'), romSetFor('master', 'mos320')]) {
       expect(definition).toBeDefined();
       expect(runtimeSidewaysRomPaths(definition!, ['1mhzpi'])).toEqual(['development/BBCWiFi-development.rom']);
     }
@@ -196,5 +196,15 @@ describe('the two Electron cores', () => {
   it('offer the base machine on ElkJS and the expanded one on Elkulator', () => {
     expect(romSetFor('electron', 'electron-os')?.engine.id).toBe('elkjs');
     expect(romSetFor('electron', 'electron-expanded')?.engine.id).toBe('elkulator');
+  });
+});
+
+describe('the 1770 Model B that boots DFS', () => {
+  it('has the same ROMs as the ADFS one on a model whose bank order puts the DFS first', () => {
+    const adfs = romSetFor('bbc-b', 'os12-basic2-adfs')!;
+    const dfs = romSetFor('bbc-b', 'os12-basic2-dfs1770')!;
+    expect(dfs.adapterModel).toBe('B1770');
+    expect(adfs.adapterModel).toBe('B1770A');
+    expect(dfs.requirements.map((item) => item.emulatorPath)).toEqual(adfs.requirements.map((item) => item.emulatorPath));
   });
 });

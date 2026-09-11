@@ -55,6 +55,20 @@ describe('6502 assembler adapter', () => {
     ]);
   });
 
+  it('takes a string and its terminator in one EQUS, as BeebAsm does, rather than emitting the punctuation as text', () => {
+    const result = assemble6502('ORG &1900\nEQUS "AB", 0, "C", 13');
+    expect(result.diagnostics).toEqual([]);
+    expect(Array.from(result.bytes)).toEqual([0x41, 0x42, 0, 0x43, 13]);
+    expect(Array.from(assemble6502('ORG &1900\nEQUS "A, B"').bytes)).toEqual([0x41, 0x2c, 0x20, 0x42]);
+  });
+
+  it('emits a double word little-endian, so an OSFILE block can carry a host address on a Tube machine', () => {
+    const result = assemble6502('ORG &1900\nEQUD &FFFF5800, 1\nEQUW 2');
+    expect(result.diagnostics).toEqual([]);
+    expect(Array.from(result.bytes)).toEqual([0x00, 0x58, 0xff, 0xff, 1, 0, 0, 0, 2, 0]);
+    expect(assemble6502('ORG &1900\nEQUD &100000000').diagnostics[0]?.message).toMatch(/outside the 32-bit range/);
+  });
+
   it('says an expression it cannot read is unknown rather than guessing a value for it', () => {
     for (const operand of ['(1 + 2', '1 + 2)', '1 / 0', '5 MOD 0', '1 +', '&5800 8']) {
       expect(assemble6502(`ORG &1900\nEQUB ${operand}`).diagnostics[0]?.message, operand).toMatch(/Unknown or invalid expression/);

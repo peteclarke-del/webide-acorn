@@ -10,6 +10,8 @@ import {
   diskSetSideQuota,
   diskSetSummary,
   generatedBootText,
+  machineTextBytes,
+  resolveDiskSetEntries,
   validateDiskSet,
   type DiskSetResolvedEntry,
 } from './diskSet';
@@ -185,6 +187,58 @@ describe('disk sets', () => {
       }],
     });
     expect(generatedBootText(set.discs[0]!.sides[0]!)).toBe('*RUN GAME\r*RUN M.MUSIC\r');
+  });
+
+  it('generates a boot file that CHAINs the BASIC loader when the side has one, since *RUN on BASIC is an error', () => {
+    const set = validateDiskSet({
+      ...singleSided,
+      discs: [{
+        ...singleSided.discs[0],
+        sides: [{
+          title: 'X',
+          entries: [
+            { id: 'boot', name: '!BOOT', source: { kind: 'generated-boot' } },
+            entry('a', 'LOADER'),
+            entry('b', 'GAME', 'game'),
+          ],
+          boot: { action: 'exec', entryId: 'boot' },
+        }],
+      }],
+    });
+    expect(generatedBootText(set.discs[0]!.sides[0]!, new Set(['a']))).toBe('CHAIN "LOADER"\r');
+    /* Told nothing is BASIC, it runs everything as before. */
+    expect(generatedBootText(set.discs[0]!.sides[0]!)).toBe('*RUN LOADER\r*RUN GAME\r');
+  });
+
+  it('writes a text file with the carriage returns the machine reads lines by', () => {
+    expect(Array.from(machineTextBytes('*BASIC\nCHAIN "L"\r\nEND\r'))).toEqual(Array.from(new TextEncoder().encode('*BASIC\rCHAIN "L"\rEND\r')));
+  });
+
+  it('resolves a set from artifacts and project text, with the boot file CHAINing the BASIC loader', () => {
+    const set = validateDiskSet({
+      ...singleSided,
+      discs: [{
+        ...singleSided.discs[0],
+        sides: [{
+          title: 'X',
+          entries: [
+            { id: 'boot', name: '!BOOT', source: { kind: 'generated-boot' } },
+            entry('a', 'LOADER', 'loader'),
+            entry('b', 'GAME', 'game'),
+            { id: 'n', name: 'NOTES', source: { kind: 'project-file', fileId: 'readme' } },
+          ],
+          boot: { action: 'exec', entryId: 'boot' },
+        }],
+      }],
+    });
+    const resolved = resolveDiskSetEntries(set, [
+      { targetId: 'loader', bytes: new Uint8Array([1]), loadAddress: 0x31900, executionAddress: 0x38023, kind: 'bbc-basic' },
+      { targetId: 'game', bytes: new Uint8Array([2, 3]), loadAddress: 0x2000, executionAddress: 0x2000, kind: 'machine-code' },
+    ], [{ id: 'readme', content: 'one\ntwo\n' }]);
+    expect(new TextDecoder().decode(resolved.get('boot')!.bytes)).toBe('CHAIN "LOADER"\r');
+    expect(new TextDecoder().decode(resolved.get('n')!.bytes)).toBe('one\rtwo\r');
+    expect(resolved.get('b')).toMatchObject({ loadAddress: 0x2000 });
+    expect(Array.from(resolved.get('a')!.bytes)).toEqual([1]);
   });
 
   it('summarises the whole set in one line', () => {
