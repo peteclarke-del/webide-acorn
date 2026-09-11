@@ -175,7 +175,7 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
    * generated source to the project, and then builds, because a graphics
    * editor whose output cannot reach a build is a drawing program.
    */
-  clickText('Sprites');
+  await chooseFromMenu('Sections', 'Assets', /^Sprites$/, 'open the Sprites editor');
   await settle(() => !!document.querySelector('.pixel-grid [role="gridcell"]'), 'the sprite editor');
   const cells = [...document.querySelectorAll('.pixel-grid [role="gridcell"]')];
   record('sprite editor', cells.length + ' pixels to draw on');
@@ -194,7 +194,7 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
    * chooses the target from the machine, and a song written for the wrong chip
    * is music that will not play.
    */
-  clickText('Sound');
+  await chooseFromMenu('Sections', 'Assets', /^Sound$/, 'open the Sound editor');
   await settle(() => !!document.querySelector('select[aria-label="Sound hardware"]'), 'the song editor');
   const hardware = document.querySelector('select[aria-label="Sound hardware"]');
   record('sound hardware offered', [...hardware.options].map((option) => option.textContent.trim()).join(' | '));
@@ -205,7 +205,7 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
   record('song to project', notices().slice(-1)[0] ?? 'added');
 
   /* Building it, with what was drawn and composed in the project. */
-  clickText('Build targets');
+  await chooseFromMenu('Sections', 'Workspace', /^Build targets$/, 'open the Build targets workspace');
   await wait(400);
   const build = [...document.querySelectorAll('button[aria-label^="Build target"]')][0];
   if (!build) throw new Error('There is no control to build the target that was just opened');
@@ -248,7 +248,7 @@ const WALK = `(async (machineId, templateId, expectRunnable) => {
   if (withAssets <= bare) throw new Error('Including the artwork and the music did not change the program: ' + withAssets + ' bytes against ' + bare);
 
   /* Packaging it to the medium the machine shipped with. */
-  clickText('Media');
+  await chooseFromMenu('Sections', 'Workspace', /^Media$/, 'open the Media workspace');
   await wait(600);
   const packageButtons = [...document.querySelectorAll('button')].filter((button) => button.textContent.trim() === 'Package current build');
   record('media controls', packageButtons.length + ' packaging control(s)');

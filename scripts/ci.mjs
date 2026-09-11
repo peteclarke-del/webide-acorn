@@ -509,30 +509,6 @@ await stage('smoke', async () => {
     throw new Error(`${what} timed out${last ? `: ${last.message}` : ''}`);
   };
 
-  /* The section bar is two dropdown menus, Workspace and Assets, rather than a
-   * row of tabs. To reach a section, open whichever menu holds it and click the
-   * entry; to list them, read both menus. */
-  const gotoSection = async (name) => {
-    for (const title of ['Workspace', 'Assets']) {
-      await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
-      await delay(160);
-      const clicked = await evaluate(`(() => { const item = [...document.querySelectorAll('.panel-menu-item')].find((element) => element.textContent.trim() === ${JSON.stringify(name)}); if (!item) return false; item.click(); return true; })()`);
-      if (clicked) return true;
-      await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
-    }
-    return false;
-  };
-  const listSections = async () => {
-    const names = [];
-    for (const title of ['Workspace', 'Assets']) {
-      await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
-      await delay(160);
-      names.push(...await evaluate(`[...document.querySelectorAll('.panel-menu-item')].map((element) => element.textContent.trim())`));
-      await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
-    }
-    return names;
-  };
-
   try {
     await until(async () => {
       /* If the browser this run started has gone, whatever is answering the
@@ -571,6 +547,31 @@ await stage('smoke', async () => {
       if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
       return result.result.value;
     };
+
+    /* The section bar is two dropdown menus, Workspace and Assets, rather than a
+     * row of tabs. To reach a section, open whichever menu holds it and click the
+     * entry; to list them, read both menus. */
+    const gotoSection = async (name) => {
+      for (const title of ['Workspace', 'Assets']) {
+        await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+        await delay(160);
+        const clicked = await evaluate(`(() => { const item = [...document.querySelectorAll('.panel-menu-item')].find((element) => element.textContent.trim() === ${JSON.stringify(name)}); if (!item) return false; item.click(); return true; })()`);
+        if (clicked) return true;
+        await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+      }
+      return false;
+    };
+    const listSections = async () => {
+      const names = [];
+      for (const title of ['Workspace', 'Assets']) {
+        await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+        await delay(160);
+        names.push(...await evaluate(`[...document.querySelectorAll('.panel-menu-item')].map((element) => element.textContent.trim())`));
+        await evaluate(`(() => { const button = [...document.querySelectorAll('.modebar .panel-actions-button')].find((element) => element.textContent.trim() === ${JSON.stringify(title)}); if (button) button.click(); })()`);
+      }
+      return names;
+    };
+
 
     await call('Page.enable');
     await call('Runtime.enable');
