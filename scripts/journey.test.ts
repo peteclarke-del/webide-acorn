@@ -71,9 +71,11 @@ describe('the authoring journey', () => {
     const source = readFileSync(resolve(process.cwd(), 'scripts/journey.mjs'), 'utf8');
     /* Every element of the workflow the journey is supposed to cover. Naming
      * them here is what stops one being quietly dropped when a selector breaks
-     * and the walk still reports success. */
+     * and the walk still reports success. The sections are reached by choosing
+     * them from the Workspace and Assets menus now, so the walk names the item
+     * it picks rather than a tab that is no longer on the surface. */
     for (const element of ['Sprites', 'Sound', 'Build targets', 'Media']) {
-      expect(source, `${element} is visited`).toContain(`clickText('${element}')`);
+      expect(source, `${element} is visited`).toContain(`/^${element}$/`);
     }
     /* The editors keep their actions in menus now, so the walk names the item
      * it chooses out of one rather than the whole label of a button. */
