@@ -206,11 +206,11 @@ final class BeebAsmOutputParser
      *
      * The listing's lowest address is the lowest address the whole assembly
      * emitted, which is the right origin for the one binary a filename-free
-     * SAVE writes and the wrong one for a project that emits several. Graveyard
-     * Shift assembles a rules block at &1400 and the game at &1900, and its
-     * game binary was being reported as loading at &1400, five hundred bytes
-     * out, which would put every breakpoint and every mapped line in the wrong
-     * place.
+     * SAVE writes and the wrong one for a project that emits several. A project
+     * that assembles, say, a rules block at &1400 and its main program at
+     * &1900 would have that main binary reported as loading at &1400, five
+     * hundred bytes out, which would put every breakpoint and every mapped line
+     * in the wrong place.
      *
      * The start is read from the directive that wrote the file, resolved
      * against the symbols BeebAsm emitted. A start that is neither a symbol nor

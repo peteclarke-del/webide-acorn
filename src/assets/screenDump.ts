@@ -3,9 +3,10 @@
  *
  * A loading screen is usually not authored in a screen editor. It is a picture
  * converted by a tool, written out as the exact bytes the video hardware reads,
- * and loaded at &3000 by the game's loader. A `.scr`, a `LOADPIC`, a file with
- * no extension at all. That file is not text, so the importer excluded it and
- * the project arrived with the artwork it opens on missing entirely.
+ * and loaded straight into screen memory by a program. A `.scr`, a file named
+ * for the screen it holds, a file with no extension at all. That file is not
+ * text, so the importer excluded it and the project arrived with the artwork it
+ * opens on missing entirely.
  *
  * There is nothing in the bytes that says which display mode they are for: a
  * BBC frame buffer is twenty kilobytes in modes 0, 1 and 2 alike, and ten in

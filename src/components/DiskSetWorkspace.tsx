@@ -51,6 +51,17 @@ const BOOT_ACTIONS: Array<{ value: DiskSetBootAction; label: string }> = [
   { value: 'exec', label: '*EXEC on Shift+Break' },
 ];
 
+/* The catalogue layout that reproduces a disc written by a real DFS or the
+ * BeebAsm assembler, byte for byte: the title padded with NUL, the files listed
+ * newest first, and the image trimmed to the sectors it uses. Offered as one
+ * choice because the three go together for that purpose; the default writes the
+ * workbench's own layout. */
+const AUTHENTIC_DFS_LAYOUT: NonNullable<DiskSetDisc['layout']> = { titlePadding: 'nul', catalogueOrder: 'newest-first', trimToUsedSectors: true };
+
+function isAuthenticDfsLayout(layout: DiskSetDisc['layout']): boolean {
+  return !!layout && layout.titlePadding === 'nul' && layout.catalogueOrder === 'newest-first' && layout.trimToUsedSectors === true;
+}
+
 const identity = () => crypto.randomUUID();
 
 function emptySide(title: string): DiskSetSide {
@@ -110,7 +121,7 @@ export function DiskSetWorkspace({ sets, buildTargets, projectFiles, artifacts, 
 
   const edit = (mutate: (draft: {
     schema: DiskSet['schema']; version: DiskSet['version']; id: string; name: string;
-    discs: Array<{ id: string; label: string; format: DiskSetDisc['format']; sides: Array<{ title: string; entries: DiskSetEntry[]; boot: DiskSetSide['boot'] }> }>;
+    discs: Array<{ id: string; label: string; format: DiskSetDisc['format']; layout?: DiskSetDisc['layout']; sides: Array<{ title: string; entries: DiskSetEntry[]; boot: DiskSetSide['boot'] }> }>;
   }) => void) => {
     if (!selected) return;
     const draft = JSON.parse(JSON.stringify(selected)) as Parameters<typeof mutate>[0];
@@ -219,6 +230,24 @@ export function DiskSetWorkspace({ sets, buildTargets, projectFiles, artifacts, 
                 <option value="dfs-dsd">Double-sided DFS (400 KiB)</option>
               </select>
             </label>
+            {disc.format === 'dfs-ssd' && (
+              <label>
+                <span>Catalogue</span>
+                <select
+                  value={isAuthenticDfsLayout(disc.layout) ? 'authentic' : 'workbench'}
+                  aria-label={`Disc ${discIndex + 1} catalogue layout`}
+                  title="How the catalogue is written. Authentic reproduces a disc from a real DFS or the BeebAsm assembler, byte for byte: NUL-padded title, files listed newest first, trimmed to used sectors."
+                  onChange={(event) => edit((draft) => {
+                    const target = draft.discs[discIndex]!;
+                    if (event.target.value === 'authentic') target.layout = { ...AUTHENTIC_DFS_LAYOUT };
+                    else delete target.layout;
+                  })}
+                >
+                  <option value="workbench">Workbench</option>
+                  <option value="authentic">Authentic DFS</option>
+                </select>
+              </label>
+            )}
             <button type="button" disabled={selected.discs.length === 1} onClick={() => edit((draft) => { draft.discs.splice(discIndex, 1); })}>Remove disc</button>
           </header>
 
