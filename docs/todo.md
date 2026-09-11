@@ -6411,9 +6411,10 @@ Current implemented increment:
   is how an 8-bit Acorn starts the disc in drive 0, had no control and no
   command.
   - [x] Boot from disc, in the runtime toolbar and the command palette, is a
-    hard reset with Shift held for four seconds of wall time, which on a
-    Model B that also starts a second processor is past the moment the
-    filing system reads the key.
+    hard reset with Shift held for three seconds of the machine's own time,
+    counted in cycles, which on a Model B that also starts a second
+    processor is past the moment the filing system reads the key; a
+    wall-clock hold let go too soon in a window the browser was throttling.
   - [x] Evidence: `holdShiftThroughBoot` in `src/emulator/runtime.ts`, and
     the disk-set workflow in `docs/guide/media.md`, which names the control;
     the boot itself is driven by the FireWing demonstration outside this

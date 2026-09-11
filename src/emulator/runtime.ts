@@ -456,6 +456,7 @@ function executeCycles(cycles: number) {
   cpu.execute(cycles);
   const after = cpu.cycleSeconds * cpu.model.cyclesPerSecond + cpu.currentCycles;
   emulatedCycles += Math.max(0, after - before);
+  releaseBootShiftWhenDue();
 }
 
 function instructionAt(address: number) {
@@ -1306,16 +1307,26 @@ const OS_BOOT_CYCLE_CEILING = 20_000_000;
  * offers the ROMs the boot, and a disc with a boot option is then started.
  * On a Model B with a second processor that offer comes after the Tube has
  * started the parasite and its banner has been printed, which is past two
- * seconds; four seconds of wall time at normal speed is past it on every
- * machine here. The key goes down after the reset, since the reset clears
- * the keyboard matrix, and a Shift still held once the disc has booted is
- * read by nothing.
+ * seconds of the machine's own time. The key is held for three seconds of
+ * that time, counted in cycles by the run loop, because wall time is not
+ * the machine's: in a browser window that is not in front, or a headless
+ * one, the machine runs at a fraction of real time and a wall-clock hold
+ * let go before the filing system had looked. The key goes down after the
+ * reset, since the reset clears the keyboard matrix, and a Shift still held
+ * once the disc has booted is read by nothing.
  */
+const BOOT_SHIFT_CYCLES = 6_000_000;
+let bootShiftReleaseAt: number | null = null;
+const BOOT_SHIFT = { keyCode: 16, which: 16, charCode: 0, location: 1, altKey: false, ctrlKey: false, shiftKey: true, preventDefault() {} } as KeyboardEvent;
 function holdShiftThroughBoot(): void {
   if (!keyboard) return;
-  const shift = { keyCode: 16, which: 16, charCode: 0, location: 1, altKey: false, ctrlKey: false, shiftKey: true, preventDefault() {} } as KeyboardEvent;
-  keyboard.keyDown(shift);
-  window.setTimeout(() => keyboard?.keyUp(shift), 4000);
+  keyboard.keyDown(BOOT_SHIFT);
+  bootShiftReleaseAt = emulatedCycles + BOOT_SHIFT_CYCLES;
+}
+function releaseBootShiftWhenDue(): void {
+  if (bootShiftReleaseAt === null || emulatedCycles < bootShiftReleaseAt) return;
+  bootShiftReleaseAt = null;
+  keyboard?.keyUp(BOOT_SHIFT);
 }
 
 function runUntilOperatingSystemReady(): { marker: number | null; ready: boolean; cycles: number } {
