@@ -49,6 +49,31 @@ describe('versioned pixel asset documents', () => {
     expect(Array.from(assembled.bytes.slice(-2))).toEqual([3, 4]);
   });
 
+  it('packs a masked BBC screen sprite as a two-bit AND mask aligned with the sprite bytes', () => {
+    const document = createPixelAssetDocument('sprite', 16, 16);
+    document.target.packing = 'bbc-screen-2bpp-eight-line-blocks';
+    // The default mask is fully opaque, so the AND mask clears the screen everywhere.
+    const opaque = generatePixelAssetOutput(parsePixelAssetDocument(serializePixelAssetDocument(document)));
+    expect(opaque.manifest).toMatchObject({ maskPacking: '2bpp-and-mask-screen-order', maskByteLength: 64, frameByteLength: 64 });
+    expect(Array.from(opaque.maskBytes ?? []).every((byte) => byte === 0)).toBe(true);
+    // Colour pixels 0 and 1 of the first row, then mark pixel 1 transparent. Its
+    // mask nibble becomes 11 (keep the ground) and its sprite bits become 0, so a
+    // (screen AND mask) OR sprite blit ORs nothing back over the kept background.
+    document.pixels[0] = 3; document.pixels[1] = 3; document.sprite!.mask[1] = 0;
+    const mixed = generatePixelAssetOutput(parsePixelAssetDocument(serializePixelAssetDocument(document)));
+    expect(mixed.bytes[0]).toBe(0x88);
+    expect(mixed.maskBytes?.[0]).toBe(0x44);
+  });
+
+  it('packs a masked MODE 5 sprite mask in the same hardware interleave as its pixels', () => {
+    const document = createPixelAssetDocument('sprite', 8, 8);
+    document.target.packing = 'bbc-mode-5-hardware-interleaved-2bpp';
+    document.sprite!.mask = Array(64).fill(0); // every pixel transparent: keep the ground everywhere
+    const output = generatePixelAssetOutput(parsePixelAssetDocument(serializePixelAssetDocument(document)));
+    expect(output.manifest).toMatchObject({ maskPacking: '2bpp-and-mask-hardware-interleaved', maskByteLength: 16 });
+    expect(Array.from(output.maskBytes ?? []).every((byte) => byte === 0xff)).toBe(true);
+  });
+
   it('persists, edits, orders and generates bounded sprite animation frames', () => {
     let document = createPixelAssetDocument('sprite', 8, 8); document.name = 'runner';
     document.pixels[0] = 1; document.sprite!.mask[0] = 0; document.sprite!.hotspot = { x: 1, y: 2 };
