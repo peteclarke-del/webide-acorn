@@ -2320,8 +2320,9 @@ function App() {
       </header>
 
       <nav className="modebar" aria-label="IDE sections">
-        <PanelMenuBar label="Workbench menu" menus={workbenchMenus} />
-        <PanelMenuBar label="Sections" menus={sectionMenus} />
+        {/* Workspace and Assets sit in the one menu bar, between Debug and View,
+          * rather than as a group of their own. */}
+        <PanelMenuBar label="Workbench menu" menus={workbenchMenus.flatMap((menu) => menu.id === 'menu-view' ? [...sectionMenus, menu] : [menu])} />
         <span className="modebar-spacer" />
         <button className="panel-menu-button" type="button" aria-label={`Open help for ${workspaceTab}`} title={`Open technical help for ${workspaceTab}`} onClick={() => openHelp(workspaceHelpTopic)}>
           <Icon name="book" />
