@@ -45,6 +45,34 @@ export interface DfsPreservedMetadata {
   sector1Tail: { offset: number; bytes: number[] };
 }
 
+/**
+ * How the catalogue is laid out. These are opt-in so existing callers are
+ * untouched; a real DFS and the BeebAsm assembler make the choices under the
+ * non-default values, and matching them lets the workbench reproduce a disc
+ * written by those tools byte for byte.
+ */
+export interface DfsImageLayout {
+  /**
+   * How the twelve-character title is padded. Acorn DFS and BeebAsm pad with
+   * NUL. The workbench has always padded with a space, so `space` is the
+   * default and `nul` is asked for where an exact reproduction needs it.
+   */
+  titlePadding?: 'space' | 'nul';
+  /**
+   * The order catalogue entries are listed in. `as-written` keeps the order the
+   * files are given, with the first file at the first data sector. `newest-first`
+   * lists them in reverse of where they sit on the disc, which is what BeebAsm
+   * and a real DFS write. File placement on the disc is the same either way.
+   */
+  catalogueOrder?: 'as-written' | 'newest-first';
+  /**
+   * Trim the produced image to the sectors actually used. Off by default,
+   * because an emulator mounts a whole disc; a tool that writes only the used
+   * sectors (BeebAsm does) sets this to match.
+   */
+  trimToUsedSectors?: boolean;
+}
+
 export interface DfsImageProject {
   title: string;
   cycle?: number;
@@ -53,6 +81,8 @@ export interface DfsImageProject {
   declaredSectors?: number;
   preserved?: DfsPreservedMetadata;
   files: DfsLogicalFile[];
+  /** Optional catalogue-layout choices; the defaults preserve prior behaviour. */
+  layout?: DfsImageLayout;
 }
 
 export function openDfsImageProject(image: Uint8Array): DfsImageProject {
@@ -105,7 +135,8 @@ export function createDfsImageFromFiles(request: DfsImageProject): CreatedDfsIma
   if (nextSector > declaredSectors) throw new Error(`DFS file set needs ${nextSector} sectors but the disc declares ${declaredSectors}`);
 
   const image = new Uint8Array(declaredSectors * SECTOR_SIZE);
-  const encodedTitle = new TextEncoder().encode(title.padEnd(12, ' '));
+  const titlePad = request.layout?.titlePadding === 'nul' ? '\x00' : ' ';
+  const encodedTitle = new TextEncoder().encode(title.padEnd(12, titlePad));
   /* Unknown catalogue bytes are laid down first so the entries this adapter
    * does model overwrite them where the two overlap. */
   const preserved = request.preserved;
@@ -122,7 +153,11 @@ export function createDfsImageFromFiles(request: DfsImageProject): CreatedDfsIma
   image[SECTOR_SIZE + 5] = files.length * 8;
   image[SECTOR_SIZE + 6] = (bootOption << 4) | (((preserved?.optionBits ?? 0) & 0x03) << 2) | ((declaredSectors >>> 8) & 0x03);
   image[SECTOR_SIZE + 7] = declaredSectors & 0xff;
-  files.forEach((file, index) => {
+  /* The catalogue may list the files in the order they were placed or, as a
+   * real DFS and BeebAsm do, newest first: the reverse of their position on the
+   * disc. Placement on the disc is unchanged; only the listing order differs. */
+  const catalogueFiles = request.layout?.catalogueOrder === 'newest-first' ? [...files].reverse() : files;
+  catalogueFiles.forEach((file, index) => {
     const catalogueOffset = 8 + index * 8; image.set(new TextEncoder().encode(file.name.padEnd(7, ' ')), catalogueOffset); image[catalogueOffset + 7] = file.directory.charCodeAt(0) | (file.locked ? 0x80 : 0);
     const metadata = SECTOR_SIZE + catalogueOffset; image[metadata] = file.loadAddress & 0xff; image[metadata + 1] = (file.loadAddress >>> 8) & 0xff; image[metadata + 2] = file.executionAddress & 0xff; image[metadata + 3] = (file.executionAddress >>> 8) & 0xff; image[metadata + 4] = file.bytes.length & 0xff; image[metadata + 5] = (file.bytes.length >>> 8) & 0xff;
     image[metadata + 6] = ((file.executionAddress >>> 10) & 0xc0) | ((file.bytes.length >>> 12) & 0x30) | ((file.loadAddress >>> 14) & 0x0c) | ((file.startSector >>> 8) & 0x03); image[metadata + 7] = file.startSector & 0xff;
@@ -130,12 +165,16 @@ export function createDfsImageFromFiles(request: DfsImageProject): CreatedDfsIma
   });
 
   const catalogue = parseDfsCatalogue(image);
-  if (catalogue.warnings.length || catalogue.files.length !== files.length || !files.every((source, index) => {
+  if (catalogue.warnings.length || catalogue.files.length !== catalogueFiles.length || !catalogueFiles.every((source, index) => {
     const file = catalogue.files[index]; return !!file && file.name === source.name && file.directory === source.directory && file.locked === !!source.locked && file.loadAddress === source.loadAddress && file.executionAddress === source.executionAddress && file.length === source.bytes.length && file.startSector === source.startSector && extractDfsFile(image, file).every((byte, byteIndex) => byte === source.bytes[byteIndex]);
   })) {
     throw new Error('Generated DFS image failed independent catalogue and extent validation');
   }
-  return { image, catalogue, ...(preservedOverwritten ? { preservedBytesOverwritten: preservedOverwritten } : {}) };
+  /* Trim to the sectors in use when asked, so the file matches a tool that
+   * writes only what the disc holds. The catalogue still declares the full
+   * geometry; only the trailing empty sectors are dropped. */
+  const finalImage = request.layout?.trimToUsedSectors ? image.slice(0, Math.max(CATALOGUE_SIZE, nextSector * SECTOR_SIZE)) : image;
+  return { image: finalImage, catalogue, ...(preservedOverwritten ? { preservedBytesOverwritten: preservedOverwritten } : {}) };
 }
 
 export function createDfsImage(request: DfsImageRequest): CreatedDfsImage {

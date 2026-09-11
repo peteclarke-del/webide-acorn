@@ -126,3 +126,46 @@ describe('DFS unknown-metadata preservation', () => {
     expect(() => createDfsImageFromFiles({ title: 'X', declaredSectors: 1024, files })).toThrow('between 2 and 1023');
   });
 });
+
+describe('DFS layout choices for reproducing an external disc', () => {
+  const files = [
+    { name: 'ALPHA', loadAddress: 0x1900, executionAddress: 0x1900, bytes: Uint8Array.of(1, 2, 3) },
+    { name: 'BETA', loadAddress: 0x3000, executionAddress: 0x3000, bytes: new Uint8Array(300).fill(7) },
+  ];
+
+  it('pads the title with a space by default and with NUL when asked, without moving the files', () => {
+    const spaced = createDfsImageFromFiles({ title: 'DISK', files });
+    expect(spaced.image[7]).toBe(0x20);
+    const withNul = createDfsImageFromFiles({ title: 'DISK', files, layout: { titlePadding: 'nul' } });
+    expect(withNul.image[7]).toBe(0x00);
+    /* Only the padding changes: the title text and the data placement do not. */
+    expect(withNul.catalogue.title).toBe('DISK');
+    expect(withNul.catalogue.files.map((file) => file.startSector)).toEqual(spaced.catalogue.files.map((file) => file.startSector));
+  });
+
+  it('lists the catalogue newest first without changing where the files sit', () => {
+    const asWritten = createDfsImageFromFiles({ title: 'ORDER', files });
+    expect(asWritten.catalogue.files.map((file) => file.name)).toEqual(['ALPHA', 'BETA']);
+    expect(asWritten.catalogue.files.map((file) => file.startSector)).toEqual([2, 3]);
+
+    const newestFirst = createDfsImageFromFiles({ title: 'ORDER', files, layout: { catalogueOrder: 'newest-first' } });
+    /* The listing is reversed, but each file keeps its sector and its bytes. */
+    expect(newestFirst.catalogue.files.map((file) => file.name)).toEqual(['BETA', 'ALPHA']);
+    expect(newestFirst.catalogue.files.find((file) => file.name === 'ALPHA')!.startSector).toBe(2);
+    expect(newestFirst.catalogue.files.find((file) => file.name === 'BETA')!.startSector).toBe(3);
+    expect(extractDfsFile(newestFirst.image, newestFirst.catalogue.files.find((file) => file.name === 'BETA')!)).toEqual(new Uint8Array(300).fill(7));
+  });
+
+  it('trims to the used sectors when asked while still declaring the full geometry', () => {
+    const full = createDfsImageFromFiles({ title: 'TRIM', files });
+    expect(full.image.length).toBe(800 * 256);
+    const trimmed = createDfsImageFromFiles({ title: 'TRIM', files, layout: { trimToUsedSectors: true } });
+    /* Two catalogue sectors, then ALPHA at sector 2 and BETA across 3 and 4:
+     * five sectors used in all. */
+    expect(trimmed.image.length).toBe(5 * 256);
+    expect(trimmed.catalogue.declaredSectors).toBe(800);
+    expect(trimmed.catalogue.warnings).toEqual([]);
+    /* The trimmed image still opens and its file bytes are intact. */
+    expect(extractDfsFile(trimmed.image, trimmed.catalogue.files[1]!)).toEqual(new Uint8Array(300).fill(7));
+  });
+});

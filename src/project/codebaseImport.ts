@@ -523,6 +523,9 @@ export function codebaseImportDocument(
       ? plan.manifest.activeBuildTargetId
       : (buildTargets[0]?.id ?? 'import-default'),
     ...(plan.manifest ? { settings: plan.manifest.settings } : {}),
+    /* The disc recipes the manifest carried. They name build targets by
+     * identifier, which the import keeps, so they are valid as they stand. */
+    diskSets: plan.manifest?.diskSets ?? [],
     /* Recoveries that were asked for and could not be made. The project parser
      * ignores this field; the caller reads it and says so. */
     importSkipped: skipped,

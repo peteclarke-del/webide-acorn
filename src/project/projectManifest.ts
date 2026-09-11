@@ -20,6 +20,7 @@
  * like, and the files stay files.
  */
 import { BUILD_TARGET_SCHEMA, toolchainFor, type BuildTarget } from '../build/buildTarget';
+import { validateDiskSet, type DiskSet } from '../media/diskSet';
 import { PROJECT_FORMAT, type LocalProject, type ProjectTarget } from './project';
 
 /** The one name the manifest is written under, at the root of the folder. */
@@ -53,6 +54,14 @@ export interface ProjectManifest {
   target: ProjectTarget;
   buildTargets: ManifestBuildTarget[];
   activeBuildTargetId: string | null;
+  /**
+   * The disk sets the project defines. They record which build outputs and
+   * files go on which disc and how the machine boots, so a folder keeps its
+   * disc recipe rather than that living only in browser storage. They refer to
+   * build targets by identifier, which is stable across a folder being opened,
+   * so unlike file identifiers they survive the round trip unchanged.
+   */
+  diskSets: DiskSet[];
   settings: Record<string, unknown>;
 }
 
@@ -127,12 +136,21 @@ export function parseProjectManifest(text: string): ProjectManifest {
     seen.add(id);
   }
 
+  /* A disk set that no longer validates (a renamed field, a target it names
+   * gone) is dropped rather than refused, on the same principle as a build
+   * target: the folder is more useful open without one disc recipe than closed. */
+  const diskSets: DiskSet[] = (Array.isArray(parsed.diskSets) ? parsed.diskSets : []).flatMap((item): DiskSet[] => {
+    try { return [validateDiskSet(item)]; }
+    catch { return []; }
+  });
+
   return {
     format: parsed.format,
     name: stringOr(parsed.name, ''),
     target,
     buildTargets,
     activeBuildTargetId: typeof parsed.activeBuildTargetId === 'string' && seen.has(parsed.activeBuildTargetId) ? parsed.activeBuildTargetId : null,
+    diskSets,
     settings: isRecord(parsed.settings) ? parsed.settings : {},
   };
 }
@@ -165,6 +183,7 @@ export function manifestFromProject(project: LocalProject): ProjectManifest {
     target: { ...project.target, enabledCapabilities: [...project.target.enabledCapabilities] },
     buildTargets,
     activeBuildTargetId: buildTargets.some((target) => target.id === project.activeBuildTargetId) ? project.activeBuildTargetId : null,
+    diskSets: project.diskSets.map((set) => structuredClone(set)),
     settings: { ...project.settings },
   };
 }
@@ -177,6 +196,7 @@ export function serializeProjectManifest(manifest: ProjectManifest): string {
     target: manifest.target,
     buildTargets: manifest.buildTargets,
     activeBuildTargetId: manifest.activeBuildTargetId,
+    ...(manifest.diskSets.length ? { diskSets: manifest.diskSets } : {}),
     settings: manifest.settings,
   }, null, 2)}\n`;
 }

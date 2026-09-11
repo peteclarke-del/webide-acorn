@@ -198,4 +198,26 @@ describe('disk sets', () => {
     expect(built.discs[0]!.label).toBe('Harvest / v1.0 (release)');
     expect(built.discs[0]!.filename).toBe('Harvest-v1.0-release.ssd');
   });
+
+  it('carries a disc layout through validation and refuses an unknown choice', () => {
+    const set = validateDiskSet({ ...singleSided, discs: [{ ...singleSided.discs[0], layout: { titlePadding: 'nul', catalogueOrder: 'newest-first', trimToUsedSectors: true } }] });
+    expect(set.discs[0]!.layout).toEqual({ titlePadding: 'nul', catalogueOrder: 'newest-first', trimToUsedSectors: true });
+    expect(() => validateDiskSet({ ...singleSided, discs: [{ ...singleSided.discs[0], layout: { catalogueOrder: 'oldest-first' } }] })).toThrow(/catalogueOrder must be/);
+  });
+
+  it('honours a disc layout when writing the image, reproducing an authentic DFS', () => {
+    const set = validateDiskSet({ ...singleSided, discs: [{ ...singleSided.discs[0], layout: { titlePadding: 'nul', catalogueOrder: 'newest-first', trimToUsedSectors: true } }] });
+    const built = buildDiskSet(set, resolved({ a: 700, b: 40 }));
+    const image = built.discs[0]!.image;
+    /* NUL title padding, trimmed to used sectors, and the catalogue listed
+     * newest first: GAME sits first on the disc but LOADER is listed first. */
+    expect(image[7]).toBe(0x00);
+    expect(image.length).toBeLessThan(800 * DFS_SECTOR_SIZE);
+    const catalogue = parseDfsCatalogue(image);
+    /* A trimmed image declares the full geometry but is stored shorter, which
+     * a real DFS release disc also does; the only note is that size difference. */
+    expect(catalogue.warnings).toEqual(['Catalogue declares 800 sectors but the image contains ' + image.length / DFS_SECTOR_SIZE]);
+    expect(catalogue.files.map((file) => file.name)).toEqual(['LOADER', 'GAME']);
+    expect(catalogue.files.find((file) => file.name === 'GAME')!.startSector).toBe(2);
+  });
 });

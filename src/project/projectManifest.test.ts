@@ -163,3 +163,50 @@ describe('writing a manifest for a project', () => {
     expect(Object.keys(JSON.parse(text))).toEqual(['format', 'name', 'target', 'buildTargets', 'activeBuildTargetId', 'settings']);
   });
 });
+
+describe('a folder that carries a disk set', () => {
+  const DISK_SET = {
+    schema: '8bit-net.disk-set', version: 1, id: 'release', name: 'FireWing release',
+    discs: [{
+      id: 'disc-1', label: 'FireWing', format: 'dfs-ssd',
+      layout: { titlePadding: 'nul', catalogueOrder: 'newest-first', trimToUsedSectors: true },
+      sides: [{
+        title: 'FIREWING',
+        entries: [
+          { id: 'boot', name: '!BOOT', source: { kind: 'build-target', targetId: 'bootfile' }, loadAddress: 0, executionAddress: 0x3ffff },
+          { id: 'game', name: 'FIREW', source: { kind: 'build-target', targetId: 'host' }, loadAddress: 0x1900, executionAddress: 0x1900 },
+        ],
+        boot: { action: 'exec', entryId: 'boot' },
+      }],
+    }],
+  };
+
+  it('reads the disk set from the manifest and writes it back unchanged', () => {
+    const manifest = parseProjectManifest(JSON.stringify({ ...MANIFEST, diskSets: [DISK_SET] }));
+    expect(manifest.diskSets).toHaveLength(1);
+    expect(manifest.diskSets[0]!.discs[0]!.layout).toEqual({ titlePadding: 'nul', catalogueOrder: 'newest-first', trimToUsedSectors: true });
+    expect(manifest.diskSets[0]!.discs[0]!.sides[0]!.entries.map((entry) => entry.name)).toEqual(['!BOOT', 'FIREW']);
+    const written = serializeProjectManifest(manifest);
+    expect(Object.keys(JSON.parse(written))).toEqual(['format', 'name', 'target', 'buildTargets', 'activeBuildTargetId', 'diskSets', 'settings']);
+    const readBack = parseProjectManifest(written);
+    expect(readBack.diskSets).toEqual(manifest.diskSets);
+  });
+
+  it('drops a disk set it cannot validate rather than refusing the whole manifest', () => {
+    const manifest = parseProjectManifest(JSON.stringify({ ...MANIFEST, diskSets: [{ schema: 'not-a-disk-set' }, DISK_SET] }));
+    expect(manifest.diskSets.map((set) => set.id)).toEqual(['release']);
+  });
+
+  it('opens the folder with the disk set on the project, its targets intact', () => {
+    const folder: CodebaseFileInput[] = [
+      { path: PROJECT_MANIFEST_FILENAME, content: JSON.stringify({ ...MANIFEST, diskSets: [DISK_SET] }) },
+      { path: 'src/host.asm', content: 'ORG &1900\n.start\nRTS\n' },
+      { path: 'src/parasite.asm', content: 'ORG &0800\n.start\nRTS\n' },
+    ];
+    const plan = planCodebaseImport(folder, 'FireWing', { pathsIncludeChosenFolder: false });
+    const contents = new Map(folder.filter((input) => input.path !== PROJECT_MANIFEST_FILENAME).map((input) => [input.path, input.content]));
+    const project = projectFromCodebaseImport(plan, contents);
+    expect(project.diskSets).toHaveLength(1);
+    expect(project.diskSets[0]!.discs[0]!.sides[0]!.boot).toEqual({ action: 'exec', entryId: 'boot' });
+  });
+});

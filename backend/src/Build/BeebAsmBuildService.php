@@ -145,23 +145,62 @@ final class BeebAsmBuildService
      */
     private function savedArtifact(string $job, string $output, NativeBuildRequest $request): ?array
     {
+        $wanted = $request->outputName;
         $saved = array_values(array_filter(
             $this->parser->savedFiles($output),
             static fn (string $name): bool => $name !== '' && $name[0] !== '/' && !preg_match('#(^|/)\.\.(/|$)#', $name),
         ));
         $present = array_values(array_filter($saved, static fn (string $name): bool => is_file($job.'/'.$name)));
-        if ($present === []) {
-            return null;
-        }
-
-        $wanted = $request->outputName;
         foreach ($present as $name) {
             if ($name === $wanted || basename($name) === $wanted || basename($name) === basename($wanted)) {
                 return ['path' => $job.'/'.$name, 'name' => $name, 'detail' => sprintf('Answered with %s, the file this target names.', $name)];
             }
         }
+
+        /*
+         * The verbose log is only kept up to a budget, and a build that lists a
+         * large binary prints its "Saving file" line past the end of what is
+         * kept, so the log naming the file this target wants can be gone. The
+         * job directory is fresh for this build, so a file there under the
+         * target's own output name is that output; look for it on disk.
+         */
+        $onDisk = $this->savedFileOnDisk($job, $wanted);
+        if ($onDisk !== null) {
+            return ['path' => $onDisk['path'], 'name' => $onDisk['name'], 'detail' => sprintf('Answered with %s, the file this target names, taken from the build directory.', $onDisk['name'])];
+        }
+
         if (count($present) === 1) {
             return ['path' => $job.'/'.$present[0], 'name' => $present[0], 'detail' => sprintf('Answered with %s, the only file this build saved.', $present[0])];
+        }
+
+        return null;
+    }
+
+    /**
+     * Find the file a target names in the build directory, whatever the verbose
+     * log did or did not say. The `.build` scratch directory holds the wrapper,
+     * the linker output and the labels rather than a SAVE, so it is skipped.
+     *
+     * @return array{path: string, name: string}|null
+     */
+    private function savedFileOnDisk(string $job, string $wanted): ?array
+    {
+        $base = basename($wanted);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($job, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY,
+        );
+        foreach ($iterator as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+            $relative = ltrim(substr($file->getPathname(), strlen($job)), '/');
+            if ($relative === '' || str_starts_with($relative, '.build/')) {
+                continue;
+            }
+            if ($relative === $wanted || basename($relative) === $wanted || basename($relative) === $base) {
+                return ['path' => $file->getPathname(), 'name' => $relative];
+            }
         }
 
         return null;
