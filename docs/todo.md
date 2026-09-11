@@ -6418,6 +6418,19 @@ Current implemented increment:
     the disk-set workflow in `docs/guide/media.md`, which names the control;
     the boot itself is driven by the FireWing demonstration outside this
     repository, which boots a DFS disc on a Model B with a 65C102.
+- [x] AST-635 A song could not be heard where it was written. The Sound
+  workspace had no way to play a composition, so a tune was a table of
+  numbers until it was built into a program and run.
+  - [x] Play, Pause, Stop, rewind and fast forward under Pattern sound the
+    song through the browser from the current row, which is highlighted:
+    each row as a frequency, a level and a waveform on the machine's own
+    pitch scale, the SN76489's noise as noise, the Atom timed by its delay
+    loop, and the 6581's waveforms and envelope approximated. The workspace
+    says it is an audition and the chip is heard by building and running.
+  - [x] Evidence: `src/assets/songPlayback.test.ts` for the pitch scales,
+    the rows and the transport; `src/assets/songPlayer.test.ts` for what is
+    asked of the browser's audio; `src/components/SongWorkspace.test.tsx`
+    plays, steps, pauses, stops and runs off the end through the controls.
 - [x] EMU-439 A game that starts from a disc had no Run. Build and run
   runs one target; the game needed every target built, the disk set written
   and mounted, and a Shift+Break, four places apart, and the first thing
