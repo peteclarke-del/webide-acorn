@@ -1,5 +1,5 @@
 import { sha256Hex } from '../build/digest';
-import { fitsScreenBlocks, packBbcMode5Pixels, packBbcScreenBlocks, packOpaqueMask, packTwoBitPixels } from './pixelPacking';
+import { fitsScreenBlocks, opaqueMaskToAndPixels, packBbcMode5Pixels, packBbcScreenBlocks, packOpaqueMask, packTwoBitPixels } from './pixelPacking';
 
 export type PixelAssetKind = 'character' | 'sprite' | 'tile';
 /*
@@ -55,7 +55,7 @@ export interface PixelAssetOutput {
   manifest: {
     schema: '8bit-net.generated-asset'; version: 1; sourceSchema: PixelAssetDocument['schema']; sourceVersion: 1;
     name: string; kind: PixelAssetKind; width: number; height: number; packing: PixelAssetDocument['target']['packing'];
-    byteLength: number; sha256: string; hotspot?: { x: number; y: number }; maskPacking?: '1bpp-msb-eight-pixels-per-byte'; maskByteLength?: number; maskSha256?: string;
+    byteLength: number; sha256: string; hotspot?: { x: number; y: number }; maskPacking?: '1bpp-msb-eight-pixels-per-byte' | '2bpp-and-mask-screen-order' | '2bpp-and-mask-hardware-interleaved'; maskByteLength?: number; maskSha256?: string;
     frameCount?: number; frameByteLength?: number; frameDurationsMs?: number[]; playback?: 'loop' | 'once';
   };
 }
@@ -172,15 +172,28 @@ export function serializePixelAssetDocument(document: PixelAssetDocument): strin
 export function generatePixelAssetOutput(document: PixelAssetDocument): PixelAssetOutput {
   const validated = parsePixelAssetDocument(document, document.kind);
   const frames = pixelAssetFrames(validated);
+  const packing = validated.target.packing;
+  /* A masked sprite in one of the machine's two-bit screen layouts is blitted
+   * as (screen AND mask) OR sprite. For that to work the mask must sit in the
+   * same layout as the sprite, and any pixel the mask hides must be zero in the
+   * sprite bytes so nothing is ORed back into the kept background. A logical or
+   * hardware asset with no such blit keeps the portable one-bit opaque map. */
+  const isAndMaskPacking = packing === 'bbc-screen-2bpp-eight-line-blocks' || packing === 'bbc-mode-5-hardware-interleaved-2bpp';
   const pack = (pixels: number[]) => {
-    if (validated.target.packing === 'bbc-screen-2bpp-eight-line-blocks') {
+    if (packing === 'bbc-screen-2bpp-eight-line-blocks') {
       return packBbcScreenBlocks(pixels, validated.width, validated.height) ?? packBbcMode5Pixels(pixels);
     }
-    return validated.target.packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? packBbcMode5Pixels(pixels) : packTwoBitPixels(pixels);
+    return packing === 'bbc-mode-5-hardware-interleaved-2bpp' ? packBbcMode5Pixels(pixels) : packTwoBitPixels(pixels);
   };
-  const packedFrames = frames.map((frame) => pack(frame.pixels));
+  const packMask = (mask: number[]) => {
+    if (!isAndMaskPacking) return packOpaqueMask(mask);
+    return pack(opaqueMaskToAndPixels(mask));
+  };
+  const spritePixels = (frame: { pixels: number[]; mask?: number[] }) =>
+    validated.sprite && isAndMaskPacking ? frame.pixels.map((value, index) => (frame.mask![index] === 1 ? value : 0)) : frame.pixels;
+  const packedFrames = frames.map((frame) => pack(spritePixels(frame)));
   const bytes = Uint8Array.from(packedFrames.flatMap((frame) => Array.from(frame)));
-  const packedMasks = validated.sprite ? frames.map((frame) => packOpaqueMask(frame.mask!)) : [];
+  const packedMasks = validated.sprite ? frames.map((frame) => packMask(frame.mask!)) : [];
   const maskBytes = validated.sprite ? Uint8Array.from(packedMasks.flatMap((frame) => Array.from(frame))) : undefined;
   const rows = Array.from({ length: Math.ceil(bytes.length / 8) }, (_, row) => `EQUB ${Array.from(bytes.slice(row * 8, row * 8 + 8)).map((byte) => `&${byte.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')}`);
   const manifest: PixelAssetOutput['manifest'] = {
@@ -188,7 +201,7 @@ export function generatePixelAssetOutput(document: PixelAssetDocument): PixelAss
     name: validated.name, kind: validated.kind, width: validated.width, height: validated.height,
     packing: validated.target.packing, byteLength: bytes.length, sha256: sha256Hex(bytes),
   };
-  if (validated.sprite && maskBytes) Object.assign(manifest, { hotspot: validated.sprite.hotspot, maskPacking: '1bpp-msb-eight-pixels-per-byte', maskByteLength: maskBytes.length, maskSha256: sha256Hex(maskBytes), frameCount: frames.length, frameByteLength: packedFrames[0]!.length, frameDurationsMs: frames.map((frame) => frame.durationMs), playback: validated.sprite.animation?.playback ?? 'loop' });
+  if (validated.sprite && maskBytes) Object.assign(manifest, { hotspot: validated.sprite.hotspot, maskPacking: isAndMaskPacking ? (packing === 'bbc-screen-2bpp-eight-line-blocks' ? '2bpp-and-mask-screen-order' : '2bpp-and-mask-hardware-interleaved') : '1bpp-msb-eight-pixels-per-byte', maskByteLength: maskBytes.length, maskSha256: sha256Hex(maskBytes), frameCount: frames.length, frameByteLength: packedFrames[0]!.length, frameDurationsMs: frames.map((frame) => frame.durationMs), playback: validated.sprite.animation?.playback ?? 'loop' });
   const maskRows = maskBytes ? Array.from({ length: Math.ceil(maskBytes.length / 8) }, (_, row) => `EQUB ${Array.from(maskBytes.slice(row * 8, row * 8 + 8)).map((byte) => `&${byte.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')}`) : [];
   const label = `asset_${validated.name.replace(/[^A-Za-z0-9_]/g, '_').replace(/^[^A-Za-z_]/, '_$&')}`;
   const frameTable = validated.sprite && frames.length > 1 ? [`.${label}_frames`, ...frames.map((frame, index) => `EQUW ${label}_pixels + ${index * packedFrames[0]!.length}, ${label}_mask + ${index * packedMasks[0]!.length}\nEQUB ${frame.hotspot!.x}, ${frame.hotspot!.y}\nEQUW ${frame.durationMs}`)] : [];

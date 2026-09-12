@@ -26,6 +26,21 @@ export function packOpaqueMask(mask: readonly number[]): Uint8Array {
     Array.from({ length: 8 }, (__, offset) => mask[byteIndex * 8 + offset] === 1 ? 1 << (7 - offset) : 0).reduce((byte, bit) => byte | bit, 0)));
 }
 
+/*
+ * A Mode 1/2 masked sprite is blitted as (screen AND mask) OR sprite, so the
+ * mask has to live in the same two-bit screen layout as the sprite bytes it
+ * guards rather than as a separate one-bit bitmap. An opaque pixel must clear
+ * the screen first (both colour bits 0) so the sprite colour can be ORed in; a
+ * transparent one must leave the screen untouched (both colour bits 1). This
+ * turns the document's one-per-pixel opaque map (1 opaque, 0 transparent) into
+ * the two-bit pixel values that packBbcScreenBlocks or packBbcMode5Pixels then
+ * lay out in exactly the same order as the sprite, giving a mask the machine's
+ * blitter can apply byte for byte.
+ */
+export function opaqueMaskToAndPixels(mask: readonly number[]): number[] {
+  return Array.from(mask, (bit) => (bit === 1 ? 0 : 3));
+}
+
 /* Inverses of the packers above. Both packings are bijective over whole bytes,
  * so unpacking then repacking a byte run reproduces it exactly. Import paths
  * rely on that: a pixel asset derived from existing assembler data must
